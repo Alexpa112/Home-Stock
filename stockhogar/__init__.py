@@ -1,5 +1,5 @@
 """
-Stock Hogar - aplicacion ligera para llevar el inventario de productos de casa.
+Dreame! - aplicacion ligera para llevar el inventario de productos de casa.
 Backend con Flask + SQLite, pensado para correr en una Raspberry Pi 3.
 """
 from datetime import timedelta

@@ -1,4 +1,4 @@
-# Home-Stock (Stock de Casa)
+# Dreame!
 
 Control de stock de artículos de casa con gestión de la lista de la compra
 automática.

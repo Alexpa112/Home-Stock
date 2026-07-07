@@ -1,4 +1,4 @@
-# Manual de instalación — Stock de Casa en Raspberry Pi (con Docker)
+# Manual de instalación — Dreame! en Raspberry Pi (con Docker)
 
 Guía paso a paso pensada para poder seguirla sin conocimientos previos de
 informática. Tiempo estimado: 40–50 minutos (55–65 si además haces el
@@ -41,7 +41,7 @@ distancia desde tu ordenador.
    correcta: el siguiente paso la borra entera).
 7. **Antes de pulsar "Escribir"**, busca el icono de engranaje ⚙️ /
    "Editar ajustes" y configura:
-   - Nombre del equipo (hostname): `stockhogar`
+   - Nombre del equipo (hostname): `dreame`
    - Activar SSH → usar contraseña
    - Usuario: `pi` — Contraseña: la que quieras (apúntala)
    - Wifi: SSID y contraseña de tu red, país `ES`
@@ -59,15 +59,15 @@ distancia desde tu ordenador.
 En tu PC, abre **PowerShell** y ejecuta:
 
 ```
-ssh pi@stockhogar.local
+ssh pi@dreame.local
 ```
 
 - La primera vez, escribe `yes` cuando pregunte si continuar.
 - Introduce la contraseña del Paso 1 (no se ve nada al escribirla, es
   normal).
-- Deberías ver un prompt como `pi@stockhogar:~ $`.
+- Deberías ver un prompt como `pi@dreame:~ $`.
 
-Si no conecta con el nombre, busca la IP de "stockhogar" en la lista de
+Si no conecta con el nombre, busca la IP de "dreame" en la lista de
 dispositivos conectados de tu router y usa `ssh pi@<esa-ip>`.
 
 ## Paso 4 — Instalar Docker
@@ -110,11 +110,11 @@ significa "en segundo plano", no hace falta dejar la ventana abierta).
 ## Paso 6 — Probarla
 
 Desde el móvil u otro ordenador en la misma wifi, abre el navegador en
-`http://stockhogar.local:5000` (o `http://<ip-de-la-raspberry>:5000`).
+`http://dreame.local:5000` (o `http://<ip-de-la-raspberry>:5000`).
 La primera vez te pedirá **crear una cuenta** (usuario y contraseña) antes
 de dejarte entrar — es la única vez que hace falta, porque el dispositivo
 queda recordado durante un año. Después de crearla, ya deberías ver la app
-"Stock de Casa" funcionando.
+"Dreame!" funcionando.
 
 El contenedor ya se reinicia solo si la Raspberry se apaga y se enciende,
 así que aquí termina la instalación en casa — no hace falta ningún paso más
@@ -159,7 +159,7 @@ candado 🔒, como un banco) sin tocar nada en el router.
    ```
 
    La primera vez te puede pedir confirmar (escribe `y`). Al terminar te
-   enseña una dirección parecida a `https://stockhogar.tuusuario.ts.net`
+   enseña una dirección parecida a `https://dreame.tuusuario.ts.net`
    — **apunta esa dirección**, es la que vas a usar desde fuera de casa.
    Puedes salir con `Ctrl+C`: el acceso se queda funcionando igual, no hace
    falta dejar la ventana abierta ni el ordenador encendido.
@@ -191,7 +191,7 @@ docker compose ps
 Debe aparecer el contenedor `stock-hogar` con estado `Up` (o "running").
 
 - [ ] `docker compose ps` muestra el contenedor en marcha
-- [ ] Desde el móvil (misma wifi) cargo `http://stockhogar.local:5000`
+- [ ] Desde el móvil (misma wifi) cargo `http://dreame.local:5000`
 - [ ] Tras `sudo reboot` y esperar un minuto, la app vuelve a estar
       disponible sin tocar nada
 - [ ] (Si hiciste el Paso 7) Desde el móvil con datos, sin wifi, cargo
@@ -199,7 +199,7 @@ Debe aparecer el contenedor `stock-hogar` con estado `Up` (o "running").
 
 ## Solución de problemas
 
-**No conecta con `ssh pi@stockhogar.local`**
+**No conecta con `ssh pi@dreame.local`**
 Busca la IP en la lista de dispositivos del router y conéctate con
 `ssh pi@<ip>`. Comprueba también que la Raspberry esté encendida y el wifi
 bien escrito en el Paso 1.
