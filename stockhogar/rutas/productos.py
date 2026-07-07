@@ -12,6 +12,16 @@ from .historial import buscar_historial, recordar_articulo
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 
 
+def _parsear_entero_no_negativo(valor, nombre_campo):
+    try:
+        numero = int(valor)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"La {nombre_campo} debe ser un número entero") from exc
+    if numero < 0:
+        raise ValueError(f"La {nombre_campo} no puede ser negativa")
+    return numero
+
+
 def row_to_dict(row):
     dias_aviso = row["dias_aviso"] if "dias_aviso" in row.keys() else DIAS_AVISO_DEFECTO
     fecha_actualizacion = row["fecha_actualizacion"] if "fecha_actualizacion" in row.keys() else None
@@ -28,6 +38,7 @@ def row_to_dict(row):
         "cantidad": row["cantidad"],
         "unidad": row["unidad"],
         "stock_minimo": row["stock_minimo"],
+        "espacio_id": row["espacio_id"] if "espacio_id" in row.keys() and row["espacio_id"] is not None else None,
         "fecha_creacion": row["fecha_creacion"] if "fecha_creacion" in row.keys() else None,
         "fecha_actualizacion": fecha_actualizacion,
         "dias_aviso": dias_aviso,
@@ -45,8 +56,9 @@ def revisar_stock_bajo(db, producto_id):
         "SELECT id FROM lista_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
         (producto_id,),
     ).fetchone()
+    espacio_id = producto["espacio_id"] or obtener_espacio_actual(db)
 
-    if producto["cantidad"] <= producto["stock_minimo"]:
+    if producto["cantidad"] < producto["stock_minimo"]:
         if pendiente is None:
             db.execute(
                 "INSERT INTO lista_compra "
@@ -54,7 +66,7 @@ def revisar_stock_bajo(db, producto_id):
                 "VALUES (?, ?, ?, ?, ?, ?, 'auto')",
                 (
                     producto_id, producto["nombre"], producto["unidad"], producto["categoria"],
-                    producto["icono"], producto["espacio_id"],
+                    producto["icono"], espacio_id,
                 ),
             )
     elif pendiente is not None:
@@ -121,10 +133,13 @@ def crear_producto():
         return jsonify({"error": "El nombre es obligatorio"}), 400
 
     categoria = datos.get("categoria") or "Otros"
-    cantidad = int(datos.get("cantidad") or 0)
+    try:
+        cantidad = _parsear_entero_no_negativo(datos.get("cantidad", 0), "cantidad")
+        stock_minimo = _parsear_entero_no_negativo(datos.get("stock_minimo", 1), "stock mínimo")
+        dias_aviso = int(datos.get("dias_aviso", DIAS_AVISO_DEFECTO))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     unidad = (datos.get("unidad") or "ud").strip() or "ud"
-    stock_minimo = int(datos.get("stock_minimo") or 1)
-    dias_aviso = int(datos.get("dias_aviso", DIAS_AVISO_DEFECTO))
     icono = (datos.get("icono") or "").strip() or None
 
     db = get_db()
@@ -157,10 +172,15 @@ def actualizar_producto(producto_id):
         categoria = datos.get("categoria") or actual["categoria"]
         if categoria != normalizar_categoria(db, categoria):
             categoria = actual["categoria"]
-        cantidad = int(datos.get("cantidad", actual["cantidad"]))
+        try:
+            cantidad = _parsear_entero_no_negativo(datos.get("cantidad", actual["cantidad"]), "cantidad")
+            stock_minimo = _parsear_entero_no_negativo(
+                datos.get("stock_minimo", actual["stock_minimo"]), "stock mínimo"
+            )
+            dias_aviso = int(datos.get("dias_aviso", actual["dias_aviso"]))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
         unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
-        stock_minimo = int(datos.get("stock_minimo", actual["stock_minimo"]))
-        dias_aviso = int(datos.get("dias_aviso", actual["dias_aviso"]))
         icono = (datos.get("icono", actual["icono"]) or "").strip() or None
         db.execute(
             "UPDATE productos SET nombre=?, categoria=?, cantidad=?, unidad=?, stock_minimo=?, "

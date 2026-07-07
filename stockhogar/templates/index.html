@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Dreame!</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <script>
@@ -14,60 +14,61 @@
 </head>
 <body>
 
-<header class="topbar">
-  <h1>📦 Dreame!</h1>
-  <div class="acciones-cabecera">
-    <button id="btnTema" class="icono-cabecera" title="Cambiar tema">🌙</button>
-    <button id="btnCategorias" class="icono-cabecera" title="Categorías">🏷️</button>
-    <button id="btnEscanearTicket" class="icono-cabecera" title="Escanear ticket">📷</button>
-    <button id="btnAjustes" class="icono-cabecera" title="Ajustes">⚙️</button>
-  </div>
-</header>
+<div id="appShell">
+  <header class="topbar">
+    <h1>📦 Dreame!</h1>
+    <div class="acciones-cabecera">
+      <button id="btnTema" class="icono-cabecera" title="Cambiar tema">🌙</button>
+      <button id="btnCategorias" class="icono-cabecera" title="Categorías">🏷️</button>
+      <button id="btnEscanearTicket" class="icono-cabecera" title="Escanear ticket">📷</button>
+      <button id="btnAjustes" class="icono-cabecera" title="Ajustes">⚙️</button>
+    </div>
+  </header>
 
-<div class="barra-espacio" id="barraEspacio">
-  <button id="btnEspacios" class="chip-espacio" title="Cambiar de stock">
-    <span id="espacioActualIcono">🏠</span>
-    <span id="espacioActualNombre">Cargando...</span>
-    <span class="chip-espacio-flecha">▾</span>
-  </button>
-</div>
-
-<section id="vistaEspacios" hidden>
-  <div class="espacios-cabecera">
-    <button type="button" id="btnCerrarEspacios" class="icono-cabecera" title="Volver">✕</button>
-    <h2>Tus stocks</h2>
-    <button type="button" id="btnEditarEspacios" class="secundario">Editar</button>
-  </div>
-  <div id="espaciosTarjetas" class="espacios-tarjetas"></div>
-</section>
-
-<nav class="tabs" id="tabs">
-  <button class="tab activo" data-vista="stock">📦 Stock</button>
-  <button class="tab" data-vista="compra">🛒 Lista de la compra</button>
-</nav>
-
-<section id="vistaStock">
-  <input id="buscador" type="search" placeholder="Buscar producto...">
-
-  <nav class="filtros" id="filtros"></nav>
-
-  <main id="lista" class="lista"></main>
-  <p id="vacio" class="vacio" hidden>No hay productos. Pulsa "+" para añadir el primero.</p>
-</section>
-
-<section id="vistaCompra" hidden>
-  <div id="gruposCompra" class="grupos-compra"></div>
-  <p id="compraVacia" class="vacio" hidden>Tu lista de la compra está vacía. Toca "+" para añadir algo.</p>
-
-  <div id="seccionCompletados" class="seccion-completados" hidden>
-    <button type="button" id="btnToggleCompletados" class="titulo-completados">
-      <span id="iconoToggleCompletados">▾</span> Comprados recientemente
+  <div class="barra-espacio" id="barraEspacio">
+    <button id="btnEspacios" class="chip-espacio" title="Cambiar de stock">
+      <span id="espacioActualIcono">🏠</span>
+      <span id="espacioActualNombre">Cargando...</span>
+      <span class="chip-espacio-flecha">▾</span>
     </button>
-    <div id="tilesCompletados" class="tiles-grid"></div>
   </div>
-</section>
 
-<button id="btnAbrirModal" class="fab" title="Añadir">+</button>
+  <section id="vistaEspacios" hidden>
+    <div class="espacios-cabecera">
+      <button type="button" id="btnCerrarEspacios" class="icono-cabecera" title="Volver">✕</button>
+      <h2>Tus stocks</h2>
+      <button type="button" id="btnEditarEspacios" class="secundario">Editar</button>
+    </div>
+    <div id="espaciosTarjetas" class="espacios-tarjetas"></div>
+  </section>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab activo" data-vista="stock">📦 Stock</button>
+    <button class="tab" data-vista="compra">🛒 Lista de la compra</button>
+  </nav>
+
+  <section id="vistaStock">
+    <input id="buscador" type="search" placeholder="Buscar producto...">
+
+    <nav class="filtros" id="filtros"></nav>
+
+    <main id="lista" class="lista"></main>
+    <p id="vacio" class="vacio" hidden>No hay productos. Pulsa "+" para añadir el primero.</p>
+  </section>
+
+  <section id="vistaCompra" hidden>
+    <div id="gruposCompra" class="grupos-compra"></div>
+    <p id="compraVacia" class="vacio" hidden>Tu lista de la compra está vacía. Toca "+" para añadir algo.</p>
+
+    <div id="seccionCompletados" class="seccion-completados" hidden>
+      <button type="button" id="btnToggleCompletados" class="titulo-completados">
+        <span id="iconoToggleCompletados">▾</span> Comprados recientemente
+      </button>
+      <div id="tilesCompletados" class="tiles-grid"></div>
+    </div>
+  </section>
+
+  <button id="btnAbrirModal" class="fab" title="Añadir">+</button>
 
 <div id="modal" class="modal-fondo" hidden>
   <form id="formProducto" class="modal">
@@ -91,13 +92,13 @@
 
     <div class="fila">
       <label>Cantidad
-        <input id="campoCantidad" type="number" min="0" value="1">
+        <input id="campoCantidad" type="number" step="1" inputmode="numeric" value="1">
       </label>
       <label>Unidad
         <input id="campoUnidad" type="text" maxlength="10" value="ud">
       </label>
       <label>Stock minimo
-        <input id="campoMinimo" type="number" min="0" value="1">
+        <input id="campoMinimo" type="number" step="1" inputmode="numeric" value="1">
       </label>
     </div>
 
@@ -276,6 +277,8 @@
       <button type="submit" class="primario" id="espacioBotonGuardar">Añadir</button>
     </div>
   </form>
+</div>
+
 </div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>

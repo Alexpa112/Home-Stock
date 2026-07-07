@@ -275,6 +275,68 @@ let espacioActualId = null;
 let categoriaActiva = "todas";
 let textoBusqueda = "";
 let vistaActiva = "stock";
+let tecladoOffset = 0;
+
+function sincronizarEstadoModal() {
+  const hayModalAbierto = Array.from(document.querySelectorAll('.modal-fondo')).some((modal) => !modal.hidden);
+  document.body.classList.toggle('modal-open', hayModalAbierto);
+  document.documentElement.classList.toggle('modal-open', hayModalAbierto);
+}
+
+const observerModales = new MutationObserver(() => {
+  sincronizarEstadoModal();
+});
+observerModales.observe(document.documentElement, {
+  subtree: true,
+  attributes: true,
+  attributeFilter: ['hidden'],
+});
+
+function ajustarViewportMovil() {
+  if (!window.visualViewport) {
+    document.documentElement.style.setProperty("--keyboard-offset", "0px");
+    document.body.classList.remove("is-keyboard-open");
+    tecladoOffset = 0;
+    return;
+  }
+
+  const viewport = window.visualViewport;
+  const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+  const offsetEfectivo = offset > 32 ? offset : 0;
+  const hayModalAbierto = Array.from(document.querySelectorAll('.modal-fondo')).some((modal) => !modal.hidden);
+  tecladoOffset = offsetEfectivo;
+  document.documentElement.style.setProperty("--keyboard-offset", `${offsetEfectivo}px`);
+  document.body.classList.toggle("is-keyboard-open", offsetEfectivo > 0 && !hayModalAbierto);
+  sincronizarEstadoModal();
+
+  if (offsetEfectivo > 0 && !hayModalAbierto && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+    window.requestAnimationFrame(() => {
+      document.activeElement.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    });
+  }
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", ajustarViewportMovil);
+  window.visualViewport.addEventListener("scroll", ajustarViewportMovil);
+}
+window.addEventListener("resize", ajustarViewportMovil);
+window.addEventListener("orientationchange", ajustarViewportMovil);
+document.addEventListener("focusin", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLElement && target.matches("input, select, textarea")) {
+    window.setTimeout(() => {
+      if (document.activeElement === target) {
+        ajustarViewportMovil();
+        target.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+      }
+    }, 120);
+  }
+});
+window.addEventListener("load", () => {
+  ajustarViewportMovil();
+  sincronizarEstadoModal();
+});
 
 /* --- Cierre seguro de modales: solo si el clic empieza y termina en el fondo --- */
 function habilitarCierreSeguro(fondo, alCerrar) {
@@ -534,6 +596,7 @@ formCategoria.addEventListener("submit", async (e) => {
   renderFiltros();
   poblarSelectCategoria(campoCategoria, campoCategoria.value);
 
+  cerrarModalCategorias();
   formCategoria.reset();
   categoriaCampoIcono.value = "🗂️";
   categoriaIconoElegido.textContent = "🗂️";
@@ -809,7 +872,7 @@ function render() {
 
 function crearTarjeta(p) {
   const div = document.createElement("div");
-  const bajoStock = p.cantidad <= p.stock_minimo;
+  const bajoStock = p.cantidad < p.stock_minimo;
   div.className = "tarjeta" + (bajoStock ? " bajo" : "") + (p.revisar_caducidad ? " aviso-caducidad" : "");
 
   const avisos = [];
@@ -944,13 +1007,23 @@ document.getElementById("campoNombre").addEventListener("input", (e) => {
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("productoId").value;
+  const cantidadRaw = document.getElementById("campoCantidad").value;
+  const minimoRaw = document.getElementById("campoMinimo").value;
+  const cantidad = Number(cantidadRaw);
+  const stockMinimo = Number(minimoRaw);
+
+  if (!Number.isInteger(cantidad) || cantidad < 0 || !Number.isInteger(stockMinimo) || stockMinimo < 0) {
+    alert("La cantidad y el stock mínimo deben ser números enteros y no negativos.");
+    return;
+  }
+
   const payload = {
     nombre: document.getElementById("campoNombre").value.trim(),
     categoria: campoCategoria.value,
     icono: campoIcono.value || "",
-    cantidad: Number(document.getElementById("campoCantidad").value),
+    cantidad,
     unidad: document.getElementById("campoUnidad").value.trim() || "ud",
-    stock_minimo: Number(document.getElementById("campoMinimo").value),
+    stock_minimo: stockMinimo,
     dias_aviso: Number(document.getElementById("campoDiasAviso").value),
   };
   if (!payload.nombre) return;
