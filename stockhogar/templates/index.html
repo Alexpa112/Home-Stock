@@ -24,6 +24,14 @@
   </div>
 </header>
 
+<div class="barra-espacio">
+  <button id="btnEspacios" class="chip-espacio" title="Cambiar de stock">
+    <span id="espacioActualIcono">🏠</span>
+    <span id="espacioActualNombre">Cargando...</span>
+    <span class="chip-espacio-flecha">▾</span>
+  </button>
+</div>
+
 <nav class="tabs" id="tabs">
   <button class="tab activo" data-vista="stock">📦 Stock</button>
   <button class="tab" data-vista="compra">🛒 Lista de la compra</button>
@@ -228,6 +236,33 @@
 
     <div class="acciones-modal">
       <button type="button" id="btnCerrarCategorias" class="secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalEspacios" class="modal-fondo" hidden>
+  <div class="modal">
+    <h2>Tus stocks</h2>
+    <p class="aviso">Toca un stock para cambiar a él. Cada uno tiene su propio inventario y
+      lista de la compra independientes. Toca la ✕ para borrarlo (se borra todo su contenido).</p>
+
+    <div id="espaciosLista" class="categorias-lista"></div>
+
+    <form id="formEspacio">
+      <div class="nueva-categoria-fila">
+        <label class="crece">Nuevo stock
+          <input id="espacioCampoNombre" type="text" maxlength="30" placeholder="Ej. Piso de la playa" required>
+        </label>
+        <button type="submit" class="primario">Añadir</button>
+      </div>
+      <label>Icono: <span id="espacioIconoElegido">🏠</span>
+        <input type="hidden" id="espacioCampoIcono" value="🏠">
+      </label>
+      <div id="selectorIconoEspacio"></div>
+    </form>
+
+    <div class="acciones-modal">
+      <button type="button" id="btnCerrarEspacios" class="secundario">Cerrar</button>
     </div>
   </div>
 </div>

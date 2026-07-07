@@ -243,10 +243,24 @@ const categoriaIconoElegido = document.getElementById("categoriaIconoElegido");
 const selectorIconosEl = document.getElementById("selectorIconos");
 const btnCerrarCategorias = document.getElementById("btnCerrarCategorias");
 
+const btnEspacios = document.getElementById("btnEspacios");
+const espacioActualIconoEl = document.getElementById("espacioActualIcono");
+const espacioActualNombreEl = document.getElementById("espacioActualNombre");
+const modalEspaciosFondo = document.getElementById("modalEspacios");
+const espaciosListaEl = document.getElementById("espaciosLista");
+const formEspacio = document.getElementById("formEspacio");
+const espacioCampoNombre = document.getElementById("espacioCampoNombre");
+const espacioCampoIcono = document.getElementById("espacioCampoIcono");
+const espacioIconoElegido = document.getElementById("espacioIconoElegido");
+const selectorIconoEspacioEl = document.getElementById("selectorIconoEspacio");
+const btnCerrarEspacios = document.getElementById("btnCerrarEspacios");
+
 let productos = [];
 let pendientesCompra = [];
 let completadosCompra = [];
 let categorias = [];
+let espacios = [];
+let espacioActualId = null;
 let categoriaActiva = "todas";
 let textoBusqueda = "";
 let vistaActiva = "stock";
@@ -517,6 +531,134 @@ formCategoria.addEventListener("submit", async (e) => {
     categoriaIconoElegido.textContent = icono;
   });
   categoriaCampoNombre.focus();
+});
+
+/* --- Espacios (varios stocks independientes: casa, oficina, etc.) --- */
+
+async function cargarEspacios() {
+  const [listaRes, actualRes] = await Promise.all([
+    fetch("/api/espacios"),
+    fetch("/api/espacios/actual"),
+  ]);
+  espacios = await listaRes.json();
+  const actual = await actualRes.json();
+  espacioActualId = actual.id;
+  renderEspacioActual(actual);
+}
+
+function renderEspacioActual(actual) {
+  espacioActualIconoEl.textContent = actual.icono;
+  espacioActualNombreEl.textContent = actual.nombre;
+}
+
+function renderEspaciosLista() {
+  espaciosListaEl.innerHTML = "";
+  for (const esp of espacios) {
+    const chip = document.createElement("div");
+    chip.className = "categoria-chip seleccionable" + (esp.id === espacioActualId ? " activo" : "");
+    chip.innerHTML = `<span>${esp.icono} ${escapeHtml(esp.nombre)}</span>`;
+    chip.addEventListener("click", () => seleccionarEspacio(esp.id));
+    if (espacios.length > 1) {
+      const btnBorrar = document.createElement("button");
+      btnBorrar.type = "button";
+      btnBorrar.title = "Borrar stock";
+      btnBorrar.textContent = "✕";
+      btnBorrar.addEventListener("click", (e) => {
+        e.stopPropagation();
+        borrarEspacio(esp);
+      });
+      chip.appendChild(btnBorrar);
+    }
+    espaciosListaEl.appendChild(chip);
+  }
+}
+
+async function seleccionarEspacio(id) {
+  if (id === espacioActualId) {
+    cerrarModalEspacios();
+    return;
+  }
+  const res = await fetch("/api/espacios/actual", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ espacio_id: id }),
+  });
+  const actual = await res.json();
+  espacioActualId = actual.id;
+  renderEspacioActual(actual);
+  cerrarModalEspacios();
+  await Promise.all([cargarProductos(), cargarListaCompra()]);
+}
+
+async function borrarEspacio(esp) {
+  if (!confirm(`¿Borrar el stock "${esp.nombre}"? Se borrará también todo su inventario y su lista de la compra.`)) return;
+  const res = await fetch(`/api/espacios/${esp.id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const datos = await res.json().catch(() => ({}));
+    alert(datos.error || "No se pudo borrar el stock");
+    return;
+  }
+  const eraElActual = esp.id === espacioActualId;
+  espacios = espacios.filter((e) => e.id !== esp.id);
+  renderEspaciosLista();
+  if (eraElActual) {
+    const actual = await (await fetch("/api/espacios/actual")).json();
+    espacioActualId = actual.id;
+    renderEspacioActual(actual);
+    renderEspaciosLista();
+    await Promise.all([cargarProductos(), cargarListaCompra()]);
+  }
+}
+
+function abrirModalEspacios() {
+  renderEspaciosLista();
+  formEspacio.reset();
+  espacioCampoIcono.value = "🏠";
+  espacioIconoElegido.textContent = "🏠";
+  crearSelectorIconos(selectorIconoEspacioEl, "🏠", (icono) => {
+    espacioCampoIcono.value = icono;
+    espacioIconoElegido.textContent = icono;
+  });
+  modalEspaciosFondo.hidden = false;
+}
+
+function cerrarModalEspacios() {
+  modalEspaciosFondo.hidden = true;
+}
+
+btnEspacios.addEventListener("click", abrirModalEspacios);
+btnCerrarEspacios.addEventListener("click", cerrarModalEspacios);
+habilitarCierreSeguro(modalEspaciosFondo, cerrarModalEspacios);
+
+formEspacio.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nombre = espacioCampoNombre.value.trim();
+  if (!nombre) return;
+  const icono = espacioCampoIcono.value || "🏠";
+
+  const res = await fetch("/api/espacios", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nombre, icono }),
+  });
+  const datos = await res.json();
+  if (!res.ok) {
+    alert(datos.error || "No se pudo crear el stock");
+    return;
+  }
+
+  espacios.push(datos);
+  espacios.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  renderEspaciosLista();
+
+  formEspacio.reset();
+  espacioCampoIcono.value = "🏠";
+  espacioIconoElegido.textContent = "🏠";
+  crearSelectorIconos(selectorIconoEspacioEl, "🏠", (icono) => {
+    espacioCampoIcono.value = icono;
+    espacioIconoElegido.textContent = icono;
+  });
+  espacioCampoNombre.focus();
 });
 
 /* --- Stock --- */
@@ -1297,6 +1439,7 @@ btnConfirmarTicket.addEventListener("click", async () => {
   }
 });
 
+cargarEspacios();
 cargarCategorias().then(() => {
   cargarProductos();
   cargarListaCompra();

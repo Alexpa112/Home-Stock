@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 
 from ..db import ahora, get_db
 from .categorias import normalizar_categoria
+from .espacios import obtener_espacio_actual
 from .historial import buscar_historial, recordar_articulo
 
 bp = Blueprint("lista_compra", __name__, url_prefix="/api/lista-compra")
@@ -32,13 +33,16 @@ def compra_a_dict(row):
 @bp.route("", methods=["GET"])
 def listar_lista_compra():
     db = get_db()
+    espacio_id = obtener_espacio_actual(db)
     pendientes = db.execute(
-        "SELECT * FROM lista_compra WHERE activo = 1 ORDER BY categoria, nombre COLLATE NOCASE"
+        "SELECT * FROM lista_compra WHERE activo = 1 AND espacio_id = ? "
+        "ORDER BY categoria, nombre COLLATE NOCASE",
+        (espacio_id,),
     ).fetchall()
     completados = db.execute(
-        "SELECT * FROM lista_compra WHERE activo = 0 "
+        "SELECT * FROM lista_compra WHERE activo = 0 AND espacio_id = ? "
         "ORDER BY fecha_completado DESC LIMIT ?",
-        (LIMITE_COMPLETADOS,),
+        (espacio_id, LIMITE_COMPLETADOS),
     ).fetchall()
     return jsonify({
         "pendientes": [compra_a_dict(f) for f in pendientes],
@@ -54,14 +58,15 @@ def anadir_lista_compra():
         return jsonify({"error": "El nombre es obligatorio"}), 400
 
     db = get_db()
+    espacio_id = obtener_espacio_actual(db)
     cantidad_sumar = max(1, int(datos.get("cantidad") or 1))
 
     # Si ya esta en la lista activa, un "añadir" repetido simplemente suma
     # cantidad en vez de crear una fila duplicada (asi el toque rapido del
     # catalogo funciona como cabria esperar).
     existente = db.execute(
-        "SELECT * FROM lista_compra WHERE nombre = ? COLLATE NOCASE AND activo = 1",
-        (nombre,),
+        "SELECT * FROM lista_compra WHERE nombre = ? COLLATE NOCASE AND activo = 1 AND espacio_id = ?",
+        (nombre, espacio_id),
     ).fetchone()
     if existente:
         db.execute(
@@ -81,9 +86,10 @@ def anadir_lista_compra():
     )
 
     cur = db.execute(
-        "INSERT INTO lista_compra (nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen) "
-        "VALUES (?, ?, ?, ?, ?, ?, 'manual')",
-        (nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion),
+        "INSERT INTO lista_compra "
+        "(nombre, unidad, categoria, icono, cantidad, sub_descripcion, espacio_id, origen) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 'manual')",
+        (nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, espacio_id),
     )
     if icono:
         recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
@@ -95,7 +101,10 @@ def anadir_lista_compra():
 @bp.route("/<int:item_id>", methods=["PATCH"])
 def actualizar_lista_compra(item_id):
     db = get_db()
-    fila = db.execute("SELECT * FROM lista_compra WHERE id = ?", (item_id,)).fetchone()
+    espacio_id = obtener_espacio_actual(db)
+    fila = db.execute(
+        "SELECT * FROM lista_compra WHERE id = ? AND espacio_id = ?", (item_id, espacio_id)
+    ).fetchone()
     if fila is None:
         return jsonify({"error": "No encontrado"}), 404
 
@@ -140,6 +149,7 @@ def actualizar_lista_compra(item_id):
 @bp.route("/<int:item_id>", methods=["DELETE"])
 def borrar_lista_compra(item_id):
     db = get_db()
-    db.execute("DELETE FROM lista_compra WHERE id = ?", (item_id,))
+    espacio_id = obtener_espacio_actual(db)
+    db.execute("DELETE FROM lista_compra WHERE id = ? AND espacio_id = ?", (item_id, espacio_id))
     db.commit()
     return "", 204

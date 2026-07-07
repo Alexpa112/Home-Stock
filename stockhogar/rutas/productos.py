@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from .categorias import normalizar_categoria
+from .espacios import obtener_espacio_actual
 from .historial import buscar_historial, recordar_articulo
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
@@ -48,9 +49,13 @@ def revisar_stock_bajo(db, producto_id):
     if producto["cantidad"] <= producto["stock_minimo"]:
         if pendiente is None:
             db.execute(
-                "INSERT INTO lista_compra (producto_id, nombre, unidad, categoria, icono, origen) "
-                "VALUES (?, ?, ?, ?, ?, 'auto')",
-                (producto_id, producto["nombre"], producto["unidad"], producto["categoria"], producto["icono"]),
+                "INSERT INTO lista_compra "
+                "(producto_id, nombre, unidad, categoria, icono, espacio_id, origen) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'auto')",
+                (
+                    producto_id, producto["nombre"], producto["unidad"], producto["categoria"],
+                    producto["icono"], producto["espacio_id"],
+                ),
             )
     elif pendiente is not None:
         # Se ha vuelto a subir el stock: lo damos por comprado en vez de borrarlo,
@@ -75,17 +80,21 @@ def sumar_stock(db, producto_id, cantidad_a_sumar):
 
 
 def crear_producto_nuevo(
-    db, nombre, categoria, cantidad, unidad, stock_minimo=1, dias_aviso=DIAS_AVISO_DEFECTO, icono=None
+    db, nombre, categoria, cantidad, unidad, stock_minimo=1, dias_aviso=DIAS_AVISO_DEFECTO,
+    icono=None, espacio_id=None,
 ):
     categoria = normalizar_categoria(db, categoria)
     if not icono:
         recuerdo = buscar_historial(db, nombre)
         if recuerdo:
             icono = recuerdo["icono"]
+    if espacio_id is None:
+        espacio_id = obtener_espacio_actual(db)
     cur = db.execute(
         "INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo, "
-        "fecha_creacion, fecha_actualizacion, dias_aviso, icono) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono),
+        "fecha_creacion, fecha_actualizacion, dias_aviso, icono, espacio_id) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono, espacio_id),
     )
     if icono:
         recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
@@ -96,8 +105,10 @@ def crear_producto_nuevo(
 @bp.route("", methods=["GET"])
 def listar_productos():
     db = get_db()
+    espacio_id = obtener_espacio_actual(db)
     filas = db.execute(
-        "SELECT * FROM productos ORDER BY categoria, nombre COLLATE NOCASE"
+        "SELECT * FROM productos WHERE espacio_id = ? ORDER BY categoria, nombre COLLATE NOCASE",
+        (espacio_id,),
     ).fetchall()
     return jsonify([row_to_dict(f) for f in filas])
 
@@ -117,7 +128,10 @@ def crear_producto():
     icono = (datos.get("icono") or "").strip() or None
 
     db = get_db()
-    producto_id = crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono)
+    espacio_id = obtener_espacio_actual(db)
+    producto_id = crear_producto_nuevo(
+        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, espacio_id
+    )
     db.commit()
     fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
     return jsonify(row_to_dict(fila)), 201
@@ -126,7 +140,10 @@ def crear_producto():
 @bp.route("/<int:producto_id>", methods=["PATCH"])
 def actualizar_producto(producto_id):
     db = get_db()
-    fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
+    espacio_id = obtener_espacio_actual(db)
+    fila = db.execute(
+        "SELECT * FROM productos WHERE id = ? AND espacio_id = ?", (producto_id, espacio_id)
+    ).fetchone()
     if fila is None:
         return jsonify({"error": "Producto no encontrado"}), 404
 
@@ -162,7 +179,8 @@ def actualizar_producto(producto_id):
 @bp.route("/<int:producto_id>", methods=["DELETE"])
 def borrar_producto(producto_id):
     db = get_db()
+    espacio_id = obtener_espacio_actual(db)
     db.execute("DELETE FROM lista_compra WHERE producto_id = ? AND origen = 'auto'", (producto_id,))
-    db.execute("DELETE FROM productos WHERE id = ?", (producto_id,))
+    db.execute("DELETE FROM productos WHERE id = ? AND espacio_id = ?", (producto_id, espacio_id))
     db.commit()
     return "", 204

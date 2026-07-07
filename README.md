@@ -41,6 +41,8 @@ StockHogar/
     │   ├── auth.py                 # Login, logout y gestión de usuarios
     │   ├── productos.py            # /api/productos (+ lógica de stock compartida)
     │   ├── categorias.py           # /api/categorias
+    │   ├── espacios.py             # /api/espacios (varios stocks independientes)
+    │   ├── historial.py            # /api/historial (catálogo de artículos e iconos)
     │   ├── lista_compra.py         # /api/lista-compra
     │   └── tickets.py              # /api/tickets/*
     ├── static/                    # CSS/JS servidos tal cual
@@ -102,6 +104,25 @@ docker compose down             # pararla (los datos no se pierden)
 La primera vez que abras la app en el navegador te pedirá crear una cuenta
 (usuario y contraseña) antes de poder usarla — ver [Usuarios y
 sesión](#usuarios-y-sesión).
+
+## Varios stocks (casa, oficina, segunda vivienda...)
+
+Justo debajo de la cabecera hay una pastilla (p. ej. "🏠 Mi casa") que muestra
+el **stock activo**. Tócala para abrir el gestor de stocks:
+
+- Cada stock tiene su **propio inventario y su propia lista de la compra**,
+  completamente independientes entre sí (si consumes algo en "Oficina" no
+  afecta a "Mi casa", y viceversa).
+- Las **categorías** y el **catálogo/historial de artículos e iconos** sí son
+  compartidos entre todos los stocks, para no tener que redefinirlos en cada
+  uno.
+- Tocar un stock de la lista cambia a él al momento. El cambio se recuerda
+  por sesión (dispositivo), así que cada persona/dispositivo puede quedarse
+  viendo un stock distinto sin pisarse.
+- El botón **✕** borra un stock **junto con todo su contenido** (inventario y
+  lista de la compra); no se puede borrar si es el único que queda.
+- Instalaciones ya existentes migran solo: todo lo que ya tenías queda dentro
+  de un primer stock llamado "Mi casa".
 
 ## Uso
 

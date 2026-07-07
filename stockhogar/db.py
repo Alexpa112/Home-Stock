@@ -43,6 +43,27 @@ def quitar_columna_si_existe(db, tabla, columna):
 def init_db():
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
+
+    # Espacios (stocks independientes: "Casa", "Piso de la playa", etc.).
+    # Se crea siempre al menos uno, para que el stock y la lista de la compra
+    # ya existentes en instalaciones previas queden asignados a él.
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS espacios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL UNIQUE,
+            icono TEXT NOT NULL DEFAULT '🏠',
+            fecha_creacion TEXT NOT NULL
+        )
+        """
+    )
+    if db.execute("SELECT COUNT(*) AS n FROM espacios").fetchone()["n"] == 0:
+        db.execute(
+            "INSERT INTO espacios (nombre, icono, fecha_creacion) VALUES (?, ?, ?)",
+            ("Mi casa", "🏠", ahora()),
+        )
+    espacio_defecto_id = db.execute("SELECT id FROM espacios ORDER BY id LIMIT 1").fetchone()["id"]
+
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS productos (
@@ -59,9 +80,11 @@ def init_db():
     asegurar_columna(db, "productos", "fecha_actualizacion", "TEXT")
     asegurar_columna(db, "productos", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
     asegurar_columna(db, "productos", "icono", "TEXT")
+    asegurar_columna(db, "productos", "espacio_id", "INTEGER")
     # Rellena fechas de productos ya existentes que no las tuvieran (migraciones previas).
     db.execute("UPDATE productos SET fecha_creacion = ? WHERE fecha_creacion IS NULL", (ahora(),))
     db.execute("UPDATE productos SET fecha_actualizacion = ? WHERE fecha_actualizacion IS NULL", (ahora(),))
+    db.execute("UPDATE productos SET espacio_id = ? WHERE espacio_id IS NULL", (espacio_defecto_id,))
 
     db.execute(
         """
@@ -80,6 +103,8 @@ def init_db():
     asegurar_columna(db, "lista_compra", "icono", "TEXT")
     asegurar_columna(db, "lista_compra", "cantidad", "INTEGER NOT NULL DEFAULT 1")
     asegurar_columna(db, "lista_compra", "sub_descripcion", "TEXT")
+    asegurar_columna(db, "lista_compra", "espacio_id", "INTEGER")
+    db.execute("UPDATE lista_compra SET espacio_id = ? WHERE espacio_id IS NULL", (espacio_defecto_id,))
     quitar_columna_si_existe(db, "lista_compra", "sincronizado_bring")
     db.execute("DROP TABLE IF EXISTS ajustes")
 
