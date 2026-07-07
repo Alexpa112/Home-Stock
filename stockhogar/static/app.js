@@ -243,17 +243,28 @@ const categoriaIconoElegido = document.getElementById("categoriaIconoElegido");
 const selectorIconosEl = document.getElementById("selectorIconos");
 const btnCerrarCategorias = document.getElementById("btnCerrarCategorias");
 
+const barraEspacio = document.getElementById("barraEspacio");
 const btnEspacios = document.getElementById("btnEspacios");
 const espacioActualIconoEl = document.getElementById("espacioActualIcono");
 const espacioActualNombreEl = document.getElementById("espacioActualNombre");
-const modalEspaciosFondo = document.getElementById("modalEspacios");
-const espaciosListaEl = document.getElementById("espaciosLista");
+const vistaEspacios = document.getElementById("vistaEspacios");
+const btnCerrarEspacios = document.getElementById("btnCerrarEspacios");
+const btnEditarEspacios = document.getElementById("btnEditarEspacios");
+const espaciosTarjetasEl = document.getElementById("espaciosTarjetas");
+
+const modalEspacioFormFondo = document.getElementById("modalEspacioForm");
 const formEspacio = document.getElementById("formEspacio");
+const espacioFormTitulo = document.getElementById("espacioFormTitulo");
+const espacioEditId = document.getElementById("espacioEditId");
+const espacioBotonGuardar = document.getElementById("espacioBotonGuardar");
 const espacioCampoNombre = document.getElementById("espacioCampoNombre");
 const espacioCampoIcono = document.getElementById("espacioCampoIcono");
 const espacioIconoElegido = document.getElementById("espacioIconoElegido");
 const selectorIconoEspacioEl = document.getElementById("selectorIconoEspacio");
-const btnCerrarEspacios = document.getElementById("btnCerrarEspacios");
+const paletaColorEspacioEl = document.getElementById("paletaColorEspacio");
+const espacioCampoColor = document.getElementById("espacioCampoColor");
+const espacioCampoColorPicker = document.getElementById("espacioCampoColorPicker");
+const btnCancelarEspacio = document.getElementById("btnCancelarEspacio");
 
 let productos = [];
 let pendientesCompra = [];
@@ -535,6 +546,33 @@ formCategoria.addEventListener("submit", async (e) => {
 
 /* --- Espacios (varios stocks independientes: casa, oficina, etc.) --- */
 
+const PALETA_COLOR_ESPACIOS = [
+  "#B5551A", "#3E7C8C", "#7B6B9E", "#5B8C5A",
+  "#C77B9E", "#C9A227", "#4A6FA5", "#B5473F",
+];
+
+let editandoEspacios = false;
+
+function ajustarColor(hex, delta) {
+  const num = parseInt(hex.slice(1), 16);
+  const canal = (despl) => Math.max(0, Math.min(255, ((num >> despl) & 0xff) + delta));
+  const r = canal(16), g = canal(8), b = canal(0);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+function colorEsClaro(hex) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = (num >> 16) & 0xff, g = (num >> 8) & 0xff, b = num & 0xff;
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 170;
+}
+
+function aplicarColorEspacio(color) {
+  const raiz = document.documentElement.style;
+  raiz.setProperty("--accent", color);
+  raiz.setProperty("--accent-soft", ajustarColor(color, 95));
+  raiz.setProperty("--accent-contrast", colorEsClaro(color) ? "#26211C" : "#FFFFFF");
+}
+
 async function cargarEspacios() {
   const [listaRes, actualRes] = await Promise.all([
     fetch("/api/espacios"),
@@ -549,45 +587,85 @@ async function cargarEspacios() {
 function renderEspacioActual(actual) {
   espacioActualIconoEl.textContent = actual.icono;
   espacioActualNombreEl.textContent = actual.nombre;
+  aplicarColorEspacio(actual.color);
 }
 
-function renderEspaciosLista() {
-  espaciosListaEl.innerHTML = "";
+function mostrarVistaEspacios() {
+  editandoEspacios = false;
+  renderTarjetasEspacios();
+  barraEspacio.hidden = true;
+  vistaEspacios.hidden = false;
+  tabs.hidden = true;
+  vistaStock.hidden = true;
+  vistaCompra.hidden = true;
+  fab.hidden = true;
+}
+
+function ocultarVistaEspacios() {
+  barraEspacio.hidden = false;
+  vistaEspacios.hidden = true;
+  tabs.hidden = false;
+  vistaStock.hidden = vistaActiva !== "stock";
+  vistaCompra.hidden = vistaActiva !== "compra";
+  fab.hidden = false;
+}
+
+function renderTarjetasEspacios() {
+  btnEditarEspacios.textContent = editandoEspacios ? "Listo" : "Editar";
+  espaciosTarjetasEl.innerHTML = "";
+
   for (const esp of espacios) {
-    const chip = document.createElement("div");
-    chip.className = "categoria-chip seleccionable" + (esp.id === espacioActualId ? " activo" : "");
-    chip.innerHTML = `<span>${esp.icono} ${escapeHtml(esp.nombre)}</span>`;
-    chip.addEventListener("click", () => seleccionarEspacio(esp.id));
-    if (espacios.length > 1) {
+    const tarjeta = document.createElement("button");
+    tarjeta.type = "button";
+    tarjeta.className = "tarjeta-espacio";
+    tarjeta.style.background = `linear-gradient(135deg, ${ajustarColor(esp.color, 25)}, ${ajustarColor(esp.color, -25)})`;
+    tarjeta.innerHTML = `
+      <span class="tarjeta-espacio-icono">${esp.icono}</span>
+      <p class="tarjeta-espacio-nombre">${escapeHtml(esp.nombre)}</p>
+      ${esp.productos_count ? `<span class="tarjeta-espacio-contador">${esp.productos_count} producto${esp.productos_count === 1 ? "" : "s"}</span>` : ""}
+      <span class="tarjeta-espacio-flecha">${editandoEspacios ? "✏️" : "›"}</span>
+    `;
+    tarjeta.addEventListener("click", () => {
+      if (editandoEspacios) abrirFormEspacio(esp);
+      else seleccionarEspacio(esp.id);
+    });
+
+    if (editandoEspacios && espacios.length > 1) {
       const btnBorrar = document.createElement("button");
       btnBorrar.type = "button";
+      btnBorrar.className = "tarjeta-espacio-borrar";
       btnBorrar.title = "Borrar stock";
       btnBorrar.textContent = "✕";
       btnBorrar.addEventListener("click", (e) => {
         e.stopPropagation();
         borrarEspacio(esp);
       });
-      chip.appendChild(btnBorrar);
+      tarjeta.appendChild(btnBorrar);
     }
-    espaciosListaEl.appendChild(chip);
+    espaciosTarjetasEl.appendChild(tarjeta);
   }
+
+  const btnNueva = document.createElement("button");
+  btnNueva.type = "button";
+  btnNueva.className = "tarjeta-espacio tarjeta-espacio-nueva";
+  btnNueva.textContent = "+ Nuevo stock";
+  btnNueva.addEventListener("click", () => abrirFormEspacio(null));
+  espaciosTarjetasEl.appendChild(btnNueva);
 }
 
 async function seleccionarEspacio(id) {
-  if (id === espacioActualId) {
-    cerrarModalEspacios();
-    return;
+  if (id !== espacioActualId) {
+    const res = await fetch("/api/espacios/actual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ espacio_id: id }),
+    });
+    const actual = await res.json();
+    espacioActualId = actual.id;
+    renderEspacioActual(actual);
+    await Promise.all([cargarProductos(), cargarListaCompra()]);
   }
-  const res = await fetch("/api/espacios/actual", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ espacio_id: id }),
-  });
-  const actual = await res.json();
-  espacioActualId = actual.id;
-  renderEspacioActual(actual);
-  cerrarModalEspacios();
-  await Promise.all([cargarProductos(), cargarListaCompra()]);
+  ocultarVistaEspacios();
 }
 
 async function borrarEspacio(esp) {
@@ -600,65 +678,110 @@ async function borrarEspacio(esp) {
   }
   const eraElActual = esp.id === espacioActualId;
   espacios = espacios.filter((e) => e.id !== esp.id);
-  renderEspaciosLista();
+  renderTarjetasEspacios();
   if (eraElActual) {
     const actual = await (await fetch("/api/espacios/actual")).json();
     espacioActualId = actual.id;
     renderEspacioActual(actual);
-    renderEspaciosLista();
     await Promise.all([cargarProductos(), cargarListaCompra()]);
   }
 }
 
-function abrirModalEspacios() {
-  renderEspaciosLista();
+btnEspacios.addEventListener("click", mostrarVistaEspacios);
+btnCerrarEspacios.addEventListener("click", ocultarVistaEspacios);
+btnEditarEspacios.addEventListener("click", () => {
+  editandoEspacios = !editandoEspacios;
+  renderTarjetasEspacios();
+});
+
+/* --- Formulario de alta/edición de un stock (nombre, icono, color) --- */
+
+function renderPaletaColorEspacio(seleccionado) {
+  paletaColorEspacioEl.innerHTML = "";
+  for (const color of PALETA_COLOR_ESPACIOS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.style.background = color;
+    btn.className = color.toLowerCase() === seleccionado.toLowerCase() ? "seleccionado" : "";
+    btn.title = color;
+    btn.addEventListener("click", () => {
+      espacioCampoColor.value = color;
+      espacioCampoColorPicker.value = color;
+      renderPaletaColorEspacio(color);
+    });
+    paletaColorEspacioEl.appendChild(btn);
+  }
+}
+
+espacioCampoColorPicker.addEventListener("input", (e) => {
+  espacioCampoColor.value = e.target.value;
+  renderPaletaColorEspacio(e.target.value);
+});
+
+function abrirFormEspacio(esp) {
   formEspacio.reset();
-  espacioCampoIcono.value = "🏠";
-  espacioIconoElegido.textContent = "🏠";
-  crearSelectorIconos(selectorIconoEspacioEl, "🏠", (icono) => {
-    espacioCampoIcono.value = icono;
-    espacioIconoElegido.textContent = icono;
+  const esEdicion = Boolean(esp);
+  espacioEditId.value = esEdicion ? esp.id : "";
+  espacioFormTitulo.textContent = esEdicion ? "Editar stock" : "Nuevo stock";
+  espacioBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
+
+  espacioCampoNombre.value = esEdicion ? esp.nombre : "";
+  const icono = esEdicion ? esp.icono : "🏠";
+  const color = esEdicion ? esp.color : PALETA_COLOR_ESPACIOS[espacios.length % PALETA_COLOR_ESPACIOS.length];
+
+  espacioCampoIcono.value = icono;
+  espacioIconoElegido.textContent = icono;
+  crearSelectorIconos(selectorIconoEspacioEl, icono, (nuevoIcono) => {
+    espacioCampoIcono.value = nuevoIcono;
+    espacioIconoElegido.textContent = nuevoIcono;
   });
-  modalEspaciosFondo.hidden = false;
+
+  espacioCampoColor.value = color;
+  espacioCampoColorPicker.value = color;
+  renderPaletaColorEspacio(color);
+
+  modalEspacioFormFondo.hidden = false;
+  espacioCampoNombre.focus();
 }
 
-function cerrarModalEspacios() {
-  modalEspaciosFondo.hidden = true;
+function cerrarFormEspacio() {
+  modalEspacioFormFondo.hidden = true;
 }
 
-btnEspacios.addEventListener("click", abrirModalEspacios);
-btnCerrarEspacios.addEventListener("click", cerrarModalEspacios);
-habilitarCierreSeguro(modalEspaciosFondo, cerrarModalEspacios);
+btnCancelarEspacio.addEventListener("click", cerrarFormEspacio);
+habilitarCierreSeguro(modalEspacioFormFondo, cerrarFormEspacio);
 
 formEspacio.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const nombre = espacioCampoNombre.value.trim();
-  if (!nombre) return;
-  const icono = espacioCampoIcono.value || "🏠";
+  const id = espacioEditId.value;
+  const payload = {
+    nombre: espacioCampoNombre.value.trim(),
+    icono: espacioCampoIcono.value || "🏠",
+    color: espacioCampoColor.value,
+  };
+  if (!payload.nombre) return;
 
-  const res = await fetch("/api/espacios", {
-    method: "POST",
+  const res = await fetch(id ? `/api/espacios/${id}` : "/api/espacios", {
+    method: id ? "PATCH" : "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nombre, icono }),
+    body: JSON.stringify(payload),
   });
   const datos = await res.json();
   if (!res.ok) {
-    alert(datos.error || "No se pudo crear el stock");
+    alert(datos.error || "No se pudo guardar el stock");
     return;
   }
 
-  espacios.push(datos);
+  if (id) {
+    espacios = espacios.map((esp) => (esp.id === datos.id ? { ...esp, ...datos } : esp));
+    if (Number(id) === espacioActualId) renderEspacioActual(datos);
+  } else {
+    espacios.push(datos);
+  }
   espacios.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-  renderEspaciosLista();
 
-  formEspacio.reset();
-  espacioCampoIcono.value = "🏠";
-  espacioIconoElegido.textContent = "🏠";
-  crearSelectorIconos(selectorIconoEspacioEl, "🏠", (icono) => {
-    espacioCampoIcono.value = icono;
-    espacioIconoElegido.textContent = icono;
-  });
-  espacioCampoNombre.focus();
+  cerrarFormEspacio();
+  renderTarjetasEspacios();
 });
 
 /* --- Stock --- */

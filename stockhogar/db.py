@@ -57,10 +57,11 @@ def init_db():
         )
         """
     )
+    asegurar_columna(db, "espacios", "color", "TEXT NOT NULL DEFAULT '#B5551A'")
     if db.execute("SELECT COUNT(*) AS n FROM espacios").fetchone()["n"] == 0:
         db.execute(
-            "INSERT INTO espacios (nombre, icono, fecha_creacion) VALUES (?, ?, ?)",
-            ("Mi casa", "🏠", ahora()),
+            "INSERT INTO espacios (nombre, icono, color, fecha_creacion) VALUES (?, ?, ?, ?)",
+            ("Mi casa", "🏠", "#B5551A", ahora()),
         )
     espacio_defecto_id = db.execute("SELECT id FROM espacios ORDER BY id LIMIT 1").fetchone()["id"]
 

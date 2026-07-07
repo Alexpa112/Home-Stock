@@ -24,13 +24,22 @@
   </div>
 </header>
 
-<div class="barra-espacio">
+<div class="barra-espacio" id="barraEspacio">
   <button id="btnEspacios" class="chip-espacio" title="Cambiar de stock">
     <span id="espacioActualIcono">🏠</span>
     <span id="espacioActualNombre">Cargando...</span>
     <span class="chip-espacio-flecha">▾</span>
   </button>
 </div>
+
+<section id="vistaEspacios" hidden>
+  <div class="espacios-cabecera">
+    <button type="button" id="btnCerrarEspacios" class="icono-cabecera" title="Volver">✕</button>
+    <h2>Tus stocks</h2>
+    <button type="button" id="btnEditarEspacios" class="secundario">Editar</button>
+  </div>
+  <div id="espaciosTarjetas" class="espacios-tarjetas"></div>
+</section>
 
 <nav class="tabs" id="tabs">
   <button class="tab activo" data-vista="stock">📦 Stock</button>
@@ -240,31 +249,33 @@
   </div>
 </div>
 
-<div id="modalEspacios" class="modal-fondo" hidden>
-  <div class="modal">
-    <h2>Tus stocks</h2>
-    <p class="aviso">Toca un stock para cambiar a él. Cada uno tiene su propio inventario y
-      lista de la compra independientes. Toca la ✕ para borrarlo (se borra todo su contenido).</p>
+<div id="modalEspacioForm" class="modal-fondo" hidden>
+  <form id="formEspacio" class="modal">
+    <h2 id="espacioFormTitulo">Nuevo stock</h2>
+    <input type="hidden" id="espacioEditId">
 
-    <div id="espaciosLista" class="categorias-lista"></div>
+    <label>Nombre
+      <input id="espacioCampoNombre" type="text" maxlength="30" placeholder="Ej. Piso de la playa" required>
+    </label>
 
-    <form id="formEspacio">
-      <div class="nueva-categoria-fila">
-        <label class="crece">Nuevo stock
-          <input id="espacioCampoNombre" type="text" maxlength="30" placeholder="Ej. Piso de la playa" required>
-        </label>
-        <button type="submit" class="primario">Añadir</button>
-      </div>
-      <label>Icono: <span id="espacioIconoElegido">🏠</span>
-        <input type="hidden" id="espacioCampoIcono" value="🏠">
-      </label>
-      <div id="selectorIconoEspacio"></div>
-    </form>
+    <label>Icono: <span id="espacioIconoElegido">🏠</span>
+      <input type="hidden" id="espacioCampoIcono" value="🏠">
+    </label>
+    <div id="selectorIconoEspacio"></div>
+
+    <span>Color <small class="nota-icono">(se usa en su tarjeta y en los acentos de la app mientras estás en este stock)</small></span>
+    <div id="paletaColorEspacio" class="paleta-color"></div>
+    <label class="fila-color-personalizado">
+      Personalizado
+      <input type="color" id="espacioCampoColorPicker" value="#B5551A">
+    </label>
+    <input type="hidden" id="espacioCampoColor" value="#B5551A">
 
     <div class="acciones-modal">
-      <button type="button" id="btnCerrarEspacios" class="secundario">Cerrar</button>
+      <button type="button" id="btnCancelarEspacio" class="secundario">Cancelar</button>
+      <button type="submit" class="primario" id="espacioBotonGuardar">Añadir</button>
     </div>
-  </div>
+  </form>
 </div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>

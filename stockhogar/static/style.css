@@ -186,6 +186,134 @@ body {
 }
 .chip-espacio-flecha { color: var(--text-soft); font-size: 0.75rem; }
 
+/* ---------- Pantalla "Tus stocks" ---------- */
+
+.espacios-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+}
+.espacios-cabecera h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.espacios-tarjetas {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 16px 90px;
+}
+
+.tarjeta-espacio {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  min-height: 108px;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.tarjeta-espacio-icono {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.tarjeta-espacio-nombre {
+  margin: 8px 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+
+.tarjeta-espacio-contador {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255,255,255,.28);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tarjeta-espacio-flecha {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  font-size: 1.2rem;
+  opacity: .85;
+}
+
+.tarjeta-espacio-borrar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,.35);
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tarjeta-espacio-nueva {
+  background: var(--surface-2);
+  border: 1.5px dashed var(--border) !important;
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 600;
+  min-height: 72px;
+  box-shadow: none;
+}
+.tarjeta-espacio-nueva:hover { border-color: var(--accent) !important; color: var(--accent); }
+
+.paleta-color {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.paleta-color button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.paleta-color button.seleccionado {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.fila-color-personalizado {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px !important;
+}
+.fila-color-personalizado input[type="color"] {
+  width: 40px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
 /* ---------- Pestañas ---------- */
 
 .tabs {
@@ -194,6 +322,7 @@ body {
   padding: 10px 16px 0;
   background: var(--surface);
 }
+.tabs[hidden] { display: none; }
 
 .tab {
   flex: 1;

@@ -1,13 +1,29 @@
 """Rutas de gestion de espacios: stocks independientes (casa, oficina, etc.)."""
+import re
+
 from flask import Blueprint, jsonify, request, session
 
+from ..config import PALETA_ESPACIOS
 from ..db import ahora, get_db
 
 bp = Blueprint("espacios", __name__, url_prefix="/api/espacios")
 
+_HEX_VALIDO = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _color_valido(color):
+    color = (color or "").strip()
+    return color if _HEX_VALIDO.match(color) else None
+
 
 def espacio_a_dict(row):
-    return {"id": row["id"], "nombre": row["nombre"], "icono": row["icono"]}
+    return {
+        "id": row["id"],
+        "nombre": row["nombre"],
+        "icono": row["icono"],
+        "color": row["color"],
+        "productos_count": row["productos_count"] if "productos_count" in row.keys() else None,
+    }
 
 
 def obtener_espacio_actual(db):
@@ -27,7 +43,11 @@ def obtener_espacio_actual(db):
 @bp.route("", methods=["GET"])
 def listar_espacios():
     db = get_db()
-    filas = db.execute("SELECT * FROM espacios ORDER BY nombre COLLATE NOCASE").fetchall()
+    filas = db.execute(
+        "SELECT e.*, "
+        "(SELECT COUNT(*) FROM productos p WHERE p.espacio_id = e.id) AS productos_count "
+        "FROM espacios e ORDER BY e.nombre COLLATE NOCASE"
+    ).fetchall()
     return jsonify([espacio_a_dict(f) for f in filas])
 
 
@@ -46,12 +66,19 @@ def crear_espacio():
     if existente:
         return jsonify({"error": "Ya tienes un stock con ese nombre"}), 400
 
+    color = _color_valido(datos.get("color"))
+    if not color:
+        total = db.execute("SELECT COUNT(*) AS n FROM espacios").fetchone()["n"]
+        color = PALETA_ESPACIOS[total % len(PALETA_ESPACIOS)]
+
     cur = db.execute(
-        "INSERT INTO espacios (nombre, icono, fecha_creacion) VALUES (?, ?, ?)",
-        (nombre, icono, ahora()),
+        "INSERT INTO espacios (nombre, icono, color, fecha_creacion) VALUES (?, ?, ?, ?)",
+        (nombre, icono, color, ahora()),
     )
     db.commit()
-    fila = db.execute("SELECT * FROM espacios WHERE id = ?", (cur.lastrowid,)).fetchone()
+    fila = db.execute(
+        "SELECT *, 0 AS productos_count FROM espacios WHERE id = ?", (cur.lastrowid,)
+    ).fetchone()
     return jsonify(espacio_a_dict(fila)), 201
 
 
@@ -65,9 +92,17 @@ def actualizar_espacio(espacio_id):
     datos = request.get_json(force=True) or {}
     nombre = (datos.get("nombre") or fila["nombre"]).strip() or fila["nombre"]
     icono = (datos.get("icono") or fila["icono"]).strip() or fila["icono"]
-    db.execute("UPDATE espacios SET nombre = ?, icono = ? WHERE id = ?", (nombre, icono, espacio_id))
+    color = _color_valido(datos.get("color")) or fila["color"]
+    db.execute(
+        "UPDATE espacios SET nombre = ?, icono = ?, color = ? WHERE id = ?",
+        (nombre, icono, color, espacio_id),
+    )
     db.commit()
-    fila = db.execute("SELECT * FROM espacios WHERE id = ?", (espacio_id,)).fetchone()
+    fila = db.execute(
+        "SELECT e.*, (SELECT COUNT(*) FROM productos p WHERE p.espacio_id = e.id) AS productos_count "
+        "FROM espacios e WHERE e.id = ?",
+        (espacio_id,),
+    ).fetchone()
     return jsonify(espacio_a_dict(fila))
 
 
