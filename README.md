@@ -12,6 +12,8 @@ ejecutarse de forma permanente en una Raspberry Pi 3.
 - **Backend:** Python + Flask (un único proceso, sin dependencias pesadas).
 - **Base de datos:** SQLite (un fichero `stock.db`, cero configuración).
 - **Frontend:** HTML + CSS + JavaScript vanilla (sin frameworks, sin build).
+- **Despliegue:** contenedor Docker (imagen `python:3.11-slim` + Tesseract),
+  orquestado con Docker Compose.
 
 Todo el consumo de RAM/CPU es mínimo (unos pocos MB), apto de sobra para una
 Raspberry Pi 3.
@@ -22,8 +24,11 @@ Raspberry Pi 3.
 StockHogar/
 ├── run.py                     # Punto de entrada: arranca el servidor
 ├── requirements.txt
+├── Dockerfile                  # Imagen de la aplicación
+├── docker-compose.yml          # Orquestación (puerto, volumen de datos, reinicio)
+├── .dockerignore
 ├── data/
-│   └── stock.db                # Base de datos SQLite (no versionar)
+│   └── stock.db                # Base de datos SQLite (no versionar; persiste vía volumen)
 └── stockhogar/                  # Paquete de la aplicación
     ├── __init__.py               # Fabrica de la app (create_app) y registro de blueprints
     ├── config.py                 # Constantes: categorías, rutas, valores por defecto
@@ -46,22 +51,30 @@ con su propio `Blueprint`, y regístralo en `stockhogar/__init__.py`. Si
 necesita hablar con un servicio externo, el cliente va en
 `stockhogar/integraciones/`.
 
-## Instalación en la Raspberry Pi
+## Instalación en la Raspberry Pi (Docker)
+
+La aplicación se despliega como contenedor Docker. Tesseract, Python y todas
+las dependencias van dentro de la imagen — en la Raspberry solo hace falta
+tener Docker instalado.
 
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-venv tesseract-ocr tesseract-ocr-spa
-
-cd StockHogar
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-python3 run.py
+# 1. Instalar Docker (incluye el plugin de Docker Compose)
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+sudo reboot
 ```
 
-`tesseract-ocr-spa` es el paquete de idioma español, necesario para leer
-tickets en castellano con el escáner de tickets.
+Tras reiniciar y volver a conectar por SSH:
+
+```bash
+# 2. Descargar el proyecto
+git clone https://github.com/Alexpa112/Home-Stock.git
+cd Home-Stock
+
+# 3. Construir la imagen y arrancar el contenedor en segundo plano
+docker compose up -d --build
+```
 
 La aplicación quedará escuchando en el puerto 5000 y accesible desde
 cualquier dispositivo de la red local en:
@@ -70,31 +83,19 @@ cualquier dispositivo de la red local en:
 http://<ip-de-la-raspberry>:5000
 ```
 
-## Arranque automático (opcional)
+El contenedor se reinicia solo si falla o si se reinicia la Raspberry
+(`restart: unless-stopped` en `docker-compose.yml`), en cuanto el propio
+Docker arranca — no hace falta configurar ningún servicio `systemd` aparte.
+La base de datos (`data/stock.db`) vive en la Raspberry, fuera del
+contenedor, así que sobrevive a reconstrucciones de la imagen.
 
-Para que se ejecute siempre en segundo plano, crea un servicio systemd:
-
-```bash
-sudo nano /etc/systemd/system/stock-hogar.service
-```
-
-```ini
-[Unit]
-Description=Stock de Casa
-After=network.target
-
-[Service]
-WorkingDirectory=/home/pi/StockHogar
-ExecStart=/home/pi/StockHogar/venv/bin/python3 run.py
-Restart=always
-User=pi
-
-[Install]
-WantedBy=multi-user.target
-```
+**Comandos útiles:**
 
 ```bash
-sudo systemctl enable --now stock-hogar
+docker compose logs -f          # ver los registros en tiempo real (Ctrl+C para salir)
+docker compose ps               # ver si el contenedor está en marcha
+docker compose restart          # reiniciar la aplicación
+docker compose down             # pararla (los datos no se pierden)
 ```
 
 ## Uso
@@ -169,3 +170,14 @@ introduce tu email y contraseña, pulsa **Probar conexión** para cargar tus
 listas de Bring!, elige la lista destino y pulsa **Guardar**. Desde la
 pestaña de la lista de la compra, el botón **🔄 Sincronizar con Bring!**
 envía los artículos pendientes a esa lista.
+
+## Actualizar la app
+
+```bash
+cd ~/Home-Stock
+git pull
+docker compose up -d --build
+```
+
+Esto descarga los cambios, reconstruye la imagen con el código nuevo y
+reinicia el contenedor. Los datos en `data/stock.db` no se ven afectados.

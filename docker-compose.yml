@@ -1,0 +1,9 @@
+services:
+  stock-hogar:
+    build: .
+    container_name: stock-hogar
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
