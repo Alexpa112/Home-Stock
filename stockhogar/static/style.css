@@ -1,0 +1,462 @@
+:root {
+  --fondo: #f5f6f8;
+  --tarjeta: #ffffff;
+  --texto: #1f2430;
+  --texto-suave: #6b7280;
+  --acento: #2f6fed;
+  --bajo-stock: #e0483e;
+  --aviso-caducidad: #b5790a;
+  --borde: #e5e7eb;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  padding-bottom: 100px;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--tarjeta);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--borde);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.acciones-cabecera {
+  display: flex;
+  gap: 6px;
+}
+
+.icono-cabecera {
+  border: none;
+  background: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px 0;
+  background: var(--tarjeta);
+}
+
+.tab {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 10px 6px;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+
+.tab.activo {
+  color: var(--acento);
+  border-color: var(--acento);
+  font-weight: 600;
+}
+
+#buscador {
+  width: calc(100% - 32px);
+  margin: 14px 16px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--borde);
+  font-size: 1rem;
+  background: var(--tarjeta);
+}
+
+.filtros {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 16px;
+  background: var(--tarjeta);
+  border-bottom: 1px solid var(--borde);
+}
+
+.chip {
+  flex: none;
+  border: 1px solid var(--borde);
+  background: var(--fondo);
+  color: var(--texto);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip.activo {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: #fff;
+}
+
+.lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.tarjeta {
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tarjeta.bajo {
+  border-color: var(--bajo-stock);
+  background: #fdf1f0;
+}
+
+.tarjeta.aviso-caducidad:not(.bajo) {
+  border-color: var(--aviso-caducidad);
+  background: #fdf6ea;
+}
+
+.tarjeta.aviso-caducidad:not(.bajo) .detalle {
+  color: var(--aviso-caducidad);
+  font-weight: 600;
+}
+
+.icono {
+  font-size: 1.8rem;
+  flex: none;
+  width: 42px;
+  text-align: center;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.info .nombre {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info .detalle {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.tarjeta.bajo .detalle {
+  color: var(--bajo-stock);
+  font-weight: 600;
+}
+
+.contador {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.contador button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--borde);
+  background: var(--fondo);
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.contador button:active {
+  background: var(--acento);
+  color: #fff;
+}
+
+.contador .cantidad {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+
+.acciones button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--texto-suave);
+}
+
+.vacio {
+  text-align: center;
+  color: var(--texto-suave);
+  margin-top: 40px;
+}
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: var(--acento);
+  color: #fff;
+  font-size: 2rem;
+  line-height: 1;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal-fondo[hidden] {
+  display: none;
+}
+
+.modal {
+  background: var(--tarjeta);
+  width: 100%;
+  max-width: 420px;
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 480px) {
+  .modal-fondo { align-items: center; }
+  .modal { border-radius: 16px; }
+}
+
+.modal h2 {
+  margin: 0;
+}
+
+.modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.modal input, .modal select {
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  font-size: 1rem;
+  color: var(--texto);
+  background: var(--fondo);
+}
+
+.fila {
+  display: flex;
+  gap: 10px;
+}
+
+.fila label {
+  flex: 1;
+  min-width: 0;
+}
+
+.acciones-modal {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.acciones-modal button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.primario {
+  background: var(--acento);
+  color: #fff;
+}
+
+.secundario {
+  background: var(--fondo);
+  color: var(--texto);
+  border: 1px solid var(--borde) !important;
+}
+
+.barra-compra {
+  padding: 14px 16px 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.barra-compra .secundario {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.lista-compra {
+  list-style: none;
+  margin: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-compra {
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.item-compra input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  cursor: pointer;
+}
+
+.item-compra .info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-compra .nombre {
+  font-weight: 600;
+}
+
+.item-compra .detalle {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.badge-sincronizado {
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+  flex: none;
+}
+
+.fila-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.fila-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.aviso {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.crece {
+  flex: 1;
+}
+
+.modal-ticket {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.ticket-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.ticket-item {
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ticket-item .fila-superior {
+  display: flex;
+  gap: 6px;
+}
+
+.ticket-item .fila-superior input[name="nombre"] {
+  flex: 2;
+  min-width: 0;
+}
+
+.ticket-item .fila-superior input[name="cantidad"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.ticket-item .fila-superior input[name="unidad"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.ticket-item .fila-superior button {
+  flex: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.ticket-item select {
+  width: 100%;
+}

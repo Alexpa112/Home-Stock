@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock de Casa</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>📦 Stock de Casa</h1>
+  <div class="acciones-cabecera">
+    <button id="btnEscanearTicket" class="icono-cabecera" title="Escanear ticket">📷</button>
+    <button id="btnAjustes" class="icono-cabecera" title="Ajustes">⚙️</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab activo" data-vista="stock">📦 Stock</button>
+  <button class="tab" data-vista="compra">🛒 Lista de la compra</button>
+</nav>
+
+<section id="vistaStock">
+  <input id="buscador" type="search" placeholder="Buscar producto...">
+
+  <nav class="filtros" id="filtros">
+    <button class="chip activo" data-cat="todas">Todas</button>
+    <button class="chip" data-cat="Alimentacion">🍎 Alimentacion</button>
+    <button class="chip" data-cat="Limpieza">🧴 Limpieza</button>
+    <button class="chip" data-cat="Higiene">🧼 Higiene</button>
+    <button class="chip" data-cat="Bebidas">🥤 Bebidas</button>
+    <button class="chip" data-cat="Otros">🗂️ Otros</button>
+  </nav>
+
+  <main id="lista" class="lista"></main>
+  <p id="vacio" class="vacio" hidden>No hay productos. Pulsa "+" para añadir el primero.</p>
+</section>
+
+<section id="vistaCompra" hidden>
+  <div class="barra-compra">
+    <button id="btnSincronizarBring" class="secundario" hidden>🔄 Sincronizar con Bring!</button>
+  </div>
+  <ul id="listaCompra" class="lista-compra"></ul>
+  <p id="compraVacia" class="vacio" hidden>Tu lista de la compra está vacía.</p>
+</section>
+
+<button id="btnAbrirModal" class="fab" title="Añadir">+</button>
+
+<div id="modal" class="modal-fondo" hidden>
+  <form id="formProducto" class="modal">
+    <h2 id="modalTitulo">Nuevo producto</h2>
+    <input type="hidden" id="productoId">
+
+    <label>Nombre
+      <input id="campoNombre" type="text" required maxlength="80" placeholder="Ej. Papel higienico">
+    </label>
+
+    <label>Categoria
+      <select id="campoCategoria">
+        {% for c in categorias %}
+        <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <div class="fila">
+      <label>Cantidad
+        <input id="campoCantidad" type="number" min="0" value="1">
+      </label>
+      <label>Unidad
+        <input id="campoUnidad" type="text" maxlength="10" value="ud">
+      </label>
+      <label>Stock minimo
+        <input id="campoMinimo" type="number" min="0" value="1">
+      </label>
+    </div>
+
+    <label>Avisar para revisar caducidad si no cambia en (días)
+      <input id="campoDiasAviso" type="number" min="0" value="30">
+    </label>
+    <p class="aviso">Pon 0 para no avisar nunca de este producto.</p>
+
+    <div class="acciones-modal">
+      <button type="button" id="btnCancelar" class="secundario">Cancelar</button>
+      <button type="submit" class="primario">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div id="modalCompra" class="modal-fondo" hidden>
+  <form id="formCompra" class="modal">
+    <h2>Añadir a la lista de la compra</h2>
+    <label>Nombre
+      <input id="compraCampoNombre" type="text" required maxlength="80" placeholder="Ej. Bolsas de basura">
+    </label>
+    <label>Unidad
+      <input id="compraCampoUnidad" type="text" maxlength="10" value="ud">
+    </label>
+    <div class="acciones-modal">
+      <button type="button" id="btnCancelarCompra" class="secundario">Cancelar</button>
+      <button type="submit" class="primario">Añadir</button>
+    </div>
+  </form>
+</div>
+
+<div id="modalAjustes" class="modal-fondo" hidden>
+  <form id="formAjustes" class="modal">
+    <h2>Ajustes</h2>
+
+    <label class="fila-check">
+      <input id="ajustesActivado" type="checkbox">
+      Sincronizar la lista de la compra con Bring!
+    </label>
+
+    <p class="aviso">
+      Bring! no ofrece una API pública oficial. Esta integración usa una
+      librería de terceros que inicia sesión con tu cuenta y puede dejar de
+      funcionar si Bring cambia su aplicación. Tu email y contraseña se
+      guardan sin cifrar en la base de datos local de esta Raspberry Pi.
+    </p>
+
+    <label>Email de Bring!
+      <input id="ajustesEmail" type="email" placeholder="tucuenta@email.com">
+    </label>
+    <label>Contraseña de Bring!
+      <input id="ajustesPassword" type="password" placeholder="•••••••• (déjalo en blanco para no cambiarla)">
+    </label>
+
+    <div class="fila">
+      <button type="button" id="btnProbarBring" class="secundario">Probar conexión</button>
+      <label class="crece">Lista de Bring!
+        <select id="ajustesLista">
+          <option value="">Prueba la conexión primero</option>
+        </select>
+      </label>
+    </div>
+    <p id="ajustesEstado" class="aviso"></p>
+
+    <div class="acciones-modal">
+      <button type="button" id="btnCancelarAjustes" class="secundario">Cancelar</button>
+      <button type="submit" class="primario">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div id="modalTicket" class="modal-fondo" hidden>
+  <div class="modal modal-ticket">
+    <h2>Escanear ticket</h2>
+    <p class="aviso">
+      Lectura local con OCR (sin conexión a internet). Es orientativa: revisa
+      y corrige los artículos detectados antes de añadirlos al stock.
+    </p>
+
+    <div id="ticketPasoFoto">
+      <label>Foto del ticket
+        <input id="ticketArchivo" type="file" accept="image/*" capture="environment">
+      </label>
+      <div class="acciones-modal">
+        <button type="button" id="btnCancelarTicket" class="secundario">Cancelar</button>
+        <button type="button" id="btnAnalizarTicket" class="primario">Analizar</button>
+      </div>
+    </div>
+
+    <div id="ticketCargando" class="aviso" hidden>Leyendo el ticket, un momento...</div>
+
+    <div id="ticketPasoRevision" hidden>
+      <ul id="ticketItems" class="ticket-items"></ul>
+      <button type="button" id="btnAnadirLineaTicket" class="secundario">+ Añadir línea</button>
+      <div class="acciones-modal">
+        <button type="button" id="btnCancelarRevisionTicket" class="secundario">Cancelar</button>
+        <button type="button" id="btnConfirmarTicket" class="primario">Añadir al stock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

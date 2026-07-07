@@ -1,0 +1,5 @@
+Flask==3.0.3
+aiohttp>=3.10
+bring-api==1.1.1
+pytesseract==0.3.13
+Pillow>=10.0
