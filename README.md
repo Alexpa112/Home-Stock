@@ -30,20 +30,21 @@ StockHogar/
 ├── data/
 │   └── stock.db                # Base de datos SQLite (no versionar; persiste vía volumen)
 └── stockhogar/                  # Paquete de la aplicación
-    ├── __init__.py               # Fabrica de la app (create_app) y registro de blueprints
+    ├── __init__.py               # Fabrica de la app (create_app), blueprints y guardián de sesión
     ├── config.py                 # Constantes: categorías, rutas, valores por defecto
     ├── db.py                     # Conexión SQLite, migraciones del esquema
+    ├── seguridad.py               # Clave de sesión local
     ├── integraciones/
-    │   ├── bring_sync.py          # Cliente no oficial de Bring!
     │   └── ticket_ocr.py          # Lectura OCR local de tickets
     ├── rutas/                     # Un blueprint por dominio (así se añade uno nuevo sin tocar los demás)
     │   ├── paginas.py              # "/" (la SPA)
+    │   ├── auth.py                 # Login, logout y gestión de usuarios
     │   ├── productos.py            # /api/productos (+ lógica de stock compartida)
+    │   ├── categorias.py           # /api/categorias
     │   ├── lista_compra.py         # /api/lista-compra
-    │   ├── ajustes.py              # /api/ajustes y /api/bring/*
     │   └── tickets.py              # /api/tickets/*
     ├── static/                    # CSS/JS servidos tal cual
-    └── templates/                 # HTML (Jinja2)
+    └── templates/                 # HTML (Jinja2): index.html y login.html
 ```
 
 Para añadir una funcionalidad nueva: crea un fichero en `stockhogar/rutas/`
@@ -98,15 +99,57 @@ docker compose restart          # reiniciar la aplicación
 docker compose down             # pararla (los datos no se pierden)
 ```
 
+La primera vez que abras la app en el navegador te pedirá crear una cuenta
+(usuario y contraseña) antes de poder usarla — ver [Usuarios y
+sesión](#usuarios-y-sesión).
+
 ## Uso
 
-- Pulsa el botón **+** para añadir un producto (nombre, categoría, cantidad,
-  unidad y stock mínimo).
+- El botón **+** de la pestaña Stock abre el mismo catálogo navegable que la
+  lista de la compra (categorías con artículos habituales en mosaicos). Al
+  tocar uno, se abre su ficha para añadirlo al stock: la **cantidad es
+  obligatoria** y aparece preseleccionada con el valor que se usó la última
+  vez que se creó ese artículo (1 si es la primera vez). Si el artículo no
+  existe en el catálogo, "+ Crear producto nuevo" abre el formulario en
+  blanco (nombre, categoría, cantidad, unidad y stock mínimo).
 - Usa los botones **+ / −** de cada tarjeta para ajustar el stock al
   consumir o comprar productos.
 - Los productos con cantidad igual o inferior al stock mínimo se resaltan
   en rojo para avisar de que hay que reponerlos.
 - Filtra por categoría con los chips superiores o busca por nombre.
+
+## Iconos por artículo e historial
+
+Cada producto (y cada artículo de la lista de la compra) puede llevar su
+**propio icono**, además del de su categoría:
+
+- En el formulario de producto/artículo hay un buscador con un catálogo de
+  ~150 iconos (comida, limpieza, higiene, mascotas, herramientas, oficina,
+  jardín, etc.). Si no eliges ninguno, se usa el icono de la categoría.
+- En cuanto le pones un icono a un nombre, la app se lo **aprende**: la
+  próxima vez que escribas ese mismo nombre (al crear un producto o un
+  artículo de la lista de la compra, sea cual sea el sitio), se sugiere solo
+  el mismo icono.
+- Son emoji, no una librería de iconos SVG a medida — decisión deliberada
+  para no añadir peso ni dependencias nuevas en la Raspberry Pi. Los
+  mosaicos de la lista de la compra van sin fondo de color (solo el icono),
+  para que no resulten visualmente recargados con tantos colores distintos.
+
+## Usuarios y sesión
+
+La app requiere iniciar sesión. La primera vez que se abre (sin ningún
+usuario creado) se muestra una pantalla para crear la primera cuenta; a
+partir de ahí, se pide usuario y contraseña.
+
+- **Sesión persistente:** al iniciar sesión, el dispositivo queda recordado
+  durante 365 días (no hay que volver a autenticarse cada vez que abres la
+  app desde el mismo móvil u ordenador).
+- **Varios usuarios:** desde **⚙️ Ajustes** puedes añadir más cuentas
+  (por ejemplo, una por persona de la casa) y borrar las que no uses. No se
+  puede borrar el único usuario que quede, para no quedarte fuera.
+- **Contraseñas:** se guardan con hash (nunca en texto plano ni recuperables),
+  usando el mismo mecanismo estándar de Flask/Werkzeug.
+- **Cerrar sesión:** también desde ⚙️ Ajustes, con el botón "Cerrar sesión".
 
 ## Aviso de caducidad
 
@@ -144,32 +187,33 @@ antes de tocar el stock:
 
 ## Lista de la compra
 
-- En cuanto un producto baja a su stock mínimo (o menos) se añade solo a la
-  pestaña **🛒 Lista de la compra**, marcado como "Repuesto automático". Si
-  vuelves a subir su cantidad por encima del mínimo, desaparece solo.
-- También puedes añadir cosas a mano desde el botón **+** de esa pestaña
-  (cosas puntuales que no llevas como stock).
-- Marcar el check de un artículo lo quita de la lista. Para los "repuesto
-  automático", si no actualizas también el stock del producto en la pestaña
-  Stock, puede volver a aparecer la próxima vez que se recalcule.
-
-## Sincronización con Bring! (opcional)
-
-Bring! no tiene una API pública oficial. La integración usa la librería de
-terceros [`bring-api`](https://github.com/miaucl/bring-api) (la misma que
-usa Home Assistant), que inicia sesión con el email y contraseña de tu
-cuenta Bring! contra su API interna no documentada. Esto significa que:
-
-- Tu email y contraseña de Bring! se guardan **sin cifrar** en
-  `data/stock.db`, en la propia Raspberry. Si te preocupa, usa una cuenta
-  secundaria de Bring! dedicada solo a esto.
-- Puede dejar de funcionar sin aviso si Bring! cambia su backend.
-
-Para activarla: abre **⚙️ Ajustes**, marca "Sincronizar con Bring!",
-introduce tu email y contraseña, pulsa **Probar conexión** para cargar tus
-listas de Bring!, elige la lista destino y pulsa **Guardar**. Desde la
-pestaña de la lista de la compra, el botón **🔄 Sincronizar con Bring!**
-envía los artículos pendientes a esa lista.
+- Los artículos se muestran como **mosaicos con icono grande**, agrupados
+  por categoría con su cabecera (mismo icono/nombre que en ⚙️ Categorías).
+- **Tocar un mosaico** lo tacha y lo pasa a "Comprados recientemente" (no
+  hay checkbox aparte: el mosaico entero es el botón).
+- Desde "Comprados recientemente" puedes **volver a tocar un artículo** para
+  devolverlo a la lista activa, por si te equivocaste o vuelves a
+  necesitarlo pronto.
+- En cuanto un producto baja a su stock mínimo (o menos) se añade solo,
+  marcado como "Repuesto automático". Si vuelves a subir su cantidad por
+  encima del mínimo, se da por comprado automáticamente (pasa a "Comprados
+  recientemente" en vez de desaparecer sin más).
+- El botón **+** abre un **catálogo navegable**: categorías con sus
+  artículos habituales dentro, en mosaicos. Trae de serie ~95 productos
+  típicos de supermercado español
+  (frutas y verduras, panadería, lácteos, carnes, pescados, congelados,
+  despensa, cereales, snacks, bebidas, limpieza, higiene, bebé, mascotas...),
+  además de todo lo que tú mismo hayas creado antes.
+  - **Tocar** un producto del catálogo lo añade a la lista (o suma cantidad
+    si ya estaba).
+  - **Mantener pulsado** abre una ficha para ajustar cantidad, unidad,
+    sub-descripción o icono *antes* de añadirlo.
+  - Si buscas algo que no existe, hay un botón para crearlo como artículo
+    nuevo (con su propio icono, que además queda guardado en el catálogo
+    para la próxima vez).
+- **Mantener pulsado un artículo ya en la lista** (activo) abre esa misma
+  ficha de edición, para corregir cantidad, unidad, sub-descripción o icono
+  sin tener que borrarlo y crearlo de nuevo.
 
 ## Actualizar la app
 

@@ -1,7 +1,8 @@
 # Manual de instalación — Stock de Casa en Raspberry Pi (con Docker)
 
 Guía paso a paso pensada para poder seguirla sin conocimientos previos de
-informática. Tiempo estimado: 40–50 minutos.
+informática. Tiempo estimado: 40–50 minutos (55–65 si además haces el
+Paso 7, de acceso desde fuera de casa).
 
 ## Antes de empezar, ten esto a mano
 
@@ -110,11 +111,76 @@ significa "en segundo plano", no hace falta dejar la ventana abierta).
 
 Desde el móvil u otro ordenador en la misma wifi, abre el navegador en
 `http://stockhogar.local:5000` (o `http://<ip-de-la-raspberry>:5000`).
-Deberías ver la app "Stock de Casa" funcionando.
+La primera vez te pedirá **crear una cuenta** (usuario y contraseña) antes
+de dejarte entrar — es la única vez que hace falta, porque el dispositivo
+queda recordado durante un año. Después de crearla, ya deberías ver la app
+"Stock de Casa" funcionando.
 
 El contenedor ya se reinicia solo si la Raspberry se apaga y se enciende,
-así que aquí termina la instalación — no hace falta ningún paso más para
-dejarlo arrancando siempre.
+así que aquí termina la instalación en casa — no hace falta ningún paso más
+para dejarlo arrancando siempre.
+
+## Paso 7 — Acceso desde fuera de casa (sin abrir puertos, gratis)
+
+Esto es opcional: solo hace falta si quieres poder abrir la app desde el
+móvil con datos, o desde cualquier sitio que no sea tu wifi de casa. Usamos
+**Tailscale Funnel**, un servicio gratuito que crea un acceso seguro (con
+candado 🔒, como un banco) sin tocar nada en el router.
+
+1. En tu ordenador o móvil, ve a `tailscale.com` y crea una cuenta gratis
+   (puedes entrar directamente con tu cuenta de Google, Microsoft o GitHub,
+   no hace falta contraseña nueva).
+2. Conéctate por SSH a la Raspberry (Paso 3) e instala Tailscale:
+
+   ```
+   curl -fsSL https://tailscale.com/install.sh | sh
+   ```
+
+3. Da de alta la Raspberry en tu cuenta:
+
+   ```
+   sudo tailscale up
+   ```
+
+   Te aparecerá un enlace (algo como `https://login.tailscale.com/a/xxxxx`).
+   Copia ese enlace y ábrelo en el navegador de tu ordenador o móvil, e
+   inicia sesión con la misma cuenta del paso 1. En cuanto lo autorices ahí,
+   la terminal de la Raspberry seguirá sola.
+
+4. Activa los certificados de seguridad (el "candado" 🔒) para tu cuenta:
+   entra en `https://login.tailscale.com/admin/dns`, busca la sección
+   **HTTPS Certificates** y pulsa **Enable HTTPS**. Es un único interruptor,
+   se activa una sola vez para siempre.
+
+5. Publica la app hacia fuera con este comando:
+
+   ```
+   sudo tailscale funnel 5000
+   ```
+
+   La primera vez te puede pedir confirmar (escribe `y`). Al terminar te
+   enseña una dirección parecida a `https://stockhogar.tuusuario.ts.net`
+   — **apunta esa dirección**, es la que vas a usar desde fuera de casa.
+   Puedes salir con `Ctrl+C`: el acceso se queda funcionando igual, no hace
+   falta dejar la ventana abierta ni el ordenador encendido.
+
+6. Prueba desde el móvil con el wifi **apagado** (usando datos): abre esa
+   dirección `https://...ts.net` en el navegador. Deberías ver la app igual
+   que en casa.
+
+Este acceso se guarda solo y vuelve a funcionar automáticamente si la
+Raspberry se reinicia o se va la luz — no hace falta repetir ningún paso ni
+crear ningún servicio adicional.
+
+**Importante sobre seguridad:** esa dirección `https://...ts.net` es
+pública (cualquiera con el enlace puede entrar), igual que si fuera la web
+de un banco. No la compartas si no quieres que otras personas vean o toquen
+tu stock. Si algún día quieres desactivar el acceso desde fuera (y dejar
+solo el acceso por wifi de casa del Paso 6), ejecuta:
+
+```
+sudo tailscale funnel --https=443 off
+```
 
 ## Comprobación final
 
@@ -128,6 +194,8 @@ Debe aparecer el contenedor `stock-hogar` con estado `Up` (o "running").
 - [ ] Desde el móvil (misma wifi) cargo `http://stockhogar.local:5000`
 - [ ] Tras `sudo reboot` y esperar un minuto, la app vuelve a estar
       disponible sin tocar nada
+- [ ] (Si hiciste el Paso 7) Desde el móvil con datos, sin wifi, cargo
+      `https://...ts.net` y veo la app
 
 ## Solución de problemas
 
@@ -158,6 +226,21 @@ Tesseract va incluido dentro del contenedor, así que no debería hacer
 falta instalar nada aparte. Si falla, revisa los registros con
 `docker compose logs` para ver el error exacto.
 
+**La dirección `https://...ts.net` no carga (Paso 7)**
+Comprueba que el candado esté activado: entra en
+`https://login.tailscale.com/admin/dns` y revisa que "HTTPS Certificates"
+esté en "Enabled". Después vuelve a ejecutar `sudo tailscale funnel 5000`.
+
+**Quiero ver si el acceso desde fuera está activo**
+```
+sudo tailscale funnel status
+```
+Debe mostrar el puerto 5000 con la dirección `https://...ts.net`.
+
+**`sudo tailscale up` no me deja entrar / el enlace ha caducado**
+Repite el comando `sudo tailscale up`, te dará un enlace nuevo; ábrelo
+antes de que pasen unos minutos.
+
 ## Actualizar la app en el futuro
 
 ```
@@ -186,3 +269,11 @@ lo reinicia. Los datos guardados en `data/stock.db` no se pierden.
 - **Docker Compose**: la herramienta que lee el fichero
   `docker-compose.yml` del proyecto y sabe cómo construir y arrancar el
   contenedor con la configuración correcta (puerto, carpeta de datos...).
+- **Tailscale**: servicio gratuito que permite acceder a la Raspberry desde
+  fuera de casa sin abrir puertos en el router ni tener IP fija.
+- **Funnel**: la función de Tailscale que hace pública una dirección
+  `https://...ts.net` para poder entrar desde cualquier sitio, no solo
+  desde tus propios dispositivos.
+- **HTTPS / candado 🔒**: la conexión va cifrada, como en la web de un
+  banco; nadie que esté "escuchando" por el camino puede leer lo que
+  escribes o ves.

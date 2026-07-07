@@ -3,8 +3,10 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from ..config import CATEGORIES, DIAS_AVISO_DEFECTO
+from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
+from .categorias import normalizar_categoria
+from .historial import buscar_historial, recordar_articulo
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 
@@ -21,6 +23,7 @@ def row_to_dict(row):
         "id": row["id"],
         "nombre": row["nombre"],
         "categoria": row["categoria"],
+        "icono": row["icono"] if "icono" in row.keys() else None,
         "cantidad": row["cantidad"],
         "unidad": row["unidad"],
         "stock_minimo": row["stock_minimo"],
@@ -38,19 +41,24 @@ def revisar_stock_bajo(db, producto_id):
         return
     producto = row_to_dict(fila)
     pendiente = db.execute(
-        "SELECT id FROM lista_compra WHERE producto_id = ? AND origen = 'auto'",
+        "SELECT id FROM lista_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
         (producto_id,),
     ).fetchone()
 
     if producto["cantidad"] <= producto["stock_minimo"]:
         if pendiente is None:
             db.execute(
-                "INSERT INTO lista_compra (producto_id, nombre, unidad, origen) "
-                "VALUES (?, ?, ?, 'auto')",
-                (producto_id, producto["nombre"], producto["unidad"]),
+                "INSERT INTO lista_compra (producto_id, nombre, unidad, categoria, icono, origen) "
+                "VALUES (?, ?, ?, ?, ?, 'auto')",
+                (producto_id, producto["nombre"], producto["unidad"], producto["categoria"], producto["icono"]),
             )
     elif pendiente is not None:
-        db.execute("DELETE FROM lista_compra WHERE id = ?", (pendiente["id"],))
+        # Se ha vuelto a subir el stock: lo damos por comprado en vez de borrarlo,
+        # asi aparece en "Comprados recientemente" de la lista de la compra.
+        db.execute(
+            "UPDATE lista_compra SET activo = 0, fecha_completado = ? WHERE id = ?",
+            (ahora(), pendiente["id"]),
+        )
 
 
 def sumar_stock(db, producto_id, cantidad_a_sumar):
@@ -66,14 +74,21 @@ def sumar_stock(db, producto_id, cantidad_a_sumar):
     revisar_stock_bajo(db, producto_id)
 
 
-def crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, stock_minimo=1, dias_aviso=DIAS_AVISO_DEFECTO):
-    if categoria not in CATEGORIES:
-        categoria = "Otros"
+def crear_producto_nuevo(
+    db, nombre, categoria, cantidad, unidad, stock_minimo=1, dias_aviso=DIAS_AVISO_DEFECTO, icono=None
+):
+    categoria = normalizar_categoria(db, categoria)
+    if not icono:
+        recuerdo = buscar_historial(db, nombre)
+        if recuerdo:
+            icono = recuerdo["icono"]
     cur = db.execute(
         "INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo, "
-        "fecha_creacion, fecha_actualizacion, dias_aviso) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso),
+        "fecha_creacion, fecha_actualizacion, dias_aviso, icono) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono),
     )
+    if icono:
+        recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
     revisar_stock_bajo(db, cur.lastrowid)
     return cur.lastrowid
 
@@ -99,9 +114,10 @@ def crear_producto():
     unidad = (datos.get("unidad") or "ud").strip() or "ud"
     stock_minimo = int(datos.get("stock_minimo") or 1)
     dias_aviso = int(datos.get("dias_aviso", DIAS_AVISO_DEFECTO))
+    icono = (datos.get("icono") or "").strip() or None
 
     db = get_db()
-    producto_id = crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso)
+    producto_id = crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono)
     db.commit()
     fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
     return jsonify(row_to_dict(fila)), 201
@@ -122,17 +138,20 @@ def actualizar_producto(producto_id):
     else:
         nombre = (datos.get("nombre") or actual["nombre"]).strip()
         categoria = datos.get("categoria") or actual["categoria"]
-        if categoria not in CATEGORIES:
+        if categoria != normalizar_categoria(db, categoria):
             categoria = actual["categoria"]
         cantidad = int(datos.get("cantidad", actual["cantidad"]))
         unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
         stock_minimo = int(datos.get("stock_minimo", actual["stock_minimo"]))
         dias_aviso = int(datos.get("dias_aviso", actual["dias_aviso"]))
+        icono = (datos.get("icono", actual["icono"]) or "").strip() or None
         db.execute(
             "UPDATE productos SET nombre=?, categoria=?, cantidad=?, unidad=?, stock_minimo=?, "
-            "dias_aviso=?, fecha_actualizacion=? WHERE id=?",
-            (nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, ahora(), producto_id),
+            "dias_aviso=?, icono=?, fecha_actualizacion=? WHERE id=?",
+            (nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, ahora(), producto_id),
         )
+        if icono:
+            recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
         revisar_stock_bajo(db, producto_id)
 
     db.commit()
