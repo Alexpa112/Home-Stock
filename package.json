@@ -1,0 +1,13 @@
+{
+  "name": "home-stock",
+  "version": "1.0.0",
+  "description": "Dreame! - Inventario del Hogar",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}
