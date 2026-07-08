@@ -403,7 +403,7 @@ class DrawerListasManager {
       console.log(`Lista seleccionada: ${listaId}`);
 
       // Recargar la aplicación para mostrar nueva lista
-      await this.wait(300);
+      await new Promise(resolve => setTimeout(resolve, 300));
       location.reload();
     } catch (error) {
       console.error('Error en cambiarLista:', error);
