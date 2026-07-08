@@ -19,7 +19,7 @@
   <header class="topbar">
     <h1>📦 Dreame!</h1>
     <div class="acciones-cabecera">
-      <button id="btnTema" class="icono-cabecera" title="Cambiar tema">🌙</button>
+      <button id="btnTema" class="icono-cabecera" title="Cambiar tema" style="display: none;">🌙</button>
       <button id="btnCategorias" class="icono-cabecera" title="Categorías">🏷️</button>
       <button id="btnEscanearTicket" class="icono-cabecera" title="Escanear ticket">📷</button>
       <button id="btnAjustes" class="icono-cabecera" title="Ajustes">⚙️</button>
@@ -224,12 +224,6 @@
           </div>
         </div>
 
-        <!-- Opciones de Listas -->
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <button type="button" onclick="if(window.drawerListasManager) window.drawerListasManager.abrirModalEditarLista(); else alert('Abre una lista primero')" style="padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.95rem; color: var(--text); text-align: left; transition: background 0.2s;">
-            📋 Ajustes de la lista
-          </button>
-        </div>
       </div>
     </div>
   </div>
