@@ -1,8 +1,14 @@
 # 🎨 FASE 3: Frontend OOP - En Progreso
 
 **Fecha inicio**: 2026-07-08  
-**Estado**: 🚧 40% COMPLETADO  
+**Estado**: 🚧 87% COMPLETADO  
 **Objetivo**: Refactorizar 2050 líneas de JavaScript monolítico en módulos OOP reutilizables
+
+### ✅ SPRINTS COMPLETADOS
+- ✅ Sprint 0: Managers OOP (6 clases)
+- ✅ Sprint 1: Render methods (automático + eventos)
+- ✅ Sprint 2: Formularios modales (create/edit + guardado)
+- ✅ Sprint 3: Legacy cleanup (1,477 líneas removidas)
 
 ---
 
@@ -464,13 +470,13 @@ Object.values(managers).forEach(manager => {
 - [x] Actualizar HTML para cargar scripts en orden
 - [x] Implementar render() en cada manager
 - [x] Wireado de eventos → render en app.js
-- [ ] Implementar formularios modales (create/edit)
-- [ ] Event listeners en elementos generados
-- [ ] Eliminar archivos legacy (app-legacy.js, drawer-listas.js)
+- [x] Implementar formularios modales (create/edit)
+- [x] Event listeners en elementos generados
+- [x] Eliminar archivos legacy (app-legacy.js, drawer-listas.js, ui-components.js, test-drawer.js)
 - [ ] Escribir tests para managers
-- [ ] Verificar funcionalidad completa en navegador
+- [ ] Integrar ListasManager (para gestión de listas)
 
-**Progreso**: 10/15 (67%)
+**Progreso**: 13/15 (87%)
 
 ---
 
