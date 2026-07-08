@@ -798,7 +798,7 @@ body.modal-open .fab {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 28px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -818,10 +818,10 @@ body.modal-open .fab {
 
 .modal-footer {
   flex-shrink: 0;
-  padding: 2px 2px 0 2px;
+  padding: 8px 8px 12px 8px;
   border-top: 1px solid var(--border);
   display: flex;
-  gap: 2px;
+  gap: 8px;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
@@ -1336,15 +1336,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .modal-ticket { max-height: calc(80vh - var(--keyboard-offset, 0px)); }
 
 .modal-catalogo { max-height: calc(85vh - var(--keyboard-offset, 0px)); }
-.modal-catalogo > input[type="search"] {
+.modal-catalogo input[type="search"] {
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   font-size: 0.95rem;
   background: var(--surface-2);
   color: var(--text);
+  width: 100%;
 }
-.modal-catalogo > input[type="search"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.modal-catalogo input[type="search"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .catalogo-scroll {
   max-height: calc(48vh - var(--keyboard-offset, 0px));
