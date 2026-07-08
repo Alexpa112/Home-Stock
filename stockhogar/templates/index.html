@@ -462,9 +462,21 @@
 
 </div>
 
+<!-- Core: Singletons base (DOM y API) -->
+<script src="{{ url_for('static', filename='core/dom-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='core/api-client.js') }}"></script>
+
+<!-- Managers: Lógica de negocio modular -->
+<script src="{{ url_for('static', filename='modules/productos-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/compra-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/categorias-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/espacios-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/tickets-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/ui-manager.js') }}"></script>
+
+<!-- UI Components y App principal -->
 <script src="{{ url_for('static', filename='ui-components.js') }}"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 <script src="{{ url_for('static', filename='drawer-listas.js') }}"></script>
-<script src="{{ url_for('static', filename='test-drawer.js') }}"></script>
 </body>
 </html>
