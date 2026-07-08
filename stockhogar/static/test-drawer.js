@@ -266,21 +266,36 @@ class ModalTestSuite {
 
     this.log(`Viewport: ${width}x${height}px`, 'debug');
 
+    // Abrir modal para que tenga dimensiones
+    const manager = window.drawerListasManager;
+    if (manager && !manager.estaAbierto) {
+      manager.abrirModal();
+      await this.wait(400);
+    }
+
     const modal = document.querySelector('.modal');
     if (modal) {
       const modalWidth = modal.offsetWidth;
       const modalHeight = modal.offsetHeight;
       const modalPercent = ((modalWidth / width) * 100).toFixed(1);
 
-      this.log(`Modal: ${modalWidth}x${modalHeight}px (${modalPercent}% ancho)`, 'debug');
-      this.assert(modalWidth > 0, 'Modal tiene ancho positivo');
-      this.assert(modalHeight > 0, 'Modal tiene alto positivo');
+      this.log(`Modal abierta: ${modalWidth}x${modalHeight}px (${modalPercent}% ancho)`, 'debug');
+      this.assert(modalWidth > 0, 'Modal tiene ancho positivo', `${modalWidth}px`);
+      this.assert(modalHeight > 0, 'Modal tiene alto positivo', `${modalHeight}px`);
+
+      // Verificar que modales son full-width en mobile
+      if (width < 768) {
+        this.log('Detectado viewport mobile', 'debug');
+        this.assert(modalWidth >= width - 20, 'Modal ocupa casi todo el ancho en mobile', `${modalPercent}%`);
+      } else {
+        this.log('Viewport desktop/tablet detectado', 'debug');
+      }
     }
 
-    // Verificar que modales son full-width en mobile
-    if (width < 768) {
-      this.log('Detectado viewport mobile', 'debug');
-      this.assert(modal?.offsetWidth >= width - 20, 'Modal ocupa casi todo el ancho en mobile');
+    // Cerrar modal después de test
+    if (manager && manager.estaAbierto) {
+      manager.cerrarModal();
+      await this.wait(200);
     }
   }
 
