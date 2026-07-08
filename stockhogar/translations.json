@@ -78,7 +78,15 @@
     "confirmar_items": "Confirmar items",
     "revisar": "Revisar",
     "items_añadidos": "Items añadidos correctamente",
-    "error_procesar": "Error al procesar el ticket"
+    "error_procesar": "Error al procesar el ticket",
+    "ej_papel_higienico": "Ej. Papel higiénico",
+    "ej_bolsas_basura": "Ej. Bolsas de basura",
+    "ej_entera": "Ej. Entera",
+    "no_hay_productos": "No hay productos. Pulsa \"+\" para añadir el primero.",
+    "lista_vacia": "Tu lista de la compra está vacía. Toca \"+\" para añadir algo.",
+    "pocas_unidades": "¡Pocas unidades!",
+    "revisar_caducidad": "⏰ Revisar caducidad",
+    "guardar_cambios": "Guardar cambios"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -159,7 +167,15 @@
     "confirmar_items": "Confirmar items",
     "revisar": "Revisar",
     "items_añadidos": "Items engadidos correctamente",
-    "error_procesar": "Erro ao procesar o tíquet"
+    "error_procesar": "Erro ao procesar o tíquet",
+    "ej_papel_higienico": "Ej. Papel higiénico",
+    "ej_bolsas_basura": "Ej. Bolsas de basura",
+    "ej_entera": "Ej. Entera",
+    "no_hay_productos": "Non hai produtos. Toca \"+\" para engadir o primeiro.",
+    "lista_vacia": "A túa lista de compra está baleira. Toca \"+\" para engadir algo.",
+    "pocas_unidades": "¡Poucas unidades!",
+    "revisar_caducidad": "⏰ Revisar caducidade",
+    "guardar_cambios": "Gardar cambios"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -240,7 +256,15 @@
     "confirmar_items": "Confirm items",
     "revisar": "Review",
     "items_añadidos": "Items added successfully",
-    "error_procesar": "Error processing receipt"
+    "error_procesar": "Error processing receipt",
+    "ej_papel_higienico": "E.g. Toilet paper",
+    "ej_bolsas_basura": "E.g. Garbage bags",
+    "ej_entera": "E.g. Whole",
+    "no_hay_productos": "No products. Tap \"+\" to add the first one.",
+    "lista_vacia": "Your shopping list is empty. Tap \"+\" to add something.",
+    "pocas_unidades": "Few units!",
+    "revisar_caducidad": "⏰ Check expiration",
+    "guardar_cambios": "Save changes"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -321,7 +345,15 @@
     "confirmar_items": "Confirmar itens",
     "revisar": "Revisar",
     "items_añadidos": "Itens adicionados com sucesso",
-    "error_procesar": "Erro ao processar recibo"
+    "error_procesar": "Erro ao processar recibo",
+    "ej_papel_higienico": "Ex. Papel higiênico",
+    "ej_bolsas_basura": "Ex. Sacos de lixo",
+    "ej_entera": "Ex. Inteira",
+    "no_hay_productos": "Não há produtos. Toque \"+\" para adicionar o primeiro.",
+    "lista_vacia": "Sua lista de compras está vazia. Toque \"+\" para adicionar algo.",
+    "pocas_unidades": "Poucas unidades!",
+    "revisar_caducidad": "⏰ Verificar validade",
+    "guardar_cambios": "Salvar alterações"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -402,7 +434,15 @@
     "confirmar_items": "Confirmer les articles",
     "revisar": "Examiner",
     "items_añadidos": "Articles ajoutés avec succès",
-    "error_procesar": "Erreur lors du traitement du reçu"
+    "error_procesar": "Erreur lors du traitement du reçu",
+    "ej_papel_higienico": "Ex. Papier hygiénique",
+    "ej_bolsas_basura": "Ex. Sacs à ordures",
+    "ej_entera": "Ex. Entier",
+    "no_hay_productos": "Pas de produits. Appuyez sur \"+\" pour en ajouter le premier.",
+    "lista_vacia": "Votre liste de courses est vide. Appuyez sur \"+\" pour ajouter quelque chose.",
+    "pocas_unidades": "Peu d'unités!",
+    "revisar_caducidad": "⏰ Vérifier l'expiration",
+    "guardar_cambios": "Enregistrer les modifications"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -483,7 +523,15 @@
     "confirmar_items": "Conferma articoli",
     "revisar": "Esamina",
     "items_añadidos": "Articoli aggiunti con successo",
-    "error_procesar": "Errore durante l'elaborazione della ricevuta"
+    "error_procesar": "Errore durante l'elaborazione della ricevuta",
+    "ej_papel_higienico": "Es. Carta igienica",
+    "ej_bolsas_basura": "Es. Sacchi della spazzatura",
+    "ej_entera": "Es. Intero",
+    "no_hay_productos": "Nessun prodotto. Tocca \"+\" per aggiungere il primo.",
+    "lista_vacia": "La tua lista della spesa è vuota. Tocca \"+\" per aggiungere qualcosa.",
+    "pocas_unidades": "Poche unità!",
+    "revisar_caducidad": "⏰ Controlla scadenza",
+    "guardar_cambios": "Salva modifiche"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -564,6 +612,14 @@
     "confirmar_items": "Artikel bestätigen",
     "revisar": "Überprüfen",
     "items_añadidos": "Artikel erfolgreich hinzugefügt",
-    "error_procesar": "Fehler beim Verarbeiten des Belegs"
+    "error_procesar": "Fehler beim Verarbeiten des Belegs",
+    "ej_papel_higienico": "Z.B. Toilettenpapier",
+    "ej_bolsas_basura": "Z.B. Müllsäcke",
+    "ej_entera": "Z.B. Ganz",
+    "no_hay_productos": "Keine Produkte. Tippen Sie \"+\" um das erste hinzuzufügen.",
+    "lista_vacia": "Ihre Einkaufsliste ist leer. Tippen Sie \"+\" um etwas hinzuzufügen.",
+    "pocas_unidades": "Wenige Einheiten!",
+    "revisar_caducidad": "⏰ Verfallsdatum überprüfen",
+    "guardar_cambios": "Änderungen speichern"
   }
 }

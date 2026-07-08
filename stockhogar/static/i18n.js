@@ -91,17 +91,15 @@ class TranslationManager {
       if (vista === 'stock') {
         const clave = 'stock';
         const trad = this.t(clave);
-        console.log(`Tab stock: ${clave} -> ${trad}`);
         el.textContent = `📦 ${trad}`;
       } else if (vista === 'compra') {
         const clave = 'lista_compra';
         const trad = this.t(clave);
-        console.log(`Tab compra: ${clave} -> ${trad}`);
         el.textContent = `🛒 ${trad}`;
       }
     });
 
-    // Traducir botones por su contenido (sin emoji)
+    // Traducir botones por su contenido
     const botonesMapeo = {
       'Nuevo producto': 'nuevo_producto',
       'Editar producto': 'editar_producto',
@@ -110,19 +108,37 @@ class TranslationManager {
       'Añadir': 'añadir',
       'Eliminar': 'eliminar',
       'Borrar': 'borrar',
+      'Cerrar': 'cancelar',
+      'Listo': 'ok',
+      'Guardar cambios': 'guardar_cambios',
+      'Cerrar sesión': 'cerrar_sesion',
     };
 
     document.querySelectorAll('button, a').forEach(el => {
-      // Limpiador de emojis: mantener solo texto
       const textoLimpio = el.textContent.trim().replace(/^[^\w\s]+ /, '');
-
       if (botonesMapeo[textoLimpio]) {
         const clave = botonesMapeo[textoLimpio];
         el.textContent = this.t(clave);
       }
     });
 
-    // Traducir labels y placeholders
+    // Traducir todos los inputs con placeholder
+    document.querySelectorAll('input[placeholder]').forEach(el => {
+      const placeholder = el.getAttribute('placeholder');
+      // Mapear placeholders comunes a claves de traducción
+      const placeholderMapeo = {
+        'Buscar producto...': 'buscar_producto',
+        'Ej. Papel higienico': 'ej_papel_higienico',
+        'Ej. Bolsas de basura': 'ej_bolsas_basura',
+        'Ej. Entera': 'ej_entera',
+      };
+      if (placeholderMapeo[placeholder]) {
+        const trad = this.t(placeholderMapeo[placeholder]);
+        el.setAttribute('placeholder', trad);
+      }
+    });
+
+    // Traducir labels y sus textos
     document.querySelectorAll('label').forEach(el => {
       const texto = el.textContent.trim();
       const claveMap = {
@@ -130,7 +146,10 @@ class TranslationManager {
         'Categoria': 'categoria',
         'Icono': 'icono',
         'Cantidad': 'cantidad',
-        'Stock minimo': 'cantidad', // Usar clave existente
+        'Unidad': 'unidad',
+        'Stock minimo': 'stock_minimo',
+        'Sub-descripción': 'sub_descripcion',
+        'Avisar para revisar caducidad si no cambia en (días)': 'avisar_caducidad',
       };
 
       Object.entries(claveMap).forEach(([texto_es, clave]) => {
@@ -167,10 +186,28 @@ class TranslationManager {
       el.placeholder = this.t(clave);
     });
 
+    // Traducir mensajes de texto vacío/no hay
+    const textoVacioMapeo = {
+      'No hay productos. Pulsa "+" para añadir el primero.': 'no_hay_productos',
+      'Tu lista de la compra está vacía. Toca "+" para añadir algo.': 'lista_vacia',
+      'Comprados recientemente': 'comprados_recientemente',
+      '¡Pocas unidades!': 'pocas_unidades',
+      '⏰ Revisar caducidad': 'revisar_caducidad',
+    };
+
+    document.querySelectorAll('p, span, h2, h3').forEach(el => {
+      const texto = el.textContent.trim();
+      if (textoVacioMapeo[texto]) {
+        const clave = textoVacioMapeo[texto];
+        const trad = this.t(clave);
+        el.textContent = trad;
+      }
+    });
+
     // Actualizar idioma en la página
     document.documentElement.lang = this.idiomaActual;
 
-    // Traducir categorías después de que el DOM se actualice (mayor delay para que carguen los productos)
+    // Traducir categorías después de que el DOM se actualice
     setTimeout(() => this.traducirCategorias(), 500);
   }
 
