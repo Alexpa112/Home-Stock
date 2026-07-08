@@ -504,6 +504,27 @@
         <p id="miembrosError" class="aviso" hidden style="margin-bottom: 8px;"></p>
         <p id="miembrosExito" class="aviso" hidden style="margin-bottom: 8px; color: var(--success);"></p>
 
+        <!-- Modal para copiar enlace de invitación -->
+        <div id="modalEnlaceInvitacion" style="display: none; margin-bottom: 16px; padding: 12px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <p style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--text-soft);">Enlace de invitación:</p>
+          <div style="display: flex; gap: 6px;">
+            <input
+              type="text"
+              id="enlaceInvitacionInput"
+              readonly
+              style="flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface); color: var(--text); font-family: monospace;"
+            >
+            <button
+              type="button"
+              id="btnCopiarEnlace"
+              style="padding: 8px 12px; background: var(--accent); color: var(--accent-contrast); border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 0.9rem;"
+            >
+              Copiar
+            </button>
+          </div>
+          <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-soft);">Válido por 7 días. Comparte por WhatsApp, email, etc.</p>
+        </div>
+
         <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-soft);">Miembros con acceso</h4>
         <div id="listaMiembros" style="border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;">
           <div style="padding: 12px; text-align: center; color: var(--text-soft);">Cargando...</div>

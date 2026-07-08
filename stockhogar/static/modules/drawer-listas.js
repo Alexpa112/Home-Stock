@@ -115,6 +115,12 @@ class DrawerListasManager {
       btnCompartirWhatsApp.addEventListener('click', () => this.compartirPorWhatsApp());
     }
 
+    // Event listener para copiar enlace
+    const btnCopiarEnlace = document.getElementById('btnCopiarEnlace');
+    if (btnCopiarEnlace) {
+      btnCopiarEnlace.addEventListener('click', () => this.copiarEnlace());
+    }
+
     // Event listener para salir de lista
     const btnSalirLista = document.getElementById('btnSalirLista');
     if (btnSalirLista) {
@@ -541,13 +547,48 @@ class DrawerListasManager {
         return;
       }
 
-      this.mostrarMensaje(esEmail ? 'Invitación enviada' : 'Lista compartida', 'exito');
+      const resultado = await res.json();
+
+      // Si es email, mostrar enlace copiable
+      if (esEmail && resultado.data?.codigo) {
+        this.mostrarEnlaceInvitacion(resultado.data.codigo);
+        this.mostrarMensaje('Enlace de invitación generado - comparte el enlace!', 'exito');
+      } else {
+        this.mostrarMensaje('Lista compartida correctamente', 'exito');
+      }
+
       document.getElementById('compartirPor').value = '';
       this.cargarMiembros();
     } catch (error) {
       console.error('Error compartiendo lista:', error);
       this.mostrarMensaje('Error al compartir la lista', 'error');
     }
+  }
+
+  mostrarEnlaceInvitacion(codigo) {
+    const modal = document.getElementById('modalEnlaceInvitacion');
+    const input = document.getElementById('enlaceInvitacionInput');
+
+    if (modal && input) {
+      const enlace = `${window.location.origin}/aceptar-invitacion/${codigo}`;
+      input.value = enlace;
+      modal.style.display = 'block';
+
+      // Auto-ocultar después de 30 segundos
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 30000);
+    }
+  }
+
+  copiarEnlace() {
+    const input = document.getElementById('enlaceInvitacionInput');
+    if (!input) return;
+
+    input.select();
+    document.execCommand('copy');
+
+    this.mostrarMensaje('Enlace copiado al portapapeles!', 'exito');
   }
 
   mostrarMensaje(mensaje, tipo) {
