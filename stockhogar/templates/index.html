@@ -472,113 +472,126 @@
 
         <!-- Tab 1: Compartir por Usuario -->
         <div id="panelUsuario">
-          <form id="formCompartirPorUsuario" style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.85rem; color: var(--text-soft); margin-bottom: 6px;">Buscar usuario</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <form id="formCompartirPorUsuario" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Usuario</label>
               <input
                 type="text"
                 id="buscarUsuario"
-                placeholder="Nombre de usuario"
+                placeholder="Buscar por nombre de usuario"
                 maxlength="50"
-                style="flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem;"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
               >
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso</label>
               <select
                 id="nivelPermisoUsuario"
-                style="padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
               >
-                <option value="ver">Ver</option>
-                <option value="editar">Editar</option>
+                <option value="ver">👁️ Ver (solo lectura)</option>
+                <option value="editar">✏️ Editar (lectura y escritura)</option>
               </select>
             </div>
-            <div id="resultadosBusqueda" style="margin-bottom: 8px; max-height: 200px; overflow-y: auto;"></div>
-            <button type="submit" class="primario" style="width: 100%;">Compartir con Usuario</button>
+            <div id="resultadosBusqueda" style="margin-bottom: 4px; max-height: 200px; overflow-y: auto;"></div>
+            <button type="submit" class="primario" style="width: 100%; margin-top: 8px; padding: 12px 16px;">Compartir con Usuario</button>
           </form>
         </div>
 
         <!-- Tab 2: Compartir por Email -->
         <div id="panelEmail" style="display: none;">
-          <form id="formCompartirPorEmail" style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.85rem; color: var(--text-soft); margin-bottom: 6px;">Email del destinatario</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <form id="formCompartirPorEmail" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Email del destinatario</label>
               <input
                 type="email"
                 id="emailDestino"
                 placeholder="usuario@example.com"
                 maxlength="100"
-                style="flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem;"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
               >
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso</label>
               <select
                 id="nivelPermisoEmail"
-                style="padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
               >
-                <option value="ver">Ver</option>
-                <option value="editar">Editar</option>
+                <option value="ver">👁️ Ver (solo lectura)</option>
+                <option value="editar">✏️ Editar (lectura y escritura)</option>
               </select>
             </div>
-            <button type="submit" class="primario" style="width: 100%;">Generar Enlace de Invitación</button>
+            <button type="submit" class="primario" style="width: 100%; margin-top: 8px; padding: 12px 16px;">Generar Enlace de Invitación</button>
           </form>
         </div>
 
         <!-- Tab 3: Compartir por Enlace -->
         <div id="panelEnlace" style="display: none;">
-          <p style="color: var(--text-soft); margin-bottom: 12px;">Genera un enlace de invitación para compartir la lista.</p>
-          <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso del enlace</label>
             <select
               id="nivelPermisoEnlace"
-              style="padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+              style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
             >
-              <option value="ver">Ver</option>
-              <option value="editar">Editar</option>
+              <option value="ver">👁️ Ver (solo lectura)</option>
+              <option value="editar">✏️ Editar (lectura y escritura)</option>
             </select>
-            <button type="button" id="btnGenerarEnlace" class="primario" style="flex: 1;">Generar Enlace</button>
           </div>
 
-          <!-- Botón WhatsApp -->
-          <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-            <button
-              type="button"
-              id="btnCompartirWhatsApp"
-              style="flex: 1; padding: 10px 16px; background: #25D366; color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;"
-            >
-              <span>💬</span> WhatsApp
-            </button>
+          <button type="button" id="btnGenerarEnlace" class="primario" style="width: 100%; padding: 12px 16px;">Generar Enlace Compartible</button>
+
+          <!-- Sección WhatsApp -->
+          <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border);">
+            <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Compartir por WhatsApp</label>
+            <div style="display: flex; gap: 8px;">
+              <button
+                type="button"
+                id="btnCompartirWhatsApp"
+                style="flex: 1; padding: 10px 16px; background: #25D366; color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.95rem;"
+              >
+                <span>💬</span> Abrir WhatsApp
+              </button>
+            </div>
             <input
-              type="text"
+              type="tel"
               id="inputTelefonoWhatsApp"
-              placeholder="+34..."
+              placeholder="Teléfono (opcional, ej: +34 123 45 67 89)"
               maxlength="20"
-              style="flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem;"
+              style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text); width: 100%;"
             >
+            <p style="font-size: 0.8rem; color: var(--text-soft); margin: 0;">Sin teléfono: abre WhatsApp Web. Con teléfono: envía un mensaje directo.</p>
           </div>
         </div>
 
-        <p id="miembrosError" class="aviso" hidden style="margin-bottom: 8px;"></p>
-        <p id="miembrosExito" class="aviso" hidden style="margin-bottom: 8px; color: var(--success);"></p>
+        <p id="miembrosError" class="aviso" hidden style="margin-bottom: 12px; padding: 12px; border-radius: var(--radius-sm); background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger);"></p>
+        <p id="miembrosExito" class="aviso" hidden style="margin-bottom: 12px; padding: 12px; border-radius: var(--radius-sm); background: rgba(34, 197, 94, 0.1); border-left: 4px solid var(--success); color: var(--success);"></p>
 
         <!-- Modal para copiar enlace de invitación -->
-        <div id="modalEnlaceInvitacion" style="display: none; margin-bottom: 16px; padding: 12px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
-          <p style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--text-soft);">Enlace de invitación:</p>
-          <div style="display: flex; gap: 6px;">
+        <div id="modalEnlaceInvitacion" style="display: none; margin: 16px 0; padding: 16px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: var(--text-soft); font-weight: 500;">🔗 Enlace de invitación generado:</p>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
             <input
               type="text"
               id="enlaceInvitacionInput"
               readonly
-              style="flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface); color: var(--text); font-family: monospace;"
+              style="flex: 1; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface); color: var(--text); font-family: monospace; word-break: break-all;"
             >
             <button
               type="button"
               id="btnCopiarEnlace"
-              style="padding: 8px 12px; background: var(--accent); color: var(--accent-contrast); border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 0.9rem;"
+              style="padding: 10px 16px; background: var(--accent); color: var(--accent-contrast); border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 0.9rem; white-space: nowrap;"
             >
-              Copiar
+              📋 Copiar
             </button>
           </div>
-          <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-soft);">Válido por 7 días. Comparte por WhatsApp, email, etc.</p>
+          <p style="margin: 0; font-size: 0.8rem; color: var(--text-soft);">✓ Válido por 7 días. Comparte por WhatsApp, email, mensaje directo, etc.</p>
         </div>
 
-        <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-soft);">Miembros con acceso</h4>
-        <div id="listaMiembros" style="border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;">
-          <div style="padding: 12px; text-align: center; color: var(--text-soft);">Cargando...</div>
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border);">
+          <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--text); font-weight: 600;">👥 Miembros con acceso</h4>
+          <div id="listaMiembros" style="border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2);">
+            <div style="padding: 16px; text-align: center; color: var(--text-soft);">Cargando miembros...</div>
+          </div>
         </div>
       </div>
     </div>
