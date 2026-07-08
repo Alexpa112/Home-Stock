@@ -194,10 +194,55 @@ class TranslationManager {
     // Traducir página
     this.traducirPagina();
 
+    // Cargar traducciones de artículos si existen
+    this.cargarTraduccionesArticulos(nuevoIdioma);
+
     // Disparar evento para otros componentes
     window.dispatchEvent(new CustomEvent('idioma-cambiado', {
       detail: { idioma: nuevoIdioma }
     }));
+  }
+
+  /**
+   * Carga traducciones de artículos personalizados
+   */
+  async cargarTraduccionesArticulos(idioma) {
+    try {
+      // Obtener todos los artículos visibles
+      const articulos = document.querySelectorAll('[data-articulo-id]');
+
+      for (const elemento of articulos) {
+        const articuloId = elemento.dataset.articuloId;
+        if (!articuloId) continue;
+
+        try {
+          const response = await fetch(`/api/articulos-personalizados/${articuloId}/traducciones/${idioma}`);
+          const traducciones = await response.json();
+
+          if (traducciones && traducciones.data) {
+            // Actualizar nombre si existe traducción
+            if (traducciones.data.nombre) {
+              const nombreEl = elemento.querySelector('[data-nombre]');
+              if (nombreEl) {
+                nombreEl.textContent = traducciones.data.nombre;
+              }
+            }
+
+            // Actualizar descripción si existe traducción
+            if (traducciones.data.descripcion) {
+              const descEl = elemento.querySelector('[data-descripcion]');
+              if (descEl) {
+                descEl.textContent = traducciones.data.descripcion;
+              }
+            }
+          }
+        } catch (error) {
+          console.debug(`No hay traducciones para artículo ${articuloId}:`, error);
+        }
+      }
+    } catch (error) {
+      console.warn('Error cargando traducciones de artículos:', error);
+    }
   }
 
   /**

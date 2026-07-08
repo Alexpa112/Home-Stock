@@ -1536,6 +1536,71 @@ if (btnBorrarArticuloEl) {
 
 habilitarCierreSeguro(modalCompraFondo, cerrarModalCompra);
 
+// ===== FUNCIONES PARA ARTÍCULOS PERSONALIZADOS =====
+
+/**
+ * Edita un artículo personalizado
+ */
+async function editarArticuloPersonalizado(articuloId, datos) {
+  try {
+    const res = await fetch(`/api/articulos-personalizados/${articuloId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(datos)
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Error al actualizar');
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error('Error editando artículo personalizado:', error);
+    throw error;
+  }
+}
+
+/**
+ * Elimina un artículo personalizado
+ */
+async function eliminarArticuloPersonalizado(articuloId) {
+  try {
+    const res = await fetch(`/api/articulos-personalizados/${articuloId}`, {
+      method: "DELETE"
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Error al eliminar');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error eliminando artículo personalizado:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene traducciones de un artículo personalizado
+ */
+async function obtenerTraduccionesArticulo(articuloId, idioma) {
+  try {
+    const res = await fetch(`/api/articulos-personalizados/${articuloId}/traducciones/${idioma}`);
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = await res.json();
+    return data.data || null;
+  } catch (error) {
+    console.warn(`No hay traducciones para artículo ${articuloId}:`, error);
+    return null;
+  }
+}
+
 /* --- Catálogo (navegar y añadir a la lista por categorías) --- */
 
 let catalogoModo = "compra"; // "compra" (lista de la compra) o "stock" (alta directa de producto)

@@ -254,3 +254,170 @@ def borrar_articulo(item_id):
     db.execute("DELETE FROM articulos_lista WHERE id = ?", (item_id,))
     db.commit()
     return APIResponse.success(None, 204)
+
+
+# ===== ENDPOINTS PARA ARTÍCULOS PERSONALIZADOS =====
+
+@bp.route("/personalizados/<int:articulo_id>/traducciones/<idioma>", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def obtener_traducciones_articulo_personalizado(articulo_id, idioma):
+    """Obtiene traducciones almacenadas de un artículo personalizado."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+
+    from .espacios import obtener_espacio_actual
+    espacio_id = obtener_espacio_actual(db)
+
+    # Verificar que el artículo pertenece al usuario
+    articulo = db.execute(
+        "SELECT * FROM articulos_personalizados WHERE id = ? AND espacio_id = ?",
+        (articulo_id, espacio_id)
+    ).fetchone()
+
+    if not articulo:
+        return APIResponse.no_encontrado("Artículo personalizado")
+
+    # Obtener traducciones
+    traducciones = db.execute(
+        """SELECT tipo, texto_traducido FROM traducciones_productos
+           WHERE articulo_id = ? AND idioma = ?""",
+        (articulo_id, idioma)
+    ).fetchall()
+
+    resultado = {}
+    for tipo, texto in traducciones:
+        resultado[tipo] = texto
+
+    return APIResponse.success(resultado)
+
+
+@bp.route("/personalizados/<int:articulo_id>", methods=["PATCH"])
+@requerir_sesion
+@manejo_errores
+def actualizar_articulo_personalizado(articulo_id):
+    """Actualiza un artículo personalizado."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+
+    from .espacios import obtener_espacio_actual
+    espacio_id = obtener_espacio_actual(db)
+
+    # Verificar que el artículo pertenece al usuario
+    articulo = db.execute(
+        "SELECT * FROM articulos_personalizados WHERE id = ? AND espacio_id = ?",
+        (articulo_id, espacio_id)
+    ).fetchone()
+
+    if not articulo:
+        return APIResponse.no_encontrado("Artículo personalizado")
+
+    datos = request.get_json(force=True) or {}
+    if not datos:
+        return APIResponse.error("No hay nada que actualizar", 400)
+
+    # Actualizar campos permitidos
+    nombre = (datos.get("nombre") or articulo["nombre"]).strip()
+    categoria = normalizar_categoria(db, datos.get("categoria") or articulo["categoria"])
+    icono = (datos.get("icono") or articulo["icono"] or "").strip() or None
+    unidad = (datos.get("unidad") or articulo["unidad"]).strip()
+    sub_descripcion = (datos.get("sub_descripcion") or articulo["sub_descripcion"] or "").strip() or None
+
+    db.execute(
+        """UPDATE articulos_personalizados
+           SET nombre=?, categoria=?, icono=?, unidad=?, sub_descripcion=?, fecha_actualizacion=?
+           WHERE id=?""",
+        (nombre, categoria, icono, unidad, sub_descripcion, ahora(), articulo_id)
+    )
+
+    # Si cambió el nombre o descripción, actualizar traducciones
+    if nombre != articulo["nombre"] or sub_descripcion != articulo["sub_descripcion"]:
+        try:
+            from stockhogar.servicios.traductor_auto import TraductorAutomatico
+
+            # Actualizar traducciones del nombre
+            if nombre != articulo["nombre"]:
+                traducciones = TraductorAutomatico.traducir_a_todos_idiomas(nombre)
+                for idioma, texto in traducciones.items():
+                    if idioma != "es" and texto:
+                        db.execute(
+                            """INSERT OR REPLACE INTO traducciones_productos
+                               (articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                               VALUES (?, ?, ?, ?, ?, ?)""",
+                            (articulo_id, "nombre", idioma, nombre, texto, ahora())
+                        )
+
+            # Actualizar traducciones de la descripción
+            if sub_descripcion and sub_descripcion != articulo["sub_descripcion"]:
+                traducciones = TraductorAutomatico.traducir_a_todos_idiomas(sub_descripcion)
+                for idioma, texto in traducciones.items():
+                    if idioma != "es" and texto:
+                        db.execute(
+                            """INSERT OR REPLACE INTO traducciones_productos
+                               (articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                               VALUES (?, ?, ?, ?, ?, ?)""",
+                            (articulo_id, "descripcion", idioma, sub_descripcion, texto, ahora())
+                        )
+        except Exception as e:
+            print(f"Error al traducir cambios: {e}")
+
+    db.commit()
+    fila = db.execute(
+        "SELECT * FROM articulos_personalizados WHERE id = ?",
+        (articulo_id,)
+    ).fetchone()
+
+    return APIResponse.success({
+        "id": fila["id"],
+        "nombre": fila["nombre"],
+        "categoria": fila["categoria"],
+        "icono": fila["icono"],
+        "unidad": fila["unidad"],
+        "sub_descripcion": fila["sub_descripcion"],
+        "fecha_actualizacion": fila["fecha_actualizacion"]
+    })
+
+
+@bp.route("/personalizados/<int:articulo_id>", methods=["DELETE"])
+@requerir_sesion
+@manejo_errores
+def eliminar_articulo_personalizado(articulo_id):
+    """Elimina un artículo personalizado."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+
+    from .espacios import obtener_espacio_actual
+    espacio_id = obtener_espacio_actual(db)
+
+    # Verificar que el artículo pertenece al usuario
+    articulo = db.execute(
+        "SELECT * FROM articulos_personalizados WHERE id = ? AND espacio_id = ?",
+        (articulo_id, espacio_id)
+    ).fetchone()
+
+    if not articulo:
+        return APIResponse.no_encontrado("Artículo personalizado")
+
+    # Verificar que no está en uso en artículos activos
+    en_uso = db.execute(
+        "SELECT COUNT(*) as count FROM articulos_lista WHERE articulo_personalizado_id = ? AND activo = 1",
+        (articulo_id,)
+    ).fetchone()
+
+    if en_uso["count"] > 0:
+        return APIResponse.error(
+            "No se puede eliminar: artículo está en uso en listas activas",
+            400
+        )
+
+    # Eliminar traducciones asociadas
+    db.execute("DELETE FROM traducciones_productos WHERE articulo_id = ?", (articulo_id,))
+
+    # Eliminar artículos completados de listas
+    db.execute("DELETE FROM articulos_lista WHERE articulo_personalizado_id = ?", (articulo_id,))
+
+    # Eliminar artículo personalizado
+    db.execute("DELETE FROM articulos_personalizados WHERE id = ?", (articulo_id,))
+
+    db.commit()
+    return APIResponse.success(None, 204)
