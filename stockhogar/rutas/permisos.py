@@ -6,8 +6,43 @@ from datetime import datetime, timedelta
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
 from ..utils import Validator
+from ..servicios.email_service import EmailService
 
 bp = Blueprint("permisos", __name__, url_prefix="/api/listas")
+
+
+@bp.route("/buscar-usuarios", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def buscar_usuarios():
+    """Buscar usuarios para compartir listas."""
+    usuario_id = session.get("usuario_id")
+    query = request.args.get("q", "").strip()
+
+    if not query or len(query) < 2:
+        return APIResponse.error("Ingresa al menos 2 caracteres", 400)
+
+    db = get_db()
+
+    # Buscar usuarios por nombre_usuario o email
+    usuarios = db.execute(
+        """SELECT id, nombre_usuario, email
+           FROM usuarios
+           WHERE (nombre_usuario LIKE ? OR email LIKE ?)
+           AND id != ?
+           LIMIT 10""",
+        (f"%{query}%", f"%{query}%", usuario_id)
+    ).fetchall()
+
+    return APIResponse.success({
+        "usuarios": [
+            {
+                "id": u["id"],
+                "nombre_usuario": u["nombre_usuario"],
+                "email": u["email"]
+            } for u in usuarios
+        ]
+    })
 
 
 @bp.route("/<int:lista_id>/miembros", methods=["GET"])
@@ -118,6 +153,21 @@ def compartir_lista(lista_id):
         fecha_expiracion = (datetime.now() + timedelta(days=7)).isoformat(timespec="seconds")
 
         try:
+            # Obtener nombre del remitente (propietario de la lista)
+            propietario = db.execute(
+                "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+                (usuario_id,)
+            ).fetchone()
+            nombre_remitente = propietario["nombre_usuario"] if propietario else "Un usuario"
+
+            # Obtener nombre de la lista
+            lista = db.execute(
+                "SELECT nombre FROM listas WHERE id = ?",
+                (lista_id,)
+            ).fetchone()
+            nombre_lista = lista["nombre"] if lista else "Una lista"
+
+            # Crear invitación en BD
             db.execute(
                 """INSERT INTO invitaciones_lista
                    (lista_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
@@ -126,12 +176,19 @@ def compartir_lista(lista_id):
             )
             db.commit()
 
-            # TODO: Enviar email con enlace de invitación
-            # enlace = f"{URL_BASE}/aceptar-invitacion/{codigo}"
+            # Enviar email de invitación
+            email_enviado = EmailService.enviar_invitacion_lista(
+                email_destino=email_destino,
+                nombre_lista=nombre_lista,
+                nombre_remitente=nombre_remitente,
+                codigo_invitacion=codigo,
+                nivel=nivel
+            )
 
             return APIResponse.success({
-                "mensaje": "Invitación enviada",
-                "codigo": codigo
+                "mensaje": "Invitación enviada" if email_enviado else "Invitación creada (email no enviado)",
+                "codigo": codigo,
+                "email_enviado": email_enviado
             })
         except Exception as e:
             return APIResponse.error(str(e), 400)
@@ -194,3 +251,53 @@ def revocar_acceso(lista_id, usuario_id):
     db.commit()
 
     return APIResponse.success({"mensaje": "Acceso revocado"})
+
+
+@bp.route("/aceptar-invitacion/<codigo>", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def aceptar_invitacion(codigo):
+    """Aceptar una invitación de lista compartida."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+
+    # Buscar invitación
+    invitacion = db.execute(
+        "SELECT * FROM invitaciones_lista WHERE codigo_invitacion = ?",
+        (codigo,)
+    ).fetchone()
+
+    if not invitacion:
+        return APIResponse.error("Invitación no encontrada o expirada", 404)
+
+    # Verificar que no ha sido usada
+    if invitacion["usado"]:
+        return APIResponse.error("Esta invitación ya ha sido usada", 400)
+
+    # Verificar que no ha expirado
+    fecha_expiracion = datetime.fromisoformat(invitacion["fecha_expiracion"])
+    if datetime.now() > fecha_expiracion:
+        return APIResponse.error("La invitación ha expirado", 400)
+
+    try:
+        # Agregar permiso
+        db.execute(
+            """INSERT OR REPLACE INTO permisos_lista
+               (lista_id, usuario_id, nivel, fecha_otorgado)
+               VALUES (?, ?, ?, ?)""",
+            (invitacion["lista_id"], usuario_id, invitacion["nivel"], ahora())
+        )
+
+        # Marcar invitación como usada
+        db.execute(
+            """UPDATE invitaciones_lista
+               SET usado = 1, usuario_aceptacion_id = ?, fecha_aceptacion = ?
+               WHERE id = ?""",
+            (usuario_id, ahora(), invitacion["id"])
+        )
+
+        db.commit()
+
+        return APIResponse.success({"mensaje": "¡Invitación aceptada!", "lista_id": invitacion["lista_id"]})
+    except Exception as e:
+        return APIResponse.error(f"Error al aceptar invitación: {str(e)}", 400)

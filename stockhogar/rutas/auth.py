@@ -99,6 +99,48 @@ def logout():
     return APIResponse.success()
 
 
+@bp.route("/api/auth/cambiar-password", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def cambiar_password():
+    """Cambiar contraseña del usuario actual."""
+    usuario_id = session.get("usuario_id")
+    datos = request.get_json(force=True) or {}
+    password_actual = datos.get("password_actual") or ""
+    password_nueva = datos.get("password_nueva") or ""
+    password_confirmacion = datos.get("password_confirmacion") or ""
+
+    # Validar contraseña nueva
+    if len(password_nueva) < 4:
+        return APIResponse.validacion("La nueva contraseña debe tener al menos 4 caracteres")
+
+    if password_nueva != password_confirmacion:
+        return APIResponse.validacion("Las contraseñas no coinciden")
+
+    db = get_db()
+    usuario = db.execute(
+        "SELECT password_hash FROM usuarios WHERE id = ?",
+        (usuario_id,)
+    ).fetchone()
+
+    if not usuario:
+        return APIResponse.no_autorizado()
+
+    # Verificar contraseña actual
+    if not check_password_hash(usuario["password_hash"], password_actual):
+        return APIResponse.error("La contraseña actual es incorrecta", 400)
+
+    # Actualizar contraseña
+    nuevo_hash = generate_password_hash(password_nueva)
+    db.execute(
+        "UPDATE usuarios SET password_hash = ? WHERE id = ?",
+        (nuevo_hash, usuario_id)
+    )
+    db.commit()
+
+    return APIResponse.success({"mensaje": "Contraseña cambiada correctamente"})
+
+
 @bp.route("/api/usuarios", methods=["GET"])
 @requerir_sesion
 @manejo_errores

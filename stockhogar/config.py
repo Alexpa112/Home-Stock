@@ -1,5 +1,12 @@
 """Configuracion y constantes compartidas por toda la aplicacion."""
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env si existe
+env_path = Path(__file__).resolve().parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -175,10 +182,16 @@ CATALOGO_DEFECTO = [
 # Obtén estas credenciales en:
 # - Google: https://console.cloud.google.com/
 # - Apple: https://developer.apple.com/
-import os
-
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 APPLE_CLIENT_ID = os.getenv("APPLE_CLIENT_ID", "")
 APPLE_CLIENT_SECRET = os.getenv("APPLE_CLIENT_SECRET", "")
 APPLE_TEAM_ID = os.getenv("APPLE_TEAM_ID", "")
+
+# Configuración de Email (para invitaciones a compartir listas)
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "noreply@homestock.local")
+APP_URL = os.getenv("APP_URL", "http://localhost:5000")
