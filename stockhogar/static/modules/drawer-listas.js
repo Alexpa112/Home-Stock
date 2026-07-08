@@ -124,7 +124,11 @@ class DrawerListasManager {
     // Event listener para gestionar miembros
     const btnGestionarMiembros = document.getElementById('btnGestionarMiembros');
     if (btnGestionarMiembros) {
-      btnGestionarMiembros.addEventListener('click', () => this.abrirGestionarMiembros());
+      btnGestionarMiembros.addEventListener('click', () => {
+        this.abrirGestionarMiembros();
+        // Asegurar que los tabs de compartir estén disponibles
+        setTimeout(() => this.initEventListenersTabs(), 100);
+      });
     }
 
     // Event listeners para tabs de compartir
@@ -386,8 +390,67 @@ class DrawerListasManager {
       if (input) input.value = lista.nombre;
       if (color) color.value = lista.color || '#B5551A';
       this.actualizarPreviewColor(lista.color || '#B5551A');
+
+      // Establecer icono seleccionado
+      document.querySelectorAll('.icon-button').forEach(btn => {
+        btn.style.border = '1px solid var(--border)';
+      });
+      const iconoActual = document.querySelector(`.icon-button[data-icon="${lista.icono || '📋'}"]`);
+      if (iconoActual) iconoActual.style.border = '2px solid var(--accent)';
+
       modal.hidden = false;
       if (input) input.focus();
+    }
+  }
+
+  async guardarNombreImagen() {
+    if (!this.listaEditandoId) return;
+
+    const nombre = document.getElementById('inputNombreLista')?.value.trim();
+    const color = document.getElementById('inputColorLista')?.value;
+    const iconoSeleccionado = document.querySelector('.icon-button[style*="border-bottom: 3px"]');
+    const icono = document.querySelector('.icon-button[style*="2px solid var(--accent)"]')?.dataset.icon;
+
+    if (!nombre) {
+      alert('El nombre no puede estar vacío');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/listas/${this.listaEditandoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, color, icono })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.error || 'Error al guardar');
+        return;
+      }
+
+      // Actualizar en memoria
+      const lista = this.listas.find(l => l.id === this.listaEditandoId);
+      if (lista) {
+        lista.nombre = nombre;
+        lista.color = color;
+        if (icono) lista.icono = icono;
+      }
+
+      // Actualizar preview
+      const previewEl = document.getElementById('previewLista');
+      if (previewEl) {
+        previewEl.style.backgroundColor = color;
+        previewEl.innerHTML = `<h3>${this.escaparHTML(nombre)}</h3>`;
+      }
+
+      // Cerrar modal
+      document.getElementById('modalNombreImagen').hidden = true;
+      alert('Cambios guardados correctamente');
+      this.refrescar();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al guardar cambios');
     }
   }
 
@@ -419,6 +482,53 @@ class DrawerListasManager {
     if (seccionMiembros) {
       seccionMiembros.style.display = 'block';
       this.cargarMiembros();
+      this.initEventListenersTabs();
+    }
+  }
+
+  initEventListenersTabs() {
+    // Tabs de compartir
+    const tabPorUsuario = document.getElementById('tabPorUsuario');
+    const tabPorEmail = document.getElementById('tabPorEmail');
+    const tabPorEnlace = document.getElementById('tabPorEnlace');
+
+    if (tabPorUsuario) tabPorUsuario.addEventListener('click', () => this.cambiarTabCompartir('usuario'));
+    if (tabPorEmail) tabPorEmail.addEventListener('click', () => this.cambiarTabCompartir('email'));
+    if (tabPorEnlace) tabPorEnlace.addEventListener('click', () => this.cambiarTabCompartir('enlace'));
+
+    // Búsqueda de usuarios
+    const buscarUsuario = document.getElementById('buscarUsuario');
+    if (buscarUsuario) {
+      buscarUsuario.addEventListener('input', (e) => this.buscarUsuarios(e.target.value));
+    }
+
+    // Formularios de compartir
+    const formCompartirPorUsuario = document.getElementById('formCompartirPorUsuario');
+    if (formCompartirPorUsuario) {
+      formCompartirPorUsuario.addEventListener('submit', (e) => this.compartirPorUsuario(e));
+    }
+
+    const formCompartirPorEmail = document.getElementById('formCompartirPorEmail');
+    if (formCompartirPorEmail) {
+      formCompartirPorEmail.addEventListener('submit', (e) => this.compartirPorEmail(e));
+    }
+
+    // Botón generar enlace
+    const btnGenerarEnlace = document.getElementById('btnGenerarEnlace');
+    if (btnGenerarEnlace) {
+      btnGenerarEnlace.addEventListener('click', () => this.generarEnlaceCompartir());
+    }
+
+    // Botón copiar enlace
+    const btnCopiarEnlace = document.getElementById('btnCopiarEnlace');
+    if (btnCopiarEnlace) {
+      btnCopiarEnlace.addEventListener('click', () => this.copiarEnlace());
+    }
+
+    // Botón WhatsApp
+    const btnCompartirWhatsApp = document.getElementById('btnCompartirWhatsApp');
+    if (btnCompartirWhatsApp) {
+      btnCompartirWhatsApp.addEventListener('click', () => this.compartirPorWhatsApp());
     }
   }
 
