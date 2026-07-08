@@ -154,6 +154,7 @@ def init_db():
         """
     )
     asegurar_columna(db, "usuarios", "email", "TEXT")
+    asegurar_columna(db, "usuarios", "idioma_preferido", "TEXT NOT NULL DEFAULT 'es'")
 
     # Tabla para cuentas OAuth (Google, Apple)
     db.execute(
