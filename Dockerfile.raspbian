@@ -1,0 +1,98 @@
+# Dockerfile para StockHogar en Raspbian (ARM)
+FROM python:3.11-slim-bullseye
+
+# Metadatos
+LABEL maintainer="StockHogar Dev Team"
+LABEL version="1.0"
+LABEL description="StockHogar - Inventory Management System"
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    TZ=Europe/Madrid
+
+# Actualizar sistema base
+RUN apt-get update && apt-get upgrade -y
+
+# Instalar dependencias del sistema (Tesseract, OpenCV, etc.)
+RUN apt-get install -y --no-install-recommends \
+    # Tesseract OCR
+    tesseract-ocr \
+    tesseract-ocr-spa \
+    libtesseract-dev \
+    \
+    # OpenCV dependencias
+    libatlas-base-dev \
+    libjasper-dev \
+    libtiff-dev \
+    libjasper1 \
+    libharfbuzz0b \
+    libwebp6 \
+    libtiff5 \
+    libjasper1 \
+    libatlas3-base \
+    libqtgui4 \
+    python3-pyqt5 \
+    libqt4-test \
+    libhdf5-dev \
+    libharfbuzz0b \
+    libwebp6 \
+    libtiff5 \
+    \
+    # Herramientas generales
+    curl \
+    wget \
+    git \
+    build-essential \
+    pkg-config \
+    cmake \
+    \
+    # Dependencias adicionales
+    libssl-dev \
+    libffi-dev \
+    libbz2-dev \
+    zlib1g-dev \
+    liblzma-dev \
+    libsqlite3-dev \
+    && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Crear directorio de la aplicación
+WORKDIR /app
+
+# Copiar archivos del proyecto
+COPY . /app/
+
+# Instalar dependencias Python
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
+    Flask==3.1.3 \
+    Pillow==12.3.0 \
+    opencv-python==5.0.0.93 \
+    pytesseract==0.3.13 \
+    fuzzywuzzy==0.18.0 \
+    python-Levenshtein==0.27.3 \
+    rapidfuzz==3.14.5 \
+    numpy==2.5.1
+
+# Crear estructura de directorios necesarios
+RUN mkdir -p /app/data \
+    /app/logs \
+    /app/uploads \
+    /app/stockhogar/servicios/ocr
+
+# Verificar instalaciones críticas
+RUN python3 -c "import flask, cv2, pytesseract, fuzzywuzzy; print('[OK] All Python packages installed')" && \
+    which tesseract && tesseract --version && echo "[OK] Tesseract installed"
+
+# Puerto por defecto
+EXPOSE 5000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import flask; print('OK')" || exit 1
+
+# Comando por defecto
+CMD ["python3", "-m", "flask", "--app", "stockhogar", "run", "--host", "0.0.0.0", "--port", "5000"]

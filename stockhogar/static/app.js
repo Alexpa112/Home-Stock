@@ -209,7 +209,6 @@ const btnCerrarCatalogo = document.getElementById("btnCerrarCatalogo");
 
 const btnAjustes = document.getElementById("btnAjustes");
 const modalAjustesFondo = document.getElementById("modalAjustes");
-const btnCancelarAjustes = document.getElementById("btnCancelarAjustes");
 
 const ajustesUsuarioActual = document.getElementById("ajustesUsuarioActual");
 const btnCerrarSesion = document.getElementById("btnCerrarSesion");
@@ -346,6 +345,41 @@ function habilitarCierreSeguro(fondo, alCerrar) {
   });
   fondo.addEventListener("click", (e) => {
     if (e.target === fondo && iniciadoEnFondo) alCerrar();
+  });
+}
+
+/* --- Cierre de modales por drag-down --- */
+function habilitarDragDown(modal, alCerrar) {
+  let startY = 0;
+  let currentY = 0;
+  let isDragging = false;
+
+  modal.addEventListener("touchstart", (e) => {
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    isDragging = true;
+  });
+
+  modal.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+    currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+    if (diff > 0) {
+      modal.style.transform = `translateY(${diff}px)`;
+    }
+  });
+
+  modal.addEventListener("touchend", () => {
+    if (!isDragging) return;
+    const diff = currentY - startY;
+    isDragging = false;
+
+    if (diff > 80) {
+      modal.style.transform = "";
+      alCerrar();
+    } else {
+      modal.style.transform = "";
+    }
   });
 }
 
@@ -553,15 +587,82 @@ function crearSelectorIconos(contenedor, seleccionado, alElegir) {
   contenedor.append(buscador, rejilla);
 }
 
+// Modal superpuesta para seleccionar icono
+const modalSelectorIconos = document.getElementById("modalSelectorIconos");
+const contenedorIconos = document.getElementById("contenedorIconos");
+const buscadorIconos = document.getElementById("buscadorIconos");
+const btnCerrarSelectorIconos = document.getElementById("btnCerrarSelectorIconos");
+
+let callbackIconoSeleccionado = null;
+let iconoActualmentSeleccionado = null;
+
+function renderizarIconosGrid(filtro = "") {
+  contenedorIconos.innerHTML = "";
+  const texto = filtro.trim().toLowerCase();
+  const items = texto
+    ? CATALOGO_ICONOS.filter((it) => it.palabras.some((p) => p.includes(texto)))
+    : CATALOGO_ICONOS;
+
+  for (const it of items) {
+    const btnIcono = document.createElement("button");
+    btnIcono.type = "button";
+    btnIcono.textContent = it.icono;
+    btnIcono.title = it.palabras[0] || "";
+    btnIcono.className = it.icono === iconoActualmentSeleccionado ? "seleccionado" : "";
+    btnIcono.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (callbackIconoSeleccionado) {
+        callbackIconoSeleccionado(it.icono);
+      }
+      cerrarModalSelectorIconos();
+    });
+    contenedorIconos.appendChild(btnIcono);
+  }
+
+  if (items.length === 0) {
+    const vacioAviso = document.createElement("p");
+    vacioAviso.className = "aviso";
+    vacioAviso.textContent = "Ningún icono coincide con esa búsqueda.";
+    contenedorIconos.appendChild(vacioAviso);
+  }
+}
+
+function abrirModalSelectorIconos(iconoSeleccionado, callback) {
+  callbackIconoSeleccionado = callback;
+  iconoActualmentSeleccionado = iconoSeleccionado;
+  buscadorIconos.value = "";
+  renderizarIconosGrid("");
+  modalSelectorIconos.hidden = false;
+  buscadorIconos.focus();
+}
+
+function cerrarModalSelectorIconos() {
+  modalSelectorIconos.hidden = true;
+  contenedorIconos.innerHTML = "";
+  buscadorIconos.value = "";
+  callbackIconoSeleccionado = null;
+  iconoActualmentSeleccionado = null;
+}
+
+// Event listener para el buscador
+buscadorIconos.addEventListener("input", () => {
+  renderizarIconosGrid(buscadorIconos.value);
+});
+
+btnCerrarSelectorIconos.addEventListener("click", cerrarModalSelectorIconos);
+
+// Cerrar modal al hacer click en el fondo
+modalSelectorIconos.addEventListener("click", (e) => {
+  if (e.target === modalSelectorIconos) {
+    cerrarModalSelectorIconos();
+  }
+});
+
 function abrirModalCategorias() {
   renderCategoriasLista();
   formCategoria.reset();
   categoriaCampoIcono.value = "🗂️";
   categoriaIconoElegido.textContent = "🗂️";
-  crearSelectorIconos(selectorIconosEl, "🗂️", (icono) => {
-    categoriaCampoIcono.value = icono;
-    categoriaIconoElegido.textContent = icono;
-  });
   modalCategoriasFondo.hidden = false;
 }
 
@@ -572,6 +673,18 @@ function cerrarModalCategorias() {
 btnCategorias.addEventListener("click", abrirModalCategorias);
 btnCerrarCategorias.addEventListener("click", cerrarModalCategorias);
 habilitarCierreSeguro(modalCategoriasFondo, cerrarModalCategorias);
+
+// Botón para seleccionar icono en categorías
+const btnSeleccionarIconoCategoria = document.getElementById("btnSeleccionarIconoCategoria");
+if (btnSeleccionarIconoCategoria) {
+  btnSeleccionarIconoCategoria.addEventListener("click", (e) => {
+    e.preventDefault();
+    abrirModalSelectorIconos(categoriaCampoIcono.value, (icono) => {
+      categoriaCampoIcono.value = icono;
+      categoriaIconoElegido.textContent = icono;
+    });
+  });
+}
 
 formCategoria.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -648,8 +761,8 @@ async function cargarEspacios() {
 }
 
 function renderEspacioActual(actual) {
-  espacioActualIconoEl.textContent = actual.icono;
-  espacioActualNombreEl.textContent = actual.nombre;
+  if (espacioActualIconoEl) espacioActualIconoEl.textContent = actual.icono;
+  if (espacioActualNombreEl) espacioActualNombreEl.textContent = actual.nombre;
   aplicarColorEspacio(actual.color);
 }
 
@@ -750,9 +863,9 @@ async function borrarEspacio(esp) {
   }
 }
 
-btnEspacios.addEventListener("click", mostrarVistaEspacios);
-btnCerrarEspacios.addEventListener("click", ocultarVistaEspacios);
-btnEditarEspacios.addEventListener("click", () => {
+if (btnEspacios) btnEspacios.addEventListener("click", mostrarVistaEspacios);
+if (btnCerrarEspacios) btnCerrarEspacios.addEventListener("click", ocultarVistaEspacios);
+if (btnEditarEspacios) btnEditarEspacios.addEventListener("click", () => {
   editandoEspacios = !editandoEspacios;
   renderTarjetasEspacios();
 });
@@ -910,7 +1023,20 @@ async function cambiarCantidad(id, delta) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ delta }),
   });
+
+  if (!res.ok) {
+    console.error(`Error PATCH: ${res.status} ${res.statusText}`);
+    alert(`Error al cambiar cantidad: ${res.status}`);
+    return;
+  }
+
   const actualizado = await res.json();
+  if (!actualizado || !actualizado.id) {
+    console.error("Respuesta inválida del servidor", actualizado);
+    alert("Error: respuesta inválida del servidor");
+    return;
+  }
+
   productos = productos.map((p) => (p.id === id ? actualizado : p));
   render();
   cargarListaCompra();
@@ -1088,10 +1214,13 @@ fab.addEventListener("click", () => {
 /* --- Lista de la compra --- */
 
 async function cargarListaCompra() {
-  const res = await fetch("/api/lista-compra");
+  const listaId = localStorage.getItem('lista-actual');
+  if (!listaId) return;
+
+  const res = await fetch(`/api/articulos?lista_id=${listaId}`);
   const datos = await res.json();
-  pendientesCompra = datos.pendientes;
-  completadosCompra = datos.completados;
+  pendientesCompra = datos.pendientes || [];
+  completadosCompra = datos.completados || [];
   renderListaCompra();
 }
 
@@ -1173,7 +1302,7 @@ async function completarItemCompra(id, elemento) {
   elemento.classList.add("completando");
   elemento.disabled = true;
   setTimeout(async () => {
-    await fetch(`/api/lista-compra/${id}`, {
+    await fetch(`/api/articulos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ activo: false }),
@@ -1183,7 +1312,7 @@ async function completarItemCompra(id, elemento) {
 }
 
 async function restaurarItemCompra(id) {
-  await fetch(`/api/lista-compra/${id}`, {
+  await fetch(`/api/articulos/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ activo: true }),
@@ -1219,6 +1348,7 @@ function abrirModalCompra(item) {
     ? `Añadir "${item.nombre}"`
     : "Añadir a la lista de la compra";
   compraBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
+  document.getElementById("btnBorrarArticulo").hidden = !esEdicion;
 
   document.getElementById("compraCampoNombre").value = item ? item.nombre : "";
   compraCampoCantidad.value = (item && item.cantidad) || 1;
@@ -1262,6 +1392,12 @@ document.getElementById("compraCampoNombre").addEventListener("input", (e) => {
 formCompra.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = compraEditIdEl.value;
+  const listaId = localStorage.getItem('lista-actual');
+  if (!listaId) {
+    alert("Selecciona una lista primero");
+    return;
+  }
+
   const payload = {
     nombre: document.getElementById("compraCampoNombre").value.trim(),
     cantidad: Number(compraCampoCantidad.value) || 1,
@@ -1272,7 +1408,11 @@ formCompra.addEventListener("submit", async (e) => {
   };
   if (!payload.nombre) return;
 
-  await fetch(id ? `/api/lista-compra/${id}` : "/api/lista-compra", {
+  if (!id) {
+    payload.lista_id = parseInt(listaId);
+  }
+
+  await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
     method: id ? "PATCH" : "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -1283,6 +1423,19 @@ formCompra.addEventListener("submit", async (e) => {
 });
 
 btnCancelarCompra.addEventListener("click", cerrarModalCompra);
+
+const btnBorrarArticuloEl = document.getElementById("btnBorrarArticulo");
+if (btnBorrarArticuloEl) {
+  btnBorrarArticuloEl.addEventListener("click", async () => {
+    const id = compraEditIdEl.value;
+    if (!id || !confirm("¿Borrar este artículo de la lista?")) return;
+
+    await fetch(`/api/articulos/${id}`, { method: "DELETE" });
+    cerrarModalCompra();
+    cargarListaCompra();
+  });
+}
+
 habilitarCierreSeguro(modalCompraFondo, cerrarModalCompra);
 
 /* --- Catálogo (navegar y añadir a la lista por categorías) --- */
@@ -1380,10 +1533,17 @@ function crearTileCatalogo(entry) {
 }
 
 async function anadirDesdeCatalogo(entry) {
-  await fetch("/api/lista-compra", {
+  const listaId = localStorage.getItem('lista-actual');
+  if (!listaId) {
+    alert("Selecciona una lista primero");
+    return;
+  }
+
+  await fetch("/api/articulos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      lista_id: parseInt(listaId),
       nombre: entry.nombre,
       categoria: entry.categoria,
       icono: entry.icono,
@@ -1422,8 +1582,11 @@ function cerrarModalAjustes() {
 }
 
 btnAjustes.addEventListener("click", abrirModalAjustes);
-btnCancelarAjustes.addEventListener("click", cerrarModalAjustes);
 habilitarCierreSeguro(modalAjustesFondo, cerrarModalAjustes);
+const modalAjustesContenedor = modalAjustesFondo.querySelector(".modal");
+if (modalAjustesContenedor) {
+  habilitarDragDown(modalAjustesContenedor, cerrarModalAjustes);
+}
 
 /* --- Sesion y usuarios --- */
 
@@ -1554,6 +1717,10 @@ btnEscanearTicket.addEventListener("click", abrirModalTicket);
 btnCancelarTicket.addEventListener("click", cerrarModalTicket);
 btnCancelarRevisionTicket.addEventListener("click", cerrarModalTicket);
 habilitarCierreSeguro(modalTicketFondo, cerrarModalTicket);
+const modalTicketContenedor = modalTicketFondo.querySelector(".modal");
+if (modalTicketContenedor) {
+  habilitarDragDown(modalTicketContenedor, cerrarModalTicket);
+}
 
 btnAnadirLineaTicket.addEventListener("click", () => {
   ticketItemsEl.appendChild(crearFilaTicket({ nombre: "", cantidad: 1, unidad: "ud" }));
@@ -1635,10 +1802,249 @@ btnConfirmarTicket.addEventListener("click", async () => {
   }
 });
 
-cargarEspacios();
+// ============ KEYBOARD MANAGEMENT ============
+
+// KeyboardManager se define en ui-components.js, se instancia ahí
+// No se redeclara aquí para evitar conflictos
+
+// ============ SCROLL & ZOOM PREVENTION ============
+
+class ScrollManager {
+  constructor() {
+    this.init();
+  }
+
+  init() {
+    let startX = 0;
+
+    document.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      const currentX = e.touches[0].clientX;
+      const diffX = Math.abs(currentX - startX);
+      const diffY = Math.abs(e.touches[0].clientY - (e.touches[0].clientY || 0));
+
+      if (diffX > 20) {
+        let el = e.target;
+        while (el && el !== document.body) {
+          if (el.scrollWidth > el.clientWidth) {
+            return;
+          }
+          el = el.parentElement;
+        }
+
+        if (diffX > 50 && diffY < 20) {
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+  }
+}
+
+const scrollManager = new ScrollManager();
+
+// ============ ZOOM PREVENTION ============
+
+class ZoomManager {
+  constructor() {
+    this.init();
+  }
+
+  init() {
+    document.addEventListener('gesturestart', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    let lastTap = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      const timesince = now - lastTap;
+
+      if (timesince < 300 && timesince > 0) {
+        if (!this.isInteractive(e.target)) {
+          e.preventDefault();
+        }
+      }
+      lastTap = now;
+    }, { passive: false });
+  }
+
+  isInteractive(el) {
+    const interactive = ['INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SELECT'];
+    return interactive.includes(el.tagName) || el.closest('button, a, input, textarea, select');
+  }
+}
+
+const zoom = new ZoomManager();
+
+// ============ LISTAS COMPARTIDAS ============
+
+async function cargarMisListas() {
+  try {
+    const response = await fetch('/api/listas');
+    const data = await response.json();
+
+    renderizarSelectorListas(data.propias, data.compartidas);
+    await actualizarListaActual(data.propias);
+  } catch (error) {
+    console.error('Error cargando listas:', error);
+  }
+}
+
+function renderizarSelectorListas(propias, compartidas) {
+  const containerPropias = document.getElementById('listasPropias');
+  const containerCompartidas = document.getElementById('listasCompartidas');
+  const seccionCompartidas = document.getElementById('seccionListasCompartidas');
+
+  // Los elementos ya no existen (modalCambiarLista fue eliminado)
+  // Solo renderizar si los contenedores existen
+  if (!containerPropias || !containerCompartidas) {
+    return;
+  }
+
+  containerPropias.innerHTML = '';
+  containerCompartidas.innerHTML = '';
+
+  propias.forEach(lista => {
+    const item = crearItemLista(lista);
+    containerPropias.appendChild(item);
+  });
+
+  if (compartidas.length > 0 && seccionCompartidas) {
+    seccionCompartidas.style.display = 'block';
+    compartidas.forEach(lista => {
+      const item = crearItemLista(lista);
+      containerCompartidas.appendChild(item);
+    });
+  } else if (seccionCompartidas) {
+    seccionCompartidas.style.display = 'none';
+  }
+}
+
+function crearItemLista(lista) {
+  const div = document.createElement('div');
+  div.style.cssText = `
+    padding: 12px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    margin-bottom: 8px;
+    transition: all 0.15s ease;
+  `;
+
+  const icono = document.createElement('span');
+  icono.textContent = lista.icono || '📋';
+  icono.style.fontSize = '1.2rem';
+
+  const info = document.createElement('div');
+  info.style.cssText = 'flex: 1;';
+  info.innerHTML = `
+    <div style="font-weight: 600; font-size: 0.95rem;">${lista.nombre}</div>
+    <div style="font-size: 0.75rem; color: var(--text-soft);">${lista.mi_rol ? lista.mi_rol.toUpperCase() : 'VER'}</div>
+  `;
+
+  div.appendChild(icono);
+  div.appendChild(info);
+
+  div.addEventListener('click', () => {
+    cambiarLista(lista.id);
+  });
+
+  div.addEventListener('mousedown', () => {
+    div.style.background = 'var(--surface-2)';
+  });
+
+  div.addEventListener('mouseup', () => {
+    div.style.background = 'var(--surface)';
+  });
+
+  return div;
+}
+
+async function actualizarListaActual(listas = null) {
+  let listaId = localStorage.getItem('lista-actual');
+
+  // Si no hay lista seleccionada, usar la primera del parámetro
+  if (!listaId && listas && listas.length > 0) {
+    listaId = listas[0].id;
+    localStorage.setItem('lista-actual', listaId);
+  }
+
+  if (!listaId) {
+    console.warn('No hay lista disponible para actualizar');
+    return;
+  }
+
+  // Actualizar el selector visible
+  try {
+    const res = await fetch(`/api/listas/${listaId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const lista = await res.json();
+
+    const nombreEl = document.getElementById('listaActualNombre');
+    const iconoEl = document.getElementById('listaActualIcono');
+    const rolEl = document.getElementById('listaActualRol');
+
+    if (nombreEl) nombreEl.textContent = lista.nombre;
+    if (iconoEl) iconoEl.textContent = lista.icono || '📋';
+    if (rolEl) rolEl.textContent = (lista.mi_rol || 'ver').toUpperCase();
+  } catch (error) {
+    console.error('Error actualizando lista actual:', error);
+  }
+}
+
+async function cambiarLista(listaId) {
+  localStorage.setItem('lista-actual', listaId);
+
+  // Cerrar modal
+  const modalMisListas = document.getElementById('modalMisListas');
+  if (modalMisListas) {
+    modalMisListas.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  // Recargar datos
+  await cargarProductos();
+  await cargarListaCompra();
+
+  // Actualizar selector visible
+  await cargarMisListas();
+}
+
+// ============ INICIALIZACIONES ============
+
+// cargarEspacios(); // Obsoleto: usar listas en su lugar
+cargarMisListas();
 cargarCategorias().then(() => {
   cargarProductos();
   cargarListaCompra();
 });
 cargarHistorial();
 cargarEstadoAuth();
+
+// ============ EVENTOS DE UI ============
+
+const btnCambiarListaEl = document.getElementById('btnCambiarLista');
+if (btnCambiarListaEl) {
+  btnCambiarListaEl.addEventListener('click', () => {
+    if (window.drawerListasManager) {
+      window.drawerListasManager.abrirModal();
+    }
+  });
+}
+
+const listaActualBtnEl = document.getElementById('listaActualBtn');
+if (listaActualBtnEl) {
+  listaActualBtnEl.addEventListener('click', () => {
+    if (window.drawerListasManager) {
+      window.drawerListasManager.abrirModal();
+    }
+  });
+}

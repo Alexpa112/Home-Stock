@@ -1,0 +1,687 @@
+/**
+ * RESPONSIVE CSS - Sistema profesional de responsividad
+ * Garantiza adaptación perfecta a todos los tamaños de pantalla
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* VARIABLES Y CONFIGURACION BASE */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Espaciado responsivo */
+  --spacing-xs: clamp(4px, 1vw, 8px);
+  --spacing-sm: clamp(8px, 2vw, 12px);
+  --spacing-md: clamp(12px, 3vw, 16px);
+  --spacing-lg: clamp(16px, 4vw, 24px);
+  --spacing-xl: clamp(20px, 5vw, 32px);
+
+  /* Tamaños de fuente responsivos */
+  --font-xs: clamp(12px, 2vw, 14px);
+  --font-sm: clamp(14px, 2.5vw, 16px);
+  --font-base: clamp(16px, 3vw, 18px);
+  --font-lg: clamp(18px, 3.5vw, 20px);
+  --font-xl: clamp(20px, 4vw, 24px);
+
+  /* Alturas mínimas touch-friendly */
+  --touch-height: 44px;
+  --touch-height-small: 40px;
+
+  /* Anchos máximos */
+  --max-width-mobile: 100%;
+  --max-width-tablet: 600px;
+  --max-width-desktop: 1200px;
+
+  /* Transiciones suave */
+  --transition-fast: 100ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* MODALES - ADAPTACION PERFECTA A TODOS LOS TAMAÑOS */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 5vh 16px 16px 16px;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.modal {
+  width: 100%;
+  max-width: min(100vw - var(--spacing-md) * 2, 600px);
+  max-height: 85dvh;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp var(--transition-normal) ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Contenido del modal - scroll interno */
+.modal > form,
+.modal > div:not(.modal-header) {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+/* Asegurar que el modal se adapte al teclado */
+body.is-keyboard-open .modal {
+  max-height: calc(100dvh - var(--keyboard-height) - var(--spacing-lg));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* MODAL ESPECIFICO DE TICKETS */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-ticket {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+}
+
+.modal-ticket > h2 {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+  font-size: var(--font-lg);
+  flex-shrink: 0;
+}
+
+.modal-ticket > .aviso,
+.modal-ticket > div:nth-child(2),
+.modal-ticket > div:nth-child(3) {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--spacing-md);
+}
+
+.modal-ticket > .acciones-modal {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal-ticket > .acciones-modal button {
+  flex: 1;
+  min-height: var(--touch-height);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* CAMPOS DE FORMULARIO - CONSISTENTES Y ADAPTABLES */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal input,
+.modal select,
+.modal textarea {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-base);
+  min-height: var(--touch-height);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.modal input:focus-visible,
+.modal select:focus-visible,
+.modal textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Fix para select en iOS */
+.modal select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-sm) center;
+  padding-right: calc(var(--spacing-md) + 12px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* FILA DE ITEMS DE TICKET - ADAPTABLE */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.ticket-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ticket-item {
+  padding: var(--spacing-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.ticket-item .fila-superior {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.ticket-item .fila-superior input[name="nombre"] {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.ticket-item .fila-superior input[name="cantidad"],
+.ticket-item .fila-superior input[name="unidad"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.ticket-item .fila-superior button {
+  width: var(--touch-height-small);
+  height: var(--touch-height-small);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: var(--font-base);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.ticket-item .fila-superior button:active {
+  background-color: var(--surface);
+}
+
+.ticket-item select {
+  width: 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* BOTONES - CONSISTENTES Y ACCESIBLES */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal button {
+  min-height: var(--touch-height);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-base);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.modal button:active {
+  transform: scale(0.98);
+}
+
+.primario {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.primario:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.secundario {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.secundario:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* BREAKPOINTS PARA TABLET Y DESKTOP */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 768px) {
+  :root {
+    --spacing-md: 16px;
+    --spacing-lg: 20px;
+  }
+
+  .modal-fondo {
+    justify-content: center;
+    padding: var(--spacing-lg);
+  }
+
+  .modal {
+    max-width: 600px;
+    max-height: 80dvh;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal > form {
+    padding: var(--spacing-lg);
+  }
+
+  .ticket-item .fila-superior {
+    grid-template-columns: 1fr 100px 80px auto;
+  }
+
+  .ticket-item .fila-superior input[name="nombre"] {
+    grid-column: 1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .modal {
+    max-width: 700px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ORIENTACION LANDSCAPE */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (orientation: landscape) {
+  :root {
+    --keyboard-height: 200px;
+  }
+
+  .modal {
+    max-height: 90dvh;
+  }
+
+  body.is-keyboard-open .modal {
+    max-height: calc(100dvh - var(--keyboard-height) - var(--spacing-md));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* TEXTO Y CONTENIDO RESPONSIVO */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal h2,
+.modal h3 {
+  font-size: var(--font-lg);
+  margin: 0;
+}
+
+.modal label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  font-size: var(--font-sm);
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.modal p {
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  margin: var(--spacing-sm) 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ACCESIBILIDAD */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal [aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.modal [aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+/* Modo de alto contraste */
+@media (prefers-contrast: more) {
+  .modal input,
+  .modal select,
+  .modal textarea {
+    border-width: 2px;
+  }
+}
+
+/* Movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  .modal,
+  .modal input,
+  .modal select,
+  .modal textarea,
+  .modal button {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* AYUDANTES UTILES */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-aviso {
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: var(--font-sm);
+  text-align: center;
+}
+
+.modal-cargando {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-soft);
+  font-size: var(--font-sm);
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+/* Ensure proper scrolling on iOS */
+.modal-fondo,
+.modal,
+.ticket-items {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.modal input,
+.modal select,
+.modal textarea,
+.modal button {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* DRAWER LISTAS - Navegación lateral */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Fondo oscuro detrás del drawer */
+.drawer-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  z-index: 89;
+  transition: background var(--transition-normal) ease;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.drawer-fondo.drawer-visible {
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+/* Drawer panel lateral */
+.drawer-listas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: clamp(260px, 70vw, 320px);
+  height: 100dvh;
+  z-index: 98;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform var(--transition-normal) ease;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.drawer-listas.drawer-visible {
+  transform: translateX(0);
+}
+
+body.drawer-open {
+  overflow: hidden;
+}
+
+/* Header del drawer */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.drawer-header h2 {
+  margin: 0;
+  font-size: var(--font-lg);
+  color: var(--text);
+}
+
+.btn-cerrar-drawer {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-height);
+  min-height: var(--touch-height);
+  color: var(--text);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-cerrar-drawer:active {
+  background: var(--accent-soft);
+}
+
+/* Lista de listas */
+.drawer-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--spacing-md) 0;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin: var(--spacing-xs);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast) ease;
+  min-height: var(--touch-height);
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--font-base);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.drawer-item:active,
+.drawer-item:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.drawer-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.drawer-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.drawer-nombre {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.drawer-rol {
+  font-size: var(--font-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.drawer-empty {
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+  color: var(--text-soft);
+  font-size: var(--font-sm);
+}
+
+/* Botón crear nueva lista */
+.btn-crear-lista {
+  margin: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  min-height: var(--touch-height);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: var(--font-base);
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.btn-crear-lista:active {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+/* Selector de icono en modal */
+.icono-selector-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+
+.icono-display {
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+
+#btnSeleccionarIconoNuevaLista {
+  flex: 1;
+}
+
+/* Mobile (< 768px) */
+@media (max-width: 767px) {
+  .drawer-listas {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .drawer-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+
+  .drawer-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    gap: var(--spacing-sm);
+    margin: 0 var(--spacing-xs);
+  }
+
+  .btn-crear-lista {
+    margin: var(--spacing-md);
+  }
+}
+
+/* Tablet (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .drawer-listas {
+    width: 280px;
+  }
+}
+
+/* Desktop (>= 1024px) */
+@media (min-width: 1024px) {
+  .drawer-listas {
+    width: 300px;
+  }
+}
+
+/* Landscape */
+@media (max-height: 500px) {
+  .drawer-listas {
+    width: 100%;
+  }
+
+  .drawer-item {
+    padding: 8px var(--spacing-lg);
+    min-height: 40px;
+  }
+
+  .drawer-icon {
+    font-size: 18px;
+  }
+}

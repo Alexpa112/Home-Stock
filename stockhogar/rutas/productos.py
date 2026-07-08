@@ -48,34 +48,50 @@ def row_to_dict(row):
 
 def revisar_stock_bajo(db, producto_id):
     """Mantiene la lista de la compra en sincronia con el stock del producto."""
-    fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
-    if fila is None:
-        return
-    producto = row_to_dict(fila)
-    pendiente = db.execute(
-        "SELECT id FROM lista_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
-        (producto_id,),
-    ).fetchone()
-    espacio_id = producto["espacio_id"] or obtener_espacio_actual(db)
+    try:
+        fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
+        if fila is None:
+            return
 
-    if producto["cantidad"] < producto["stock_minimo"]:
-        if pendiente is None:
+        # Obtener datos básicos sin usar row_to_dict para evitar problemas con parsing de fechas
+        cantidad = fila["cantidad"]
+        stock_minimo = fila["stock_minimo"]
+        espacio_id = fila["espacio_id"]
+        nombre = fila["nombre"]
+        unidad = fila["unidad"]
+        categoria = fila["categoria"]
+        icono = fila["icono"]
+
+        # Si no tiene espacio_id, usar el primero disponible
+        if espacio_id is None:
+            primero = db.execute("SELECT id FROM espacios ORDER BY id LIMIT 1").fetchone()
+            espacio_id = primero["id"] if primero else 1
+
+        pendiente = db.execute(
+            "SELECT id FROM lista_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
+            (producto_id,),
+        ).fetchone()
+
+        if cantidad < stock_minimo:
+            if pendiente is None:
+                db.execute(
+                    "INSERT INTO lista_compra "
+                    "(producto_id, nombre, unidad, categoria, icono, espacio_id, origen) "
+                    "VALUES (?, ?, ?, ?, ?, ?, 'auto')",
+                    (producto_id, nombre, unidad, categoria, icono, espacio_id),
+                )
+        elif pendiente is not None:
+            # Se ha vuelto a subir el stock: lo damos por comprado en vez de borrarlo
             db.execute(
-                "INSERT INTO lista_compra "
-                "(producto_id, nombre, unidad, categoria, icono, espacio_id, origen) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'auto')",
-                (
-                    producto_id, producto["nombre"], producto["unidad"], producto["categoria"],
-                    producto["icono"], espacio_id,
-                ),
+                "UPDATE lista_compra SET activo = 0, fecha_completado = ? WHERE id = ?",
+                (ahora(), pendiente["id"]),
             )
-    elif pendiente is not None:
-        # Se ha vuelto a subir el stock: lo damos por comprado en vez de borrarlo,
-        # asi aparece en "Comprados recientemente" de la lista de la compra.
-        db.execute(
-            "UPDATE lista_compra SET activo = 0, fecha_completado = ? WHERE id = ?",
-            (ahora(), pendiente["id"]),
-        )
+    except Exception as e:
+        print(f"[revisar_stock_bajo] Error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        # No lanzar excepción, solo loguear el error
+        pass
 
 
 def sumar_stock(db, producto_id, cantidad_a_sumar):
@@ -142,58 +158,81 @@ def crear_producto():
     unidad = (datos.get("unidad") or "ud").strip() or "ud"
     icono = (datos.get("icono") or "").strip() or None
 
-    db = get_db()
-    espacio_id = obtener_espacio_actual(db)
-    producto_id = crear_producto_nuevo(
-        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, espacio_id
-    )
-    db.commit()
-    fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
-    return jsonify(row_to_dict(fila)), 201
+    try:
+        db = get_db()
+        espacio_id = obtener_espacio_actual(db)
+        producto_id = crear_producto_nuevo(
+            db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, espacio_id
+        )
+        db.commit()
+        fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
+        return jsonify(row_to_dict(fila)), 201
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 @bp.route("/<int:producto_id>", methods=["PATCH"])
 def actualizar_producto(producto_id):
-    db = get_db()
-    espacio_id = obtener_espacio_actual(db)
-    fila = db.execute(
-        "SELECT * FROM productos WHERE id = ? AND espacio_id = ?", (producto_id, espacio_id)
-    ).fetchone()
-    if fila is None:
-        return jsonify({"error": "Producto no encontrado"}), 404
+    try:
+        print(f"[PATCH] producto_id={producto_id}")
+        db = get_db()
+        espacio_id = obtener_espacio_actual(db)
+        print(f"[PATCH] espacio_id={espacio_id}")
+        fila = db.execute(
+            "SELECT * FROM productos WHERE id = ? AND espacio_id = ?", (producto_id, espacio_id)
+        ).fetchone()
+        if fila is None:
+            print(f"[PATCH] Producto {producto_id} no encontrado en espacio {espacio_id}")
+            return jsonify({"error": "Producto no encontrado"}), 404
 
-    datos = request.get_json(force=True) or {}
-    actual = row_to_dict(fila)
+        datos = request.get_json(force=True) or {}
+        print(f"[PATCH] datos={datos}")
+        actual = row_to_dict(fila)
 
-    if "delta" in datos:
-        sumar_stock(db, producto_id, int(datos["delta"]))
-    else:
-        nombre = (datos.get("nombre") or actual["nombre"]).strip()
-        categoria = datos.get("categoria") or actual["categoria"]
-        if categoria != normalizar_categoria(db, categoria):
-            categoria = actual["categoria"]
-        try:
-            cantidad = _parsear_entero_no_negativo(datos.get("cantidad", actual["cantidad"]), "cantidad")
-            stock_minimo = _parsear_entero_no_negativo(
-                datos.get("stock_minimo", actual["stock_minimo"]), "stock mínimo"
+        if "delta" in datos:
+            try:
+                delta = int(datos.get("delta", 0))
+                print(f"[PATCH] Sumando stock: delta={delta}")
+                sumar_stock(db, producto_id, delta)
+            except (ValueError, TypeError) as e:
+                print(f"[PATCH] Error parseando delta: {e}")
+                return jsonify({"error": f"Delta inválido: {e}"}), 400
+        else:
+            nombre = (datos.get("nombre") or actual["nombre"]).strip()
+            categoria = datos.get("categoria") or actual["categoria"]
+            if categoria != normalizar_categoria(db, categoria):
+                categoria = actual["categoria"]
+            try:
+                cantidad = _parsear_entero_no_negativo(datos.get("cantidad", actual["cantidad"]), "cantidad")
+                stock_minimo = _parsear_entero_no_negativo(
+                    datos.get("stock_minimo", actual["stock_minimo"]), "stock mínimo"
+                )
+                dias_aviso = int(datos.get("dias_aviso", actual["dias_aviso"]))
+            except ValueError as exc:
+                return jsonify({"error": str(exc)}), 400
+            unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
+            icono = (datos.get("icono", actual["icono"]) or "").strip() or None
+            db.execute(
+                "UPDATE productos SET nombre=?, categoria=?, cantidad=?, unidad=?, stock_minimo=?, "
+                "dias_aviso=?, icono=?, fecha_actualizacion=? WHERE id=?",
+                (nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, ahora(), producto_id),
             )
-            dias_aviso = int(datos.get("dias_aviso", actual["dias_aviso"]))
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
-        unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
-        icono = (datos.get("icono", actual["icono"]) or "").strip() or None
-        db.execute(
-            "UPDATE productos SET nombre=?, categoria=?, cantidad=?, unidad=?, stock_minimo=?, "
-            "dias_aviso=?, icono=?, fecha_actualizacion=? WHERE id=?",
-            (nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, ahora(), producto_id),
-        )
-        if icono:
-            recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
-        revisar_stock_bajo(db, producto_id)
+            if icono:
+                recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
+            revisar_stock_bajo(db, producto_id)
 
-    db.commit()
-    fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
-    return jsonify(row_to_dict(fila))
+        print(f"[PATCH] Commiting...")
+        db.commit()
+        fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
+        print(f"[PATCH] Devolviendo producto actualizado")
+        return jsonify(row_to_dict(fila))
+    except Exception as e:
+        print(f"[PATCH] ERROR: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error actualizando: {str(e)}"}), 500
 
 
 @bp.route("/<int:producto_id>", methods=["DELETE"])

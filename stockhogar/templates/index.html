@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Dreame!</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 <script>
   (function () {
     var guardado = localStorage.getItem("stockhogar-tema");
@@ -25,12 +26,15 @@
     </div>
   </header>
 
-  <div class="barra-espacio" id="barraEspacio">
-    <button id="btnEspacios" class="chip-espacio" title="Cambiar de stock">
-      <span id="espacioActualIcono">🏠</span>
-      <span id="espacioActualNombre">Cargando...</span>
-      <span class="chip-espacio-flecha">▾</span>
-    </button>
+  <div class="selector-lista" id="selectorLista">
+    <div class="lista-actual" id="listaActualBtn" role="button" tabindex="0">
+      <span class="lista-actual-icono" id="listaActualIcono">📋</span>
+      <div class="lista-actual-info">
+        <span class="lista-actual-nombre" id="listaActualNombre">Cargando...</span>
+        <span class="lista-actual-rol" id="listaActualRol">PROPIETARIO</span>
+      </div>
+    </div>
+    <button class="btn-cambiar-lista" id="btnCambiarLista" title="Cambiar lista" aria-label="Abrir selector de listas">▾</button>
   </div>
 
   <section id="vistaEspacios" hidden>
@@ -71,83 +75,95 @@
   <button id="btnAbrirModal" class="fab" title="Añadir">+</button>
 
 <div id="modal" class="modal-fondo" hidden>
-  <form id="formProducto" class="modal">
-    <h2 id="modalTitulo">Nuevo producto</h2>
-    <input type="hidden" id="productoId">
-
-    <label>Nombre
-      <input id="campoNombre" type="text" required maxlength="80" placeholder="Ej. Papel higienico">
-    </label>
-
-    <label>Categoria
-      <select id="campoCategoria"></select>
-    </label>
-
-    <div class="fila-icono-actual">
-      <span class="crece">Icono <small class="nota-icono">(opcional; si no eliges uno se usa el de la categoría)</small></span>
-      <button type="button" id="btnQuitarIconoProducto" class="secundario" hidden>Usar el de categoría</button>
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitulo">Nuevo producto</h2>
     </div>
-    <input type="hidden" id="campoIcono" value="">
-    <div id="selectorIconoProducto"></div>
+    <div class="modal-content">
+      <form id="formProducto">
+        <input type="hidden" id="productoId">
 
-    <div class="fila">
-      <label>Cantidad
-        <input id="campoCantidad" type="number" step="1" inputmode="numeric" value="1">
-      </label>
-      <label>Unidad
-        <input id="campoUnidad" type="text" maxlength="10" value="ud">
-      </label>
-      <label>Stock minimo
-        <input id="campoMinimo" type="number" step="1" inputmode="numeric" value="1">
-      </label>
+        <label>Nombre
+          <input id="campoNombre" type="text" required maxlength="80" placeholder="Ej. Papel higienico">
+        </label>
+
+        <label>Categoria
+          <select id="campoCategoria"></select>
+        </label>
+
+        <div class="fila-icono-actual">
+          <span class="crece">Icono <small class="nota-icono">(opcional; si no eliges uno se usa el de la categoría)</small></span>
+          <button type="button" id="btnQuitarIconoProducto" class="secundario" hidden>Usar el de categoría</button>
+        </div>
+        <input type="hidden" id="campoIcono" value="">
+        <div id="selectorIconoProducto"></div>
+
+        <div class="fila">
+          <label>Cantidad
+            <input id="campoCantidad" type="number" step="1" inputmode="numeric" value="1">
+          </label>
+          <label>Unidad
+            <input id="campoUnidad" type="text" maxlength="10" value="ud">
+          </label>
+          <label>Stock minimo
+            <input id="campoMinimo" type="number" step="1" inputmode="numeric" value="1">
+          </label>
+        </div>
+
+        <label>Avisar para revisar caducidad si no cambia en (días)
+          <input id="campoDiasAviso" type="number" min="0" value="30">
+        </label>
+        <p class="aviso">Pon 0 para no avisar nunca de este producto.</p>
+      </form>
     </div>
-
-    <label>Avisar para revisar caducidad si no cambia en (días)
-      <input id="campoDiasAviso" type="number" min="0" value="30">
-    </label>
-    <p class="aviso">Pon 0 para no avisar nunca de este producto.</p>
-
-    <div class="acciones-modal">
+    <div class="modal-footer">
       <button type="button" id="btnCancelar" class="secundario">Cancelar</button>
-      <button type="submit" class="primario">Guardar</button>
+      <button type="submit" form="formProducto" class="primario">Guardar</button>
     </div>
-  </form>
+  </div>
 </div>
 
 <div id="modalCompra" class="modal-fondo" hidden>
-  <form id="formCompra" class="modal">
-    <h2 id="compraModalTitulo">Añadir a la lista de la compra</h2>
-    <input type="hidden" id="compraEditId">
-
-    <label>Nombre
-      <input id="compraCampoNombre" type="text" required maxlength="80" placeholder="Ej. Bolsas de basura">
-    </label>
-    <div class="fila">
-      <label>Cantidad
-        <input id="compraCampoCantidad" type="number" min="1" value="1">
-      </label>
-      <label>Unidad
-        <input id="compraCampoUnidad" type="text" maxlength="10" value="ud">
-      </label>
-      <label class="crece">Categoría
-        <select id="compraCampoCategoria"></select>
-      </label>
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="compraModalTitulo">Añadir a la lista de la compra</h2>
     </div>
-    <label>Sub-descripción <small class="nota-icono">(opcional, ej. "Entera", "Sin gluten")</small>
-      <input id="compraCampoSubdescripcion" type="text" maxlength="60" placeholder="Ej. Entera">
-    </label>
+    <div class="modal-content">
+      <form id="formCompra">
+        <input type="hidden" id="compraEditId">
 
-    <div class="fila-icono-actual">
-      <span class="crece">Icono <small class="nota-icono">(opcional; si no eliges uno se usa el de la categoría)</small></span>
-      <button type="button" id="btnQuitarIconoCompra" class="secundario" hidden>Usar el de categoría</button>
+        <label>Nombre
+          <input id="compraCampoNombre" type="text" required maxlength="80" placeholder="Ej. Bolsas de basura">
+        </label>
+        <div class="fila">
+          <label>Cantidad
+            <input id="compraCampoCantidad" type="number" min="1" value="1">
+          </label>
+          <label>Unidad
+            <input id="compraCampoUnidad" type="text" maxlength="10" value="ud">
+          </label>
+          <label class="crece">Categoría
+            <select id="compraCampoCategoria"></select>
+          </label>
+        </div>
+        <label>Sub-descripción <small class="nota-icono">(opcional, ej. "Entera", "Sin gluten")</small>
+          <input id="compraCampoSubdescripcion" type="text" maxlength="60" placeholder="Ej. Entera">
+        </label>
+
+        <div class="fila-icono-actual">
+          <span class="crece">Icono <small class="nota-icono">(opcional; si no eliges uno se usa el de la categoría)</small></span>
+          <button type="button" id="btnQuitarIconoCompra" class="secundario" hidden>Usar el de categoría</button>
+        </div>
+        <input type="hidden" id="compraCampoIcono" value="">
+        <div id="selectorIconoCompra"></div>
+      </form>
     </div>
-    <input type="hidden" id="compraCampoIcono" value="">
-    <div id="selectorIconoCompra"></div>
-
-    <div class="acciones-modal">
+    <div class="modal-footer">
       <button type="button" id="btnCancelarCompra" class="secundario">Cancelar</button>
-      <button type="submit" class="primario" id="compraBotonGuardar">Añadir</button>
+      <button type="button" id="btnBorrarArticulo" class="secundario" hidden style="color: var(--danger);">Borrar</button>
+      <button type="submit" form="formCompra" class="primario" id="compraBotonGuardar">Añadir</button>
     </div>
+  </div>
   </form>
 </div>
 
@@ -167,56 +183,65 @@
 
 <div id="modalAjustes" class="modal-fondo" hidden>
   <div class="modal">
-    <h2>Ajustes</h2>
+    <div class="modal-header">
+      <h2>Ajustes</h2>
+    </div>
 
-    <p class="aviso">
-      Conectado como <strong id="ajustesUsuarioActual">-</strong>.
-      <button type="button" id="btnCerrarSesion" class="secundario">Cerrar sesión</button>
-    </p>
+    <div class="modal-content">
+      <p class="aviso">
+        Conectado como <strong id="ajustesUsuarioActual">-</strong>.
+        <button type="button" id="btnCerrarSesion" class="secundario">Cerrar sesión</button>
+      </p>
 
-    <h3 class="titulo-seccion">Usuarios</h3>
-    <div id="usuariosLista" class="categorias-lista"></div>
-    <div class="nueva-categoria-fila">
-      <label class="crece">Nuevo usuario
-        <input id="usuarioCampoNombre" type="text" maxlength="40" placeholder="Nombre" autocomplete="off">
+      <h3 class="titulo-seccion">Usuarios</h3>
+      <div id="usuariosLista" class="categorias-lista"></div>
+      <div class="nueva-categoria-fila">
+        <label class="crece">Nuevo usuario
+          <input id="usuarioCampoNombre" type="text" maxlength="40" placeholder="Nombre" autocomplete="off">
+        </label>
+        <button type="button" id="btnAnadirUsuario" class="secundario">Añadir</button>
+      </div>
+      <label>Contraseña del nuevo usuario
+        <input id="usuarioCampoPassword" type="password" minlength="4" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
       </label>
-      <button type="button" id="btnAnadirUsuario" class="secundario">Añadir</button>
+      <p id="usuariosEstado" class="aviso" hidden></p>
     </div>
-    <label>Contraseña del nuevo usuario
-      <input id="usuarioCampoPassword" type="password" minlength="4" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
-    </label>
-    <p id="usuariosEstado" class="aviso" hidden></p>
 
-    <div class="acciones-modal">
-      <button type="button" id="btnCancelarAjustes" class="secundario">Cerrar</button>
-    </div>
   </div>
 </div>
 
 <div id="modalTicket" class="modal-fondo" hidden>
   <div class="modal modal-ticket">
-    <h2>Escanear ticket</h2>
-    <p class="aviso">
-      Lectura local con OCR (sin conexión a internet). Es orientativa: revisa
-      y corrige los artículos detectados antes de añadirlos al stock.
-    </p>
+    <div class="modal-header">
+      <h2>Escanear ticket</h2>
+    </div>
 
-    <div id="ticketPasoFoto">
-      <label>Foto del ticket
-        <input id="ticketArchivo" type="file" accept="image/*" capture="environment">
-      </label>
-      <div class="acciones-modal">
-        <button type="button" id="btnCancelarTicket" class="secundario">Cancelar</button>
-        <button type="button" id="btnAnalizarTicket" class="primario">Analizar</button>
+    <div class="modal-content">
+      <p class="aviso">
+        Lectura local con OCR (sin conexión a internet). Es orientativa: revisa
+        y corrige los artículos detectados antes de añadirlos al stock.
+      </p>
+
+      <div id="ticketPasoFoto">
+        <label>Foto del ticket
+          <input id="ticketArchivo" type="file" accept="image/*" capture="environment">
+        </label>
+      </div>
+
+      <div id="ticketCargando" class="aviso" hidden>Leyendo el ticket, un momento...</div>
+
+      <div id="ticketPasoRevision" hidden>
+        <ul id="ticketItems" class="ticket-items"></ul>
+        <button type="button" id="btnAnadirLineaTicket" class="secundario">+ Añadir línea</button>
       </div>
     </div>
 
-    <div id="ticketCargando" class="aviso" hidden>Leyendo el ticket, un momento...</div>
-
-    <div id="ticketPasoRevision" hidden>
-      <ul id="ticketItems" class="ticket-items"></ul>
-      <button type="button" id="btnAnadirLineaTicket" class="secundario">+ Añadir línea</button>
-      <div class="acciones-modal">
+    <div class="modal-footer">
+      <div id="ticketPasoFoto" style="display: contents;">
+        <button type="button" id="btnCancelarTicket" class="secundario">Cancelar</button>
+        <button type="button" id="btnAnalizarTicket" class="primario">Analizar</button>
+      </div>
+      <div id="ticketPasoRevision" hidden style="display: contents;">
         <button type="button" id="btnCancelarRevisionTicket" class="secundario">Cancelar</button>
         <button type="button" id="btnConfirmarTicket" class="primario">Añadir al stock</button>
       </div>
@@ -238,10 +263,10 @@
         </label>
         <button type="submit" class="primario">Añadir</button>
       </div>
-      <label>Icono: <span id="categoriaIconoElegido">🗂️</span>
-        <input type="hidden" id="categoriaCampoIcono" value="🗂️">
-      </label>
-      <div id="selectorIconos"></div>
+      <button type="button" id="btnSeleccionarIconoCategoria" class="secundario" style="width: 100%;">
+        Icono: <span id="categoriaIconoElegido">🗂️</span>
+      </button>
+      <input type="hidden" id="categoriaCampoIcono" value="🗂️">
     </form>
 
     <div class="acciones-modal">
@@ -251,36 +276,195 @@
 </div>
 
 <div id="modalEspacioForm" class="modal-fondo" hidden>
-  <form id="formEspacio" class="modal">
-    <h2 id="espacioFormTitulo">Nuevo stock</h2>
-    <input type="hidden" id="espacioEditId">
-
-    <label>Nombre
-      <input id="espacioCampoNombre" type="text" maxlength="30" placeholder="Ej. Piso de la playa" required>
-    </label>
-
-    <label>Icono: <span id="espacioIconoElegido">🏠</span>
-      <input type="hidden" id="espacioCampoIcono" value="🏠">
-    </label>
-    <div id="selectorIconoEspacio"></div>
-
-    <span>Color <small class="nota-icono">(se usa en su tarjeta y en los acentos de la app mientras estás en este stock)</small></span>
-    <div id="paletaColorEspacio" class="paleta-color"></div>
-    <label class="fila-color-personalizado">
-      Personalizado
-      <input type="color" id="espacioCampoColorPicker" value="#B5551A">
-    </label>
-    <input type="hidden" id="espacioCampoColor" value="#B5551A">
-
-    <div class="acciones-modal">
-      <button type="button" id="btnCancelarEspacio" class="secundario">Cancelar</button>
-      <button type="submit" class="primario" id="espacioBotonGuardar">Añadir</button>
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="espacioFormTitulo">Nuevo stock</h2>
     </div>
-  </form>
+    <div class="modal-content">
+      <form id="formEspacio">
+        <input type="hidden" id="espacioEditId">
+
+        <label>Nombre
+          <input id="espacioCampoNombre" type="text" maxlength="30" placeholder="Ej. Piso de la playa" required>
+        </label>
+
+        <label>Icono: <span id="espacioIconoElegido">🏠</span>
+          <input type="hidden" id="espacioCampoIcono" value="🏠">
+        </label>
+        <div id="selectorIconoEspacio"></div>
+
+        <span>Color <small class="nota-icono">(se usa en su tarjeta y en los acentos de la app mientras estás en este stock)</small></span>
+        <div id="paletaColorEspacio" class="paleta-color"></div>
+        <label class="fila-color-personalizado">
+          Personalizado
+          <input type="color" id="espacioCampoColorPicker" value="#B5551A">
+        </label>
+        <input type="hidden" id="espacioCampoColor" value="#B5551A">
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" id="btnCancelarEspacio" class="secundario">Cancelar</button>
+      <button type="submit" form="formEspacio" class="primario" id="espacioBotonGuardar">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<!-- modalCambiarLista - REDIRIGE A modalMisListas (misma funcionalidad) -->
+
+<!-- Modal superpuesta para seleccionar icono -->
+<div id="modalSelectorIconos" class="modal-fondo modal-superpuesta" hidden>
+  <div class="modal modal-pequeño">
+    <h3>Seleccionar icono</h3>
+    <input type="text" id="buscadorIconos" class="buscador-iconos" placeholder="Buscar icono...">
+    <div id="contenedorIconos" class="selector-iconos"></div>
+    <div class="acciones-modal">
+      <button type="button" id="btnCerrarSelectorIconos" class="secundario">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Mis Listas -->
+<div id="modalMisListas" class="modal-fondo" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <button id="btnCerrarMisListas" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
+      <h2>Mis Listas</h2>
+      <button id="btnEditarMisListas" class="btn-header-editar" type="button" aria-label="Editar listas">Editar</button>
+    </div>
+
+    <div class="modal-content">
+      <div id="listaListas" class="lista-listas-container"></div>
+      <button id="btnCrearNuevaLista" class="btn-crear-lista" type="button">
+        + Nueva lista
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Crear nueva lista -->
+<div id="modalCrearLista" class="modal-fondo" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📋 Crear nueva lista</h2>
+    </div>
+    <div class="modal-content">
+      <form id="formCrearLista">
+        <label>Nombre
+          <input
+            type="text"
+            name="nombre"
+            maxlength="50"
+            placeholder="Ej. Mi inventario"
+            required
+            aria-label="Nombre de la lista"
+          >
+        </label>
+
+        <label>Icono
+          <div class="icono-selector-row">
+            <span id="iconoSeleccionadoNuevaLista" class="icono-display">📋</span>
+            <button
+              type="button"
+              id="btnSeleccionarIconoNuevaLista"
+              class="secundario"
+              aria-label="Seleccionar icono"
+            >
+              Cambiar icono
+            </button>
+          </div>
+          <input type="hidden" name="icono" value="📋">
+        </label>
+
+        <label>Color de la lista
+          <div class="color-picker-row">
+            <input type="color" id="crearListaColor" name="color" value="#B5551A">
+            <span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span>
+          </div>
+        </label>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" id="btnCancelarCrearLista" class="secundario" onclick="window.crearListaModal?.close()">
+        Cancelar
+      </button>
+      <button type="submit" form="formCrearLista" class="primario">
+        Crear lista
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Ajustes de la lista -->
+<div id="modalEditarLista" class="modal-fondo" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Ajustes de la lista</h2>
+      <button class="btn-cerrar-modal" type="button" onclick="window.drawerListasManager?.cerrarModalEditar()">✕</button>
+    </div>
+    <div class="modal-content">
+      <!-- Preview de la lista -->
+      <div id="previewLista" class="preview-lista-ajustes"></div>
+
+      <!-- Personalizar lista -->
+      <div class="seccion-ajustes">
+        <div class="seccion-header">
+          <span class="icon">⚙️</span>
+          <h3>Personalizar lista</h3>
+        </div>
+
+        <div class="grid-opciones-ajustes">
+          <button type="button" class="opcion-ajuste" onclick="alert('Ordenando: proximamente')">
+            <span class="icon-grande">↑↓</span>
+            <span>Ordenando</span>
+          </button>
+          <button type="button" class="opcion-ajuste" onclick="alert('Región: proximamente')">
+            <span class="icon-grande">🌐</span>
+            <span>Región e idioma</span>
+          </button>
+          <button type="button" class="opcion-ajuste" onclick="alert('Miembros: proximamente')">
+            <span class="icon-grande">👥</span>
+            <span>Miembros de la lista</span>
+          </button>
+          <button type="button" class="opcion-ajuste" id="btnEditarNombreImagen">
+            <span class="icon-grande">✏️</span>
+            <span>Nombre e imagen</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Form oculto para editar nombre/color -->
+      <form id="formEditarLista" style="display: none;">
+        <label>Nombre de la lista
+          <input
+            type="text"
+            id="editarListaNombre"
+            name="nombre"
+            maxlength="50"
+            required
+          >
+        </label>
+
+        <label>Color
+          <div class="color-picker-row">
+            <input type="color" id="editarListaColor" name="color" value="#B5551A">
+            <span id="colorPreview" class="color-preview"></span>
+          </div>
+        </label>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="peligro" id="btnSalirLista" style="width: 100%;">
+        Salir de esta lista
+      </button>
+    </div>
+  </div>
 </div>
 
 </div>
 
+<script src="{{ url_for('static', filename='ui-components.js') }}"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
+<script src="{{ url_for('static', filename='drawer-listas.js') }}"></script>
+<script src="{{ url_for('static', filename='test-drawer.js') }}"></script>
 </body>
 </html>

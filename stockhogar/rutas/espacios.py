@@ -28,15 +28,26 @@ def espacio_a_dict(row):
 
 def obtener_espacio_actual(db):
     """Id del espacio activo para esta sesion, validando que siga existiendo."""
-    espacio_id = session.get("espacio_id")
-    if espacio_id is not None:
-        existe = db.execute("SELECT 1 FROM espacios WHERE id = ?", (espacio_id,)).fetchone()
-        if existe:
-            return espacio_id
+    try:
+        espacio_id = session.get("espacio_id")
+        if espacio_id is not None:
+            existe = db.execute("SELECT 1 FROM espacios WHERE id = ?", (espacio_id,)).fetchone()
+            if existe:
+                return espacio_id
+    except (RuntimeError, KeyError):
+        # RuntimeError: no request context; KeyError: session not available
+        pass
 
+    # Si no hay espacio en sesión o no existe, obtener el primero
     primero = db.execute("SELECT id FROM espacios ORDER BY id LIMIT 1").fetchone()
-    espacio_id = primero["id"] if primero else None
-    session["espacio_id"] = espacio_id
+    espacio_id = primero["id"] if primero else 1
+
+    try:
+        session["espacio_id"] = espacio_id
+    except (RuntimeError, KeyError):
+        # No request context para guardar en sesión, solo devolver el id
+        pass
+
     return espacio_id
 
 

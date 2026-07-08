@@ -42,11 +42,17 @@ def _usuario_tiene_permiso(db, lista_id, usuario_id, nivel_requerido=None):
 
 def _lista_a_dict(row, usuario_id=None, include_detalles=False):
     """Convierte una fila de lista a dict JSON."""
+    try:
+        color = row["color"]
+    except (KeyError, IndexError):
+        color = "#B5551A"
+
     data = {
         "id": row["id"],
         "nombre": row["nombre"],
         "descripcion": row["descripcion"],
         "icono": row["icono"],
+        "color": color,
         "privada": bool(row["privada"]),
         "usuario_propietario_id": row["usuario_propietario_id"],
         "fecha_creacion": row["fecha_creacion"],
@@ -116,15 +122,16 @@ def crear_lista():
     db = get_db()
     descripcion = (datos.get("descripcion") or "").strip()[:500] or None
     icono = (datos.get("icono") or "📋").strip()[:10]
+    color = (datos.get("color") or "#B5551A").strip()[:7]
     privada = datos.get("privada", True)
 
     cur = db.execute(
         """
         INSERT INTO listas
-        (nombre, descripcion, usuario_propietario_id, privada, icono, fecha_creacion, fecha_actualizacion)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (nombre, descripcion, usuario_propietario_id, privada, icono, color, fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (nombre, descripcion, usuario_id, int(privada), icono, ahora(), ahora()),
+        (nombre, descripcion, usuario_id, int(privada), icono, color, ahora(), ahora()),
     )
     db.commit()
 
@@ -161,7 +168,7 @@ def obtener_lista(lista_id):
     return jsonify(data)
 
 
-@bp.route("/<int:lista_id>", methods=["PATCH"])
+@bp.route("/<int:lista_id>", methods=["PUT", "PATCH"])
 def actualizar_lista(lista_id):
     """Actualiza una lista (solo el propietario)."""
     usuario_id = session.get("usuario_id")
@@ -183,6 +190,7 @@ def actualizar_lista(lista_id):
     nombre = datos.get("nombre")
     descripcion = datos.get("descripcion")
     icono = datos.get("icono")
+    color = datos.get("color")
     privada = datos.get("privada")
 
     actualizaciones = {}
@@ -206,6 +214,11 @@ def actualizar_lista(lista_id):
         icono = icono.strip()[:10]
         actualizaciones["icono"] = "?"
         parametros.append(icono)
+
+    if color is not None:
+        color = color.strip()[:7]
+        actualizaciones["color"] = "?"
+        parametros.append(color)
 
     if privada is not None:
         actualizaciones["privada"] = "?"
@@ -245,6 +258,58 @@ def eliminar_lista(lista_id):
 
     # DELETE CASCADE se encarga de limpiar articulos_lista y permisos_lista
     db.execute("DELETE FROM listas WHERE id = ?", (lista_id,))
+    db.commit()
+
+    return "", 204
+
+
+@bp.route("/<int:lista_id>/seleccionar", methods=["POST"])
+def seleccionar_lista(lista_id):
+    """Selecciona una lista como la actual del usuario."""
+    usuario_id = session.get("usuario_id")
+    if not usuario_id:
+        return jsonify({"error": "No autorizado"}), 401
+
+    db = get_db()
+    lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
+
+    if not lista:
+        return jsonify({"error": "Lista no encontrada"}), 404
+
+    # Verificar que el usuario tiene acceso
+    permiso = _usuario_tiene_permiso(db, lista_id, usuario_id)
+    if not permiso:
+        return jsonify({"error": "No tienes acceso a esta lista"}), 403
+
+    # Guardar la lista actual en sesión
+    session["lista_actual_id"] = lista_id
+    session.modified = True
+
+    return jsonify({"exito": True, "lista_id": lista_id}), 200
+
+
+@bp.route("/<int:lista_id>/salir", methods=["POST"])
+def salir_lista(lista_id):
+    """Sale de una lista compartida (solo para listas compartidas)."""
+    usuario_id = session.get("usuario_id")
+    if not usuario_id:
+        return jsonify({"error": "No autorizado"}), 401
+
+    db = get_db()
+    lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
+
+    if not lista:
+        return jsonify({"error": "Lista no encontrada"}), 404
+
+    # No se puede salir de lista propia
+    if lista["usuario_propietario_id"] == usuario_id:
+        return jsonify({"error": "No puedes salir de tu propia lista"}), 403
+
+    # Eliminar el permiso
+    db.execute(
+        "DELETE FROM permisos_lista WHERE lista_id = ? AND usuario_id = ?",
+        (lista_id, usuario_id),
+    )
     db.commit()
 
     return "", 204

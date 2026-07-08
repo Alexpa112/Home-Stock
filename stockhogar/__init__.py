@@ -8,7 +8,7 @@ from flask import Flask, jsonify, redirect, request, session, url_for
 
 from . import db, seguridad
 from .config import DIAS_SESION
-from .rutas import auth, categorias, espacios, historial, lista_compra, listas, paginas, productos, tickets
+from .rutas import auth, categorias, espacios, historial, lista_compra, listas, paginas, productos, tickets, ocr_tickets
 from .rutas.auth import RUTAS_PUBLICAS
 
 
@@ -28,6 +28,7 @@ def create_app():
     app.register_blueprint(listas.bp)
     app.register_blueprint(lista_compra.bp)
     app.register_blueprint(tickets.bp)
+    app.register_blueprint(ocr_tickets.bp)
 
     @app.before_request
     def exigir_sesion():
