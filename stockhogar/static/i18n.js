@@ -257,23 +257,28 @@ class TranslationManager {
   traducirCategorias() {
     console.log('🌍 Traduciendo categorías para idioma:', this.idiomaActual);
 
+    const botones = document.querySelectorAll('button.chip');
+    console.log(`🔍 Encontrados ${botones.length} botones chip`);
+
     // Traducir categorías en filtros (botones chip con data-cat)
-    document.querySelectorAll('button.chip').forEach(el => {
+    botones.forEach(el => {
       const categoriaOriginal = el.dataset.cat;
       if (categoriaOriginal && categoriaOriginal !== 'todas') {
+        // Generar clave usando el dataset.cat (que no tiene emoji)
         const clave = `categoria_${categoriaOriginal.toLowerCase().replace(/ /g, '_').replace(/&/g, 'y')}`;
-        const categoriaTrad = this.t(clave) ?? categoriaOriginal;  // Usar nullish coalescing
+        const categoriaTrad = this.t(clave) ?? categoriaOriginal;
 
-        // Preservar emoji si existe
-        const partes = el.textContent.split(' ');
+        // Extraer emoji del texto actual si existe
+        const textoActual = el.textContent.trim();
+        const partes = textoActual.split(' ');
         let emoji = '';
 
-        if (partes.length > 1 && /^[\p{Emoji_Presentation}]$/u.test(partes[0])) {
+        if (partes.length > 0 && /^[\p{Emoji_Presentation}]$/u.test(partes[0])) {
           emoji = partes[0];
         }
 
         el.textContent = emoji ? `${emoji} ${categoriaTrad}` : categoriaTrad;
-        console.log(`  Filtro chip: ${categoriaOriginal} -> ${categoriaTrad}`);
+        console.log(`  Filtro chip: ${categoriaOriginal} -> ${categoriaTrad} (emoji: ${emoji})`);
       }
     });
 

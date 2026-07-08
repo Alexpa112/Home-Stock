@@ -122,6 +122,24 @@ def obtener_todas_traducciones(idioma):
 
     # Mapeo de categorías predefinidas a otros idiomas
     categoria_mapeo = {
+        'es': {
+            'Alimentacion': 'Alimentación',
+            'Bebidas': 'Bebidas',
+            'Bebé': 'Bebé',
+            'Carnes y Embutidos': 'Carnes y Embutidos',
+            'Cereales y Pasta': 'Cereales y Pasta',
+            'Congelados': 'Congelados',
+            'Despensa': 'Despensa',
+            'Frutas y Verduras': 'Frutas y Verduras',
+            'Higiene': 'Higiene',
+            'Limpieza': 'Limpieza',
+            'Lácteos y Huevos': 'Lácteos y Huevos',
+            'Mascotas': 'Mascotas',
+            'Otros': 'Otros',
+            'Panadería y Bollería': 'Panadería y Bollería',
+            'Pescados y Mariscos': 'Pescados y Mariscos',
+            'Snacks y Dulces': 'Snacks y Dulces',
+        },
         'gl': {
             'Alimentacion': 'Alimentación',
             'Bebidas': 'Bebidas',
@@ -232,21 +250,13 @@ def obtener_todas_traducciones(idioma):
         },
     }
 
-    # Obtener categorías del usuario y agregarlas al diccionario
-    db = get_db()
-    espacio_id = obtener_espacio_actual(db)
-    categorias = db.execute(
-        "SELECT DISTINCT categoria FROM productos WHERE espacio_id = ? ORDER BY categoria",
-        (espacio_id,)
-    ).fetchall()
+    # Agregar traducciones de categorías al diccionario
+    mapeo_idioma = categoria_mapeo.get(idioma, categoria_mapeo.get('es', {}))  # Fallback a español
 
-    mapeo_idioma = categoria_mapeo.get(idioma, {})
-    for row in categorias:
-        categoria = row['categoria']
-        clave = f'categoria_{categoria.lower().replace(" ", "_").replace("&", "y")}'
-        # Solo agregar si no existe ya
-        if clave not in todas:
-            todas[clave] = mapeo_idioma.get(categoria, categoria)
+    # Agregar TODAS las categorías del mapeo (no solo las que están en la BD del usuario)
+    for categoria_original, traduccion in mapeo_idioma.items():
+        clave = f'categoria_{categoria_original.lower().replace(" ", "_").replace("&", "y")}'
+        todas[clave] = traduccion
 
     return APIResponse.success({
         "idioma": idioma,
