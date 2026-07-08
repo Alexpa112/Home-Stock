@@ -818,19 +818,19 @@ body.modal-open .fab {
 
 .modal-footer {
   flex-shrink: 0;
-  padding: 12px 20px;
+  padding: 8px 12px;
   border-top: 1px solid var(--border);
   display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  align-items: stretch;
   flex-wrap: wrap;
   max-width: 100%;
 }
 
 .modal-footer button {
-  padding: 0 16px;
-  height: 40px;
+  padding: 0 12px;
+  height: 36px;
   font-size: 0.95rem;
   white-space: nowrap;
   border-radius: 6px;
@@ -841,8 +841,16 @@ body.modal-open .fab {
   align-items: center;
   justify-content: center;
   font-weight: 500;
-  flex-shrink: 0;
-  min-width: 90px;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 80px;
+  max-width: calc(33.333% - 6px);
+}
+
+@media (min-width: 600px) {
+  .modal-footer button {
+    flex: 0 1 auto;
+    min-width: 90px;
+  }
 }
 
 .modal-footer .primario {
