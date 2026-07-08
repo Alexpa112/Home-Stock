@@ -144,9 +144,9 @@
     <button type="submit" class="primario" style="width: 100%; padding: 12px 18px;" id="btnFormulario">Entrar</button>
 
     <!-- Alternar entre login y registro -->
-    <p style="text-align: center; margin-top: 16px; font-size: 0.9rem; display: flex; justify-content: center; align-items: center; gap: 4px;">
-      <span id="textoAlternar" style="color: var(--text-soft);">¿No tienes cuenta?</span>
-      <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Crea una</button>
+    <p style="text-align: center; margin-top: 16px; font-size: 0.9rem; display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 6px; width: 100%;">
+      <span id="textoAlternar" style="color: var(--text-soft); white-space: nowrap;">¿No tienes cuenta?</span>
+      <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600; white-space: nowrap;">Crea una</button>
     </p>
 
     {% if not modo_setup %}
@@ -183,8 +183,10 @@
     seccionRegistro.style.display = "none";
     document.getElementById("subtituloForm").textContent = "Inicia sesión para continuar.";
     document.getElementById("btnFormulario").textContent = "Entrar";
-    document.getElementById("textoAlternar").innerHTML = '¿No tienes cuenta? <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Crea una</button>';
-    document.getElementById("btnAlternarFormulario").addEventListener("click", mostrarRegistro);
+    document.getElementById("textoAlternar").textContent = '¿No tienes cuenta?';
+    const btn = document.getElementById("btnAlternarFormulario");
+    btn.textContent = "Crea una";
+    btn.addEventListener("click", mostrarRegistro);
   }
 
   function mostrarRegistro() {
@@ -193,8 +195,10 @@
     seccionRegistro.style.display = "block";
     document.getElementById("subtituloForm").textContent = "Crea tu cuenta para empezar.";
     document.getElementById("btnFormulario").textContent = "Crear cuenta";
-    document.getElementById("textoAlternar").innerHTML = '¿Ya tienes cuenta? <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Inicia sesión</button>';
-    document.getElementById("btnAlternarFormulario").addEventListener("click", mostrarLogin);
+    document.getElementById("textoAlternar").textContent = '¿Ya tienes cuenta?';
+    const btn = document.getElementById("btnAlternarFormulario");
+    btn.textContent = "Inicia sesión";
+    btn.addEventListener("click", mostrarLogin);
     document.getElementById("campoNombre").focus();
   }
 
