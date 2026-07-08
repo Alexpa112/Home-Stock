@@ -72,6 +72,9 @@ class TranslationManager {
       '#listaActualRol': 'propietario',
     };
 
+    // Traducir categorías visibles
+    this.traducirCategorias();
+
     // Traducir elementos específicos
     Object.entries(elementosTrad).forEach(([selector, clave]) => {
       const elemento = document.querySelector(selector);
@@ -194,6 +197,9 @@ class TranslationManager {
     // Traducir página
     this.traducirPagina();
 
+    // Traducir categorías
+    this.traducirCategorias();
+
     // Cargar traducciones de artículos si existen
     this.cargarTraduccionesArticulos(nuevoIdioma);
 
@@ -243,6 +249,54 @@ class TranslationManager {
     } catch (error) {
       console.warn('Error cargando traducciones de artículos:', error);
     }
+  }
+
+  /**
+   * Traduce categorías visibles en la página
+   */
+  traducirCategorias() {
+    console.log('🌍 Traduciendo categorías para idioma:', this.idiomaActual);
+
+    // Traducir categorías en filtros (botones chip con data-cat)
+    document.querySelectorAll('button.chip').forEach(el => {
+      const categoriaOriginal = el.dataset.cat;
+      if (categoriaOriginal && categoriaOriginal !== 'todas') {
+        const clave = `categoria_${categoriaOriginal.toLowerCase().replace(/ /g, '_').replace(/&/g, 'y')}`;
+        const categoriaTrad = this.t(clave) ?? categoriaOriginal;  // Usar nullish coalescing
+
+        // Preservar emoji si existe
+        const partes = el.textContent.split(' ');
+        let emoji = '';
+
+        if (partes.length > 1 && /^[\p{Emoji_Presentation}]$/u.test(partes[0])) {
+          emoji = partes[0];
+        }
+
+        el.textContent = emoji ? `${emoji} ${categoriaTrad}` : categoriaTrad;
+        console.log(`  Filtro chip: ${categoriaOriginal} -> ${categoriaTrad}`);
+      }
+    });
+
+    // Traducir categorías en tarjetas de productos (en .detalle)
+    document.querySelectorAll('.detalle').forEach(el => {
+      const texto = el.textContent.trim();
+      // El formato es "Categoria · Avisos" o solo "Categoria"
+      const partes = texto.split(' · ');
+      if (partes.length > 0) {
+        const categoriaOriginal = partes[0].trim();
+
+        // No traducir si es vacío o contiene puntos suspensivos
+        if (!categoriaOriginal || categoriaOriginal === '...' || categoriaOriginal === '·') {
+          return;
+        }
+
+        const clave = `categoria_${categoriaOriginal.toLowerCase().replace(/ /g, '_').replace(/&/g, 'y')}`;
+        const categoriaTrad = this.t(clave) ?? categoriaOriginal;  // Usar nullish coalescing
+        const avisos = partes.slice(1).join(' · ');
+        el.textContent = avisos ? `${categoriaTrad} · ${avisos}` : categoriaTrad;
+        console.log(`  Tarjeta detalle: ${categoriaOriginal} -> ${categoriaTrad}`);
+      }
+    });
   }
 
   /**
