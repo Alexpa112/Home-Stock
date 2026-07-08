@@ -930,8 +930,19 @@ form button.secundario:hover {
 }
 
 body.keyboard-open .modal {
-  max-height: calc(100dvh - var(--keyboard-offset) - 32px);
+  /* En iOS, usar 100vh (fijo) en lugar de dvh que se reduce con el teclado */
+  max-height: calc(100vh - var(--keyboard-offset) - 32px);
+  min-height: 50vh; /* Altura mínima garantizada para evitar compresión excesiva */
   margin-bottom: calc(var(--keyboard-offset) + 16px);
+  padding-bottom: 20px;
+}
+
+/* Específico para iOS: asegurar que la modal mantenga espacio para contenido */
+@supports (padding: max(0px)) {
+  body.keyboard-open .modal {
+    max-height: calc(100vh - var(--keyboard-offset) - 32px - env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .modal form {

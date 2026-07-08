@@ -194,7 +194,8 @@ const btnCancelar = document.getElementById("btnCancelar");
 const modalTitulo = document.getElementById("modalTitulo");
 const campoCategoria = document.getElementById("campoCategoria");
 const campoIcono = document.getElementById("campoIcono");
-const selectorIconoProductoEl = document.getElementById("selectorIconoProducto");
+const btnSeleccionarIconoProducto = document.getElementById("btnSeleccionarIconoProducto");
+const iconoProductoDisplay = document.getElementById("iconoProductoDisplay");
 const btnQuitarIconoProducto = document.getElementById("btnQuitarIconoProducto");
 
 const tabs = document.getElementById("tabs");
@@ -215,7 +216,8 @@ const compraCampoCantidad = document.getElementById("compraCampoCantidad");
 const compraCampoSubdescripcion = document.getElementById("compraCampoSubdescripcion");
 const compraCampoCategoria = document.getElementById("compraCampoCategoria");
 const compraCampoIcono = document.getElementById("compraCampoIcono");
-const selectorIconoCompraEl = document.getElementById("selectorIconoCompra");
+const btnSeleccionarIconoCompra = document.getElementById("btnSeleccionarIconoCompra");
+const iconoCompraDisplay = document.getElementById("iconoCompraDisplay");
 const btnQuitarIconoCompra = document.getElementById("btnQuitarIconoCompra");
 const compraBotonGuardar = document.getElementById("compraBotonGuardar");
 
@@ -1095,11 +1097,8 @@ let iconoProductoTocado = false;
 
 function actualizarSelectorIconoProducto() {
   btnQuitarIconoProducto.hidden = !campoIcono.value;
-  crearSelectorIconos(selectorIconoProductoEl, campoIcono.value, (icono) => {
-    campoIcono.value = icono;
-    iconoProductoTocado = true;
-    btnQuitarIconoProducto.hidden = false;
-  });
+  // Mostrar el icono actual en el botón
+  iconoProductoDisplay.textContent = campoIcono.value || "Elegir icono";
 }
 
 // producto === undefined/null -> alta en blanco.
@@ -1156,6 +1155,16 @@ function abrirModal(producto) {
 function cerrarModal() {
   modalFondo.hidden = true;
 }
+
+// Botón para seleccionar icono en el formulario de producto
+btnSeleccionarIconoProducto.addEventListener("click", (e) => {
+  e.preventDefault();
+  abrirModalSelectorIconos(campoIcono.value, (icono) => {
+    campoIcono.value = icono;
+    iconoProductoTocado = true;
+    actualizarSelectorIconoProducto();
+  });
+});
 
 btnQuitarIconoProducto.addEventListener("click", () => {
   campoIcono.value = "";
@@ -1377,11 +1386,8 @@ let iconoCompraTocado = false;
 
 function actualizarSelectorIconoCompra() {
   btnQuitarIconoCompra.hidden = !compraCampoIcono.value;
-  crearSelectorIconos(selectorIconoCompraEl, compraCampoIcono.value, (icono) => {
-    compraCampoIcono.value = icono;
-    iconoCompraTocado = true;
-    btnQuitarIconoCompra.hidden = false;
-  });
+  // Mostrar el icono actual en el botón
+  iconoCompraDisplay.textContent = compraCampoIcono.value || "Elegir icono";
 }
 
 // item === undefined/null -> alta en blanco.
@@ -1422,6 +1428,16 @@ function cerrarModalCompra() {
     abrirModalCatalogo();
   }
 }
+
+// Botón para seleccionar icono en el formulario de compra
+btnSeleccionarIconoCompra.addEventListener("click", (e) => {
+  e.preventDefault();
+  abrirModalSelectorIconos(compraCampoIcono.value, (icono) => {
+    compraCampoIcono.value = icono;
+    iconoCompraTocado = true;
+    actualizarSelectorIconoCompra();
+  });
+});
 
 btnQuitarIconoCompra.addEventListener("click", () => {
   compraCampoIcono.value = "";

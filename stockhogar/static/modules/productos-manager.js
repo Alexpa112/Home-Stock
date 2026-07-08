@@ -160,12 +160,48 @@ class ProductosManager {
     const producto = this.obtenerPorId(id);
     if (!producto) return;
 
+    const cantidadAnterior = producto.cantidad;
     const nuevaCantidad = Math.max(0, producto.cantidad + delta);
+    const stockMinimo = producto.stock_minimo || 1;
+
     try {
       await this.actualizar(id, { cantidad: nuevaCantidad });
       this.notificar('cantidad-cambió', { id, cantidad: nuevaCantidad, delta });
+
+      // STOCK MÍNIMO: Detectar si acabamos de llegar al límite
+      if (cantidadAnterior > stockMinimo && nuevaCantidad <= stockMinimo) {
+        // Stock ha llegado al mínimo o por debajo
+        // Automáticamente añadir a la lista de compra
+        await this._anadirAListaCompra(producto);
+      }
     } catch (error) {
       alert('Error al cambiar cantidad: ' + error.message);
+    }
+  }
+
+  async _anadirAListaCompra(producto) {
+    try {
+      // Buscar instancia global de compraManager (definida en app.js)
+      if (window.compraManager) {
+        await window.compraManager.crear({
+          nombre: producto.nombre,
+          categoria: producto.categoria,
+          icono: producto.icono,
+          cantidad: producto.stock_minimo,
+          unidad: producto.unidad || 'ud',
+          sub_descripcion: `[Automático: stock bajo]`
+        });
+
+        // Mostrar notificación al usuario
+        const mensaje = `📦 "${producto.nombre}" ha llegado al stock mínimo. Añadido a la lista de compra.`;
+        if (window.notificar) {
+          window.notificar(mensaje);
+        } else {
+          alert(mensaje);
+        }
+      }
+    } catch (error) {
+      console.error('Error al añadir a lista de compra:', error);
     }
   }
 
