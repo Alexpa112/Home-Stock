@@ -2097,43 +2097,127 @@ if (listaActualBtnEl) {
 }
 
 // ============ CREAR PRIMERA LISTA (NUEVO USUARIO) ============
-// Selector de Tema en Modal de Ajustes
+// Selector de Tema y Perfil en Modal de Ajustes
 (function() {
   const modalAjustes = document.getElementById('modalAjustes');
-  const temaClaro = document.getElementById('temaClaro');
-  const temaOscuro = document.getElementById('temaOscuro');
-  const temaAuto = document.getElementById('temaAuto');
+  const selectTema = document.getElementById('selectTema');
+  const btnGuardarPerfil = document.getElementById('btnGuardarPerfil');
+  const inputNombre = document.getElementById('ajustesNombreUsuario');
+  const inputPassword = document.getElementById('ajustesPasswordUsuario');
+  const spanEstado = document.getElementById('ajustesEstado');
 
-  if (modalAjustes && temaClaro && temaOscuro && temaAuto) {
-    // Cargar tema actual al abrir modal
+  if (modalAjustes) {
+    // Cargar datos del usuario cuando se abre el modal
     modalAjustes.addEventListener('focusin', () => {
+      // Cargar tema actual
       const temaGuardado = localStorage.getItem('stockhogar-tema') || 'auto';
-      if (temaGuardado === 'light') {
-        temaClaro.checked = true;
-      } else if (temaGuardado === 'dark') {
-        temaOscuro.checked = true;
-      } else {
-        temaAuto.checked = true;
+      if (selectTema) {
+        selectTema.value = temaGuardado;
+      }
+
+      // Cargar nombre del usuario desde el elemento que ya existe
+      const nombreActual = document.getElementById('ajustesUsuarioActual')?.textContent || '-';
+      if (inputNombre && nombreActual !== '-') {
+        inputNombre.value = nombreActual;
       }
     });
 
-    // Listener para cambiar tema
-    [temaClaro, temaOscuro, temaAuto].forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        if (e.target.checked) {
-          if (e.target === temaClaro) {
-            aplicarTema('light');
-          } else if (e.target === temaOscuro) {
-            aplicarTema('dark');
-          } else if (e.target === temaAuto) {
-            localStorage.removeItem('stockhogar-tema');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+    // Cambiar tema al seleccionar
+    if (selectTema) {
+      selectTema.addEventListener('change', (e) => {
+        const tema = e.target.value;
+        if (tema === 'light') {
+          aplicarTema('light');
+        } else if (tema === 'dark') {
+          aplicarTema('dark');
+        } else if (tema === 'auto') {
+          // Remover del localStorage y usar preferencia del dispositivo
+          localStorage.removeItem('stockhogar-tema');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+          actualizarBotonTema();
+
+          // Escuchar cambios en las preferencias del dispositivo
+          const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+          mediaQuery.addEventListener('change', (e) => {
+            document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
             actualizarBotonTema();
-          }
+          });
         }
       });
-    });
+    }
+
+    // Guardar perfil
+    if (btnGuardarPerfil) {
+      btnGuardarPerfil.addEventListener('click', async () => {
+        const nombre = inputNombre?.value.trim() || '';
+        const password = inputPassword?.value || '';
+
+        if (!nombre) {
+          mostrarEstado('El nombre no puede estar vacío', 'error');
+          return;
+        }
+
+        if (password && password.length < 4) {
+          mostrarEstado('La contraseña debe tener mínimo 4 caracteres', 'error');
+          return;
+        }
+
+        try {
+          btnGuardarPerfil.disabled = true;
+          mostrarEstado('Guardando...', 'info');
+
+          const body = { nombre };
+          if (password) {
+            body.password = password;
+          }
+
+          const res = await fetch('/api/auth/perfil', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+
+          if (!res.ok) {
+            const error = await res.json();
+            mostrarEstado(error.error || 'Error al guardar', 'error');
+            return;
+          }
+
+          // Actualizar nombre en la interfaz
+          if (document.getElementById('ajustesUsuarioActual')) {
+            document.getElementById('ajustesUsuarioActual').textContent = nombre;
+          }
+
+          // Limpiar campo de contraseña
+          if (inputPassword) {
+            inputPassword.value = '';
+          }
+
+          mostrarEstado('Perfil guardado correctamente', 'exito');
+        } catch (error) {
+          console.error('Error guardando perfil:', error);
+          mostrarEstado('Error de conexión', 'error');
+        } finally {
+          btnGuardarPerfil.disabled = false;
+        }
+      });
+    }
+
+    function mostrarEstado(mensaje, tipo) {
+      if (!spanEstado) return;
+      spanEstado.textContent = mensaje;
+      spanEstado.hidden = false;
+      spanEstado.className = 'aviso';
+      if (tipo === 'exito') {
+        spanEstado.style.color = 'var(--success)';
+      } else if (tipo === 'error') {
+        spanEstado.style.color = 'var(--danger)';
+      }
+      setTimeout(() => {
+        spanEstado.hidden = true;
+      }, 4000);
+    }
   }
 })();
 

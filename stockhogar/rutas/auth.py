@@ -99,6 +99,49 @@ def logout():
     return APIResponse.success()
 
 
+@bp.route("/api/auth/perfil", methods=["PUT"])
+@requerir_sesion
+@manejo_errores
+def actualizar_perfil():
+    """Actualizar nombre y/o contraseña del usuario actual."""
+    usuario_id = session.get("usuario_id")
+    datos = request.get_json(force=True) or {}
+    nombre = datos.get("nombre", "").strip()
+    password = datos.get("password", "").strip()
+
+    db = get_db()
+    usuario = db.execute(
+        "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+        (usuario_id,)
+    ).fetchone()
+
+    if not usuario:
+        return APIResponse.no_autorizado()
+
+    # Actualizar nombre si se proporciona
+    if nombre:
+        if len(nombre) > 80:
+            return APIResponse.validacion("El nombre no puede exceder 80 caracteres")
+        db.execute(
+            "UPDATE usuarios SET nombre_usuario = ? WHERE id = ?",
+            (nombre, usuario_id)
+        )
+        session["usuario"] = nombre
+
+    # Actualizar contraseña si se proporciona
+    if password:
+        if len(password) < 4:
+            return APIResponse.validacion("La contraseña debe tener mínimo 4 caracteres")
+        nuevo_hash = generate_password_hash(password)
+        db.execute(
+            "UPDATE usuarios SET password_hash = ? WHERE id = ?",
+            (nuevo_hash, usuario_id)
+        )
+
+    db.commit()
+    return APIResponse.success({"usuario": session.get("usuario")})
+
+
 @bp.route("/api/auth/cambiar-password", methods=["POST"])
 @requerir_sesion
 @manejo_errores
