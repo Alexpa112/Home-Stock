@@ -217,28 +217,80 @@ async function inicializarApp() {
   }
 }
 
-// ===== 5. WIREADO DE EVENTOS =====
+// ===== 5. WIREADO DE EVENTOS Y RENDERS =====
 
-// Cuando se crea un producto, refrescar sugerencias en compra
+// ProductosManager: Renderizar cuando cambian productos o filtros
 managers.productos.suscribir((evento, datos) => {
-  if (evento === 'producto-creado' || evento === 'productos-cargados') {
-    // Actualizar sugerencias en el manager de compra si es necesario
-    console.log('📝 Productos actualizados, notificando...');
+  switch (evento) {
+    case 'productos-cargados':
+    case 'producto-creado':
+    case 'producto-actualizado':
+    case 'producto-borrado':
+    case 'filtro-cambiado':
+      console.log(`📦 ${evento}, renderizando...`);
+      managers.productos.render();
+      break;
   }
 });
 
-// Cuando se cambia de espacio, recargar productos
-managers.espacios.suscribir((evento, datos) => {
-  if (evento === 'espacio-seleccionado') {
-    console.log('🏠 Espacio cambiado, recargar productos...');
-    managers.productos.cargar();
+// CompraManager: Renderizar cuando cambian artículos
+managers.compra.suscribir((evento, datos) => {
+  switch (evento) {
+    case 'articulos-cargados':
+    case 'articulo-creado':
+    case 'articulo-actualizado':
+    case 'articulo-borrado':
+      console.log(`🛒 ${evento}, renderizando...`);
+      managers.compra.render();
+      break;
   }
 });
 
-// Cuando se cargan categorías, actualizar renderizado de productos
+// CategoriasManager: Renderizar cuando cambian categorías
 managers.categorias.suscribir((evento, datos) => {
-  if (evento === 'categorias-cargadas') {
-    console.log('🏷️ Categorías cargadas, actualizar filtros...');
+  switch (evento) {
+    case 'categorias-cargadas':
+    case 'categoria-creada':
+    case 'categoria-borrada':
+      console.log(`🏷️ ${evento}, renderizando...`);
+      managers.categorias.render();
+      // También renderizar productos porque el filtro cambió
+      managers.productos.render();
+      break;
+    case 'filtro-categoria-cambio':
+      // Delegado al ProductosManager
+      managers.productos.filtrar(datos);
+      break;
+  }
+});
+
+// EspaciosManager: Renderizar cuando cambian espacios
+managers.espacios.suscribir((evento, datos) => {
+  switch (evento) {
+    case 'espacios-cargados':
+    case 'espacio-creado':
+    case 'espacio-actualizado':
+    case 'espacio-borrado':
+    case 'espacio-seleccionado':
+      console.log(`🏠 ${evento}, renderizando...`);
+      managers.espacios.render();
+      // Recargar productos del nuevo espacio
+      if (evento === 'espacio-seleccionado') {
+        managers.productos.cargar();
+      }
+      break;
+  }
+});
+
+// UIManager: Sincronizar estado
+managers.ui.suscribir((evento, datos) => {
+  switch (evento) {
+    case 'modal-abierto':
+    case 'modal-cerrado':
+    case 'tema-cambiado':
+      console.log(`🎨 ${evento}`);
+      managers.ui.render();
+      break;
   }
 });
 

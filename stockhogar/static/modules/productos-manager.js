@@ -74,6 +74,7 @@ class ProductosManager {
       categoria: this.filtroCategoria,
       texto: this.textoBusqueda
     });
+    this.render();
     return this.obtenerFiltrados();
   }
 
@@ -89,6 +90,61 @@ class ProductosManager {
       }
       return true;
     });
+  }
+
+  // ===== RENDERIZADO =====
+  render() {
+    const filtrados = this.obtenerFiltrados();
+    const lista = this.dom.lista;
+    const vacio = this.dom.vacio;
+
+    if (!lista) return;
+
+    // Renderizar lista de productos
+    lista.innerHTML = filtrados.map(p => this._crearTarjeta(p)).join('');
+
+    // Mostrar/ocultar mensaje vacío
+    if (vacio) {
+      vacio.hidden = filtrados.length > 0;
+    }
+
+    // Re-agregar event listeners
+    lista.querySelectorAll('[data-producto-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = parseInt(el.dataset.productoId);
+        this.notificar('producto-seleccionado', this.obtenerPorId(id));
+      });
+    });
+  }
+
+  _crearTarjeta(producto) {
+    const icono = producto.icono || '📦';
+    const nombre = this._escapeHtml(producto.nombre);
+    const cantidad = producto.cantidad || 0;
+    const unidad = producto.unidad || 'ud';
+    const categoria = producto.categoria || 'Otros';
+
+    return `
+      <div class="producto-tarjeta" data-producto-id="${producto.id}">
+        <div class="producto-header">
+          <span class="icono">${icono}</span>
+          <div class="producto-info">
+            <h3>${nombre}</h3>
+            <p class="categoria">${categoria}</p>
+          </div>
+        </div>
+        <div class="producto-cantidad">
+          <span class="cantidad">${cantidad}</span>
+          <span class="unidad">${unidad}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  _escapeHtml(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto;
+    return div.innerHTML;
   }
 
   // ===== HELPERS =====

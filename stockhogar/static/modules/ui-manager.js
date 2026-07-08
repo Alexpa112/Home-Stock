@@ -147,6 +147,22 @@ class UIManager {
     }
   }
 
+  // ===== RENDERIZADO =====
+  render() {
+    // UIManager no necesita renderizar mucho,
+    // pero los métodos anteriores ya manejan la visualización
+    // Esta función es un placeholder para consistencia con otros managers
+    this.actualizarBotonTema();
+    this.sincronizarEstadoModal();
+  }
+
+  // Helpers
+  _escapeHtml(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto;
+    return div.innerHTML;
+  }
+
   // ===== EVENT EMITTER =====
   suscribir(listener) {
     this.listeners.add(listener);

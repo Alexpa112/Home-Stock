@@ -21,6 +21,7 @@ class EspaciosManager {
         this.espacioActualId = this.espacios[0].id;
       }
       this.notificar('espacios-cargados', this.espacios);
+      this.render();
       return this.espacios;
     } catch (error) {
       console.error('Error cargando espacios:', error);
@@ -93,6 +94,56 @@ class EspaciosManager {
 
   obtenerActual() {
     return this.obtenerPorId(this.espacioActualId);
+  }
+
+  // ===== RENDERIZADO =====
+  render() {
+    // Renderizar espacio actual en topbar
+    const espacioActualIcono = this.dom.get('espacioActualIcono');
+    const espacioActualNombre = this.dom.get('espacioActualNombre');
+    const actual = this.obtenerActual();
+
+    if (actual && espacioActualIcono && espacioActualNombre) {
+      espacioActualIcono.textContent = actual.icono || '📦';
+      espacioActualNombre.textContent = actual.nombre;
+    }
+
+    // Renderizar tarjetas de espacios (en modal)
+    const espaciosTarjetas = this.dom.espaciosTarjetas;
+    if (espaciosTarjetas) {
+      espaciosTarjetas.innerHTML = this.espacios
+        .map(e => this._crearTarjeta(e))
+        .join('');
+
+      // Re-agregar event listeners
+      espaciosTarjetas.querySelectorAll('[data-espacio-id]').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = parseInt(el.dataset.espacioId);
+          this.seleccionar(id);
+        });
+      });
+    }
+  }
+
+  _crearTarjeta(espacio) {
+    const esActual = espacio.id === this.espacioActualId;
+    const activo = esActual ? 'activo' : '';
+    const nombre = this._escapeHtml(espacio.nombre);
+
+    return `
+      <div class="espacio-tarjeta ${activo}" data-espacio-id="${espacio.id}" style="border-color: ${espacio.color || '#999'}">
+        <div class="espacio-icono">${espacio.icono || '📦'}</div>
+        <h3 class="espacio-nombre">${nombre}</h3>
+        <p class="espacio-count">${espacio.productos_count || 0} productos</p>
+        ${esActual ? '<span class="espacio-badge">✓ Activo</span>' : ''}
+      </div>
+    `;
+  }
+
+  _escapeHtml(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto;
+    return div.innerHTML;
   }
 
   // ===== EVENT EMITTER =====

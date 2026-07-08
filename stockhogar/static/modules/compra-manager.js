@@ -30,6 +30,7 @@ class CompraManager {
       this.completados = respuesta?.completados || [];
 
       this.notificar('articulos-cargados', { pendientes: this.pendientes, completados: this.completados });
+      this.render();
       return { pendientes: this.pendientes, completados: this.completados };
     } catch (error) {
       console.error('Error cargando artículos:', error);
@@ -104,6 +105,84 @@ class CompraManager {
 
   get totalCompletados() {
     return this.completados.length;
+  }
+
+  // ===== RENDERIZADO =====
+  render() {
+    const gruposCompra = this.dom.gruposCompra;
+    const compraVacia = this.dom.compraVacia;
+
+    if (!gruposCompra) return;
+
+    // Agrupar artículos por categoría
+    const agrupados = this._agruparPorCategoria(this.pendientes);
+
+    // Renderizar grupos
+    gruposCompra.innerHTML = Object.entries(agrupados)
+      .map(([categoria, articulos]) => this._crearGrupo(categoria, articulos))
+      .join('');
+
+    // Mostrar/ocultar mensaje vacío
+    if (compraVacia) {
+      compraVacia.hidden = this.pendientes.length > 0;
+    }
+
+    // Re-agregar event listeners
+    gruposCompra.querySelectorAll('[data-articulo-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = parseInt(el.dataset.articuloId);
+        this.notificar('articulo-seleccionado', this.obtenerPorId(id));
+      });
+    });
+  }
+
+  _agruparPorCategoria(articulos) {
+    return articulos.reduce((acc, art) => {
+      const cat = art.categoria || 'Otros';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(art);
+      return acc;
+    }, {});
+  }
+
+  _crearGrupo(categoria, articulos) {
+    const html = articulos.map(a => this._crearTarjeta(a)).join('');
+    return `
+      <div class="grupo-compra" data-categoria="${categoria}">
+        <h3 class="grupo-titulo">${categoria}</h3>
+        <div class="grupo-items">
+          ${html}
+        </div>
+      </div>
+    `;
+  }
+
+  _crearTarjeta(articulo) {
+    const nombre = this._escapeHtml(articulo.nombre);
+    const cantidad = articulo.cantidad || 1;
+    const unidad = articulo.unidad || 'ud';
+    const icono = articulo.icono || '📦';
+    const subdesc = articulo.sub_descripcion ? `<p class="subdesc">${this._escapeHtml(articulo.sub_descripcion)}</p>` : '';
+
+    return `
+      <div class="articulo-compra" data-articulo-id="${articulo.id}">
+        <div class="articulo-content">
+          <span class="icono">${icono}</span>
+          <div class="articulo-info">
+            <span class="nombre">${nombre}</span>
+            ${subdesc}
+            <span class="cantidad">${cantidad} ${unidad}</span>
+          </div>
+        </div>
+        <input type="checkbox" class="articulo-check" ${articulo.activo ? '' : 'checked'}>
+      </div>
+    `;
+  }
+
+  _escapeHtml(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto;
+    return div.innerHTML;
   }
 
   // ===== EVENT EMITTER =====

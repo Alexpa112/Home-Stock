@@ -17,6 +17,7 @@ class CategoriasManager {
     try {
       this.categorias = await this.api.obtenerCategorias();
       this.notificar('categorias-cargadas', this.categorias);
+      this.render();
       return this.categorias;
     } catch (error) {
       console.error('Error cargando categorías:', error);
@@ -60,6 +61,78 @@ class CategoriasManager {
   obtenerIconoPorNombre(nombre) {
     const cat = this.obtenerPorNombre(nombre);
     return cat ? cat.icono : '🗂️';
+  }
+
+  // ===== RENDERIZADO =====
+  render() {
+    // Renderizar lista de categorías (en modal)
+    const categoriasLista = this.dom.get('categoriasLista');
+    if (categoriasLista) {
+      categoriasLista.innerHTML = this.categorias
+        .map(c => this._crearFilaCategoriaLista(c))
+        .join('');
+
+      // Re-agregar event listeners
+      categoriasLista.querySelectorAll('[data-categoria-id]').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = parseInt(el.dataset.categoriaId);
+          this.notificar('categoria-seleccionada', this.obtenerPorId(id));
+        });
+      });
+    }
+
+    // Renderizar filtros (chips en vista stock)
+    const filtros = this.dom.filtros;
+    if (filtros) {
+      const htmlFiltros = `
+        <button class="chip ${this._esActiva('todas') ? 'activo' : ''}" data-categoria="todas">
+          Todas
+        </button>
+        ${this.categorias.map(c => `
+          <button class="chip ${this._esActiva(c.nombre) ? 'activo' : ''}" data-categoria="${c.nombre}">
+            ${c.icono} ${c.nombre}
+          </button>
+        `).join('')}
+      `;
+      filtros.innerHTML = htmlFiltros;
+
+      // Re-agregar event listeners
+      filtros.querySelectorAll('[data-categoria]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._actualizarFiltroUI(btn.dataset.categoria);
+        });
+      });
+    }
+  }
+
+  _crearFilaCategoriaLista(categoria) {
+    return `
+      <div class="categoria-item" data-categoria-id="${categoria.id}">
+        <span class="icono">${categoria.icono}</span>
+        <span class="nombre">${this._escapeHtml(categoria.nombre)}</span>
+      </div>
+    `;
+  }
+
+  _esActiva(nombre) {
+    // Placeholder: necesitaría estado de filtro activo del ProductosManager
+    return false;
+  }
+
+  _actualizarFiltroUI(categoria) {
+    const filtros = this.dom.filtros;
+    if (filtros) {
+      filtros.querySelectorAll('.chip').forEach(btn => {
+        btn.classList.toggle('activo', btn.dataset.categoria === categoria);
+      });
+    }
+    this.notificar('filtro-categoria-cambio', categoria);
+  }
+
+  _escapeHtml(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto;
+    return div.innerHTML;
   }
 
   // ===== EVENT EMITTER =====
