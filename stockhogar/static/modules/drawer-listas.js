@@ -502,6 +502,14 @@ class CrearListaModal extends FormModal {
     super.init();
     this.setupIconoSelector();
     this.setupValidaciones();
+    this.setupCloseButton();
+  }
+
+  setupCloseButton() {
+    const btnClose = document.getElementById('btnCerrarCrearLista');
+    if (btnClose) {
+      btnClose.addEventListener('click', () => this.close());
+    }
   }
 
   setupIconoSelector() {

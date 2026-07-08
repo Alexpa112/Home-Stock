@@ -1317,7 +1317,7 @@ async function restaurarItemCompra(id) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ activo: true }),
   });
-  cargarListaCompra();
+  await cargarListaCompra();
 }
 
 btnToggleCompletados.addEventListener("click", () => {

@@ -77,6 +77,7 @@
 <div id="modal" class="modal-fondo" hidden>
   <div class="modal">
     <div class="modal-header">
+      <button id="btnCancelar" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
       <h2 id="modalTitulo">Nuevo producto</h2>
     </div>
     <div class="modal-content">
@@ -117,7 +118,6 @@
       </form>
     </div>
     <div class="modal-footer">
-      <button type="button" id="btnCancelar" class="secundario">Cancelar</button>
       <button type="submit" form="formProducto" class="primario">Guardar</button>
     </div>
   </div>
@@ -126,6 +126,7 @@
 <div id="modalCompra" class="modal-fondo" hidden>
   <div class="modal">
     <div class="modal-header">
+      <button id="btnCancelarCompra" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
       <h2 id="compraModalTitulo">Añadir a la lista de la compra</h2>
     </div>
     <div class="modal-content">
@@ -159,7 +160,6 @@
       </form>
     </div>
     <div class="modal-footer">
-      <button type="button" id="btnCancelarCompra" class="secundario">Cancelar</button>
       <button type="button" id="btnBorrarArticulo" class="secundario" hidden style="color: var(--danger);">Borrar</button>
       <button type="submit" form="formCompra" class="primario" id="compraBotonGuardar">Añadir</button>
     </div>
@@ -209,6 +209,7 @@
 <div id="modalTicket" class="modal-fondo" hidden>
   <div class="modal modal-ticket">
     <div class="modal-header">
+      <button id="btnCancelarTicket" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
       <h2>Escanear ticket</h2>
     </div>
 
@@ -234,11 +235,9 @@
 
     <div class="modal-footer">
       <div id="ticketPasoFoto" style="display: contents;">
-        <button type="button" id="btnCancelarTicket" class="secundario">Cancelar</button>
         <button type="button" id="btnAnalizarTicket" class="primario">Analizar</button>
       </div>
       <div id="ticketPasoRevision" hidden style="display: contents;">
-        <button type="button" id="btnCancelarRevisionTicket" class="secundario">Cancelar</button>
         <button type="button" id="btnConfirmarTicket" class="primario">Añadir al stock</button>
       </div>
     </div>
@@ -247,8 +246,12 @@
 
 <div id="modalCategorias" class="modal-fondo" hidden>
   <div class="modal">
-    <h2>Categorías</h2>
-    <p class="aviso">Toca la ✕ de una categoría para borrarla (solo si no la usa ningún producto).</p>
+    <div class="modal-header">
+      <button id="btnCerrarCategorias" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
+      <h2>Categorías</h2>
+    </div>
+    <div class="modal-content">
+      <p class="aviso">Toca la ✕ de una categoría para borrarla (solo si no la usa ningún producto).</p>
 
     <div id="categoriasLista" class="categorias-lista"></div>
 
@@ -264,9 +267,9 @@
       </button>
       <input type="hidden" id="categoriaCampoIcono" value="🗂️">
     </form>
-
-    <div class="acciones-modal">
-      <button type="button" id="btnCerrarCategorias" class="secundario">Cerrar</button>
+    </div>
+    <div class="modal-footer">
+      <button type="submit" form="formCategoria" class="primario">Listo</button>
     </div>
   </div>
 </div>
@@ -274,6 +277,7 @@
 <div id="modalEspacioForm" class="modal-fondo" hidden>
   <div class="modal">
     <div class="modal-header">
+      <button id="btnCancelarEspacio" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
       <h2 id="espacioFormTitulo">Nuevo stock</h2>
     </div>
     <div class="modal-content">
@@ -299,7 +303,6 @@
       </form>
     </div>
     <div class="modal-footer">
-      <button type="button" id="btnCancelarEspacio" class="secundario">Cancelar</button>
       <button type="submit" form="formEspacio" class="primario" id="espacioBotonGuardar">Añadir</button>
     </div>
   </div>
@@ -310,11 +313,13 @@
 <!-- Modal superpuesta para seleccionar icono -->
 <div id="modalSelectorIconos" class="modal-fondo modal-superpuesta" hidden>
   <div class="modal modal-pequeño">
-    <h3>Seleccionar icono</h3>
-    <input type="text" id="buscadorIconos" class="buscador-iconos" placeholder="Buscar icono...">
-    <div id="contenedorIconos" class="selector-iconos"></div>
-    <div class="acciones-modal">
-      <button type="button" id="btnCerrarSelectorIconos" class="secundario">Cancelar</button>
+    <div class="modal-header">
+      <button id="btnCerrarSelectorIconos" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
+      <h3>Seleccionar icono</h3>
+    </div>
+    <div class="modal-content">
+      <input type="text" id="buscadorIconos" class="buscador-iconos" placeholder="Buscar icono...">
+      <div id="contenedorIconos" class="selector-iconos"></div>
     </div>
   </div>
 </div>
@@ -341,6 +346,7 @@
 <div id="modalCrearLista" class="modal-fondo" hidden>
   <div class="modal">
     <div class="modal-header">
+      <button id="btnCerrarCrearLista" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
       <h2>📋 Crear nueva lista</h2>
     </div>
     <div class="modal-content">
@@ -380,9 +386,6 @@
       </form>
     </div>
     <div class="modal-footer">
-      <button type="button" id="btnCancelarCrearLista" class="secundario" onclick="window.crearListaModal?.close()">
-        Cancelar
-      </button>
       <button type="submit" form="formCrearLista" class="primario">
         Crear lista
       </button>
@@ -394,8 +397,8 @@
 <div id="modalEditarLista" class="modal-fondo" hidden>
   <div class="modal">
     <div class="modal-header">
-      <h2>Ajustes de la lista</h2>
       <button class="btn-cerrar-modal" type="button" onclick="window.drawerListasManager?.cerrarModalEditar()">✕</button>
+      <h2>Ajustes de la lista</h2>
     </div>
     <div class="modal-content">
       <!-- Preview de la lista -->
