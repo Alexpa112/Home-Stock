@@ -6,8 +6,9 @@ usuario vaya creando, para poder sugerirlo automaticamente la proxima vez
 que se escriba un nombre parecido (en un producto o en la lista de la
 compra) y para poder navegarlo como catalogo al añadir a la lista.
 """
-from flask import Blueprint, jsonify
+from flask import Blueprint
 
+from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
 
 bp = Blueprint("historial", __name__, url_prefix="/api/historial")
@@ -49,10 +50,12 @@ def recordar_articulo(
 
 
 @bp.route("", methods=["GET"])
+@requerir_sesion
+@manejo_errores
 def listar_historial():
     db = get_db()
     filas = db.execute(
         "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto "
         "FROM historial_articulos ORDER BY nombre COLLATE NOCASE"
     ).fetchall()
-    return jsonify([dict(f) for f in filas])
+    return APIResponse.success([dict(f) for f in filas])
