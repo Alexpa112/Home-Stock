@@ -61,6 +61,48 @@
     background: var(--accent);
     color: var(--accent-contrast);
   }
+  .divider-oauth {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+  }
+  .divider-oauth::before,
+  .divider-oauth::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .oauth-buttons {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+  }
+  .oauth-button {
+    padding: 11px 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--surface-2);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+  .oauth-button:hover { background: var(--surface-3); }
+  .oauth-button.google { --accent-oauth: #1F2937; }
+  .oauth-button.apple { --accent-oauth: #000000; }
+  @media (prefers-color-scheme: dark) {
+    .oauth-button.apple { --accent-oauth: #ffffff; }
+  }
 </style>
 </head>
 <body>
@@ -90,6 +132,18 @@
     <p id="loginError" class="aviso" hidden></p>
 
     <button type="submit" class="primario">{{ 'Crear cuenta y entrar' if modo_setup else 'Entrar' }}</button>
+
+    {% if not modo_setup %}
+    <div class="divider-oauth">o</div>
+    <div class="oauth-buttons">
+      <a href="/auth/google" class="oauth-button google">
+        <span>🔷</span> Continuar con Google
+      </a>
+      <a href="/auth/apple" class="oauth-button apple">
+        <span>🍎</span> Continuar con Apple
+      </a>
+    </div>
+    {% endif %}
   </form>
 </div>
 

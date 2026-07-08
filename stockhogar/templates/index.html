@@ -428,7 +428,7 @@
             <span class="icon-grande">🌐</span>
             <span>Región e idioma</span>
           </button>
-          <button type="button" class="opcion-ajuste" onclick="alert('Miembros: proximamente')">
+          <button type="button" class="opcion-ajuste" id="btnGestionarMiembros">
             <span class="icon-grande">👥</span>
             <span>Miembros de la lista</span>
           </button>
@@ -458,6 +458,39 @@
           </div>
         </label>
       </form>
+
+      <!-- Sección de gestión de miembros -->
+      <div id="seccionMiembros" style="display: none;">
+        <h3 style="margin-top: 16px; margin-bottom: 12px;">Compartir lista</h3>
+
+        <form id="formCompartirLista" style="margin-bottom: 16px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <input
+              type="text"
+              id="compartirPor"
+              placeholder="Usuario o email"
+              maxlength="100"
+              style="flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem;"
+            >
+            <select
+              id="nivelPermiso"
+              style="padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+            >
+              <option value="ver">Ver</option>
+              <option value="editar">Editar</option>
+            </select>
+          </div>
+          <button type="submit" class="primario" style="width: 100%;">Compartir</button>
+        </form>
+
+        <p id="miembrosError" class="aviso" hidden style="margin-bottom: 8px;"></p>
+        <p id="miembrosExito" class="aviso" hidden style="margin-bottom: 8px; color: var(--success);"></p>
+
+        <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-soft);">Miembros con acceso</h4>
+        <div id="listaMiembros" style="border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;">
+          <div style="padding: 12px; text-align: center; color: var(--text-soft);">Cargando...</div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="peligro" id="btnSalirLista" style="width: 100%;">

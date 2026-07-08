@@ -97,6 +97,18 @@ class DrawerListasManager {
       btnEditarNombreImagen.addEventListener('click', () => this.abrirEditarNombreImagen());
     }
 
+    // Event listener para gestionar miembros
+    const btnGestionarMiembros = document.getElementById('btnGestionarMiembros');
+    if (btnGestionarMiembros) {
+      btnGestionarMiembros.addEventListener('click', () => this.abrirGestionarMiembros());
+    }
+
+    // Event listener para compartir lista
+    const formCompartirLista = document.getElementById('formCompartirLista');
+    if (formCompartirLista) {
+      formCompartirLista.addEventListener('submit', (e) => this.compartirLista(e));
+    }
+
     // Event listener para salir de lista
     const btnSalirLista = document.getElementById('btnSalirLista');
     if (btnSalirLista) {
@@ -302,6 +314,14 @@ class DrawerListasManager {
     }
   }
 
+  abrirGestionarMiembros() {
+    const seccionMiembros = document.getElementById('seccionMiembros');
+    if (seccionMiembros) {
+      seccionMiembros.style.display = 'block';
+      this.cargarMiembros();
+    }
+  }
+
   async salirDeLista() {
     if (!this.listaEditandoId) return;
 
@@ -334,6 +354,215 @@ class DrawerListasManager {
     } catch (error) {
       console.error('Error al salir:', error);
       alert('Error al salir de la lista');
+    }
+  }
+
+  async cargarMiembros() {
+    if (!this.listaEditandoId) return;
+
+    try {
+      const res = await fetch(`/api/listas/${this.listaEditandoId}/miembros`);
+      if (!res.ok) {
+        throw new Error('No se pudieron cargar los miembros');
+      }
+
+      const data = await res.json();
+      this.renderizarMiembros(data.data);
+    } catch (error) {
+      console.error('Error cargando miembros:', error);
+      const listaMiembros = document.getElementById('listaMiembros');
+      if (listaMiembros) {
+        listaMiembros.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-soft);">Error al cargar miembros</div>';
+      }
+    }
+  }
+
+  renderizarMiembros(data) {
+    const listaMiembros = document.getElementById('listaMiembros');
+    if (!listaMiembros) return;
+
+    const propietario = data.propietario;
+    const miembros = data.miembros || [];
+
+    let html = '';
+
+    // Propietario
+    html += `
+      <div style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <strong>${this.escaparHTML(propietario.nombre_usuario)}</strong>
+          <div style="font-size: 0.85rem; color: var(--text-soft);">Propietario</div>
+        </div>
+        <span style="font-size: 0.85rem; color: var(--text-soft);">Propietario</span>
+      </div>
+    `;
+
+    // Miembros compartidos
+    if (miembros.length === 0) {
+      html += '<div style="padding: 12px; text-align: center; color: var(--text-soft);">No hay miembros compartidos</div>';
+    } else {
+      miembros.forEach(m => {
+        html += `
+          <div style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>${this.escaparHTML(m.nombre_usuario)}</strong>
+              <div style="font-size: 0.85rem; color: var(--text-soft);">${m.email || '-'}</div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <select
+                data-usuario-id="${m.id}"
+                class="selectNivelPermiso"
+                style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface-2); color: var(--text);"
+              >
+                <option value="ver" ${m.nivel === 'ver' ? 'selected' : ''}>Ver</option>
+                <option value="editar" ${m.nivel === 'editar' ? 'selected' : ''}>Editar</option>
+              </select>
+              <button
+                class="btnEliminarMiembro"
+                data-usuario-id="${m.id}"
+                type="button"
+                style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface-2); color: var(--danger); cursor: pointer; font-size: 0.85rem;"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    listaMiembros.innerHTML = html;
+
+    // Event listeners para los select de nivel
+    document.querySelectorAll('.selectNivelPermiso').forEach(select => {
+      select.addEventListener('change', (e) => this.actualizarPermiso(e));
+    });
+
+    // Event listeners para los botones de eliminar
+    document.querySelectorAll('.btnEliminarMiembro').forEach(btn => {
+      btn.addEventListener('click', (e) => this.revocarAcceso(e));
+    });
+  }
+
+  async actualizarPermiso(e) {
+    const usuarioId = e.target.dataset.usuarioId;
+    const nuevoNivel = e.target.value;
+
+    if (!this.listaEditandoId) return;
+
+    try {
+      const res = await fetch(`/api/listas/${this.listaEditandoId}/permisos/${usuarioId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nivel: nuevoNivel })
+      });
+
+      if (!res.ok) {
+        throw new Error('No se pudo actualizar el permiso');
+      }
+
+      this.mostrarMensaje('Permiso actualizado', 'exito');
+    } catch (error) {
+      console.error('Error actualizando permiso:', error);
+      this.mostrarMensaje('Error al actualizar el permiso', 'error');
+      this.cargarMiembros();
+    }
+  }
+
+  async revocarAcceso(e) {
+    const usuarioId = e.target.dataset.usuarioId;
+
+    if (!this.listaEditandoId) return;
+
+    if (!confirm('¿Estás seguro de que deseas revocar el acceso?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/listas/${this.listaEditandoId}/permisos/${usuarioId}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        throw new Error('No se pudo revocar el acceso');
+      }
+
+      this.mostrarMensaje('Acceso revocado', 'exito');
+      this.cargarMiembros();
+    } catch (error) {
+      console.error('Error revocando acceso:', error);
+      this.mostrarMensaje('Error al revocar el acceso', 'error');
+    }
+  }
+
+  async compartirLista(e) {
+    e.preventDefault();
+
+    if (!this.listaEditandoId) return;
+
+    const compartirPor = document.getElementById('compartirPor')?.value.trim() || '';
+    const nivelPermiso = document.getElementById('nivelPermiso')?.value || 'editar';
+    const errorEl = document.getElementById('miembrosError');
+    const exitoEl = document.getElementById('miembrosExito');
+
+    if (!compartirPor) {
+      this.mostrarMensaje('Ingresa un usuario o email', 'error');
+      return;
+    }
+
+    try {
+      // Determinar si es email o usuario
+      const esEmail = compartirPor.includes('@');
+      const datos = {
+        nivel: nivelPermiso
+      };
+
+      if (esEmail) {
+        datos.email = compartirPor;
+      } else {
+        datos.nombre_usuario = compartirPor;
+      }
+
+      const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        this.mostrarMensaje(error.error || 'Error al compartir', 'error');
+        return;
+      }
+
+      this.mostrarMensaje(esEmail ? 'Invitación enviada' : 'Lista compartida', 'exito');
+      document.getElementById('compartirPor').value = '';
+      this.cargarMiembros();
+    } catch (error) {
+      console.error('Error compartiendo lista:', error);
+      this.mostrarMensaje('Error al compartir la lista', 'error');
+    }
+  }
+
+  mostrarMensaje(mensaje, tipo) {
+    const errorEl = document.getElementById('miembrosError');
+    const exitoEl = document.getElementById('miembrosExito');
+
+    if (tipo === 'error') {
+      if (errorEl) {
+        errorEl.textContent = mensaje;
+        errorEl.hidden = false;
+      }
+      if (exitoEl) exitoEl.hidden = true;
+    } else {
+      if (exitoEl) {
+        exitoEl.textContent = mensaje;
+        exitoEl.hidden = false;
+      }
+      if (errorEl) errorEl.hidden = true;
+      setTimeout(() => {
+        if (exitoEl) exitoEl.hidden = true;
+      }, 3000);
     }
   }
 
