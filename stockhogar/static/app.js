@@ -2099,23 +2099,21 @@ if (listaActualBtnEl) {
 // ============ CREAR PRIMERA LISTA (NUEVO USUARIO) ============
 // Selector de Tema y Perfil en Modal de Ajustes
 (function() {
-  const modalAjustes = document.getElementById('modalAjustes');
-  const selectTema = document.getElementById('selectTema');
-  const btnGuardarPerfil = document.getElementById('btnGuardarPerfil');
-  const inputNombre = document.getElementById('ajustesNombreUsuario');
-  const inputPassword = document.getElementById('ajustesPasswordUsuario');
-  const spanEstado = document.getElementById('ajustesEstado');
+  function setupAjustesModal() {
+    const modalAjustes = document.getElementById('modalAjustes');
+    const selectTema = document.getElementById('selectTema');
+    const btnGuardarPerfil = document.getElementById('btnGuardarPerfil');
+    const inputNombre = document.getElementById('ajustesNombreUsuario');
+    const inputPassword = document.getElementById('ajustesPasswordUsuario');
+    const spanEstado = document.getElementById('ajustesEstado');
 
-  if (modalAjustes) {
+    if (!modalAjustes || !selectTema || !btnGuardarPerfil) return;
+
     // Cargar datos del usuario cuando se abre el modal
     modalAjustes.addEventListener('focusin', () => {
-      // Cargar tema actual
       const temaGuardado = localStorage.getItem('stockhogar-tema') || 'auto';
-      if (selectTema) {
-        selectTema.value = temaGuardado;
-      }
+      selectTema.value = temaGuardado;
 
-      // Cargar nombre del usuario desde el elemento que ya existe
       const nombreActual = document.getElementById('ajustesUsuarioActual')?.textContent || '-';
       if (inputNombre && nombreActual !== '-') {
         inputNombre.value = nombreActual;
@@ -2123,86 +2121,79 @@ if (listaActualBtnEl) {
     });
 
     // Cambiar tema al seleccionar
-    if (selectTema) {
-      selectTema.addEventListener('change', (e) => {
-        const tema = e.target.value;
-        if (tema === 'light') {
-          aplicarTema('light');
-        } else if (tema === 'dark') {
-          aplicarTema('dark');
-        } else if (tema === 'auto') {
-          // Remover del localStorage y usar preferencia del dispositivo
-          localStorage.removeItem('stockhogar-tema');
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
-          actualizarBotonTema();
+    selectTema.addEventListener('change', (e) => {
+      const tema = e.target.value;
+      if (tema === 'light') {
+        aplicarTema('light');
+      } else if (tema === 'dark') {
+        aplicarTema('dark');
+      } else if (tema === 'auto') {
+        localStorage.removeItem('stockhogar-tema');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+        actualizarBotonTema();
 
-          // Escuchar cambios en las preferencias del dispositivo
-          const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-          mediaQuery.addEventListener('change', (e) => {
-            document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
-            actualizarBotonTema();
-          });
-        }
-      });
-    }
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', (e) => {
+          document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+          actualizarBotonTema();
+        });
+      }
+    });
 
     // Guardar perfil
-    if (btnGuardarPerfil) {
-      btnGuardarPerfil.addEventListener('click', async () => {
-        const nombre = inputNombre?.value.trim() || '';
-        const password = inputPassword?.value || '';
+    btnGuardarPerfil.addEventListener('click', async () => {
+      const nombre = inputNombre?.value.trim() || '';
+      const password = inputPassword?.value || '';
 
-        if (!nombre) {
-          mostrarEstado('El nombre no puede estar vacío', 'error');
+      if (!nombre) {
+        mostrarEstado('El nombre no puede estar vacío', 'error');
+        return;
+      }
+
+      if (password && password.length < 4) {
+        mostrarEstado('La contraseña debe tener mínimo 4 caracteres', 'error');
+        return;
+      }
+
+      try {
+        btnGuardarPerfil.disabled = true;
+        mostrarEstado('Guardando...', 'info');
+
+        const body = { nombre };
+        if (password) {
+          body.password = password;
+        }
+
+        const res = await fetch('/api/auth/perfil', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          mostrarEstado(error.error || 'Error al guardar', 'error');
           return;
         }
 
-        if (password && password.length < 4) {
-          mostrarEstado('La contraseña debe tener mínimo 4 caracteres', 'error');
-          return;
+        const usuarioActualEl = document.getElementById('ajustesUsuarioActual');
+        if (usuarioActualEl) {
+          usuarioActualEl.textContent = nombre;
         }
 
-        try {
-          btnGuardarPerfil.disabled = true;
-          mostrarEstado('Guardando...', 'info');
-
-          const body = { nombre };
-          if (password) {
-            body.password = password;
-          }
-
-          const res = await fetch('/api/auth/perfil', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          });
-
-          if (!res.ok) {
-            const error = await res.json();
-            mostrarEstado(error.error || 'Error al guardar', 'error');
-            return;
-          }
-
-          // Actualizar nombre en la interfaz
-          if (document.getElementById('ajustesUsuarioActual')) {
-            document.getElementById('ajustesUsuarioActual').textContent = nombre;
-          }
-
-          // Limpiar campo de contraseña
-          if (inputPassword) {
-            inputPassword.value = '';
-          }
-
-          mostrarEstado('Perfil guardado correctamente', 'exito');
-        } catch (error) {
-          console.error('Error guardando perfil:', error);
-          mostrarEstado('Error de conexión', 'error');
-        } finally {
-          btnGuardarPerfil.disabled = false;
+        if (inputPassword) {
+          inputPassword.value = '';
         }
-      });
-    }
+
+        mostrarEstado('Perfil guardado correctamente', 'exito');
+      } catch (error) {
+        console.error('Error guardando perfil:', error);
+        mostrarEstado('Error de conexión', 'error');
+      } finally {
+        btnGuardarPerfil.disabled = false;
+      }
+    });
 
     function mostrarEstado(mensaje, tipo) {
       if (!spanEstado) return;
@@ -2218,6 +2209,13 @@ if (listaActualBtnEl) {
         spanEstado.hidden = true;
       }, 4000);
     }
+  }
+
+  // Esperar a que el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupAjustesModal);
+  } else {
+    setupAjustesModal();
   }
 })();
 
