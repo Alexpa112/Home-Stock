@@ -78,7 +78,7 @@
 
 /* Contenido del modal - scroll interno */
 .modal > form,
-.modal > div:not(.modal-header) {
+.modal > .modal-content {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   flex: 1;
@@ -86,7 +86,7 @@
 
 /* Asegurar que el modal se adapte al teclado */
 body.is-keyboard-open .modal {
-  max-height: calc(100dvh - var(--keyboard-height) - var(--spacing-lg));
+  max-height: calc(100dvh - var(--keyboard-offset, 0px) - var(--spacing-lg));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -237,6 +237,14 @@ body.is-keyboard-open .modal {
 .modal button {
   min-height: var(--touch-height);
   padding: var(--spacing-sm) var(--spacing-lg);
+}
+
+/* Excepción: footer buttons deben ser compactos */
+.modal-footer button {
+  min-height: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 0.65rem;
   font-size: var(--font-base);
   border: none;
   border-radius: var(--radius-sm);
@@ -316,16 +324,12 @@ body.is-keyboard-open .modal {
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
 @media (orientation: landscape) {
-  :root {
-    --keyboard-height: 200px;
-  }
-
   .modal {
     max-height: 90dvh;
   }
 
   body.is-keyboard-open .modal {
-    max-height: calc(100dvh - var(--keyboard-height) - var(--spacing-md));
+    max-height: calc(100dvh - var(--keyboard-offset, 0px) - var(--spacing-md));
   }
 }
 
