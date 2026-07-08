@@ -2188,6 +2188,116 @@ if (listaActualBtnEl) {
   }
 })();
 
+// ========== HANDLERS PARA CREAR NUEVA LISTA ==========
+(function() {
+  const formCrearLista = document.getElementById('formCrearLista');
+  const modalCrearLista = document.getElementById('modalCrearLista');
+  const btnCerrarCrearLista = document.getElementById('btnCerrarCrearLista');
+  const btnSeleccionarIconoNuevaLista = document.getElementById('btnSeleccionarIconoNuevaLista');
+  const iconoSeleccionadoNuevaLista = document.getElementById('iconoSeleccionadoNuevaLista');
+  const crearListaColor = document.getElementById('crearListaColor');
+  const colorPreviewCrear = document.getElementById('colorPreviewCrear');
+
+  if (!formCrearLista || !modalCrearLista) return;
+
+  // Abrir modal de crear lista
+  const btnCrearNuevaLista = document.getElementById('btnCrearNuevaLista');
+  if (btnCrearNuevaLista) {
+    btnCrearNuevaLista.addEventListener('click', () => {
+      formCrearLista.reset();
+      iconoSeleccionadoNuevaLista.textContent = '📋';
+      formCrearLista.querySelector('input[name="icono"]').value = '📋';
+      crearListaColor.value = '#B5551A';
+      if (colorPreviewCrear) colorPreviewCrear.style.backgroundColor = '#B5551A';
+      modalCrearLista.hidden = false;
+      document.body.classList.add('modal-open');
+      setTimeout(() => {
+        const inputNombre = formCrearLista.querySelector('input[name="nombre"]');
+        if (inputNombre) inputNombre.focus();
+      }, 100);
+    });
+  }
+
+  // Cerrar modal
+  if (btnCerrarCrearLista) {
+    btnCerrarCrearLista.addEventListener('click', () => {
+      modalCrearLista.hidden = true;
+      document.body.classList.remove('modal-open');
+    });
+  }
+
+  // Cerrar modal al hacer click en el fondo
+  modalCrearLista.addEventListener('click', (e) => {
+    if (e.target === modalCrearLista) {
+      modalCrearLista.hidden = true;
+      document.body.classList.remove('modal-open');
+    }
+  });
+
+  // Botón para seleccionar icono
+  if (btnSeleccionarIconoNuevaLista) {
+    btnSeleccionarIconoNuevaLista.addEventListener('click', (e) => {
+      e.preventDefault();
+      const iconoActual = formCrearLista.querySelector('input[name="icono"]').value || '📋';
+      abrirModalSelectorIconos(iconoActual, (nuevoIcono) => {
+        iconoSeleccionadoNuevaLista.textContent = nuevoIcono;
+        formCrearLista.querySelector('input[name="icono"]').value = nuevoIcono;
+      });
+    });
+  }
+
+  // Preview de color
+  if (crearListaColor) {
+    crearListaColor.addEventListener('change', (e) => {
+      if (colorPreviewCrear) {
+        colorPreviewCrear.style.backgroundColor = e.target.value;
+      }
+    });
+  }
+
+  // Enviar formulario
+  formCrearLista.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const nombre = formCrearLista.querySelector('input[name="nombre"]').value.trim();
+    const icono = formCrearLista.querySelector('input[name="icono"]').value || '📋';
+    const color = crearListaColor?.value || '#B5551A';
+
+    if (!nombre) {
+      alert('Por favor, escribe el nombre de la lista');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/listas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, icono, color })
+      });
+
+      const datos = await res.json();
+
+      if (!res.ok) {
+        alert(datos.error || 'No se pudo crear la lista');
+        return;
+      }
+
+      // Cerrar modal y recargar
+      modalCrearLista.hidden = true;
+      document.body.classList.remove('modal-open');
+      formCrearLista.reset();
+
+      // Recargar listas y cambiar a la nueva
+      if (window.drawerListasManager) {
+        window.drawerListasManager.cargarListas();
+      }
+    } catch (error) {
+      console.error('Error creando lista:', error);
+      alert('Error al crear la lista');
+    }
+  });
+})();
+
 // Detectar si es un usuario nuevo y mostrar modal de creación
 (function() {
   const params = new URLSearchParams(window.location.search);
