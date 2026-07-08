@@ -1257,6 +1257,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tile-compra.completado .tile-compra-nombre { text-decoration: line-through; }
 .tile-compra.completado:hover { background: var(--surface); color: var(--text); }
 
+.tile-en-lista {
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+  border: 2px solid var(--accent);
+}
+.tile-en-lista:hover { box-shadow: var(--shadow-md); }
+.tile-en-lista:active { transform: scale(0.96); }
+
 .tile-compra-cantidad {
   position: absolute;
   bottom: 6px;

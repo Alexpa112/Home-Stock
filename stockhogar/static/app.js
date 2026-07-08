@@ -1444,14 +1444,16 @@ let catalogoModo = "compra"; // "compra" (lista de la compra) o "stock" (alta di
 
 function abrirModalCatalogo(modo = "compra") {
   catalogoModo = modo;
+  const botonesAccion = document.querySelector(".acciones-modal");
   if (modo === "stock") {
     catalogoTitulo.textContent = "Añadir al stock";
     catalogoAyuda.textContent = "Toca un producto para indicar su cantidad y añadirlo al stock.";
     btnCrearDesdeCatalogo.textContent = "+ Crear producto nuevo";
+    botonesAccion.style.display = "flex";
   } else {
     catalogoTitulo.textContent = "Añadir a la lista";
-    catalogoAyuda.textContent = "Toca un producto para añadirlo. Mantén pulsado para ajustar cantidad, unidad, sub-descripción o icono antes de añadirlo.";
-    btnCrearDesdeCatalogo.textContent = "+ Crear artículo nuevo";
+    catalogoAyuda.textContent = "Toca un producto para añadirlo (el fondo se resaltará cuando esté en tu lista).";
+    botonesAccion.style.display = "none";
   }
   catalogoBuscadorEl.value = "";
   renderCatalogo("");
@@ -1500,6 +1502,10 @@ function renderCatalogo(filtro) {
   }
 }
 
+function articuloEnLista(nombre) {
+  return pendientesCompra.some((a) => a.nombre === nombre);
+}
+
 function crearTileCatalogo(entry) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -1519,16 +1525,13 @@ function crearTileCatalogo(entry) {
     return btn;
   }
 
-  btn.title = `Toca para añadir · mantén pulsado para personalizar${detalle ? " · " + detalle : ""}`;
-  agregarPulsacion(
-    btn,
-    () => anadirDesdeCatalogo(entry),
-    () => {
-      cerrarModalCatalogo();
-      volverAlCatalogoTrasCompra = true;
-      abrirModalCompra({ ...entry, cantidad: 1 });
-    }
-  );
+  // Modo compra: toggle añadir/quitar de lista
+  const enLista = articuloEnLista(entry.nombre);
+  if (enLista) {
+    btn.classList.add("tile-en-lista");
+  }
+  btn.title = `Toca para ${enLista ? "quitar de" : "añadir a"} la lista${detalle ? " · " + detalle : ""}`;
+  btn.addEventListener("click", () => toggleArticuloEnLista(entry, btn));
   return btn;
 }
 
@@ -1552,6 +1555,46 @@ async function anadirDesdeCatalogo(entry) {
     }),
   });
   cargarListaCompra();
+}
+
+async function toggleArticuloEnLista(entry, btn) {
+  const listaId = localStorage.getItem('lista-actual');
+  if (!listaId) {
+    alert("Selecciona una lista primero");
+    return;
+  }
+
+  const enLista = articuloEnLista(entry.nombre);
+  if (enLista) {
+    const articulo = pendientesCompra.find((a) => a.nombre === entry.nombre);
+    if (articulo) {
+      await fetch(`/api/articulos/${articulo.id}`, { method: "DELETE" });
+    }
+  } else {
+    await fetch("/api/articulos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lista_id: parseInt(listaId),
+        nombre: entry.nombre,
+        categoria: entry.categoria,
+        icono: entry.icono,
+        unidad: entry.unidad,
+        sub_descripcion: entry.sub_descripcion,
+      }),
+    });
+  }
+  await cargarListaCompra();
+
+  // Solo actualizar el color del botón, sin regenerar todo el catálogo
+  const ahora_enLista = articuloEnLista(entry.nombre);
+  if (ahora_enLista) {
+    btn.classList.add("tile-en-lista");
+    btn.title = `Toca para quitar de la lista`;
+  } else {
+    btn.classList.remove("tile-en-lista");
+    btn.title = `Toca para añadir a la lista`;
+  }
 }
 
 catalogoBuscadorEl.addEventListener("input", (e) => renderCatalogo(e.target.value));

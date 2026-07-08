@@ -1,5 +1,5 @@
 """Rutas de artículos en listas (antes lista_compra)."""
-from flask import Blueprint, request, session
+from flask import Blueprint, request, session, jsonify
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
@@ -85,7 +85,7 @@ def anadir_articulo():
         )
         db.commit()
         fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (existente["id"],)).fetchone()
-        return jsonify(articulo_a_dict(fila))
+        return jsonify(DataConverter.articulo_lista_to_dict(fila))
 
     recuerdo = buscar_historial(db, nombre)
     categoria = normalizar_categoria(db, datos.get("categoria") or (recuerdo["categoria"] if recuerdo else None))
@@ -105,7 +105,7 @@ def anadir_articulo():
         recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (cur.lastrowid,)).fetchone()
-    return jsonify(articulo_a_dict(fila)), 201
+    return jsonify(DataConverter.articulo_lista_to_dict(fila)), 201
 
 
 @bp.route("/<int:item_id>", methods=["PATCH"])
@@ -143,7 +143,7 @@ def actualizar_articulo(item_id):
             )
 
     if CAMPOS_EDITABLES & datos.keys():
-        actual = articulo_a_dict(fila)
+        actual = DataConverter.articulo_lista_to_dict(fila)
         nombre = (datos.get("nombre") or actual["nombre"]).strip() or actual["nombre"]
         cantidad = max(1, int(datos.get("cantidad", actual["cantidad"]) or 1))
         unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
@@ -161,7 +161,7 @@ def actualizar_articulo(item_id):
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
-    return jsonify(articulo_a_dict(fila))
+    return jsonify(DataConverter.articulo_lista_to_dict(fila))
 
 
 @bp.route("/<int:item_id>", methods=["DELETE"])
