@@ -194,23 +194,23 @@ def actualizar_articulo(item_id):
 
 
 @bp.route("/<int:item_id>", methods=["DELETE"])
+@requerir_sesion
+@manejo_errores
 def borrar_articulo(item_id):
     """Elimina un artículo (requiere permiso 'editar')."""
     usuario_id = session.get("usuario_id")
-    if not usuario_id:
-        return jsonify({"error": "No autorizado"}), 401
-
     db = get_db()
+
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
 
     if fila is None:
-        return jsonify({"error": "No encontrado"}), 404
+        return APIResponse.error("Artículo no encontrado", 404)
 
     # Validar permisos sobre la lista
     permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
     if not permiso or (permiso != "propietario" and permiso != "editar"):
-        return jsonify({"error": "No tienes permisos para editar esta lista"}), 403
+        return APIResponse.no_permitido()
 
     db.execute("DELETE FROM articulos_lista WHERE id = ?", (item_id,))
     db.commit()
-    return "", 204
+    return APIResponse.success(None, 204)
