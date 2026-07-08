@@ -107,3 +107,14 @@ def _(clave, idioma=None):
 def t(clave):
     """Traducir con idioma de sesión actual."""
     return traducir(clave)
+
+
+def traducir_todas_para_idioma(idioma):
+    """Devuelve TODAS las traducciones para un idioma.
+
+    Útil para cargar traducción completa en frontend.
+    """
+    if idioma not in TRANSLATIONS:
+        idioma = "es"
+
+    return TRANSLATIONS[idioma]

@@ -3,7 +3,7 @@ from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import get_db
-from ..translator import IDIOMAS_DISPONIBLES, traducir, obtener_idiomas
+from ..translator import IDIOMAS_DISPONIBLES, traducir, obtener_idiomas, traducir_todas_para_idioma
 
 bp = Blueprint("idiomas", __name__, url_prefix="/api/idiomas")
 
@@ -97,4 +97,28 @@ def traducir_claves():
     return APIResponse.success({
         "idioma": idioma,
         "traducciones": traducciones
+    })
+
+
+@bp.route("/todos/<idioma>", methods=["GET"])
+@manejo_errores
+def obtener_todas_traducciones(idioma):
+    """Obtiene TODAS las traducciones para un idioma.
+
+    Usado al iniciar la app para traducir toda la página.
+    """
+    idioma = idioma.lower()
+
+    # Validar idioma
+    if idioma not in IDIOMAS_DISPONIBLES:
+        return APIResponse.validacion(
+            f"Idioma no soportado. Disponibles: {', '.join(IDIOMAS_DISPONIBLES)}"
+        )
+
+    # Obtener todas las traducciones
+    todas = traducir_todas_para_idioma(idioma)
+
+    return APIResponse.success({
+        "idioma": idioma,
+        "traducciones": todas
     })
