@@ -63,8 +63,6 @@ class TranslationManager {
     const elementosTrad = {
       '#buscador': 'buscar_producto',
       '#modalTitulo': 'nuevo_producto',
-      '.tab[data-vista="stock"]': 'stock',
-      '.tab[data-vista="compra"]': 'lista_compra',
       '#listaActualRol': 'propietario',
     };
 
@@ -81,7 +79,24 @@ class TranslationManager {
       }
     });
 
-    // Traducir botones por su contenido
+    // Traducir tabs especiales (mantienen emoji)
+    const tabsMapeo = {
+      'stock': '📦 stock',
+      'compra': '🛒 lista_compra',
+    };
+
+    document.querySelectorAll('.tab').forEach(el => {
+      const vista = el.dataset.vista;
+      if (vista === 'stock') {
+        const trad = this.t('stock');
+        el.textContent = `📦 ${trad}`;
+      } else if (vista === 'compra') {
+        const trad = this.t('lista_compra');
+        el.textContent = `🛒 ${trad}`;
+      }
+    });
+
+    // Traducir botones por su contenido (sin emoji)
     const botonesMapeo = {
       'Nuevo producto': 'nuevo_producto',
       'Editar producto': 'editar_producto',
@@ -93,9 +108,11 @@ class TranslationManager {
     };
 
     document.querySelectorAll('button, a').forEach(el => {
-      const texto = el.textContent.trim();
-      if (botonesMapeo[texto]) {
-        const clave = botonesMapeo[texto];
+      // Limpiador de emojis: mantener solo texto
+      const textoLimpio = el.textContent.trim().replace(/^[^\w\s]+ /, '');
+
+      if (botonesMapeo[textoLimpio]) {
+        const clave = botonesMapeo[textoLimpio];
         el.textContent = this.t(clave);
       }
     });
