@@ -183,8 +183,30 @@ class APIClient {
   }
 
   // ===== HISTORIAL =====
+  async obtenerHistorial() {
+    return this._fetch(`${this.baseUrl}/historial`);
+  }
+
   async buscarHistorial(nombre) {
     return this._fetch(`${this.baseUrl}/historial?nombre=${encodeURIComponent(nombre)}`);
+  }
+
+  // ===== USUARIOS =====
+  async obtenerUsuarios() {
+    return this._fetch(`${this.baseUrl}/usuarios`);
+  }
+
+  async crearUsuario(datos) {
+    return this._fetch(`${this.baseUrl}/usuarios`, {
+      method: 'POST',
+      body: JSON.stringify(datos),
+    });
+  }
+
+  async borrarUsuario(id) {
+    return this._fetch(`${this.baseUrl}/usuarios/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   // ===== TICKETS OCR =====

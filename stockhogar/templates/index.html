@@ -466,10 +466,13 @@
 <script src="{{ url_for('static', filename='core/dom-manager.js') }}"></script>
 <script src="{{ url_for('static', filename='core/api-client.js') }}"></script>
 
+<!-- Utilidades globales -->
+<script src="{{ url_for('static', filename='utils/helpers.js') }}"></script>
+
 <!-- Base UI components (modales, formularios) -->
 <script src="{{ url_for('static', filename='modules/ui-components.js') }}"></script>
 
-<!-- Managers: Lógica de negocio modular -->
+<!-- Managers: Lógica de negocio modular (orden de dependencias) -->
 <script src="{{ url_for('static', filename='modules/productos-manager.js') }}"></script>
 <script src="{{ url_for('static', filename='modules/compra-manager.js') }}"></script>
 <script src="{{ url_for('static', filename='modules/categorias-manager.js') }}"></script>
@@ -477,11 +480,10 @@
 <script src="{{ url_for('static', filename='modules/tickets-manager.js') }}"></script>
 <script src="{{ url_for('static', filename='modules/ui-manager.js') }}"></script>
 <script src="{{ url_for('static', filename='modules/listas-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/usuarios-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/historial-manager.js') }}"></script>
 
 <!-- App principal (managers + UI integrado) -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>
-
-<!-- Legacy app: fallback para funcionalidades no migradas aún -->
-<script src="{{ url_for('static', filename='app-legacy.js') }}"></script>
 </body>
 </html>
