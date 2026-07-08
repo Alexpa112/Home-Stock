@@ -59,6 +59,66 @@ class TranslationManager {
    * Traduce todos los elementos de la página
    */
   traducirPagina() {
+    // Mapeo de elementos a claves de traducción
+    const elementosTrad = {
+      '#buscador': 'buscar_producto',
+      '#modalTitulo': 'nuevo_producto',
+      '.tab[data-vista="stock"]': 'stock',
+      '.tab[data-vista="compra"]': 'lista_compra',
+      '#listaActualRol': 'propietario',
+    };
+
+    // Traducir elementos específicos
+    Object.entries(elementosTrad).forEach(([selector, clave]) => {
+      const elemento = document.querySelector(selector);
+      if (elemento && clave) {
+        const trad = this.t(clave);
+        if (elemento.tagName === 'INPUT') {
+          elemento.placeholder = trad;
+        } else {
+          elemento.textContent = trad;
+        }
+      }
+    });
+
+    // Traducir botones por su contenido
+    const botonesMapeo = {
+      'Nuevo producto': 'nuevo_producto',
+      'Editar producto': 'editar_producto',
+      'Guardar': 'guardar',
+      'Cancelar': 'cancelar',
+      'Añadir': 'añadir',
+      'Eliminar': 'eliminar',
+      'Borrar': 'borrar',
+    };
+
+    document.querySelectorAll('button, a').forEach(el => {
+      const texto = el.textContent.trim();
+      if (botonesMapeo[texto]) {
+        const clave = botonesMapeo[texto];
+        el.textContent = this.t(clave);
+      }
+    });
+
+    // Traducir labels y placeholders
+    document.querySelectorAll('label').forEach(el => {
+      const texto = el.textContent.trim();
+      const claveMap = {
+        'Nombre': 'nombre',
+        'Categoria': 'categoria',
+        'Icono': 'icono',
+        'Cantidad': 'cantidad',
+        'Stock minimo': 'cantidad', // Usar clave existente
+      };
+
+      Object.entries(claveMap).forEach(([texto_es, clave]) => {
+        if (el.textContent.includes(texto_es)) {
+          const trad = this.t(clave);
+          el.textContent = el.textContent.replace(texto_es, trad);
+        }
+      });
+    });
+
     // Traducir por data-i18n="clave"
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const clave = el.dataset.i18n;
