@@ -294,7 +294,7 @@ observerModales.observe(document.documentElement, {
 function ajustarViewportMovil() {
   if (!window.visualViewport) {
     document.documentElement.style.setProperty("--keyboard-offset", "0px");
-    document.body.classList.remove("is-keyboard-open");
+    document.body.classList.remove("keyboard-open");
     tecladoOffset = 0;
     return;
   }
@@ -305,7 +305,8 @@ function ajustarViewportMovil() {
   const hayModalAbierto = Array.from(document.querySelectorAll('.modal-fondo')).some((modal) => !modal.hidden);
   tecladoOffset = offsetEfectivo;
   document.documentElement.style.setProperty("--keyboard-offset", `${offsetEfectivo}px`);
-  document.body.classList.toggle("is-keyboard-open", offsetEfectivo > 0 && !hayModalAbierto);
+  // Aplicar clase SIEMPRE que el teclado esté abierto, incluso con modal
+  document.body.classList.toggle("keyboard-open", offsetEfectivo > 0);
   sincronizarEstadoModal();
 
   if (offsetEfectivo > 0 && !hayModalAbierto && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
@@ -2255,47 +2256,8 @@ if (listaActualBtnEl) {
     });
   }
 
-  // Enviar formulario
-  formCrearLista.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const nombre = formCrearLista.querySelector('input[name="nombre"]').value.trim();
-    const icono = formCrearLista.querySelector('input[name="icono"]').value || '📋';
-    const color = crearListaColor?.value || '#B5551A';
-
-    if (!nombre) {
-      alert('Por favor, escribe el nombre de la lista');
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/listas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, icono, color })
-      });
-
-      const datos = await res.json();
-
-      if (!res.ok) {
-        alert(datos.error || 'No se pudo crear la lista');
-        return;
-      }
-
-      // Cerrar modal y recargar
-      modalCrearLista.hidden = true;
-      document.body.classList.remove('modal-open');
-      formCrearLista.reset();
-
-      // Recargar listas y cambiar a la nueva
-      if (window.drawerListasManager) {
-        window.drawerListasManager.cargarListas();
-      }
-    } catch (error) {
-      console.error('Error creando lista:', error);
-      alert('Error al crear la lista');
-    }
-  });
+  // NOTA: El handler del formulario está en drawer-listas.js (CrearListaModal.onSubmit)
+  // No duplicar aquí para evitar conflictos
 })();
 
 // Detectar si es un usuario nuevo y mostrar modal de creación

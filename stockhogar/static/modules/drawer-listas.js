@@ -1172,13 +1172,12 @@ class CrearListaModal extends FormModal {
         body: JSON.stringify({ nombre, icono, color })
       });
 
+      const datos = await res.json();
+
       if (!res.ok) {
-        const error = await res.json();
-        alert(error.error || 'Error al crear lista');
+        alert(datos.error || 'Error al crear lista');
         return;
       }
-
-      const nuevaLista = await res.json();
 
       // Actualizar drawer
       if (this.drawerManager) {
@@ -1188,7 +1187,7 @@ class CrearListaModal extends FormModal {
       this.close();
 
       // Mensaje de éxito
-      console.log('Lista creada:', nuevaLista.nombre);
+      console.log('Lista creada:', datos.nombre);
     } catch (error) {
       console.error('Error creando lista:', error);
       alert('Error al crear lista');

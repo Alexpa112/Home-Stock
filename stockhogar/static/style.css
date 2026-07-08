@@ -148,7 +148,7 @@ body.modal-open {
   overflow-x: hidden;
 }
 
-body.is-keyboard-open #appShell {
+body.keyboard-open #appShell {
   transform: translateY(calc(-1 * min(var(--keyboard-offset, 0px), 20vh)));
 }
 
@@ -737,8 +737,7 @@ body.modal-open .fab {
   background: var(--surface);
   width: 100vw;
   max-width: 100vw;
-  height: 90vh;
-  max-height: 90vh;
+  max-height: 90dvh;
   border-radius: 32px 32px 0 0;
   display: flex;
   flex-direction: column;
@@ -924,7 +923,8 @@ form button.secundario:hover {
 }
 
 body.keyboard-open .modal {
-  max-height: calc(100vh - var(--keyboard-offset) - 32px);
+  max-height: calc(100dvh - var(--keyboard-offset) - 32px);
+  margin-bottom: calc(var(--keyboard-offset) + 16px);
 }
 
 .modal form {
