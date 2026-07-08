@@ -2095,3 +2095,34 @@ if (listaActualBtnEl) {
     }
   });
 }
+
+// ============ CREAR PRIMERA LISTA (NUEVO USUARIO) ============
+// Detectar si es un usuario nuevo y mostrar modal de creación
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('crear_primera_lista')) {
+    // Esperar a que carguen las listas
+    setTimeout(() => {
+      const modal = document.getElementById('modalMisListas');
+      const btnCrearNuevaLista = document.getElementById('btnCrearNuevaLista');
+
+      if (modal && btnCrearNuevaLista) {
+        // Abrir modal de crear lista
+        modal.hidden = false;
+        document.body.classList.add('modal-open');
+
+        // Focus en input de nombre
+        setTimeout(() => {
+          const inputNombre = document.getElementById('formCrearLista')?.querySelector('input[name="nombre"]');
+          if (inputNombre) {
+            inputNombre.focus();
+            inputNombre.placeholder = 'Ej: Mi lista de compra...';
+          }
+        }, 100);
+
+        // Limpiar URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }, 500);
+  }
+})();
