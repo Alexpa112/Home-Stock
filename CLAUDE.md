@@ -191,9 +191,56 @@ const MAX_ITEMS = 100;
 
 ---
 
+## 📌 REGLA 8: Después de Cambios - Reiniciar Servidor y Borrar Caché
+
+**SIEMPRE después de editar archivos**, ANTES de probar:
+
+```bash
+# 1. Detener el servidor
+# Ctrl+C si está en foreground, o:
+pkill -f "python run.py"  # En Bash/Linux
+# o en PowerShell:
+Get-Process | Where-Object {$_.ProcessName -eq 'python'} | Stop-Process -Force
+
+# 2. Limpiar caché de Python
+rm -rf __pycache__ 2>/dev/null
+find . -name "*.pyc" -delete 2>/dev/null
+find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null
+
+# 3. Limpiar caché de Flask/Jinja2
+rm -rf instance 2>/dev/null
+
+# 4. Reiniciar el servidor
+python run.py
+```
+
+### ¿Por Qué?
+- **Flask cachea templates** (archivos .html) cuando no está en DEBUG
+- **Python cachea bytecode** (.pyc files)
+- Sin borrar caché, ves cambios **SOLO en el archivo** pero NO en el navegador
+- Parece que no funcionó, cuando realmente funciona pero está caché
+
+### Archivos que REQUIEREN reinicio:
+- ✅ Cualquier `.html` en `templates/`
+- ✅ Cualquier `.py` en `stockhogar/`
+- ✅ `static/` archivos (si están minificados)
+- ✅ Cambios en `requirements.txt`
+
+### Archivos que NO requieren reinicio:
+- ❌ `.css` sin minificación (se recargan en el navegador)
+- ❌ `.js` sin minificación (se recargan en el navegador)
+
+---
+
 ## 📌 CHECKLIST ANTES DE HACER COMMIT
 
 ```
+DESPUÉS DE EDITAR ARCHIVOS (SIEMPRE):
+- [ ] Reinicié el servidor (Ctrl+C)
+- [ ] Borré caché: rm -rf __pycache__ *.pyc instance
+- [ ] Reinicié con python run.py
+- [ ] Verifiqué en navegador que se ve el cambio
+
 ANTES DE GIT COMMIT:
 - [ ] Verifiqué que user.name = "alejandro.paz"
 - [ ] Verifiqué que user.email = "alejandro.paz@edisa.com"
@@ -295,6 +342,10 @@ Co-Authored-By: alejandro.paz <alejandro.paz@edisa.com>"
 ❌ Subir a GitHub sin verificar git config
 ❌ Crear archivos sueltos (siempre en su carpeta)
 ❌ Escribir código sin revisar si existe
+❌ EDITAR TEMPLATES/PYTHON Y PROBAR SIN REINICIAR SERVIDOR
+   → Siempre borrar __pycache__, *.pyc, instance/
+   → Flask cachea templates - sin reinicio veo versión vieja
+❌ Asumir que "se ven los cambios" en el navegador sin verificar
 ```
 
 ---
