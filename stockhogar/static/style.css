@@ -818,22 +818,24 @@ body.modal-open .fab {
 
 .modal-footer {
   flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 4px 8px;
   border-top: 1px solid var(--border);
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
   align-items: stretch;
   flex-wrap: wrap;
   max-width: 100%;
+  min-height: auto;
+  height: auto;
 }
 
 .modal-footer button {
-  padding: 0 12px;
-  height: 36px;
-  font-size: 0.95rem;
+  padding: 0 10px;
+  height: 28px;
+  font-size: 0.8rem;
   white-space: nowrap;
-  border-radius: 6px;
+  border-radius: 4px;
   border: none;
   cursor: pointer;
   transition: all 200ms ease;
@@ -841,15 +843,16 @@ body.modal-open .fab {
   align-items: center;
   justify-content: center;
   font-weight: 500;
-  flex: 1 1 calc(50% - 4px);
-  min-width: 80px;
-  max-width: calc(33.333% - 6px);
+  flex: 1 1 calc(50% - 3px);
+  min-width: 70px;
+  max-width: calc(33.333% - 4px);
+  line-height: 1;
 }
 
 @media (min-width: 600px) {
   .modal-footer button {
     flex: 0 1 auto;
-    min-width: 90px;
+    min-width: 80px;
   }
 }
 
