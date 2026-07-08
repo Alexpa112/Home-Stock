@@ -332,6 +332,24 @@ def init_db():
     asegurar_columna(db, "historial_articulos", "sub_descripcion", "TEXT")
     asegurar_columna(db, "historial_articulos", "cantidad_defecto", "INTEGER NOT NULL DEFAULT 1")
 
+    # Tabla traducciones_productos: almacena traducciones de nombres y descripciones
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS traducciones_productos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            producto_id INTEGER REFERENCES productos(id) ON DELETE CASCADE,
+            articulo_id INTEGER REFERENCES articulos_lista(id) ON DELETE CASCADE,
+            tipo TEXT NOT NULL,
+            idioma TEXT NOT NULL,
+            texto_original TEXT NOT NULL,
+            texto_traducido TEXT NOT NULL,
+            fecha_creacion TEXT,
+            UNIQUE(producto_id, articulo_id, tipo, idioma)
+        )
+        """
+    )
+    asegurar_columna(db, "traducciones_productos", "fecha_creacion", "TEXT")
+
     # Catalogo de productos habituales de supermercado (ver config.py): se
     # siembra una vez via INSERT OR IGNORE, asi que nunca pisa un articulo
     # que el usuario ya haya personalizado con el mismo nombre.

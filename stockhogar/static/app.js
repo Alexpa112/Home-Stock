@@ -1221,6 +1221,17 @@ form.addEventListener("submit", async (e) => {
     });
     const creado = await res.json();
     productos.push(creado);
+
+    // Traducir automáticamente el nombre del producto a todos los idiomas
+    // (en background, sin bloquear la UI)
+    fetch("/api/productos/traducir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nombre: payload.nombre,
+        producto_id: creado.id
+      })
+    }).catch(err => console.warn('Traducción automática fallida:', err));
   }
 
   cerrarModal();
@@ -1477,11 +1488,28 @@ formCompra.addEventListener("submit", async (e) => {
     payload.lista_id = parseInt(listaId);
   }
 
-  await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
+  const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
     method: id ? "PATCH" : "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+
+  const articulo = await res.json();
+
+  // Traducir automáticamente el nombre del artículo a todos los idiomas
+  // (en background, sin bloquear la UI)
+  if (!id && articulo && articulo.id) {
+    fetch("/api/productos/traducir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nombre: payload.nombre,
+        descripcion: payload.sub_descripcion || "",
+        articulo_id: articulo.id
+      })
+    }).catch(err => console.warn('Traducción automática fallida:', err));
+  }
+
   cerrarModalCompra();
   cargarListaCompra();
   cargarHistorial();

@@ -8,6 +8,7 @@ from ..utils import Validator, DataConverter, ValidationError
 from .categorias import normalizar_categoria
 from .espacios import obtener_espacio_actual
 from .historial import buscar_historial, recordar_articulo
+from ..servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 
@@ -144,6 +145,61 @@ def crear_producto():
     db.commit()
     fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
     return APIResponse.success(DataConverter.producto_to_dict(fila), 201)
+
+
+@bp.route("/traducir", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def traducir_producto_auto():
+    """
+    Traduce automáticamente un nombre/descripción a todos los idiomas.
+
+    Usado cuando se crea un nuevo producto/artículo.
+    Almacena las traducciones en la BD para reutilización.
+    """
+    datos = request.get_json(force=True) or {}
+    nombre = Validator.string_opcional(datos.get("nombre"), "", 80)
+    descripcion = Validator.string_opcional(datos.get("descripcion"), "", 200)
+    producto_id = datos.get("producto_id")  # Opcional
+    articulo_id = datos.get("articulo_id")  # Opcional
+
+    # Traducir a todos los idiomas
+    traducciones_nombre = TraductorAutomatico.traducir_a_todos_idiomas(nombre) if nombre else {}
+    traducciones_desc = TraductorAutomatico.traducir_a_todos_idiomas(descripcion) if descripcion else {}
+
+    # Almacenar en BD si se proporciona ID
+    if producto_id or articulo_id:
+        db = get_db()
+        for idioma in traducciones_nombre:
+            if idioma != "es":  # No guardar original
+                try:
+                    db.execute(
+                        """INSERT OR REPLACE INTO traducciones_productos
+                           (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (producto_id, articulo_id, "nombre", idioma, nombre, traducciones_nombre[idioma], ahora())
+                    )
+                except Exception as e:
+                    print(f"Error almacenando traducción: {e}")
+
+        for idioma in traducciones_desc:
+            if idioma != "es" and descripcion:
+                try:
+                    db.execute(
+                        """INSERT OR REPLACE INTO traducciones_productos
+                           (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (producto_id, articulo_id, "descripcion", idioma, descripcion, traducciones_desc[idioma], ahora())
+                    )
+                except Exception as e:
+                    print(f"Error almacenando traducción: {e}")
+
+        db.commit()
+
+    return APIResponse.success({
+        "nombre": traducciones_nombre,
+        "descripcion": traducciones_desc
+    })
 
 
 @bp.route("/<int:producto_id>", methods=["PATCH"])
