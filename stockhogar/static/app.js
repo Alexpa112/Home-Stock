@@ -1444,16 +1444,16 @@ let catalogoModo = "compra"; // "compra" (lista de la compra) o "stock" (alta di
 
 function abrirModalCatalogo(modo = "compra") {
   catalogoModo = modo;
-  const botonesAccion = document.querySelector(".acciones-modal");
+  const botonesAccion = document.querySelector("#accionesModalCatalogo");
   if (modo === "stock") {
     catalogoTitulo.textContent = "Añadir al stock";
     catalogoAyuda.textContent = "Toca un producto para indicar su cantidad y añadirlo al stock.";
-    btnCrearDesdeCatalogo.textContent = "+ Crear producto nuevo";
-    botonesAccion.style.display = "flex";
+    if (btnCrearDesdeCatalogo) btnCrearDesdeCatalogo.textContent = "+ Crear producto nuevo";
+    if (botonesAccion) botonesAccion.style.display = "flex";
   } else {
     catalogoTitulo.textContent = "Añadir a la lista";
     catalogoAyuda.textContent = "Toca un producto para añadirlo (el fondo se resaltará cuando esté en tu lista).";
-    botonesAccion.style.display = "none";
+    if (botonesAccion) botonesAccion.style.display = "none";
   }
   catalogoBuscadorEl.value = "";
   renderCatalogo("");
@@ -1599,18 +1599,22 @@ async function toggleArticuloEnLista(entry, btn) {
 
 catalogoBuscadorEl.addEventListener("input", (e) => renderCatalogo(e.target.value));
 
-btnCrearDesdeCatalogo.addEventListener("click", () => {
-  const nombrePrevio = catalogoBuscadorEl.value.trim();
-  cerrarModalCatalogo();
-  if (catalogoModo === "stock") {
-    abrirModal(nombrePrevio ? { nombre: nombrePrevio, cantidad: 1 } : null);
-  } else {
-    volverAlCatalogoTrasCompra = true;
-    abrirModalCompra(nombrePrevio ? { nombre: nombrePrevio, cantidad: 1 } : null);
-  }
-});
+if (btnCrearDesdeCatalogo) {
+  btnCrearDesdeCatalogo.addEventListener("click", () => {
+    const nombrePrevio = catalogoBuscadorEl.value.trim();
+    cerrarModalCatalogo();
+    if (catalogoModo === "stock") {
+      abrirModal(nombrePrevio ? { nombre: nombrePrevio, cantidad: 1 } : null);
+    } else {
+      volverAlCatalogoTrasCompra = true;
+      abrirModalCompra(nombrePrevio ? { nombre: nombrePrevio, cantidad: 1 } : null);
+    }
+  });
+}
 
-btnCerrarCatalogo.addEventListener("click", cerrarModalCatalogo);
+if (btnCerrarCatalogo) {
+  btnCerrarCatalogo.addEventListener("click", cerrarModalCatalogo);
+}
 habilitarCierreSeguro(modalCatalogoFondo, cerrarModalCatalogo);
 
 /* --- Ajustes --- */

@@ -169,11 +169,19 @@
 
 <div id="modalCatalogo" class="modal-fondo" hidden>
   <div class="modal modal-catalogo">
-    <h2 id="catalogoTitulo">Añadir a la lista</h2>
-    <input id="catalogoBuscador" type="search" placeholder="Buscar producto... (ej. leche, pan, mascotas)">
-    <p class="aviso" id="catalogoAyuda">Toca un producto para añadirlo. Mantén pulsado para ajustar cantidad, unidad, sub-descripción o icono antes de añadirlo.</p>
-    <div id="catalogoGrupos" class="grupos-compra catalogo-scroll"></div>
-    <p id="catalogoVacio" class="vacio" hidden></p>
+    <div class="modal-header">
+      <button id="btnCerrarCatalogo" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
+      <h2 id="catalogoTitulo">Añadir a la lista</h2>
+    </div>
+    <div class="modal-content">
+      <input id="catalogoBuscador" type="search" placeholder="Buscar producto... (ej. leche, pan, mascotas)">
+      <p class="aviso" id="catalogoAyuda">Toca un producto para añadirlo. Mantén pulsado para ajustar cantidad, unidad, sub-descripción o icono antes de añadirlo.</p>
+      <div id="catalogoGrupos" class="grupos-compra catalogo-scroll"></div>
+      <p id="catalogoVacio" class="vacio" hidden></p>
+    </div>
+    <div class="modal-footer acciones-modal" id="accionesModalCatalogo">
+      <button type="button" id="btnCrearDesdeCatalogo" class="primario">+ Crear producto nuevo</button>
+    </div>
   </div>
 </div>
 
