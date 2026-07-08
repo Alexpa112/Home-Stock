@@ -113,30 +113,23 @@
     <p class="subtitulo" id="subtituloForm">Inicia sesión para continuar.</p>
 
     <div id="seccionLogin">
-      <label>Usuario
-        <input id="campoUsuario" name="usuario" type="text" required autocomplete="username" maxlength="40" placeholder="Tu usuario">
-      </label>
-      <label>Contraseña
-        <input id="campoPassword" name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="Tu contraseña">
-      </label>
+      <label for="campoUsuario">Usuario</label>
+      <input id="campoUsuario" name="usuario" type="text" required autocomplete="username" maxlength="40" placeholder="Tu usuario">
+      <label for="campoPassword">Contraseña</label>
+      <input id="campoPassword" name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="Tu contraseña">
     </div>
 
     <div id="seccionRegistro" style="display: none;">
-      <label>Nombre completo
-        <input id="campoNombre" name="nombre" type="text" maxlength="80" placeholder="Tu nombre">
-      </label>
-      <label>Email
-        <input id="campoEmail" name="email" type="email" maxlength="100" placeholder="tu@email.com">
-      </label>
-      <label>Usuario
-        <input id="campoUsuarioReg" name="usuario" type="text" required autocomplete="off" maxlength="40" placeholder="Tu usuario">
-      </label>
-      <label>Contraseña
-        <input id="campoPasswordReg" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Mínimo 4 caracteres">
-      </label>
-      <label>Confirma contraseña
-        <input id="campoPassword2Reg" name="password2" type="password" required minlength="8" autocomplete="new-password" placeholder="Confirma tu contraseña">
-      </label>
+      <label for="campoNombre">Nombre completo</label>
+      <input id="campoNombre" name="nombre" type="text" maxlength="80" placeholder="Tu nombre">
+      <label for="campoEmail">Email</label>
+      <input id="campoEmail" name="email" type="email" maxlength="100" placeholder="tu@email.com">
+      <label for="campoUsuarioReg">Usuario</label>
+      <input id="campoUsuarioReg" name="usuario" type="text" required autocomplete="off" maxlength="40" placeholder="Tu usuario">
+      <label for="campoPasswordReg">Contraseña</label>
+      <input id="campoPasswordReg" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Mínimo 4 caracteres">
+      <label for="campoPassword2Reg">Confirma contraseña</label>
+      <input id="campoPassword2Reg" name="password2" type="password" required minlength="8" autocomplete="new-password" placeholder="Confirma tu contraseña">
     </div>
 
     <p id="loginError" class="aviso" hidden></p>
