@@ -12,9 +12,11 @@ from .historial import buscar_historial, recordar_articulo
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 
 
-def revisar_stock_bajo(db, producto_id):
+def revisar_stock_bajo(db, producto_id, lista_id=None):
     """Mantiene la lista de la compra en sincronia con el stock del producto."""
     try:
+        from flask import session
+
         fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
         if fila is None:
             return
@@ -22,34 +24,46 @@ def revisar_stock_bajo(db, producto_id):
         # Obtener datos básicos sin usar row_to_dict para evitar problemas con parsing de fechas
         cantidad = fila["cantidad"]
         stock_minimo = fila["stock_minimo"]
-        espacio_id = fila["espacio_id"]
         nombre = fila["nombre"]
         unidad = fila["unidad"]
         categoria = fila["categoria"]
         icono = fila["icono"]
 
-        # Si no tiene espacio_id, usar el primero disponible
-        if espacio_id is None:
-            primero = db.execute("SELECT id FROM espacios ORDER BY id LIMIT 1").fetchone()
-            espacio_id = primero["id"] if primero else 1
+        # Si no se proporciona lista_id, obtenerla de la sesión
+        if lista_id is None:
+            lista_id = session.get("lista_actual_id")
+
+        # Si aún no hay lista_id, usar la primera lista del usuario
+        if lista_id is None:
+            usuario_id = session.get("usuario_id")
+            if usuario_id:
+                lista = db.execute(
+                    "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                    (usuario_id,)
+                ).fetchone()
+                if lista:
+                    lista_id = lista["id"]
+
+        if lista_id is None:
+            return  # No hay lista, no se puede agregar artículos
 
         pendiente = db.execute(
-            "SELECT id FROM lista_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
-            (producto_id,),
+            "SELECT id FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND activo = 1 AND lista_id = ?",
+            (producto_id, lista_id),
         ).fetchone()
 
         if cantidad < stock_minimo:
             if pendiente is None:
                 db.execute(
-                    "INSERT INTO lista_compra "
-                    "(producto_id, nombre, unidad, categoria, icono, espacio_id, origen) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 'auto')",
-                    (producto_id, nombre, unidad, categoria, icono, espacio_id),
+                    "INSERT INTO articulos_lista "
+                    "(lista_id, producto_id, nombre, unidad, categoria, icono, origen, fecha_creacion) "
+                    "VALUES (?, ?, ?, ?, ?, ?, 'auto', ?)",
+                    (lista_id, producto_id, nombre, unidad, categoria, icono, ahora()),
                 )
         elif pendiente is not None:
             # Se ha vuelto a subir el stock: lo damos por comprado en vez de borrarlo
             db.execute(
-                "UPDATE lista_compra SET activo = 0, fecha_completado = ? WHERE id = ?",
+                "UPDATE articulos_lista SET activo = 0, fecha_completado = ? WHERE id = ?",
                 (ahora(), pendiente["id"]),
             )
     except Exception as e:
@@ -148,7 +162,7 @@ def actualizar_producto(producto_id):
     actual = DataConverter.producto_to_dict(fila)
 
     if "delta" in datos:
-        delta = Validator.entero_no_negativo(datos.get("delta"), "delta")
+        delta = int(datos.get("delta", 0))
         sumar_stock(db, producto_id, delta)
     else:
         nombre = Validator.string_opcional(datos.get("nombre"), actual["nombre"], 80)
