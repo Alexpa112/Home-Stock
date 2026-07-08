@@ -356,6 +356,29 @@ if (modalCompra) {
   });
 }
 
+// ===== 7. HANDLERS DE CAMBIO RÁPIDO DE CANTIDAD =====
+
+// Delegar eventos de +/- en la lista de productos
+document.addEventListener('click', (e) => {
+  // Botones de aumentar cantidad
+  if (e.target.classList.contains('btn-cantidad-mas')) {
+    const id = parseInt(e.target.dataset.id);
+    managers.productos.cambiarCantidad(id, 1);
+  }
+
+  // Botones de disminuir cantidad
+  if (e.target.classList.contains('btn-cantidad-menos')) {
+    const id = parseInt(e.target.dataset.id);
+    managers.productos.cambiarCantidad(id, -1);
+  }
+
+  // Botones de editar producto
+  if (e.target.classList.contains('btn-editar-producto')) {
+    const id = parseInt(e.target.dataset.id);
+    managers.productos.abrirModalEditar(id);
+  }
+});
+
 // ===== 7. HANDLERS DE PÁGINA =====
 
 // Cuando carga la página

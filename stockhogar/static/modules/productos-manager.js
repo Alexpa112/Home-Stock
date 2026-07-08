@@ -132,13 +132,32 @@ class ProductosManager {
             <h3>${nombre}</h3>
             <p class="categoria">${categoria}</p>
           </div>
+          <button class="btn-editar-producto" data-id="${producto.id}" title="Editar">✏️</button>
         </div>
-        <div class="producto-cantidad">
-          <span class="cantidad">${cantidad}</span>
-          <span class="unidad">${unidad}</span>
+        <div class="producto-controles">
+          <button class="btn-cantidad-menos" data-id="${producto.id}" title="Disminuir">−</button>
+          <div class="producto-cantidad">
+            <span class="cantidad">${cantidad}</span>
+            <span class="unidad">${unidad}</span>
+          </div>
+          <button class="btn-cantidad-mas" data-id="${producto.id}" title="Aumentar">+</button>
         </div>
       </div>
     `;
+  }
+
+  // ===== CAMBIO RÁPIDO DE CANTIDAD =====
+  async cambiarCantidad(id, delta) {
+    const producto = this.obtenerPorId(id);
+    if (!producto) return;
+
+    const nuevaCantidad = Math.max(0, producto.cantidad + delta);
+    try {
+      await this.actualizar(id, { cantidad: nuevaCantidad });
+      this.notificar('cantidad-cambió', { id, cantidad: nuevaCantidad, delta });
+    } catch (error) {
+      console.error('Error cambiando cantidad:', error);
+    }
   }
 
   _escapeHtml(texto) {
