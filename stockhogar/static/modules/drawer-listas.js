@@ -1111,9 +1111,8 @@ class CrearListaModal extends FormModal {
     this.btnIcono = document.getElementById('btnSeleccionarIconoNuevaLista');
     this.iconoSeleccionado = document.getElementById('iconoSeleccionadoNuevaLista');
 
-    if (this.btnIcono) {
-      this.btnIcono.addEventListener('click', () => this.abrirSelectorIconos());
-    }
+    // NOTA: El handler para este botón se registra en app.js (línea ~2238)
+    // No duplicar aquí para evitar conflictos con el callback
 
     // Color picker
     const colorInput = this.form.querySelector('input[name="color"]');
@@ -1219,7 +1218,9 @@ function initializeDrawerListas() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeDrawerListas);
 } else {
-  initializeDrawerListas();
+  // Si el DOM ya está listo, inicializar después de un pequeño delay
+  // para evitar race conditions
+  setTimeout(initializeDrawerListas, 100);
 }
 
 // Exportar para uso global
