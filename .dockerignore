@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.Python
+env/
+venv/
+.vscode/
+.idea/
+*.swp
+.git
+.gitignore
+.pytest_cache/
+data/
+logs/
+uploads/
+*.log

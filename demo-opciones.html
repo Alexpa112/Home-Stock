@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Opciones - Crear Nuevas Listas</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 40px;
+      font-size: 16px;
+    }
+
+    .opciones-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .opcion-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-left: 4px solid #B5551A;
+      transition: transform 200ms, box-shadow 200ms;
+    }
+
+    .opcion-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+
+    .opcion-card.recomendada {
+      border-left-color: #3F7A50;
+      background: linear-gradient(135deg, #f0f8f0 0%, white 100%);
+    }
+
+    .badge-recomendada {
+      display: inline-block;
+      background: #3F7A50;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .opcion-titulo {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 10px 0 20px;
+      color: #1a1a1a;
+    }
+
+    .mock-screen {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 20px 0;
+      font-family: monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      line-height: 1.4;
+      color: #555;
+    }
+
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .pros, .cons {
+      padding: 12px;
+      border-radius: 6px;
+    }
+
+    .pros {
+      background: #f0f8f0;
+      border-left: 3px solid #3F7A50;
+    }
+
+    .cons {
+      background: #fff8f0;
+      border-left: 3px solid #9C6A0D;
+    }
+
+    .pros h4, .cons h4 {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .pros h4 { color: #3F7A50; }
+    .cons h4 { color: #9C6A0D; }
+
+    .pros ul, .cons ul {
+      margin: 0;
+      padding-left: 16px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .pros li, .cons li {
+      margin: 4px 0;
+    }
+
+    .comparativa {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+
+    .comparativa h2 {
+      margin-top: 0;
+      color: #1a1a1a;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    thead {
+      background: #f5f5f5;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    th {
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .stars {
+      color: #B5551A;
+    }
+
+    .recomendacion {
+      background: linear-gradient(135deg, #f0f8f0 0%, white 100%);
+      border: 2px solid #3F7A50;
+      border-radius: 12px;
+      padding: 25px;
+      margin: 30px 0;
+      text-align: center;
+    }
+
+    .recomendacion h2 {
+      color: #3F7A50;
+      margin-top: 0;
+    }
+
+    .razon-lista {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+      margin: 20px 0;
+    }
+
+    .razon {
+      display: flex;
+      gap: 12px;
+    }
+
+    .razon-check {
+      color: #3F7A50;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .razon-texto {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .btn-elegir {
+      display: inline-block;
+      background: #3F7A50;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 20px 5px 0 5px;
+      transition: background 200ms;
+    }
+
+    .btn-elegir:hover {
+      background: #2d5a39;
+    }
+
+    .demo-note {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 20px 0;
+      font-size: 13px;
+      color: #856404;
+    }
+
+    @media (max-width: 768px) {
+      .opciones-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pros-cons {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th, td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 Crear Nuevas Listas - Opciones de Diseño</h1>
+    <p class="subtitle">Elige la mejor opción visual e intuitiva para tu app</p>
+
+    <div class="opciones-grid">
+      <!-- OPCION 1 -->
+      <div class="opcion-card">
+        <h3 class="opcion-titulo">1️⃣ Modal Flotante</h3>
+
+        <div class="mock-screen">
+CABECERA
+├─ 📦 Dreame!
+├─ ⚙️ 📷 ✕
+│
+│    ┌────────────────────┐
+│    │ 📋 Crear Lista     │
+│    ├────────────────────┤
+│    │ Nombre: [_______]  │
+│    │ Icono:  [🏠][🏪].. │
+│    │ Desc:   [_______]  │
+│    │                    │
+│    │ [Cancelar][Crear]  │
+│    └────────────────────┘
+│
+CONTENIDO
+        </div>
+
+        <div class="pros-cons">
+          <div class="pros">
+            <h4>✅ Ventajas</h4>
+            <ul>
+              <li>Familiar</li>
+              <li>Rápido</li>
+              <li>Simple</li>
+            </ul>
+          </div>
+          <div class="cons">
+            <h4>⚠️ Desventajas</h4>
+            <ul>
+              <li>No ve listas</li>
+              <li>Uno más modal</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="demo-note">
+          ⏱️ Tiempo: ~2 horas | Complejidad: Baja
+        </div>
+      </div>
+
+      <!-- OPCION 2 - RECOMENDADA -->
+      <div class="opcion-card recomendada">
+        <div class="badge-recomendada">⭐ RECOMENDADA</div>
+        <h3 class="opcion-titulo">2️⃣ Drawer Lateral</h3>
+
+        <div class="mock-screen">
+CABECERA
+├─ 📦 Dreame! ⚙️ 📷
+
+DRAWER (desliza ←→)
+├─ Mis Listas      ✕
+├─ ────────────────
+├─ 📋 Mi inventario
+│  PROPIETARIO
+├─ ────────────────
+├─ 🏪 Mercado
+│  COMPARTIDA
+├─ ────────────────
+├─ 📝 Tareas
+│  PROPIETARIO
+├─ ────────────────
+│ + Nueva lista
+│
+CONTENIDO (detrás)
+        </div>
+
+        <div class="pros-cons">
+          <div class="pros">
+            <h4>✅ Ventajas</h4>
+            <ul>
+              <li>Ve todas listas</li>
+              <li>Cambia fácil</li>
+              <li>Patrón conocido</li>
+              <li>Escalable</li>
+            </ul>
+          </div>
+          <div class="cons">
+            <h4>⚠️ Desventajas</h4>
+            <ul>
+              <li>Más CSS</li>
+              <li>Toma espacio</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="demo-note">
+          ⏱️ Tiempo: ~4 horas | Complejidad: Media
+        </div>
+      </div>
+
+      <!-- OPCION 3 -->
+      <div class="opcion-card">
+        <h3 class="opcion-titulo">3️⃣ Sheet Inferior</h3>
+
+        <div class="mock-screen">
+NORMAL
+├─ CABECERA
+├─ 📋 Mi inventario
+├─ CONTENIDO
+│
+│ ╔═════════════════╗
+│ ║ Mis Listas   ✕  ║
+│ ╠═════════════════╣
+│ ║ 📋 Mi inv.      ║
+│ ║ 🏪 Mercado      ║
+│ ║ 📝 Tareas       ║
+│ ║                 ║
+│ ║ + Nueva lista   ║
+│ ║                 ║
+│ ╚═════════════════╝
+
+(Sheet sube desde abajo)
+        </div>
+
+        <div class="pros-cons">
+          <div class="pros">
+            <h4>✅ Ventajas</h4>
+            <ul>
+              <li>Mobile-first</li>
+              <li>Moderno</li>
+              <li>Ve listas</li>
+            </ul>
+          </div>
+          <div class="cons">
+            <h4>⚠️ Desventajas</h4>
+            <ul>
+              <li>Complejo</li>
+              <li>Animaciones</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="demo-note">
+          ⏱️ Tiempo: ~5 horas | Complejidad: Alta
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPARATIVA -->
+    <div class="comparativa">
+      <h2>📊 Comparativa Detallada</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Aspecto</th>
+            <th>Modal</th>
+            <th>Drawer</th>
+            <th>Sheet</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Facilidad</strong></td>
+            <td class="stars">⭐⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td><strong>Usabilidad</strong></td>
+            <td class="stars">⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td><strong>Visualización</strong></td>
+            <td class="stars">⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td><strong>Mobile</strong></td>
+            <td class="stars">⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td><strong>Desktop</strong></td>
+            <td class="stars">⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td><strong>Tiempo dev</strong></td>
+            <td class="stars">⭐⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- RECOMENDACION -->
+    <div class="recomendacion">
+      <h2>🏆 Recomendación: Drawer Lateral</h2>
+
+      <div class="razon-lista">
+        <div class="razon">
+          <div class="razon-check">✓</div>
+          <div class="razon-texto"><strong>Ve todas las listas</strong> - Usuario controla dónde está</div>
+        </div>
+        <div class="razon">
+          <div class="razon-check">✓</div>
+          <div class="razon-texto"><strong>Cambio fácil</strong> - Un click = cambiar lista</div>
+        </div>
+        <div class="razon">
+          <div class="razon-check">✓</div>
+          <div class="razon-texto"><strong>Patrón conocido</strong> - Bring!, Gmail, Slack...</div>
+        </div>
+        <div class="razon">
+          <div class="razon-check">✓</div>
+          <div class="razon-texto"><strong>Crear fácil</strong> - Botón al final del drawer</div>
+        </div>
+        <div class="razon">
+          <div class="razon-check">✓</div>
+          <div class="razon-texto"><strong>Escalable</strong> - Funciona con 5 o 50 listas</div>
+        </div>
+        <div class="razon">
+          <div class="razon-check">✓</div>
+          <div class="razon-texto"><strong>Accesibilidad</strong> - Todos entienden drawers</div>
+        </div>
+      </div>
+
+      <p>⏱️ <strong>Tiempo de implementación: 3-4 horas</strong></p>
+      <p>Incluye: HTML, CSS responsivo, JavaScript OOP, Animaciones fluidas</p>
+
+      <div style="text-align: center; margin-top: 20px;">
+        <button class="btn-elegir">Implementar Drawer Lateral</button>
+        <button class="btn-elegir" style="background: #B5551A;">Ver Código Completo</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

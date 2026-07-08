@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stockhogar",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "flask", "run"],
+      "port": 5000,
+      "cwd": "."
+    }
+  ]
+}

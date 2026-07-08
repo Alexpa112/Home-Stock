@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dreame!</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script>
+  (function () {
+    var guardado = localStorage.getItem("stockhogar-tema");
+    if (guardado) document.documentElement.dataset.theme = guardado;
+  })();
+</script>
+<style>
+  .pantalla-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .tarjeta-login {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .tarjeta-login h1 { margin: 0; font-size: 1.3rem; text-align: center; }
+  .tarjeta-login p.subtitulo { margin: 0; text-align: center; color: var(--text-soft); font-size: 0.88rem; }
+  .tarjeta-login label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    font-weight: 600;
+  }
+  .tarjeta-login input {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 0.95rem;
+    color: var(--text);
+    background: var(--surface-2);
+    font-family: inherit;
+  }
+  .tarjeta-login input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tarjeta-login .primario {
+    padding: 11px 18px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+</style>
+</head>
+<body>
+
+<div class="pantalla-login">
+  <form class="tarjeta-login" id="formLogin">
+    <h1>📦 Dreame!</h1>
+    {% if modo_setup %}
+    <p class="subtitulo">Crea la primera cuenta para empezar a usar la app.</p>
+    {% else %}
+    <p class="subtitulo">Inicia sesión para continuar.</p>
+    {% endif %}
+
+    <label>Usuario
+      <input id="campoUsuario" type="text" required autocomplete="username" maxlength="40">
+    </label>
+    <label>Contraseña
+      <input id="campoPassword" type="password" required minlength="4"
+             autocomplete="{{ 'new-password' if modo_setup else 'current-password' }}">
+    </label>
+    {% if modo_setup %}
+    <label>Repite la contraseña
+      <input id="campoPassword2" type="password" required minlength="4" autocomplete="new-password">
+    </label>
+    {% endif %}
+
+    <p id="loginError" class="aviso" hidden></p>
+
+    <button type="submit" class="primario">{{ 'Crear cuenta y entrar' if modo_setup else 'Entrar' }}</button>
+  </form>
+</div>
+
+<script>
+  const modoSetup = {{ "true" if modo_setup else "false" }};
+  const form = document.getElementById("formLogin");
+  const error = document.getElementById("loginError");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    error.hidden = true;
+    const usuario = document.getElementById("campoUsuario").value.trim();
+    const password = document.getElementById("campoPassword").value;
+
+    if (modoSetup) {
+      const password2 = document.getElementById("campoPassword2").value;
+      if (password !== password2) {
+        error.textContent = "Las contraseñas no coinciden";
+        error.hidden = false;
+        return;
+      }
+      const resRegistro = await fetch("/api/auth/registrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario, password }),
+      });
+      const datosRegistro = await resRegistro.json();
+      if (!resRegistro.ok) {
+        error.textContent = datosRegistro.error || "No se pudo crear la cuenta";
+        error.hidden = false;
+        return;
+      }
+    }
+
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario, password }),
+    });
+    const datos = await res.json();
+    if (!res.ok) {
+      error.textContent = datos.error || "Usuario o contraseña incorrectos";
+      error.hidden = false;
+      return;
+    }
+    window.location.href = "/";
+  });
+</script>
+</body>
+</html>
