@@ -147,6 +147,41 @@ def crear_producto():
     return APIResponse.success(DataConverter.producto_to_dict(fila), 201)
 
 
+@bp.route("/<int:producto_id>/traducciones/<idioma>", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def obtener_traducciones_producto(producto_id, idioma):
+    """
+    Obtiene las traducciones almacenadas de un producto para un idioma.
+
+    Devuelve nombre, descripción y otros campos traducidos.
+    """
+    db = get_db()
+    espacio_id = obtener_espacio_actual(db)
+
+    # Verificar que el producto pertenece al usuario
+    producto = db.execute(
+        "SELECT * FROM productos WHERE id = ? AND espacio_id = ?",
+        (producto_id, espacio_id)
+    ).fetchone()
+
+    if not producto:
+        return APIResponse.no_encontrado("Producto")
+
+    # Obtener traducciones
+    traducciones = db.execute(
+        """SELECT tipo, texto_traducido FROM traducciones_productos
+           WHERE producto_id = ? AND idioma = ?""",
+        (producto_id, idioma)
+    ).fetchall()
+
+    resultado = {}
+    for tipo, texto in traducciones:
+        resultado[tipo] = texto
+
+    return APIResponse.success(resultado)
+
+
 @bp.route("/traducir", methods=["POST"])
 @requerir_sesion
 @manejo_errores
