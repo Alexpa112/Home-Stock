@@ -170,3 +170,15 @@ CATALOGO_DEFECTO = [
     ("Arena para gatos", "Mascotas", "🐱", "ud", None),
     ("Snacks para mascotas", "Mascotas", "🦴", "ud", None),
 ]
+
+# Configuración OAuth para Google y Apple
+# Obtén estas credenciales en:
+# - Google: https://console.cloud.google.com/
+# - Apple: https://developer.apple.com/
+import os
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+APPLE_CLIENT_ID = os.getenv("APPLE_CLIENT_ID", "")
+APPLE_CLIENT_SECRET = os.getenv("APPLE_CLIENT_SECRET", "")
+APPLE_TEAM_ID = os.getenv("APPLE_TEAM_ID", "")

@@ -147,8 +147,27 @@ def init_db():
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre_usuario TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            fecha_creacion TEXT NOT NULL
+            password_hash TEXT,
+            fecha_creacion TEXT NOT NULL,
+            email TEXT
+        )
+        """
+    )
+    asegurar_columna(db, "usuarios", "email", "TEXT")
+
+    # Tabla para cuentas OAuth (Google, Apple)
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS oauth_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+            proveedor TEXT NOT NULL CHECK (proveedor IN ('google', 'apple')),
+            id_proveedor TEXT NOT NULL,
+            email TEXT NOT NULL,
+            nombre TEXT,
+            foto_perfil TEXT,
+            fecha_creacion TEXT NOT NULL,
+            UNIQUE(proveedor, id_proveedor)
         )
         """
     )
@@ -183,6 +202,24 @@ def init_db():
             nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'editar')),
             fecha_otorgado TEXT NOT NULL,
             UNIQUE(lista_id, usuario_id)
+        )
+        """
+    )
+
+    # Tabla de invitaciones para compartir listas por email
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS invitaciones_lista (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lista_id INTEGER NOT NULL REFERENCES listas(id) ON DELETE CASCADE,
+            email_destino TEXT NOT NULL,
+            nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'editar')),
+            codigo_invitacion TEXT NOT NULL UNIQUE,
+            usado INTEGER NOT NULL DEFAULT 0,
+            usuario_aceptacion_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+            fecha_creacion TEXT NOT NULL,
+            fecha_expiracion TEXT NOT NULL,
+            fecha_aceptacion TEXT
         )
         """
     )

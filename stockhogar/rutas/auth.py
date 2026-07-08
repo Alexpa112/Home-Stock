@@ -15,6 +15,10 @@ RUTAS_PUBLICAS = {
     "auth.estado",
     "auth.login",
     "auth.registrar",
+    "oauth.oauth_google",
+    "oauth.oauth_google_callback",
+    "oauth.oauth_apple",
+    "oauth.oauth_apple_callback",
     "static",
 }
 
