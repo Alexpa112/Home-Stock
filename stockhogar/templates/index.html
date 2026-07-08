@@ -186,31 +186,52 @@
 </div>
 
 <div id="modalAjustes" class="modal-fondo" hidden>
-  <div class="modal">
+  <div class="modal" style="max-width: 500px;">
     <div class="modal-header">
-      <h2>Ajustes</h2>
+      <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalAjustes').hidden=true">✕</button>
+      <h2>⚙️ Ajustes</h2>
     </div>
 
     <div class="modal-content">
-      <p class="aviso">
-        Conectado como <strong id="ajustesUsuarioActual">-</strong>.
-        <button type="button" id="btnCerrarSesion" class="secundario">Cerrar sesión</button>
-      </p>
-
-      <h3 class="titulo-seccion">Usuarios</h3>
-      <div id="usuariosLista" class="categorias-lista"></div>
-      <div class="nueva-categoria-fila">
-        <label class="crece">Nuevo usuario
-          <input id="usuarioCampoNombre" type="text" maxlength="40" placeholder="Nombre" autocomplete="off">
-        </label>
-        <button type="button" id="btnAnadirUsuario" class="secundario">Añadir</button>
+      <!-- Sección Perfil del Usuario -->
+      <div style="text-align: center; margin-bottom: 24px; padding: 16px; background: var(--surface-2); border-radius: var(--radius-sm);">
+        <div style="font-size: 3rem; margin-bottom: 12px;">👤</div>
+        <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 4px;" id="ajustesUsuarioActual">-</div>
+        <div style="font-size: 0.9rem; color: var(--text-soft); margin-bottom: 16px;" id="ajustesEmailUsuario">-</div>
+        <button type="button" id="btnCerrarSesion" class="secundario" style="width: 100%;">Cerrar sesión</button>
       </div>
-      <label>Contraseña del nuevo usuario
-        <input id="usuarioCampoPassword" type="password" minlength="4" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
-      </label>
-      <p id="usuariosEstado" class="aviso" hidden></p>
-    </div>
 
+      <!-- Sección Ajustes -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="font-size: 0.95rem; color: var(--text-soft); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">⚙️ Ajustes</h3>
+
+        <!-- Selector de Tema -->
+        <div style="margin-bottom: 16px; padding: 16px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; color: var(--text);">🌙 Tema</label>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); transition: background 0.2s;">
+              <input type="radio" name="tema" value="claro" id="temaClaro" style="cursor: pointer;">
+              <span style="flex: 1;">☀️ Claro</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); transition: background 0.2s;">
+              <input type="radio" name="tema" value="oscuro" id="temaOscuro" style="cursor: pointer;">
+              <span style="flex: 1;">🌑 Oscuro</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); transition: background 0.2s;">
+              <input type="radio" name="tema" value="auto" id="temaAuto" checked style="cursor: pointer;">
+              <span style="flex: 1;">📱 Como el dispositivo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Opciones de Listas -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button type="button" onclick="if(window.drawerListasManager) window.drawerListasManager.abrirModalEditarLista(); else alert('Abre una lista primero')" style="padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.95rem; color: var(--text); text-align: left; transition: background 0.2s;">
+            📋 Ajustes de la lista
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

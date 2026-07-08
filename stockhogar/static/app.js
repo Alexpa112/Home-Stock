@@ -2097,6 +2097,46 @@ if (listaActualBtnEl) {
 }
 
 // ============ CREAR PRIMERA LISTA (NUEVO USUARIO) ============
+// Selector de Tema en Modal de Ajustes
+(function() {
+  const modalAjustes = document.getElementById('modalAjustes');
+  const temaClaro = document.getElementById('temaClaro');
+  const temaOscuro = document.getElementById('temaOscuro');
+  const temaAuto = document.getElementById('temaAuto');
+
+  if (modalAjustes && temaClaro && temaOscuro && temaAuto) {
+    // Cargar tema actual al abrir modal
+    modalAjustes.addEventListener('focusin', () => {
+      const temaGuardado = localStorage.getItem('stockhogar-tema') || 'auto';
+      if (temaGuardado === 'light') {
+        temaClaro.checked = true;
+      } else if (temaGuardado === 'dark') {
+        temaOscuro.checked = true;
+      } else {
+        temaAuto.checked = true;
+      }
+    });
+
+    // Listener para cambiar tema
+    [temaClaro, temaOscuro, temaAuto].forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          if (e.target === temaClaro) {
+            aplicarTema('light');
+          } else if (e.target === temaOscuro) {
+            aplicarTema('dark');
+          } else if (e.target === temaAuto) {
+            localStorage.removeItem('stockhogar-tema');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+            actualizarBotonTema();
+          }
+        }
+      });
+    });
+  }
+})();
+
 // Detectar si es un usuario nuevo y mostrar modal de creación
 (function() {
   const params = new URLSearchParams(window.location.search);
