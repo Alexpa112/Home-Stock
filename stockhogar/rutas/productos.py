@@ -104,8 +104,8 @@ def crear_producto_nuevo(
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono, espacio_id),
     )
-    if icono:
-        recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
+    # Siempre guardar en historial para sincronización stock ↔ catálogo
+    recordar_articulo(db, nombre, icono or "📦", categoria, unidad, cantidad_defecto=cantidad)
     revisar_stock_bajo(db, cur.lastrowid)
     return cur.lastrowid
 

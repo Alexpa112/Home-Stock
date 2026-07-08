@@ -87,6 +87,20 @@ def anadir_articulo():
         fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (existente["id"],)).fetchone()
         return jsonify(DataConverter.articulo_lista_to_dict(fila))
 
+    # Si hay uno completado, reutilizarlo (marcar activo=1)
+    completado = db.execute(
+        "SELECT * FROM articulos_lista WHERE nombre = ? COLLATE NOCASE AND activo = 0 AND lista_id = ?",
+        (nombre, lista_id),
+    ).fetchone()
+    if completado:
+        db.execute(
+            "UPDATE articulos_lista SET activo = 1, cantidad = ?, fecha_completado = NULL WHERE id = ?",
+            (cantidad_sumar, completado["id"]),
+        )
+        db.commit()
+        fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (completado["id"],)).fetchone()
+        return jsonify(DataConverter.articulo_lista_to_dict(fila))
+
     recuerdo = buscar_historial(db, nombre)
     categoria = normalizar_categoria(db, datos.get("categoria") or (recuerdo["categoria"] if recuerdo else None))
     icono = (datos.get("icono") or "").strip() or (recuerdo["icono"] if recuerdo else None)
@@ -95,6 +109,7 @@ def anadir_articulo():
         recuerdo["sub_descripcion"] if recuerdo else None
     )
 
+    # Crear artículo en lista
     cur = db.execute(
         "INSERT INTO articulos_lista "
         "(nombre, unidad, categoria, icono, cantidad, sub_descripcion, lista_id, origen, fecha_creacion) "
@@ -103,6 +118,20 @@ def anadir_articulo():
     )
     if icono:
         recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
+
+    # Sincronizar: crear producto en stock si no existe
+    producto_existe = db.execute(
+        "SELECT id FROM productos WHERE nombre = ? COLLATE NOCASE",
+        (nombre,),
+    ).fetchone()
+    if not producto_existe:
+        from .productos import crear_producto_nuevo
+        from .espacios import obtener_espacio_actual
+        espacio_id = obtener_espacio_actual(db)
+        crear_producto_nuevo(
+            db, nombre, categoria, 0, unidad, stock_minimo=1, icono=icono, espacio_id=espacio_id
+        )
+
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (cur.lastrowid,)).fetchone()
     return jsonify(DataConverter.articulo_lista_to_dict(fila)), 201
