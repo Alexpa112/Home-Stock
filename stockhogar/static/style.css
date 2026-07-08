@@ -820,15 +820,16 @@ body.modal-open .fab {
   flex-shrink: 0;
   padding: 12px 20px;
   border-top: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  display: flex;
   gap: 12px;
-  grid-auto-flow: dense;
+  justify-content: flex-end;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .modal-footer button {
-  padding: 0;
+  padding: 0 16px;
   height: 40px;
   font-size: 0.95rem;
   white-space: nowrap;
@@ -840,12 +841,13 @@ body.modal-open .fab {
   align-items: center;
   justify-content: center;
   font-weight: 500;
+  flex-shrink: 0;
+  min-width: 90px;
 }
 
 .modal-footer .primario {
   background: var(--accent);
   color: var(--accent-contrast);
-  grid-column: span 1;
 }
 
 .modal-footer .primario:hover {
@@ -856,22 +858,10 @@ body.modal-open .fab {
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border);
-  grid-column: span 1;
 }
 
 .modal-footer .secundario:hover {
   border-color: var(--text-soft);
-}
-
-/* Si hay solo 1 botón, que ocupe menos */
-.modal-footer button:only-child {
-  grid-column: 1;
-  max-width: 150px;
-}
-
-/* Si hay 2 botones, distribuir */
-.modal-footer > :nth-child(2):last-child {
-  grid-column: span 1;
 }
 
 .modal > form {
