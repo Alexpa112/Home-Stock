@@ -54,7 +54,7 @@ class ProductosManager {
     }
 
     // Delegación de eventos para cambios rápidos
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
       if (e.target.classList.contains('btn-sumar')) {
         const id = parseInt(e.target.dataset.id);
         this.cambiarCantidad(id, 1);
@@ -71,7 +71,12 @@ class ProductosManager {
         const id = parseInt(e.target.dataset.id);
         const producto = this.obtenerPorId(id);
         if (confirm(`¿Borrar "${producto.nombre}"?`)) {
-          this.borrar(id);
+          try {
+            await this.borrar(id);
+          } catch (error) {
+            console.error('Error al borrar producto:', error);
+            alert('Error al borrar el producto');
+          }
         }
       }
     });
