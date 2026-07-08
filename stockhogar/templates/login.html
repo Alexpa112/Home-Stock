@@ -36,7 +36,7 @@
   .tarjeta-login label {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 10px;
     font-size: 0.85rem;
     color: var(--text-soft);
     font-weight: 600;
@@ -171,6 +171,8 @@
   // Inicializar según modo
   if (modoSetup) {
     mostrarRegistro();
+  } else {
+    mostrarLogin();  // Inicializar modo login por defecto
   }
 
   function mostrarLogin() {
