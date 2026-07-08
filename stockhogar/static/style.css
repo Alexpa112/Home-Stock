@@ -818,10 +818,10 @@ body.modal-open .fab {
 
 .modal-footer {
   flex-shrink: 0;
-  padding: 2px 4px;
+  padding: 1.5px 2px;
   border-top: 1px solid var(--border);
   display: flex;
-  gap: 4px;
+  gap: 2px;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
@@ -831,11 +831,11 @@ body.modal-open .fab {
 }
 
 .modal-footer button {
-  padding: 0 8px;
-  height: 24px;
-  font-size: 0.7rem;
+  padding: 0 6px;
+  height: 20px;
+  font-size: 0.65rem;
   white-space: nowrap;
-  border-radius: 3px;
+  border-radius: 2px;
   border: none;
   cursor: pointer;
   transition: all 200ms ease;
@@ -843,9 +843,9 @@ body.modal-open .fab {
   align-items: center;
   justify-content: center;
   font-weight: 500;
-  flex: 1 1 calc(50% - 2px);
-  min-width: 60px;
-  max-width: calc(33.333% - 3px);
+  flex: 1 1 calc(50% - 1px);
+  min-width: 55px;
+  max-width: calc(33.333% - 2px);
   line-height: 1;
 }
 
@@ -1040,8 +1040,8 @@ body.keyboard-open .modal {
 
 .acciones-modal {
   display: flex;
-  gap: 4px;
-  padding: 2px 4px;
+  gap: 2px;
+  padding: 1.5px 2px;
   border-top: 1px solid var(--border);
   background: var(--surface);
   flex-shrink: 0;
@@ -1049,14 +1049,14 @@ body.keyboard-open .modal {
 
 .acciones-modal button {
   flex: 1;
-  padding: 4px 8px;
-  border-radius: 3px;
+  padding: 0 6px;
+  border-radius: 2px;
   border: none;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 500;
   cursor: pointer;
-  min-height: 24px;
-  height: 24px;
+  min-height: 20px;
+  height: 20px;
   transition: all 0.15s ease;
   touch-action: manipulation;
   -webkit-appearance: none;
