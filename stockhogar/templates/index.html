@@ -483,6 +483,24 @@
           <button type="submit" class="primario" style="width: 100%;">Compartir</button>
         </form>
 
+        <!-- Botón WhatsApp -->
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <button
+            type="button"
+            id="btnCompartirWhatsApp"
+            style="flex: 1; padding: 10px 16px; background: #25D366; color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;"
+          >
+            <span>💬</span> WhatsApp
+          </button>
+          <input
+            type="text"
+            id="inputTelefonoWhatsApp"
+            placeholder="+34..."
+            maxlength="20"
+            style="flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem;"
+          >
+        </div>
+
         <p id="miembrosError" class="aviso" hidden style="margin-bottom: 8px;"></p>
         <p id="miembrosExito" class="aviso" hidden style="margin-bottom: 8px; color: var(--success);"></p>
 

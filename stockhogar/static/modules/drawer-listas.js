@@ -109,6 +109,12 @@ class DrawerListasManager {
       formCompartirLista.addEventListener('submit', (e) => this.compartirLista(e));
     }
 
+    // Event listener para compartir por WhatsApp
+    const btnCompartirWhatsApp = document.getElementById('btnCompartirWhatsApp');
+    if (btnCompartirWhatsApp) {
+      btnCompartirWhatsApp.addEventListener('click', () => this.compartirPorWhatsApp());
+    }
+
     // Event listener para salir de lista
     const btnSalirLista = document.getElementById('btnSalirLista');
     if (btnSalirLista) {
@@ -564,6 +570,43 @@ class DrawerListasManager {
         if (exitoEl) exitoEl.hidden = true;
       }, 3000);
     }
+  }
+
+  compartirPorWhatsApp() {
+    if (!this.listaEditandoId) return;
+
+    const telefonoInput = document.getElementById('inputTelefonoWhatsApp');
+    const telefono = (telefonoInput?.value || '').trim();
+
+    // Obtener nombre de la lista
+    const lista = this.listas.find(l => l.id === this.listaEditandoId);
+    const nombreLista = lista?.nombre || 'Mi lista';
+
+    // Mensaje para WhatsApp con instrucciones
+    const mensaje = encodeURIComponent(
+      `Hola! Te quiero compartir mi lista de compra "${nombreLista}" en Dreame! (aplicacion de listas compartidas).\n\n` +
+      `Puedes verla y actualizarla en tiempo real.\n\n` +
+      `Instalate la app en: https://dreame.app (o desde tu navegador en el navegador)\n\n` +
+      `¿Te gustaría aceptar?`
+    );
+
+    // URL de WhatsApp
+    let urlWhatsApp;
+    if (telefono) {
+      // Con número específico (web.whatsapp)
+      urlWhatsApp = `https://wa.me/${telefono}?text=${mensaje}`;
+    } else {
+      // Sin número (abre chat list en móvil)
+      urlWhatsApp = `https://web.whatsapp.com/send?text=${mensaje}`;
+    }
+
+    // Abrir WhatsApp
+    window.open(urlWhatsApp, '_blank');
+
+    this.mostrarMensaje(
+      telefono ? 'Abriendo WhatsApp con el número...' : 'Abriendo WhatsApp...',
+      'exito'
+    );
   }
 
   toggleModoEdicion() {
