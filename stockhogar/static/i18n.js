@@ -72,9 +72,6 @@ class TranslationManager {
       '#listaActualRol': 'propietario',
     };
 
-    // Traducir categorías visibles
-    this.traducirCategorias();
-
     // Traducir elementos específicos
     Object.entries(elementosTrad).forEach(([selector, clave]) => {
       const elemento = document.querySelector(selector);
@@ -172,6 +169,9 @@ class TranslationManager {
 
     // Actualizar idioma en la página
     document.documentElement.lang = this.idiomaActual;
+
+    // Traducir categorías después de que el DOM se actualice
+    setTimeout(() => this.traducirCategorias(), 100);
   }
 
   /**
@@ -197,8 +197,8 @@ class TranslationManager {
     // Traducir página
     this.traducirPagina();
 
-    // Traducir categorías
-    this.traducirCategorias();
+    // Traducir categorías (con delay para asegurar que los elementos existan)
+    setTimeout(() => this.traducirCategorias(), 50);
 
     // Cargar traducciones de artículos si existen
     this.cargarTraduccionesArticulos(nuevoIdioma);
