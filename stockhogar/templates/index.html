@@ -462,6 +462,12 @@
 
 </div>
 
+<!-- Componentes base (requerido por drawer-listas) -->
+<script src="{{ url_for('static', filename='modules/ui-components.js') }}"></script>
+
+<!-- Manager de listas (requerido por app.js) -->
+<script src="{{ url_for('static', filename='modules/drawer-listas.js') }}"></script>
+
 <!-- App principal: lógica completa original restaurada -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
