@@ -94,7 +94,31 @@ class DrawerListasManager {
     // Event listener para editar nombre/imagen
     const btnEditarNombreImagen = document.getElementById('btnEditarNombreImagen');
     if (btnEditarNombreImagen) {
-      btnEditarNombreImagen.addEventListener('click', () => this.abrirEditarNombreImagen());
+      btnEditarNombreImagen.addEventListener('click', () => this.abrirModalNombreImagen());
+    }
+
+    // Event listener para ordenando
+    const btnOrdenando = document.getElementById('btnOrdenando');
+    if (btnOrdenando) {
+      btnOrdenando.addEventListener('click', () => this.abrirModalOrdenando());
+    }
+
+    // Event listener para región
+    const btnRegion = document.getElementById('btnRegion');
+    if (btnRegion) {
+      btnRegion.addEventListener('click', () => this.abrirModalRegion());
+    }
+
+    // Event listeners para iconos en modal nombre/imagen
+    const iconButtons = document.querySelectorAll('.icon-button');
+    iconButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => this.seleccionarIcon(e));
+    });
+
+    // Event listener para color en modal nombre/imagen
+    const colorInput = document.getElementById('inputColorLista');
+    if (colorInput) {
+      colorInput.addEventListener('change', (e) => this.actualizarPreviewColor(e.target.value));
     }
 
     // Event listener para gestionar miembros
@@ -324,6 +348,44 @@ class DrawerListasManager {
       const inputNombre = form.querySelector('input[name="nombre"]');
       if (inputNombre) inputNombre.focus();
     }
+  }
+
+  abrirModalNombreImagen() {
+    const modal = document.getElementById('modalNombreImagen');
+    const input = document.getElementById('inputNombreLista');
+    const color = document.getElementById('inputColorLista');
+    const lista = this.listas.find(l => l.id === this.listaEditandoId);
+
+    if (modal && lista) {
+      if (input) input.value = lista.nombre;
+      if (color) color.value = lista.color || '#B5551A';
+      this.actualizarPreviewColor(lista.color || '#B5551A');
+      modal.hidden = false;
+      if (input) input.focus();
+    }
+  }
+
+  abrirModalOrdenando() {
+    const modal = document.getElementById('modalOrdenando');
+    if (modal) modal.hidden = false;
+  }
+
+  abrirModalRegion() {
+    const modal = document.getElementById('modalRegion');
+    if (modal) modal.hidden = false;
+  }
+
+  seleccionarIcon(e) {
+    e.preventDefault();
+    e.target.parentElement?.querySelectorAll('.icon-button').forEach(btn => {
+      btn.style.border = '1px solid var(--border)';
+    });
+    e.target.style.border = '2px solid var(--accent)';
+  }
+
+  actualizarPreviewColor(color) {
+    const preview = document.getElementById('previewColorLista');
+    if (preview) preview.style.backgroundColor = color;
   }
 
   abrirGestionarMiembros() {

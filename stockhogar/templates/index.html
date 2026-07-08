@@ -420,11 +420,11 @@
         </div>
 
         <div class="grid-opciones-ajustes">
-          <button type="button" class="opcion-ajuste" onclick="alert('Ordenando: proximamente')">
+          <button type="button" class="opcion-ajuste" id="btnOrdenando">
             <span class="icon-grande">↑↓</span>
             <span>Ordenando</span>
           </button>
-          <button type="button" class="opcion-ajuste" onclick="alert('Región: proximamente')">
+          <button type="button" class="opcion-ajuste" id="btnRegion">
             <span class="icon-grande">🌐</span>
             <span>Región e idioma</span>
           </button>
@@ -535,6 +535,116 @@
       <button type="button" class="peligro" id="btnSalirLista" style="width: 100%;">
         Salir de esta lista
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ordenando -->
+<div id="modalOrdenando" class="modal-fondo" hidden>
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalOrdenando').hidden=true">✕</button>
+      <h2>↑↓ Ordenando</h2>
+    </div>
+    <div class="modal-content">
+      <p style="color: var(--text-soft); margin-bottom: 16px;">Elige cómo deseas ordenar los artículos:</p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="ordenar" value="manual" checked>
+          <span><strong>Manual</strong> (arrastra para reordenar)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="ordenar" value="alfabetico">
+          <span><strong>Alfabético</strong> (A → Z)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="ordenar" value="categoria">
+          <span><strong>Por categoría</strong> (agrupado)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="ordenar" value="pendientes">
+          <span><strong>Pendientes primero</strong> (sin tachar)</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="primario" style="width: 100%;" onclick="document.getElementById('modalOrdenando').hidden=true">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Región e idioma -->
+<div id="modalRegion" class="modal-fondo" hidden>
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalRegion').hidden=true">✕</button>
+      <h2>🌐 Región e idioma</h2>
+    </div>
+    <div class="modal-content">
+      <label style="margin-bottom: 16px;">Idioma</label>
+      <select id="selectIdioma" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem;">
+        <option value="es">🇪🇸 Español</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="pt">🇵🇹 Português</option>
+        <option value="de">🇩🇪 Deutsch</option>
+      </select>
+
+      <label style="margin-bottom: 16px;">Región</label>
+      <select id="selectRegion" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem;">
+        <option value="es">España</option>
+        <option value="mx">México</option>
+        <option value="ar">Argentina</option>
+        <option value="cl">Chile</option>
+        <option value="co">Colombia</option>
+        <option value="pe">Perú</option>
+      </select>
+
+      <p style="font-size: 0.85rem; color: var(--text-soft);">⚠️ La traducción completa está en desarrollo. Actualmente disponible en Español e Inglés.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="primario" style="width: 100%;" onclick="document.getElementById('modalRegion').hidden=true">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nombre e imagen -->
+<div id="modalNombreImagen" class="modal-fondo" hidden>
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalNombreImagen').hidden=true">✕</button>
+      <h2>✏️ Nombre e imagen</h2>
+    </div>
+    <div class="modal-content">
+      <form id="formNombreImagen" style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Nombre de la lista</label>
+          <input type="text" id="inputNombreLista" maxlength="50" placeholder="Mi lista de compra" style="width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.95rem;">
+        </div>
+
+        <div>
+          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Color</label>
+          <div style="display: flex; gap: 10px; margin-top: 6px; align-items: center;">
+            <input type="color" id="inputColorLista" value="#B5551A" style="width: 50px; height: 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+            <span id="previewColorLista" style="width: 80px; height: 40px; border-radius: var(--radius-sm); background: #B5551A; border: 1px solid var(--border);"></span>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Icono</label>
+          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px;">
+            <button type="button" class="icon-button" data-icon="📋" style="padding: 12px; border: 2px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">📋</button>
+            <button type="button" class="icon-button" data-icon="🛒" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">🛒</button>
+            <button type="button" class="icon-button" data-icon="🏠" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">🏠</button>
+            <button type="button" class="icon-button" data-icon="👨‍👩‍👧‍👦" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">👨‍👩‍👧‍👦</button>
+            <button type="button" class="icon-button" data-icon="🎉" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">🎉</button>
+            <button type="button" class="icon-button" data-icon="✨" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">✨</button>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="primario" style="width: 100%;" onclick="document.getElementById('modalNombreImagen').hidden=true; document.getElementById('formNombreImagen').submit();">Guardar cambios</button>
     </div>
   </div>
 </div>
