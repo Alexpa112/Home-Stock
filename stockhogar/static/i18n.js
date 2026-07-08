@@ -34,10 +34,14 @@ class TranslationManager {
       const respuesta = await fetch(`/api/idiomas/todos/${idioma}`);
       const datos = await respuesta.json();
 
-      if (datos.success) {
-        this.traducciones = datos.data.traducciones;
+      // El endpoint devuelve { idioma: "es", traducciones: {...} }
+      if (datos.traducciones) {
+        this.traducciones = datos.traducciones;
         this.idiomaActual = idioma;
         localStorage.setItem('idioma', idioma);
+        console.log(`✅ Traducciones cargadas para ${idioma}:`, Object.keys(this.traducciones).length, 'claves');
+      } else {
+        console.error('Respuesta sin traducciones:', datos);
       }
     } catch (error) {
       console.error('Error cargando traducciones:', error);
@@ -59,6 +63,8 @@ class TranslationManager {
    * Traduce todos los elementos de la página
    */
   traducirPagina() {
+    console.log(`📝 Traduciendo página a ${this.idiomaActual}. Traducciones cargadas:`, Object.keys(this.traducciones).length);
+
     // Mapeo de elementos a claves de traducción
     const elementosTrad = {
       '#buscador': 'buscar_producto',
@@ -80,18 +86,17 @@ class TranslationManager {
     });
 
     // Traducir tabs especiales (mantienen emoji)
-    const tabsMapeo = {
-      'stock': '📦 stock',
-      'compra': '🛒 lista_compra',
-    };
-
     document.querySelectorAll('.tab').forEach(el => {
       const vista = el.dataset.vista;
       if (vista === 'stock') {
-        const trad = this.t('stock');
+        const clave = 'stock';
+        const trad = this.t(clave);
+        console.log(`Tab stock: ${clave} -> ${trad}`);
         el.textContent = `📦 ${trad}`;
       } else if (vista === 'compra') {
-        const trad = this.t('lista_compra');
+        const clave = 'lista_compra';
+        const trad = this.t(clave);
+        console.log(`Tab compra: ${clave} -> ${trad}`);
         el.textContent = `🛒 ${trad}`;
       }
     });
@@ -199,46 +204,21 @@ class TranslationManager {
    * Configura el selector de idioma en la UI
    */
   configurarSelectorIdioma() {
-    // Crear selector si no existe
-    const selectorExistente = document.getElementById('selector-idioma');
-    if (!selectorExistente) {
-      this.crearSelectorIdioma();
-    }
-
-    // Agregar listener
     const selector = document.getElementById('selector-idioma');
-    if (selector) {
-      selector.value = this.idiomaActual;
-      selector.addEventListener('change', (e) => {
-        this.cambiarIdioma(e.target.value);
-      });
+    if (!selector) {
+      console.warn('⚠️ Selector de idioma no encontrado en el HTML');
+      return;
     }
-  }
 
-  /**
-   * Crea el selector de idioma en configuración
-   */
-  crearSelectorIdioma() {
-    const config = document.querySelector('[data-seccion="configuracion"]');
-    if (!config) return;
+    // Establecer valor actual
+    selector.value = this.idiomaActual;
 
-    const selector = document.createElement('div');
-    selector.className = 'setting-item';
-    selector.innerHTML = `
-      <label for="selector-idioma">🌐 ${this.t('idioma')}:</label>
-      <select id="selector-idioma" class="idioma-select">
-        <option value="es">Español</option>
-        <option value="gl">Galego</option>
-        <option value="en">English</option>
-        <option value="pt">Português</option>
-        <option value="fr">Français</option>
-        <option value="it">Italiano</option>
-        <option value="de">Deutsch</option>
-      </select>
-    `;
+    // Agregar listener de cambio
+    selector.addEventListener('change', (e) => {
+      this.cambiarIdioma(e.target.value);
+    });
 
-    config.appendChild(selector);
-    this.configurarSelectorIdioma();
+    console.log('✅ Selector de idioma configurado');
   }
 }
 
