@@ -189,6 +189,7 @@ def init_db():
         """
     )
     asegurar_columna(db, "listas", "icono", "TEXT NOT NULL DEFAULT '📋'")
+    asegurar_columna(db, "listas", "color", "TEXT NOT NULL DEFAULT '#B5551A'")
 
     # Tabla permisos_lista: relación usuario ↔ lista con niveles de acceso
     # niveles: 'ver' (solo lectura) o 'editar' (lectura + escritura)
