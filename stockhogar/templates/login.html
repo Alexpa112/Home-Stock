@@ -110,28 +110,45 @@
 <div class="pantalla-login">
   <form class="tarjeta-login" id="formLogin">
     <h1>📦 Dreame!</h1>
-    {% if modo_setup %}
-    <p class="subtitulo">Crea la primera cuenta para empezar a usar la app.</p>
-    {% else %}
-    <p class="subtitulo">Inicia sesión para continuar.</p>
-    {% endif %}
+    <p class="subtitulo" id="subtituloForm">Inicia sesión para continuar.</p>
 
-    <label>Usuario
-      <input id="campoUsuario" type="text" required autocomplete="username" maxlength="40">
-    </label>
-    <label>Contraseña
-      <input id="campoPassword" type="password" required minlength="4"
-             autocomplete="{{ 'new-password' if modo_setup else 'current-password' }}">
-    </label>
-    {% if modo_setup %}
-    <label>Repite la contraseña
-      <input id="campoPassword2" type="password" required minlength="4" autocomplete="new-password">
-    </label>
-    {% endif %}
+    <div id="seccionLogin">
+      <label>Usuario
+        <input id="campoUsuario" type="text" required autocomplete="username" maxlength="40" placeholder="Tu usuario">
+      </label>
+      <label>Contraseña
+        <input id="campoPassword" type="password" required minlength="4" autocomplete="current-password" placeholder="Tu contraseña">
+      </label>
+    </div>
+
+    <div id="seccionRegistro" style="display: none;">
+      <label>Nombre completo
+        <input id="campoNombre" type="text" maxlength="80" placeholder="Tu nombre">
+      </label>
+      <label>Email
+        <input id="campoEmail" type="email" maxlength="100" placeholder="tu@email.com">
+      </label>
+      <label>Usuario
+        <input id="campoUsuarioReg" type="text" required autocomplete="off" maxlength="40" placeholder="Tu usuario">
+      </label>
+      <label>Contraseña
+        <input id="campoPasswordReg" type="password" required minlength="4" autocomplete="new-password" placeholder="Mínimo 4 caracteres">
+      </label>
+      <label>Confirma contraseña
+        <input id="campoPassword2Reg" type="password" required minlength="4" autocomplete="new-password" placeholder="Confirma tu contraseña">
+      </label>
+    </div>
 
     <p id="loginError" class="aviso" hidden></p>
 
-    <button type="submit" class="primario">{{ 'Crear cuenta y entrar' if modo_setup else 'Entrar' }}</button>
+    <button type="submit" class="primario" style="width: 100%; padding: 12px 18px;" id="btnFormulario">Entrar</button>
+
+    <!-- Alternar entre login y registro -->
+    <p style="text-align: center; margin-top: 12px; font-size: 0.9rem;">
+      <span id="textoAlternar" style="color: var(--text-soft);">¿No tienes cuenta?
+        <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Crea una</button>
+      </span>
+    </p>
 
     {% if not modo_setup %}
     <div class="divider-oauth">o</div>
@@ -151,24 +168,60 @@
   const modoSetup = {{ "true" if modo_setup else "false" }};
   const form = document.getElementById("formLogin");
   const error = document.getElementById("loginError");
+  const btnAlternar = document.getElementById("btnAlternarFormulario");
+  const seccionLogin = document.getElementById("seccionLogin");
+  const seccionRegistro = document.getElementById("seccionRegistro");
+  let esRegistro = modoSetup;
+
+  // Inicializar según modo
+  if (modoSetup) {
+    mostrarRegistro();
+  }
+
+  function mostrarLogin() {
+    esRegistro = false;
+    seccionLogin.style.display = "block";
+    seccionRegistro.style.display = "none";
+    document.getElementById("subtituloForm").textContent = "Inicia sesión para continuar.";
+    document.getElementById("btnFormulario").textContent = "Entrar";
+    document.getElementById("textoAlternar").innerHTML = '¿No tienes cuenta? <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Crea una</button>';
+    document.getElementById("btnAlternarFormulario").addEventListener("click", mostrarRegistro);
+  }
+
+  function mostrarRegistro() {
+    esRegistro = true;
+    seccionLogin.style.display = "none";
+    seccionRegistro.style.display = "block";
+    document.getElementById("subtituloForm").textContent = "Crea tu cuenta para empezar.";
+    document.getElementById("btnFormulario").textContent = "Crear cuenta";
+    document.getElementById("textoAlternar").innerHTML = '¿Ya tienes cuenta? <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Inicia sesión</button>';
+    document.getElementById("btnAlternarFormulario").addEventListener("click", mostrarLogin);
+    document.getElementById("campoNombre").focus();
+  }
+
+  btnAlternar.addEventListener("click", esRegistro ? mostrarLogin : mostrarRegistro);
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     error.hidden = true;
-    const usuario = document.getElementById("campoUsuario").value.trim();
-    const password = document.getElementById("campoPassword").value;
 
-    if (modoSetup) {
-      const password2 = document.getElementById("campoPassword2").value;
+    if (esRegistro) {
+      // Flujo de registro
+      const usuario = document.getElementById("campoUsuarioReg").value.trim();
+      const password = document.getElementById("campoPasswordReg").value;
+      const password2 = document.getElementById("campoPassword2Reg").value;
+      const email = document.getElementById("campoEmail").value.trim();
+
       if (password !== password2) {
         error.textContent = "Las contraseñas no coinciden";
         error.hidden = false;
         return;
       }
+
       const resRegistro = await fetch("/api/auth/registrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuario, password }),
+        body: JSON.stringify({ usuario, password, email }),
       });
       const datosRegistro = await resRegistro.json();
       if (!resRegistro.ok) {
@@ -176,20 +229,40 @@
         error.hidden = false;
         return;
       }
-    }
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usuario, password }),
-    });
-    const datos = await res.json();
-    if (!res.ok) {
-      error.textContent = datos.error || "Usuario o contraseña incorrectos";
-      error.hidden = false;
-      return;
+      // Login automático después de registrar
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario, password }),
+      });
+
+      if (!res.ok) {
+        error.textContent = "Cuenta creada pero no se pudo iniciar sesión";
+        error.hidden = false;
+        return;
+      }
+
+      // Redirigir a crear primera lista
+      window.location.href = "/?crear_primera_lista=true";
+    } else {
+      // Flujo de login
+      const usuario = document.getElementById("campoUsuario").value.trim();
+      const password = document.getElementById("campoPassword").value;
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario, password }),
+      });
+      const datos = await res.json();
+      if (!res.ok) {
+        error.textContent = datos.error || "Usuario o contraseña incorrectos";
+        error.hidden = false;
+        return;
+      }
+      window.location.href = "/";
     }
-    window.location.href = "/";
   });
 </script>
 </body>

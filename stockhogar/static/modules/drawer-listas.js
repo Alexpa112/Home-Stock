@@ -127,10 +127,36 @@ class DrawerListasManager {
       btnGestionarMiembros.addEventListener('click', () => this.abrirGestionarMiembros());
     }
 
-    // Event listener para compartir lista
-    const formCompartirLista = document.getElementById('formCompartirLista');
-    if (formCompartirLista) {
-      formCompartirLista.addEventListener('submit', (e) => this.compartirLista(e));
+    // Event listeners para tabs de compartir
+    const tabPorUsuario = document.getElementById('tabPorUsuario');
+    const tabPorEmail = document.getElementById('tabPorEmail');
+    const tabPorEnlace = document.getElementById('tabPorEnlace');
+
+    if (tabPorUsuario) tabPorUsuario.addEventListener('click', () => this.cambiarTabCompartir('usuario'));
+    if (tabPorEmail) tabPorEmail.addEventListener('click', () => this.cambiarTabCompartir('email'));
+    if (tabPorEnlace) tabPorEnlace.addEventListener('click', () => this.cambiarTabCompartir('enlace'));
+
+    // Event listener para búsqueda de usuarios
+    const buscarUsuario = document.getElementById('buscarUsuario');
+    if (buscarUsuario) {
+      buscarUsuario.addEventListener('input', (e) => this.buscarUsuarios(e.target.value));
+    }
+
+    // Event listeners para formularios de compartir
+    const formCompartirPorUsuario = document.getElementById('formCompartirPorUsuario');
+    if (formCompartirPorUsuario) {
+      formCompartirPorUsuario.addEventListener('submit', (e) => this.compartirPorUsuario(e));
+    }
+
+    const formCompartirPorEmail = document.getElementById('formCompartirPorEmail');
+    if (formCompartirPorEmail) {
+      formCompartirPorEmail.addEventListener('submit', (e) => this.compartirPorEmail(e));
+    }
+
+    // Event listener para generar enlace
+    const btnGenerarEnlace = document.getElementById('btnGenerarEnlace');
+    if (btnGenerarEnlace) {
+      btnGenerarEnlace.addEventListener('click', () => this.generarEnlaceCompartir());
     }
 
     // Event listener para compartir por WhatsApp
@@ -569,38 +595,135 @@ class DrawerListasManager {
     }
   }
 
-  async compartirLista(e) {
-    e.preventDefault();
+  cambiarTabCompartir(tab) {
+    // Ocultar todos los paneles
+    document.getElementById('panelUsuario').style.display = 'none';
+    document.getElementById('panelEmail').style.display = 'none';
+    document.getElementById('panelEnlace').style.display = 'none';
 
-    if (!this.listaEditandoId) return;
+    // Mostrar panel activo
+    if (tab === 'usuario') {
+      document.getElementById('panelUsuario').style.display = 'block';
+      document.getElementById('buscarUsuario').focus();
+    } else if (tab === 'email') {
+      document.getElementById('panelEmail').style.display = 'block';
+      document.getElementById('emailDestino').focus();
+    } else if (tab === 'enlace') {
+      document.getElementById('panelEnlace').style.display = 'block';
+    }
 
-    const compartirPor = document.getElementById('compartirPor')?.value.trim() || '';
-    const nivelPermiso = document.getElementById('nivelPermiso')?.value || 'editar';
-    const errorEl = document.getElementById('miembrosError');
-    const exitoEl = document.getElementById('miembrosExito');
+    // Actualizar estilos de tabs
+    document.getElementById('tabPorUsuario').style.color = tab === 'usuario' ? 'var(--text)' : 'var(--text-soft)';
+    document.getElementById('tabPorEmail').style.color = tab === 'email' ? 'var(--text)' : 'var(--text-soft)';
+    document.getElementById('tabPorEnlace').style.color = tab === 'enlace' ? 'var(--text)' : 'var(--text-soft)';
 
-    if (!compartirPor) {
-      this.mostrarMensaje('Ingresa un usuario o email', 'error');
+    document.getElementById('tabPorUsuario').style.borderBottomColor = tab === 'usuario' ? 'var(--accent)' : 'transparent';
+    document.getElementById('tabPorEmail').style.borderBottomColor = tab === 'email' ? 'var(--accent)' : 'transparent';
+    document.getElementById('tabPorEnlace').style.borderBottomColor = tab === 'enlace' ? 'var(--accent)' : 'transparent';
+  }
+
+  async buscarUsuarios(query) {
+    if (!query || query.length < 2) {
+      document.getElementById('resultadosBusqueda').innerHTML = '';
       return;
     }
 
     try {
-      // Determinar si es email o usuario
-      const esEmail = compartirPor.includes('@');
-      const datos = {
-        nivel: nivelPermiso
-      };
-
-      if (esEmail) {
-        datos.email = compartirPor;
-      } else {
-        datos.nombre_usuario = compartirPor;
+      const res = await fetch(`/api/listas/buscar-usuarios?q=${encodeURIComponent(query)}`);
+      if (!res.ok) {
+        document.getElementById('resultadosBusqueda').innerHTML = '<p style="color: var(--text-soft); font-size: 0.9rem;">No se encontraron usuarios</p>';
+        return;
       }
 
+      const data = await res.json();
+      const usuarios = data.data?.usuarios || [];
+
+      if (usuarios.length === 0) {
+        document.getElementById('resultadosBusqueda').innerHTML = '<p style="color: var(--text-soft); font-size: 0.9rem;">No se encontraron usuarios</p>';
+        return;
+      }
+
+      let html = '<div style="display: flex; flex-direction: column; gap: 6px;">';
+      usuarios.forEach(u => {
+        html += `
+          <button type="button" class="usuario-resultado" data-usuario="${u.nombre_usuario}" style="padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); text-align: left; cursor: pointer; transition: all 0.2s;">
+            <div style="font-weight: 600; color: var(--text);">${this.escaparHTML(u.nombre_usuario)}</div>
+            <div style="font-size: 0.8rem; color: var(--text-soft);">${this.escaparHTML(u.email || '-')}</div>
+          </button>
+        `;
+      });
+      html += '</div>';
+
+      document.getElementById('resultadosBusqueda').innerHTML = html;
+
+      // Event listeners para seleccionar usuario
+      document.querySelectorAll('.usuario-resultado').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.getElementById('buscarUsuario').value = btn.dataset.usuario;
+          document.getElementById('resultadosBusqueda').innerHTML = '';
+        });
+      });
+    } catch (error) {
+      console.error('Error buscando usuarios:', error);
+      document.getElementById('resultadosBusqueda').innerHTML = '<p style="color: var(--text-soft); font-size: 0.9rem;">Error al buscar</p>';
+    }
+  }
+
+  async compartirPorUsuario(e) {
+    e.preventDefault();
+
+    if (!this.listaEditandoId) return;
+
+    const nombreUsuario = document.getElementById('buscarUsuario')?.value.trim() || '';
+    const nivel = document.getElementById('nivelPermisoUsuario')?.value || 'editar';
+
+    if (!nombreUsuario) {
+      this.mostrarMensaje('Selecciona un usuario', 'error');
+      return;
+    }
+
+    try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos)
+        body: JSON.stringify({ nombre_usuario: nombreUsuario, nivel })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        this.mostrarMensaje(error.error || 'Error al compartir', 'error');
+        return;
+      }
+
+      this.mostrarMensaje('Lista compartida correctamente!', 'exito');
+      document.getElementById('buscarUsuario').value = '';
+      document.getElementById('resultadosBusqueda').innerHTML = '';
+      this.cargarMiembros();
+    } catch (error) {
+      console.error('Error:', error);
+      this.mostrarMensaje('Error al compartir', 'error');
+    }
+  }
+
+  async compartirPorEmail(e) {
+    e.preventDefault();
+
+    if (!this.listaEditandoId) return;
+
+    const email = document.getElementById('emailDestino')?.value.trim() || '';
+    const nivel = document.getElementById('nivelPermisoEmail')?.value || 'editar';
+
+    if (!email) {
+      this.mostrarMensaje('Ingresa un email válido', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, nivel })
       });
 
       if (!res.ok) {
@@ -610,20 +733,48 @@ class DrawerListasManager {
       }
 
       const resultado = await res.json();
-
-      // Si es email, mostrar enlace copiable
-      if (esEmail && resultado.data?.codigo) {
+      if (resultado.data?.codigo) {
         this.mostrarEnlaceInvitacion(resultado.data.codigo);
-        this.mostrarMensaje('Enlace de invitación generado - comparte el enlace!', 'exito');
-      } else {
-        this.mostrarMensaje('Lista compartida correctamente', 'exito');
+        this.mostrarMensaje('Enlace de invitación generado!', 'exito');
       }
 
-      document.getElementById('compartirPor').value = '';
+      document.getElementById('emailDestino').value = '';
       this.cargarMiembros();
     } catch (error) {
-      console.error('Error compartiendo lista:', error);
-      this.mostrarMensaje('Error al compartir la lista', 'error');
+      console.error('Error:', error);
+      this.mostrarMensaje('Error al compartir', 'error');
+    }
+  }
+
+  async generarEnlaceCompartir() {
+    if (!this.listaEditandoId) return;
+
+    const nivel = document.getElementById('nivelPermisoEnlace')?.value || 'editar';
+
+    // Generar un email temporal para obtener código
+    const emailTemporal = `temp_${Date.now()}@dreame.local`;
+
+    try {
+      const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailTemporal, nivel })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        this.mostrarMensaje(error.error || 'Error al generar enlace', 'error');
+        return;
+      }
+
+      const resultado = await res.json();
+      if (resultado.data?.codigo) {
+        this.mostrarEnlaceInvitacion(resultado.data.codigo);
+        this.mostrarMensaje('Enlace generado - cópialo y comparte!', 'exito');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      this.mostrarMensaje('Error al generar enlace', 'error');
     }
   }
 
