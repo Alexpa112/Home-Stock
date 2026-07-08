@@ -232,6 +232,58 @@ python run.py
 
 ---
 
+## 📌 REGLA 9: Test Suite - Ejecutar después de Cambios Importantes
+
+**SIEMPRE que terminas cambios importantes, ejecuta la batería de pruebas:**
+
+```powershell
+# PowerShell (recomendado)
+.\run_tests.ps1
+
+# Bash alternativa
+bash test_suite.sh
+```
+
+### Qué verifica (40 pruebas)
+✅ Estructura HTML (5 pruebas)
+✅ Inputs y atributos (12 pruebas)
+✅ Labels y accesibilidad (7 pruebas)
+✅ Validación HTML5 (4 pruebas)
+✅ Botones (3 pruebas)
+✅ JavaScript y funcionalidad (4 pruebas)
+✅ API endpoints (2 pruebas)
+✅ Estilos CSS (3 pruebas)
+
+### Cuándo ejecutar
+- ✅ Después de cambios en `login.html`
+- ✅ Después de cambios en `auth.py`
+- ✅ Después de cambios en `static/`
+- ✅ Después de cambios importantes en estructura
+
+### Flujo correcto
+```bash
+# 1. Hacer cambios
+# 2. Reiniciar servidor (REGLA 8)
+# 3. Ejecutar tests
+.\run_tests.ps1
+# 4. Si pasan (40/40 100%), puedes commitear
+git add ...
+git commit -m "..."
+```
+
+### Resultado esperado
+```
+========================
+RESULTADOS: 40/40 (100%)
+========================
+
+SUCCESS: All tests passed!
+```
+
+**Ver TEST_SUITE.md para detalles completos.**
+
+---
+
 ## 📌 CHECKLIST ANTES DE HACER COMMIT
 
 ```
