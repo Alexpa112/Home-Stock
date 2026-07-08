@@ -14,17 +14,18 @@
 |-----------|---------|--------|--------|
 | **Singletons Base** | `core/dom-manager.js` | ✅ | 136 |
 | **Singletons Base** | `core/api-client.js` | ✅ | 243 |
-| **ProductosManager** | `modules/productos-manager.js` | ✅ | 115 |
-| **CompraManager** | `modules/compra-manager.js` | ✅ | 110 |
-| **CategoriasManager** | `modules/categorias-manager.js` | ✅ | 72 |
-| **EspaciosManager** | `modules/espacios-manager.js` | ✅ | 98 |
+| **ProductosManager** | `modules/productos-manager.js` | ✅ | 175 (+60 render) |
+| **CompraManager** | `modules/compra-manager.js` | ✅ | 180 (+70 render) |
+| **CategoriasManager** | `modules/categorias-manager.js` | ✅ | 130 (+58 render) |
+| **EspaciosManager** | `modules/espacios-manager.js` | ✅ | 160 (+62 render) |
 | **TicketsManager** | `modules/tickets-manager.js` | ✅ | 62 |
-| **UIManager** | `modules/ui-manager.js` | ✅ | 145 |
-| **app.js Refactorizado** | `app.js` | ✅ | 300 |
+| **UIManager** | `modules/ui-manager.js` | ✅ | 175 (+30 render) |
+| **app.js Refactorizado** | `app.js` | ✅ | 380 (+80 wireado) |
 | **HTML Actualizado** | `templates/index.html` | ✅ | - |
 
-**Total código nuevo**: ~1,281 líneas en módulos  
-**Reducción app.js**: 2050 → 300 (-85%)
+**Total código nuevo**: ~1,500+ líneas en módulos con render()  
+**Reducción app.js**: 2050 → 380 (-81%)  
+**Render methods**: 5/6 managers + wireado completo
 
 ---
 
@@ -461,13 +462,15 @@ Object.values(managers).forEach(manager => {
 - [x] Crear UIManager
 - [x] Refactorizar app.js como orquestador
 - [x] Actualizar HTML para cargar scripts en orden
-- [ ] Implementar render() en cada manager
-- [ ] Implementar formularios modales
+- [x] Implementar render() en cada manager
+- [x] Wireado de eventos → render en app.js
+- [ ] Implementar formularios modales (create/edit)
+- [ ] Event listeners en elementos generados
 - [ ] Eliminar archivos legacy (app-legacy.js, drawer-listas.js)
 - [ ] Escribir tests para managers
 - [ ] Verificar funcionalidad completa en navegador
 
-**Progreso**: 8/13 (62%)
+**Progreso**: 10/15 (67%)
 
 ---
 
