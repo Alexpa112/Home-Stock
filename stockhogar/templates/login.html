@@ -144,10 +144,9 @@
     <button type="submit" class="primario" style="width: 100%; padding: 12px 18px;" id="btnFormulario">Entrar</button>
 
     <!-- Alternar entre login y registro -->
-    <p style="text-align: center; margin-top: 12px; font-size: 0.9rem;">
-      <span id="textoAlternar" style="color: var(--text-soft);">¿No tienes cuenta?
-        <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Crea una</button>
-      </span>
+    <p style="text-align: center; margin-top: 16px; font-size: 0.9rem; display: flex; justify-content: center; align-items: center; gap: 4px;">
+      <span id="textoAlternar" style="color: var(--text-soft);">¿No tienes cuenta?</span>
+      <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Crea una</button>
     </p>
 
     {% if not modo_setup %}
