@@ -131,49 +131,8 @@ class DrawerListasManager {
       });
     }
 
-    // Event listeners para tabs de compartir
-    const tabPorUsuario = document.getElementById('tabPorUsuario');
-    const tabPorEmail = document.getElementById('tabPorEmail');
-    const tabPorEnlace = document.getElementById('tabPorEnlace');
-
-    if (tabPorUsuario) tabPorUsuario.addEventListener('click', () => this.cambiarTabCompartir('usuario'));
-    if (tabPorEmail) tabPorEmail.addEventListener('click', () => this.cambiarTabCompartir('email'));
-    if (tabPorEnlace) tabPorEnlace.addEventListener('click', () => this.cambiarTabCompartir('enlace'));
-
-    // Event listener para búsqueda de usuarios
-    const buscarUsuario = document.getElementById('buscarUsuario');
-    if (buscarUsuario) {
-      buscarUsuario.addEventListener('input', (e) => this.buscarUsuarios(e.target.value));
-    }
-
-    // Event listeners para formularios de compartir
-    const formCompartirPorUsuario = document.getElementById('formCompartirPorUsuario');
-    if (formCompartirPorUsuario) {
-      formCompartirPorUsuario.addEventListener('submit', (e) => this.compartirPorUsuario(e));
-    }
-
-    const formCompartirPorEmail = document.getElementById('formCompartirPorEmail');
-    if (formCompartirPorEmail) {
-      formCompartirPorEmail.addEventListener('submit', (e) => this.compartirPorEmail(e));
-    }
-
-    // Event listener para generar enlace
-    const btnGenerarEnlace = document.getElementById('btnGenerarEnlace');
-    if (btnGenerarEnlace) {
-      btnGenerarEnlace.addEventListener('click', () => this.generarEnlaceCompartir());
-    }
-
-    // Event listener para compartir por WhatsApp
-    const btnCompartirWhatsApp = document.getElementById('btnCompartirWhatsApp');
-    if (btnCompartirWhatsApp) {
-      btnCompartirWhatsApp.addEventListener('click', () => this.compartirPorWhatsApp());
-    }
-
-    // Event listener para copiar enlace
-    const btnCopiarEnlace = document.getElementById('btnCopiarEnlace');
-    if (btnCopiarEnlace) {
-      btnCopiarEnlace.addEventListener('click', () => this.copiarEnlace());
-    }
+    // NOTA: Event listeners para tabs de compartir se registran en initEventListenersTabs()
+    // cuando el usuario abre la sección de miembros, no aquí en el inicio
 
     // Event listener para salir de lista
     const btnSalirLista = document.getElementById('btnSalirLista');
