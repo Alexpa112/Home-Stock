@@ -1,12 +1,12 @@
-"""Rutas de la lista de la compra."""
-from flask import Blueprint, jsonify, request
+"""Rutas de artículos en listas (antes lista_compra)."""
+from flask import Blueprint, jsonify, request, session
 
 from ..db import ahora, get_db
 from .categorias import normalizar_categoria
-from .espacios import obtener_espacio_actual
 from .historial import buscar_historial, recordar_articulo
+from .listas import _usuario_tiene_permiso
 
-bp = Blueprint("lista_compra", __name__, url_prefix="/api/lista-compra")
+bp = Blueprint("lista_compra", __name__, url_prefix="/api/articulos")
 
 # Cuantos articulos completados recientemente se muestran como "sugerencias"
 # para volver a añadirlos con un toque (al estilo "utilizados recientemente").
@@ -15,9 +15,10 @@ LIMITE_COMPLETADOS = 12
 CAMPOS_EDITABLES = {"nombre", "cantidad", "unidad", "categoria", "icono", "sub_descripcion"}
 
 
-def compra_a_dict(row):
+def articulo_a_dict(row):
     return {
         "id": row["id"],
+        "lista_id": row["lista_id"],
         "producto_id": row["producto_id"],
         "nombre": row["nombre"],
         "unidad": row["unidad"],
@@ -31,51 +32,79 @@ def compra_a_dict(row):
 
 
 @bp.route("", methods=["GET"])
-def listar_lista_compra():
+def listar_articulos():
+    """Lista artículos de una lista específica (requiere query param lista_id)."""
+    usuario_id = session.get("usuario_id")
+    if not usuario_id:
+        return jsonify({"error": "No autorizado"}), 401
+
+    lista_id = request.args.get("lista_id", type=int)
+    if not lista_id:
+        return jsonify({"error": "Parámetro lista_id es obligatorio"}), 400
+
     db = get_db()
-    espacio_id = obtener_espacio_actual(db)
+
+    # Validar permisos
+    permiso = _usuario_tiene_permiso(db, lista_id, usuario_id)
+    if not permiso:
+        return jsonify({"error": "No tienes acceso a esta lista"}), 403
+
     pendientes = db.execute(
-        "SELECT * FROM lista_compra WHERE activo = 1 AND espacio_id = ? "
+        "SELECT * FROM articulos_lista WHERE activo = 1 AND lista_id = ? "
         "ORDER BY categoria, nombre COLLATE NOCASE",
-        (espacio_id,),
+        (lista_id,),
     ).fetchall()
     completados = db.execute(
-        "SELECT * FROM lista_compra WHERE activo = 0 AND espacio_id = ? "
+        "SELECT * FROM articulos_lista WHERE activo = 0 AND lista_id = ? "
         "ORDER BY fecha_completado DESC LIMIT ?",
-        (espacio_id, LIMITE_COMPLETADOS),
+        (lista_id, LIMITE_COMPLETADOS),
     ).fetchall()
+
     return jsonify({
-        "pendientes": [compra_a_dict(f) for f in pendientes],
-        "completados": [compra_a_dict(f) for f in completados],
+        "pendientes": [articulo_a_dict(f) for f in pendientes],
+        "completados": [articulo_a_dict(f) for f in completados],
     })
 
 
 @bp.route("", methods=["POST"])
-def anadir_lista_compra():
+def anadir_articulo():
+    """Añade un artículo a una lista (requiere permiso 'editar')."""
+    usuario_id = session.get("usuario_id")
+    if not usuario_id:
+        return jsonify({"error": "No autorizado"}), 401
+
     datos = request.get_json(force=True) or {}
+    lista_id = datos.get("lista_id")
     nombre = (datos.get("nombre") or "").strip()
+
     if not nombre:
         return jsonify({"error": "El nombre es obligatorio"}), 400
 
+    if not lista_id:
+        return jsonify({"error": "lista_id es obligatorio"}), 400
+
     db = get_db()
-    espacio_id = obtener_espacio_actual(db)
+
+    # Validar que la lista existe y el usuario tiene permiso de edición
+    permiso = _usuario_tiene_permiso(db, lista_id, usuario_id, nivel_requerido="editar")
+    if not permiso or (permiso != "propietario" and permiso != "editar"):
+        return jsonify({"error": "No tienes permisos para editar esta lista"}), 403
+
     cantidad_sumar = max(1, int(datos.get("cantidad") or 1))
 
-    # Si ya esta en la lista activa, un "añadir" repetido simplemente suma
-    # cantidad en vez de crear una fila duplicada (asi el toque rapido del
-    # catalogo funciona como cabria esperar).
+    # Si ya está en la lista activa, sumar cantidad
     existente = db.execute(
-        "SELECT * FROM lista_compra WHERE nombre = ? COLLATE NOCASE AND activo = 1 AND espacio_id = ?",
-        (nombre, espacio_id),
+        "SELECT * FROM articulos_lista WHERE nombre = ? COLLATE NOCASE AND activo = 1 AND lista_id = ?",
+        (nombre, lista_id),
     ).fetchone()
     if existente:
         db.execute(
-            "UPDATE lista_compra SET cantidad = cantidad + ? WHERE id = ?",
+            "UPDATE articulos_lista SET cantidad = cantidad + ? WHERE id = ?",
             (cantidad_sumar, existente["id"]),
         )
         db.commit()
-        fila = db.execute("SELECT * FROM lista_compra WHERE id = ?", (existente["id"],)).fetchone()
-        return jsonify(compra_a_dict(fila))
+        fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (existente["id"],)).fetchone()
+        return jsonify(articulo_a_dict(fila))
 
     recuerdo = buscar_historial(db, nombre)
     categoria = normalizar_categoria(db, datos.get("categoria") or (recuerdo["categoria"] if recuerdo else None))
@@ -86,27 +115,35 @@ def anadir_lista_compra():
     )
 
     cur = db.execute(
-        "INSERT INTO lista_compra "
-        "(nombre, unidad, categoria, icono, cantidad, sub_descripcion, espacio_id, origen) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 'manual')",
-        (nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, espacio_id),
+        "INSERT INTO articulos_lista "
+        "(nombre, unidad, categoria, icono, cantidad, sub_descripcion, lista_id, origen, fecha_creacion) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', ?)",
+        (nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, lista_id, ahora()),
     )
     if icono:
         recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
     db.commit()
-    fila = db.execute("SELECT * FROM lista_compra WHERE id = ?", (cur.lastrowid,)).fetchone()
-    return jsonify(compra_a_dict(fila)), 201
+    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return jsonify(articulo_a_dict(fila)), 201
 
 
 @bp.route("/<int:item_id>", methods=["PATCH"])
-def actualizar_lista_compra(item_id):
+def actualizar_articulo(item_id):
+    """Actualiza un artículo (requiere permiso 'editar')."""
+    usuario_id = session.get("usuario_id")
+    if not usuario_id:
+        return jsonify({"error": "No autorizado"}), 401
+
     db = get_db()
-    espacio_id = obtener_espacio_actual(db)
-    fila = db.execute(
-        "SELECT * FROM lista_compra WHERE id = ? AND espacio_id = ?", (item_id, espacio_id)
-    ).fetchone()
+    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
+
     if fila is None:
         return jsonify({"error": "No encontrado"}), 404
+
+    # Validar permisos sobre la lista
+    permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
+    if not permiso or (permiso != "propietario" and permiso != "editar"):
+        return jsonify({"error": "No tienes permisos para editar esta lista"}), 403
 
     datos = request.get_json(force=True) or {}
     if not datos:
@@ -115,17 +152,17 @@ def actualizar_lista_compra(item_id):
     if "activo" in datos:
         if datos["activo"]:
             db.execute(
-                "UPDATE lista_compra SET activo = 1, fecha_completado = NULL WHERE id = ?",
+                "UPDATE articulos_lista SET activo = 1, fecha_completado = NULL WHERE id = ?",
                 (item_id,),
             )
         else:
             db.execute(
-                "UPDATE lista_compra SET activo = 0, fecha_completado = ? WHERE id = ?",
+                "UPDATE articulos_lista SET activo = 0, fecha_completado = ? WHERE id = ?",
                 (ahora(), item_id),
             )
 
     if CAMPOS_EDITABLES & datos.keys():
-        actual = compra_a_dict(fila)
+        actual = articulo_a_dict(fila)
         nombre = (datos.get("nombre") or actual["nombre"]).strip() or actual["nombre"]
         cantidad = max(1, int(datos.get("cantidad", actual["cantidad"]) or 1))
         unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
@@ -134,7 +171,7 @@ def actualizar_lista_compra(item_id):
         sub_descripcion = (datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
 
         db.execute(
-            "UPDATE lista_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
+            "UPDATE articulos_lista SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
             "sub_descripcion=? WHERE id=?",
             (nombre, cantidad, unidad, categoria, icono, sub_descripcion, item_id),
         )
@@ -142,14 +179,28 @@ def actualizar_lista_compra(item_id):
             recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
-    fila = db.execute("SELECT * FROM lista_compra WHERE id = ?", (item_id,)).fetchone()
-    return jsonify(compra_a_dict(fila))
+    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
+    return jsonify(articulo_a_dict(fila))
 
 
 @bp.route("/<int:item_id>", methods=["DELETE"])
-def borrar_lista_compra(item_id):
+def borrar_articulo(item_id):
+    """Elimina un artículo (requiere permiso 'editar')."""
+    usuario_id = session.get("usuario_id")
+    if not usuario_id:
+        return jsonify({"error": "No autorizado"}), 401
+
     db = get_db()
-    espacio_id = obtener_espacio_actual(db)
-    db.execute("DELETE FROM lista_compra WHERE id = ? AND espacio_id = ?", (item_id, espacio_id))
+    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
+
+    if fila is None:
+        return jsonify({"error": "No encontrado"}), 404
+
+    # Validar permisos sobre la lista
+    permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
+    if not permiso or (permiso != "propietario" and permiso != "editar"):
+        return jsonify({"error": "No tienes permisos para editar esta lista"}), 403
+
+    db.execute("DELETE FROM articulos_lista WHERE id = ?", (item_id,))
     db.commit()
     return "", 204

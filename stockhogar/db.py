@@ -40,13 +40,155 @@ def quitar_columna_si_existe(db, tabla, columna):
             pass  # Version de SQLite anterior a 3.35: se queda la columna, pero sin usarse.
 
 
+def _migrar_lista_compra_a_articulos(db, espacio_defecto_id):
+    """
+    Migra datos de la tabla antigua lista_compra a articulos_lista.
+
+    Crea una lista 'por defecto' para cada usuario con sus artículos existentes.
+    Esta función se ejecuta solo si encuentra la tabla antigua.
+    """
+    # Obtener todos los usuarios
+    usuarios = db.execute("SELECT id, nombre_usuario FROM usuarios").fetchall()
+
+    for usuario in usuarios:
+        usuario_id = usuario["id"]
+        nombre_usuario = usuario["nombre_usuario"]
+
+        # Crear lista 'por defecto' para este usuario si no existe
+        lista_existente = db.execute(
+            "SELECT id FROM listas WHERE usuario_propietario_id = ? AND nombre = 'Mi lista'",
+            (usuario_id,),
+        ).fetchone()
+
+        if not lista_existente:
+            cur = db.execute(
+                "INSERT INTO listas (nombre, descripcion, usuario_propietario_id, privada, "
+                "fecha_creacion, fecha_actualizacion, icono) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ("Mi lista", "Lista de compra principal", usuario_id, 1, ahora(), ahora(), "📋"),
+            )
+            lista_id = cur.lastrowid
+        else:
+            lista_id = lista_existente["id"]
+
+        # Migrar artículos de lista_compra que pertenecían a este usuario/espacio
+        # (Asumimos que todos los artículos sin usuario explícito son del primer usuario)
+        if usuario_id == usuarios[0]["id"]:
+            # Verificar qué columnas existen en la tabla antigua
+            columnas_existentes = {
+                col["name"] for col in db.execute(
+                    "PRAGMA table_info(lista_compra)"
+                ).fetchall()
+            }
+
+            # Construir el SELECT dinámicamente según las columnas disponibles
+            campos = ["?", "producto_id", "nombre", "unidad"]
+
+            if "categoria" in columnas_existentes:
+                campos.append("COALESCE(categoria, 'Otros')")
+            else:
+                campos.append("'Otros'")
+
+            if "icono" in columnas_existentes:
+                campos.append("icono")
+            else:
+                campos.append("NULL")
+
+            if "cantidad" in columnas_existentes:
+                campos.append("COALESCE(cantidad, 1)")
+            else:
+                campos.append("1")
+
+            if "sub_descripcion" in columnas_existentes:
+                campos.append("sub_descripcion")
+            else:
+                campos.append("NULL")
+
+            campos.append("origen")
+
+            if "activo" in columnas_existentes:
+                campos.append("COALESCE(activo, 1)")
+            else:
+                campos.append("1")
+
+            if "fecha_completado" in columnas_existentes:
+                campos.append("fecha_completado")
+            else:
+                campos.append("NULL")
+
+            campos.append("?")  # fecha_creacion
+
+            select_clause = f"SELECT {', '.join(campos)} FROM lista_compra"
+
+            db.execute(
+                f"""
+                INSERT INTO articulos_lista
+                (lista_id, producto_id, nombre, unidad, categoria, icono, cantidad,
+                 sub_descripcion, origen, activo, fecha_completado, fecha_creacion)
+                {select_clause}
+                """,
+                (lista_id, ahora()),
+            )
+
+    # Después de migrar, renombrar la tabla antigua para que no interfiera
+    try:
+        db.execute("ALTER TABLE lista_compra RENAME TO lista_compra_backup")
+    except sqlite3.OperationalError:
+        pass  # Si no se puede renombrar, simplemente continuar
+
+
 def init_db():
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
 
-    # Espacios (stocks independientes: "Casa", "Piso de la playa", etc.).
-    # Se crea siempre al menos uno, para que el stock y la lista de la compra
-    # ya existentes en instalaciones previas queden asignados a él.
+    # Tabla de usuarios (debe existir antes de crear listas, ya que las listas
+    # tienen una relación con usuarios)
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre_usuario TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            fecha_creacion TEXT NOT NULL
+        )
+        """
+    )
+
+    # Tabla listas: contenedor principal de artículos, similar a Bring!
+    # Cada lista pertenece a un usuario (propietario) y puede compartirse
+    # con otros usuarios mediante permisos_lista
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS listas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            descripcion TEXT,
+            usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+            privada INTEGER NOT NULL DEFAULT 1,
+            fecha_creacion TEXT NOT NULL,
+            fecha_actualizacion TEXT NOT NULL
+        )
+        """
+    )
+    asegurar_columna(db, "listas", "icono", "TEXT NOT NULL DEFAULT '📋'")
+
+    # Tabla permisos_lista: relación usuario ↔ lista con niveles de acceso
+    # niveles: 'ver' (solo lectura) o 'editar' (lectura + escritura)
+    # El propietario tiene control total sin necesidad de estar aquí
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS permisos_lista (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lista_id INTEGER NOT NULL REFERENCES listas(id) ON DELETE CASCADE,
+            usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+            nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'editar')),
+            fecha_otorgado TEXT NOT NULL,
+            UNIQUE(lista_id, usuario_id)
+        )
+        """
+    )
+
+    # Espacios: ahora son opcionales (podría usarse para categorizar listas después)
+    # Se mantiene para compatibilidad hacia atrás
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS espacios (
@@ -87,26 +229,37 @@ def init_db():
     db.execute("UPDATE productos SET fecha_actualizacion = ? WHERE fecha_actualizacion IS NULL", (ahora(),))
     db.execute("UPDATE productos SET espacio_id = ? WHERE espacio_id IS NULL", (espacio_defecto_id,))
 
+    # Tabla articulos_lista: artículos dentro de cada lista
+    # Migración: originalmente era lista_compra, ahora vinculada a listas
+    # en lugar de espacios
     db.execute(
         """
-        CREATE TABLE IF NOT EXISTS lista_compra (
+        CREATE TABLE IF NOT EXISTS articulos_lista (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lista_id INTEGER NOT NULL REFERENCES listas(id) ON DELETE CASCADE,
             producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL,
             nombre TEXT NOT NULL,
             unidad TEXT NOT NULL DEFAULT 'ud',
-            origen TEXT NOT NULL DEFAULT 'manual'
+            categoria TEXT NOT NULL DEFAULT 'Otros',
+            icono TEXT,
+            cantidad INTEGER NOT NULL DEFAULT 1,
+            sub_descripcion TEXT,
+            origen TEXT NOT NULL DEFAULT 'manual',
+            activo INTEGER NOT NULL DEFAULT 1,
+            fecha_completado TEXT,
+            fecha_creacion TEXT
         )
         """
     )
-    asegurar_columna(db, "lista_compra", "categoria", "TEXT NOT NULL DEFAULT 'Otros'")
-    asegurar_columna(db, "lista_compra", "activo", "INTEGER NOT NULL DEFAULT 1")
-    asegurar_columna(db, "lista_compra", "fecha_completado", "TEXT")
-    asegurar_columna(db, "lista_compra", "icono", "TEXT")
-    asegurar_columna(db, "lista_compra", "cantidad", "INTEGER NOT NULL DEFAULT 1")
-    asegurar_columna(db, "lista_compra", "sub_descripcion", "TEXT")
-    asegurar_columna(db, "lista_compra", "espacio_id", "INTEGER")
-    db.execute("UPDATE lista_compra SET espacio_id = ? WHERE espacio_id IS NULL", (espacio_defecto_id,))
-    quitar_columna_si_existe(db, "lista_compra", "sincronizado_bring")
+
+    # Compatibilidad: si existe lista_compra antigua, no hacer nada por ahora
+    # (se migrará después con la función _migrar_lista_compra_a_articulos)
+    tabla_existe = db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='lista_compra'"
+    ).fetchone()
+    if tabla_existe:
+        # Tabla antigua existe, es una instalación anterior
+        _migrar_lista_compra_a_articulos(db, espacio_defecto_id)
     db.execute("DROP TABLE IF EXISTS ajustes")
 
     db.execute(
@@ -148,17 +301,6 @@ def init_db():
         "(nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
         "VALUES (?, ?, ?, ?, ?, 1, ?)",
         [(n, c, i, u, s, ahora()) for (n, c, i, u, s) in CATALOGO_DEFECTO],
-    )
-
-    db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_usuario TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            fecha_creacion TEXT NOT NULL
-        )
-        """
     )
 
     db.commit()
