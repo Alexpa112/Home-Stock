@@ -42,6 +42,7 @@
     font-weight: 600;
   }
   .tarjeta-login input {
+    width: 100%;
     padding: 10px 12px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
@@ -49,8 +50,10 @@
     color: var(--text);
     background: var(--surface-2);
     font-family: inherit;
+    box-sizing: border-box;
   }
   .tarjeta-login input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #seccionRegistro { display: none; }
   .tarjeta-login .primario {
     padding: 11px 18px;
     border-radius: var(--radius-sm);
@@ -119,7 +122,7 @@
       <input id="campoPassword" name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="Tu contraseña">
     </div>
 
-    <div id="seccionRegistro" style="display: none;">
+    <div id="seccionRegistro">
       <label for="campoNombre">Nombre completo</label>
       <input id="campoNombre" name="nombre" type="text" maxlength="80" placeholder="Tu nombre">
       <label for="campoEmail">Email</label>
@@ -174,6 +177,10 @@
     esRegistro = false;
     seccionLogin.style.display = "block";
     seccionRegistro.style.display = "none";
+    // Deshabilitar inputs de registro para evitar errores de validación
+    document.getElementById("campoUsuarioReg").disabled = true;
+    document.getElementById("campoPasswordReg").disabled = true;
+    document.getElementById("campoPassword2Reg").disabled = true;
     document.getElementById("subtituloForm").textContent = "Inicia sesión para continuar.";
     document.getElementById("btnFormulario").textContent = "Entrar";
     document.getElementById("textoAlternar").textContent = '¿No tienes cuenta?';
@@ -184,6 +191,10 @@
     esRegistro = true;
     seccionLogin.style.display = "none";
     seccionRegistro.style.display = "block";
+    // Habilitar inputs de registro
+    document.getElementById("campoUsuarioReg").disabled = false;
+    document.getElementById("campoPasswordReg").disabled = false;
+    document.getElementById("campoPassword2Reg").disabled = false;
     document.getElementById("subtituloForm").textContent = "Crea tu cuenta para empezar.";
     document.getElementById("btnFormulario").textContent = "Crear cuenta";
     document.getElementById("textoAlternar").textContent = '¿Ya tienes cuenta?';
