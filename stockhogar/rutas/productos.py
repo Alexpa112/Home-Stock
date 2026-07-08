@@ -67,11 +67,11 @@ def revisar_stock_bajo(db, producto_id, lista_id=None):
                 (ahora(), pendiente["id"]),
             )
     except Exception as e:
-        print(f"[revisar_stock_bajo] Error: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        # No lanzar excepción, solo loguear el error
-        pass
+        # Loguear el error pero no interrumpir el flujo
+        # (este es un proceso de sincronización que debe ser tolerante a fallos)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"[revisar_stock_bajo] Error: {type(e).__name__}: {e}", exc_info=True)
 
 
 def sumar_stock(db, producto_id, cantidad_a_sumar):

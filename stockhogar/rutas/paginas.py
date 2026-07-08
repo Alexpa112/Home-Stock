@@ -1,7 +1,10 @@
 """Ruta de la pagina principal (SPA)."""
-from flask import Blueprint, render_template, session, redirect, url_for
+import logging
+from flask import Blueprint, render_template, session, redirect, url_for, request
 
-from ..api import manejo_errores
+from ..api import manejo_errores, APIResponse
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("paginas", __name__)
 
@@ -24,3 +27,24 @@ def aceptar_invitacion_pagina(codigo):
 
     # Renderizar página de aceptación
     return render_template("aceptar_invitacion.html", codigo=codigo)
+
+
+@bp.route("/api/log/client", methods=["POST"])
+@manejo_errores
+def log_client_error():
+    """Endpoint para que el cliente envíe logs (errores, warnings)."""
+    datos = request.get_json(force=True) or {}
+    nivel = datos.get("nivel", "info").lower()  # info, warning, error
+    mensaje = datos.get("mensaje", "")
+    contexto = datos.get("contexto", {})
+
+    # Loguear según nivel
+    contexto_str = f" | Contexto: {contexto}" if contexto else ""
+    if nivel == "error":
+        logger.error(f"[CLIENT] {mensaje}{contexto_str}")
+    elif nivel == "warning":
+        logger.warning(f"[CLIENT] {mensaje}{contexto_str}")
+    else:
+        logger.info(f"[CLIENT] {mensaje}{contexto_str}")
+
+    return APIResponse.success({"logged": True})

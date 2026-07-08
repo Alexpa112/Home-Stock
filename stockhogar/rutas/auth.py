@@ -51,8 +51,8 @@ def registrar():
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
     password = datos.get("password") or ""
 
-    if len(password) < 4:
-        return APIResponse.validacion("La contraseña debe tener al menos 4 caracteres")
+    if len(password) < 8:
+        return APIResponse.validacion("La contraseña debe tener al menos 8 caracteres")
 
     if hay_usuarios(db) and not usuario_actual():
         return APIResponse.no_autorizado()
