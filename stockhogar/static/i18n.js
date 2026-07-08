@@ -170,8 +170,8 @@ class TranslationManager {
     // Actualizar idioma en la página
     document.documentElement.lang = this.idiomaActual;
 
-    // Traducir categorías después de que el DOM se actualice
-    setTimeout(() => this.traducirCategorias(), 100);
+    // Traducir categorías después de que el DOM se actualice (mayor delay para que carguen los productos)
+    setTimeout(() => this.traducirCategorias(), 500);
   }
 
   /**
@@ -198,7 +198,7 @@ class TranslationManager {
     this.traducirPagina();
 
     // Traducir categorías (con delay para asegurar que los elementos existan)
-    setTimeout(() => this.traducirCategorias(), 50);
+    setTimeout(() => this.traducirCategorias(), 200);
 
     // Cargar traducciones de artículos si existen
     this.cargarTraduccionesArticulos(nuevoIdioma);
@@ -283,7 +283,10 @@ class TranslationManager {
     });
 
     // Traducir categorías en tarjetas de productos (en .detalle)
-    document.querySelectorAll('.detalle').forEach(el => {
+    const detalles = document.querySelectorAll('.detalle');
+    console.log(`🔍 Encontrados ${detalles.length} elementos .detalle`);
+
+    detalles.forEach(el => {
       const texto = el.textContent.trim();
       // El formato es "Categoria · Avisos" o solo "Categoria"
       const partes = texto.split(' · ');
