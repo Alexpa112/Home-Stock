@@ -1760,10 +1760,10 @@ function crearFilaTicket(item) {
   return li;
 }
 
-btnEscanearTicket.addEventListener("click", abrirModalTicket);
-btnCancelarTicket.addEventListener("click", cerrarModalTicket);
-btnCancelarRevisionTicket.addEventListener("click", cerrarModalTicket);
-habilitarCierreSeguro(modalTicketFondo, cerrarModalTicket);
+if (btnEscanearTicket) btnEscanearTicket.addEventListener("click", abrirModalTicket);
+if (btnCancelarTicket) btnCancelarTicket.addEventListener("click", cerrarModalTicket);
+if (btnCancelarRevisionTicket) btnCancelarRevisionTicket.addEventListener("click", cerrarModalTicket);
+if (modalTicketFondo) habilitarCierreSeguro(modalTicketFondo, cerrarModalTicket);
 const modalTicketContenedor = modalTicketFondo.querySelector(".modal");
 if (modalTicketContenedor) {
   habilitarDragDown(modalTicketContenedor, cerrarModalTicket);
