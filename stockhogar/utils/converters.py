@@ -83,6 +83,8 @@ class DataConverter:
             "unidad": DataConverter.safe_field(row, "unidad", "ud"),
             "categoria": DataConverter.safe_field(row, "categoria"),
             "icono": DataConverter.safe_field(row, "icono"),
+            "sub_descripcion": DataConverter.safe_field(row, "sub_descripcion"),
+            "articulo_personalizado_id": DataConverter.safe_field(row, "articulo_personalizado_id"),
             "completado": bool(DataConverter.safe_field(row, "completado", 0)),
             "fecha_creacion": DataConverter.safe_field(row, "fecha_creacion"),
             "fecha_completado": DataConverter.safe_field(row, "fecha_completado"),

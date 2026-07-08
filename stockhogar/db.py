@@ -332,6 +332,31 @@ def init_db():
     asegurar_columna(db, "historial_articulos", "sub_descripcion", "TEXT")
     asegurar_columna(db, "historial_articulos", "cantidad_defecto", "INTEGER NOT NULL DEFAULT 1")
 
+    # Tabla articulos_personalizados: artículos únicos de cada cliente/espacio
+    # NO se comparten entre clientes, disponibles en múltiples listas del mismo espacio
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS articulos_personalizados (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            espacio_id INTEGER NOT NULL REFERENCES espacios(id) ON DELETE CASCADE,
+            nombre TEXT NOT NULL,
+            categoria TEXT NOT NULL DEFAULT 'Otros',
+            icono TEXT,
+            unidad TEXT NOT NULL DEFAULT 'ud',
+            sub_descripcion TEXT,
+            cantidad_defecto INTEGER NOT NULL DEFAULT 1,
+            fecha_creacion TEXT,
+            fecha_actualizacion TEXT,
+            UNIQUE(espacio_id, nombre)
+        )
+        """
+    )
+    asegurar_columna(db, "articulos_personalizados", "fecha_creacion", "TEXT")
+    asegurar_columna(db, "articulos_personalizados", "fecha_actualizacion", "TEXT")
+
+    # Actualizar articulos_lista para vincular artículos personalizados
+    asegurar_columna(db, "articulos_lista", "articulo_personalizado_id", "INTEGER REFERENCES articulos_personalizados(id) ON DELETE CASCADE")
+
     # Tabla traducciones_productos: almacena traducciones de nombres y descripciones
     db.execute(
         """

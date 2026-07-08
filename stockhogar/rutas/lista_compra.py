@@ -48,28 +48,27 @@ def listar_articulos():
 
 
 @bp.route("", methods=["POST"])
+@requerir_sesion
+@manejo_errores
 def anadir_articulo():
     """Añade un artículo a una lista (requiere permiso 'editar')."""
     usuario_id = session.get("usuario_id")
-    if not usuario_id:
-        return jsonify({"error": "No autorizado"}), 401
-
     datos = request.get_json(force=True) or {}
-    lista_id = datos.get("lista_id")
+    lista_id = datos.get("lista_id", type=int)
     nombre = (datos.get("nombre") or "").strip()
 
     if not nombre:
-        return jsonify({"error": "El nombre es obligatorio"}), 400
+        return APIResponse.error("El nombre es obligatorio", 400)
 
     if not lista_id:
-        return jsonify({"error": "lista_id es obligatorio"}), 400
+        return APIResponse.error("lista_id es obligatorio", 400)
 
     db = get_db()
 
-    # Validar que la lista existe y el usuario tiene permiso de edición
+    # Validar permisos
     permiso = _usuario_tiene_permiso(db, lista_id, usuario_id, nivel_requerido="editar")
     if not permiso or (permiso != "propietario" and permiso != "editar"):
-        return jsonify({"error": "No tienes permisos para editar esta lista"}), 403
+        return APIResponse.no_permitido()
 
     cantidad_sumar = max(1, int(datos.get("cantidad") or 1))
 
@@ -85,9 +84,9 @@ def anadir_articulo():
         )
         db.commit()
         fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (existente["id"],)).fetchone()
-        return jsonify(DataConverter.articulo_lista_to_dict(fila))
+        return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
-    # Si hay uno completado, reutilizarlo (marcar activo=1)
+    # Si hay uno completado, reutilizarlo
     completado = db.execute(
         "SELECT * FROM articulos_lista WHERE nombre = ? COLLATE NOCASE AND activo = 0 AND lista_id = ?",
         (nombre, lista_id),
@@ -99,8 +98,9 @@ def anadir_articulo():
         )
         db.commit()
         fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (completado["id"],)).fetchone()
-        return jsonify(DataConverter.articulo_lista_to_dict(fila))
+        return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
+    # Buscar en historial estándar
     recuerdo = buscar_historial(db, nombre)
     categoria = normalizar_categoria(db, datos.get("categoria") or (recuerdo["categoria"] if recuerdo else None))
     icono = (datos.get("icono") or "").strip() or (recuerdo["icono"] if recuerdo else None)
@@ -109,32 +109,72 @@ def anadir_articulo():
         recuerdo["sub_descripcion"] if recuerdo else None
     )
 
-    # Crear artículo en lista
-    cur = db.execute(
-        "INSERT INTO articulos_lista "
-        "(nombre, unidad, categoria, icono, cantidad, sub_descripcion, lista_id, origen, fecha_creacion) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', ?)",
-        (nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, lista_id, ahora()),
-    )
-    if icono:
-        recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
-
-    # Sincronizar: crear producto en stock si no existe
-    producto_existe = db.execute(
-        "SELECT id FROM productos WHERE nombre = ? COLLATE NOCASE",
-        (nombre,),
-    ).fetchone()
-    if not producto_existe:
-        from .productos import crear_producto_nuevo
+    # ===== LÓGICA NUEVA: Artículos Personalizados =====
+    # Si el artículo NO está en historial estándar → crearlo en articulos_personalizados
+    articulo_personalizado_id = None
+    if not recuerdo:
         from .espacios import obtener_espacio_actual
         espacio_id = obtener_espacio_actual(db)
-        crear_producto_nuevo(
-            db, nombre, categoria, 0, unidad, stock_minimo=1, icono=icono, espacio_id=espacio_id
-        )
+
+        # Buscar/crear en articulos_personalizados
+        articulo_personal = db.execute(
+            "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE AND espacio_id = ?",
+            (nombre, espacio_id)
+        ).fetchone()
+
+        if articulo_personal:
+            articulo_personalizado_id = articulo_personal["id"]
+        else:
+            # Crear nuevo artículo personalizado
+            cur = db.execute(
+                """INSERT INTO articulos_personalizados
+                   (espacio_id, nombre, categoria, icono, unidad, sub_descripcion, fecha_creacion, fecha_actualizacion)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (espacio_id, nombre, categoria, icono, unidad, sub_descripcion, ahora(), ahora())
+            )
+            articulo_personalizado_id = cur.lastrowid
+
+            # Traducir automáticamente el artículo personalizado
+            try:
+                from stockhogar.servicios.traductor_auto import TraductorAutomatico
+                traducciones = {
+                    'nombre': TraductorAutomatico.traducir_a_todos_idiomas(nombre),
+                    'descripcion': TraductorAutomatico.traducir_a_todos_idiomas(sub_descripcion) if sub_descripcion else {}
+                }
+                # Almacenar traducciones
+                for tipo in ['nombre', 'descripcion']:
+                    if not traducciones[tipo]:
+                        continue
+                    for idioma, texto in traducciones[tipo].items():
+                        if idioma != 'es' and texto:  # No guardar original
+                            original = nombre if tipo == 'nombre' else sub_descripcion
+                            try:
+                                db.execute(
+                                    """INSERT OR REPLACE INTO traducciones_productos
+                                       (articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                                       VALUES (?, ?, ?, ?, ?, ?)""",
+                                    (articulo_personalizado_id, tipo, idioma, original, texto, ahora())
+                                )
+                            except Exception as e:
+                                print(f"Error almacenando traducción: {e}")
+            except Exception as e:
+                print(f"Error traduciendo artículo: {e}")
+
+    # Crear artículo en lista
+    cur = db.execute(
+        """INSERT INTO articulos_lista
+           (lista_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, fecha_creacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (lista_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, 'manual', ahora())
+    )
+
+    # Recordar para historial si tiene icono
+    if icono and recuerdo:
+        recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (cur.lastrowid,)).fetchone()
-    return jsonify(DataConverter.articulo_lista_to_dict(fila)), 201
+    return APIResponse.success(DataConverter.articulo_lista_to_dict(fila), 201)
 
 
 @bp.route("/<int:item_id>", methods=["PATCH"])
