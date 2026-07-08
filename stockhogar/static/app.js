@@ -1628,22 +1628,19 @@ function cerrarModalAjustes() {
   modalAjustesFondo.hidden = true;
 }
 
-btnAjustes.addEventListener("click", abrirModalAjustes);
-habilitarCierreSeguro(modalAjustesFondo, cerrarModalAjustes);
-const modalAjustesContenedor = modalAjustesFondo.querySelector(".modal");
-if (modalAjustesContenedor) {
-  habilitarDragDown(modalAjustesContenedor, cerrarModalAjustes);
-}
+// Event listeners for settings modal are added during late initialization
 
 /* --- Sesion y usuarios --- */
 
 async function cargarEstadoAuth() {
+  if (!ajustesUsuarioActual) return;
   const res = await fetch("/api/auth/estado");
   const datos = await res.json();
   ajustesUsuarioActual.textContent = datos.usuario || "-";
 }
 
 async function cargarUsuarios() {
+  if (!usuariosListaEl) return;
   const res = await fetch("/api/usuarios");
   const usuarios = await res.json();
   usuariosListaEl.innerHTML = "";
@@ -1674,35 +1671,7 @@ async function borrarUsuario(u) {
   cargarUsuarios();
 }
 
-btnAnadirUsuario.addEventListener("click", async () => {
-  usuariosEstado.hidden = true;
-  const usuario = usuarioCampoNombre.value.trim();
-  const password = usuarioCampoPassword.value;
-  if (!usuario || password.length < 4) {
-    usuariosEstado.textContent = "Pon un nombre y una contraseña de al menos 4 caracteres";
-    usuariosEstado.hidden = false;
-    return;
-  }
-  const res = await fetch("/api/auth/registrar", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ usuario, password }),
-  });
-  const datos = await res.json();
-  if (!res.ok) {
-    usuariosEstado.textContent = datos.error || "No se pudo crear el usuario";
-    usuariosEstado.hidden = false;
-    return;
-  }
-  usuarioCampoNombre.value = "";
-  usuarioCampoPassword.value = "";
-  cargarUsuarios();
-});
-
-btnCerrarSesion.addEventListener("click", async () => {
-  await fetch("/api/auth/logout", { method: "POST" });
-  window.location.href = "/login";
-});
+// Event listeners for user management buttons are added during late initialization
 
 /* --- Escaneo de tickets --- */
 
@@ -2246,5 +2215,72 @@ if (listaActualBtnEl) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }, 500);
+  }
+})();
+
+// Inicialización tardía - asegurar que los listeners se agregan después de que el DOM esté listo
+(function() {
+  function initializeEventListeners() {
+    // Settings modal
+    const btnAjustesInit = document.getElementById('btnAjustes');
+    const modalAjustesFondoInit = document.getElementById('modalAjustes');
+    if (btnAjustesInit && modalAjustesFondoInit) {
+      btnAjustesInit.addEventListener("click", abrirModalAjustes);
+      habilitarCierreSeguro(modalAjustesFondoInit, cerrarModalAjustes);
+      const modalAjustesContenedor = modalAjustesFondoInit.querySelector(".modal");
+      if (modalAjustesContenedor) {
+        habilitarDragDown(modalAjustesContenedor, cerrarModalAjustes);
+      }
+    }
+
+    // Close session button
+    const btnCerrarSesionInit = document.getElementById('btnCerrarSesion');
+    if (btnCerrarSesionInit) {
+      btnCerrarSesionInit.addEventListener("click", async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        window.location.href = "/login";
+      });
+    }
+
+    // Add user button
+    const btnAnadirUsuarioInit = document.getElementById('btnAnadirUsuario');
+    if (btnAnadirUsuarioInit) {
+      btnAnadirUsuarioInit.addEventListener("click", async () => {
+        const usuariosEstadoEl = document.getElementById('usuariosEstado');
+        const usuarioCampoNombreEl = document.getElementById('usuarioCampoNombre');
+        const usuarioCampoPasswordEl = document.getElementById('usuarioCampoPassword');
+
+        if (!usuariosEstadoEl || !usuarioCampoNombreEl || !usuarioCampoPasswordEl) return;
+
+        usuariosEstadoEl.hidden = true;
+        const usuario = usuarioCampoNombreEl.value.trim();
+        const password = usuarioCampoPasswordEl.value;
+        if (!usuario || password.length < 4) {
+          usuariosEstadoEl.textContent = "Pon un nombre y una contraseña de al menos 4 caracteres";
+          usuariosEstadoEl.hidden = false;
+          return;
+        }
+        const res = await fetch("/api/auth/registrar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario, password }),
+        });
+        const datos = await res.json();
+        if (!res.ok) {
+          usuariosEstadoEl.textContent = datos.error || "No se pudo crear el usuario";
+          usuariosEstadoEl.hidden = false;
+          return;
+        }
+        usuarioCampoNombreEl.value = "";
+        usuarioCampoPasswordEl.value = "";
+        cargarUsuarios();
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeEventListeners);
+  } else {
+    initializeEventListeners();
   }
 })();
