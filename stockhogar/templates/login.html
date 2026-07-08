@@ -184,9 +184,7 @@
     document.getElementById("subtituloForm").textContent = "Inicia sesión para continuar.";
     document.getElementById("btnFormulario").textContent = "Entrar";
     document.getElementById("textoAlternar").textContent = '¿No tienes cuenta?';
-    const btn = document.getElementById("btnAlternarFormulario");
-    btn.textContent = "Crea una";
-    btn.addEventListener("click", mostrarRegistro);
+    document.getElementById("btnAlternarFormulario").textContent = "Crea una";
   }
 
   function mostrarRegistro() {
@@ -196,13 +194,13 @@
     document.getElementById("subtituloForm").textContent = "Crea tu cuenta para empezar.";
     document.getElementById("btnFormulario").textContent = "Crear cuenta";
     document.getElementById("textoAlternar").textContent = '¿Ya tienes cuenta?';
-    const btn = document.getElementById("btnAlternarFormulario");
-    btn.textContent = "Inicia sesión";
-    btn.addEventListener("click", mostrarLogin);
+    document.getElementById("btnAlternarFormulario").textContent = "Inicia sesión";
     document.getElementById("campoNombre").focus();
   }
 
-  btnAlternar.addEventListener("click", esRegistro ? mostrarLogin : mostrarRegistro);
+  btnAlternar.addEventListener("click", () => {
+    esRegistro ? mostrarLogin() : mostrarRegistro();
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
