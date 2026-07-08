@@ -96,6 +96,75 @@ class EspaciosManager {
     return this.obtenerPorId(this.espacioActualId);
   }
 
+  // ===== FORMULARIOS MODALES =====
+  abrirModalCrear() {
+    this._resetearFormularioEspacio();
+    this.dom.get('espacioFormTitulo').textContent = 'Nuevo stock';
+    this.dom.get('espacioEditId').value = '';
+    this.dom.get('modalEspacioForm').hidden = false;
+  }
+
+  abrirModalEditar(id) {
+    const espacio = this.obtenerPorId(id);
+    if (!espacio) return;
+
+    this._llenarFormularioEspacio(espacio);
+    this.dom.get('espacioFormTitulo').textContent = `Editar: ${espacio.nombre}`;
+    this.dom.get('espacioEditId').value = id;
+    this.dom.get('modalEspacioForm').hidden = false;
+  }
+
+  cerrarModal() {
+    this.dom.get('modalEspacioForm').hidden = true;
+    this._resetearFormularioEspacio();
+  }
+
+  async guardarEspacio(e) {
+    e?.preventDefault();
+
+    const id = parseInt(this.dom.get('espacioEditId').value);
+    const datos = this._extraerDatosFormularioEspacio();
+
+    try {
+      if (id) {
+        await this.actualizar(id, datos);
+      } else {
+        await this.crear(datos);
+      }
+      this.cerrarModal();
+    } catch (error) {
+      console.error('Error guardando espacio:', error);
+    }
+  }
+
+  // ===== HELPERS DE FORMULARIO =====
+  _extraerDatosFormularioEspacio() {
+    return {
+      nombre: this.dom.get('espacioCampoNombre')?.value.trim(),
+      icono: this.dom.get('espacioCampoIcono')?.value.trim() || '🏠',
+      color: this.dom.get('espacioCampoColor')?.value || '#999999',
+    };
+  }
+
+  _llenarFormularioEspacio(espacio) {
+    const nombreInput = this.dom.get('espacioCampoNombre');
+    if (nombreInput) nombreInput.value = espacio.nombre;
+
+    const iconoInput = this.dom.get('espacioCampoIcono');
+    if (iconoInput) iconoInput.value = espacio.icono || '🏠';
+
+    const colorInput = this.dom.get('espacioCampoColor');
+    if (colorInput) colorInput.value = espacio.color || '#999999';
+
+    const colorPicker = this.dom.get('espacioCampoColorPicker');
+    if (colorPicker) colorPicker.value = espacio.color || '#999999';
+  }
+
+  _resetearFormularioEspacio() {
+    const form = this.dom.get('formEspacio');
+    if (form) form.reset();
+  }
+
   // ===== RENDERIZADO =====
   render() {
     // Renderizar espacio actual en topbar

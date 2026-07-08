@@ -4,9 +4,8 @@
     {
       "name": "stockhogar",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "flask", "run"],
-      "port": 5000,
-      "cwd": "."
+      "runtimeArgs": ["run.py"],
+      "port": 5000
     }
   ]
 }

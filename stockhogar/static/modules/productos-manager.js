@@ -147,6 +147,110 @@ class ProductosManager {
     return div.innerHTML;
   }
 
+  // ===== FORMULARIOS MODALES =====
+  abrirModalCrear() {
+    this.notificar('modal-crear-producto', null);
+    this._llenarSelectCategoria();
+    this._resetearFormulario();
+    this.dom.get('modalTitulo').textContent = 'Nuevo producto';
+    this.dom.get('productoId').value = '';
+    this.dom.get('modal').hidden = false;
+  }
+
+  abrirModalEditar(id) {
+    const producto = this.obtenerPorId(id);
+    if (!producto) return;
+
+    this._llenarSelectCategoria(producto.categoria);
+    this._llenarFormularioConProducto(producto);
+    this.dom.get('modalTitulo').textContent = `Editar: ${producto.nombre}`;
+    this.dom.get('productoId').value = id;
+    this.dom.get('modal').hidden = false;
+  }
+
+  cerrarModal() {
+    this.dom.get('modal').hidden = true;
+    this._resetearFormulario();
+  }
+
+  async guardarProducto(e) {
+    e?.preventDefault();
+
+    const id = parseInt(this.dom.get('productoId').value);
+    const datos = this._extraerDatosFormulario();
+
+    try {
+      if (id) {
+        await this.actualizar(id, datos);
+        this.notificar('producto-actualizado-guardado', datos);
+      } else {
+        await this.crear(datos);
+        this.notificar('producto-creado-guardado', datos);
+      }
+      this.cerrarModal();
+    } catch (error) {
+      console.error('Error guardando producto:', error);
+      this.notificar('producto-error-guardado', error.message);
+    }
+  }
+
+  // ===== HELPERS DE FORMULARIO =====
+  _extraerDatosFormulario() {
+    return {
+      nombre: this.dom.get('campoNombre').value.trim(),
+      categoria: this.dom.get('campoCategoria').value,
+      icono: this.dom.get('campoIcono').value || null,
+      cantidad: parseInt(this.dom.get('campoCantidad').value) || 0,
+      unidad: this.dom.get('campoUnidad').value.trim() || 'ud',
+      stock_minimo: parseInt(this.dom.get('campoStockMinimo')?.value) || 1,
+      dias_aviso: parseInt(this.dom.get('campoDiasAviso')?.value) || 30,
+    };
+  }
+
+  _llenarFormularioConProducto(producto) {
+    this.dom.get('campoNombre').value = producto.nombre;
+    this.dom.get('campoCategoria').value = producto.categoria;
+    this.dom.get('campoIcono').value = producto.icono || '';
+    this.dom.get('campoCantidad').value = producto.cantidad || 0;
+    this.dom.get('campoUnidad').value = producto.unidad || 'ud';
+
+    const stockMinimo = this.dom.get('campoStockMinimo');
+    if (stockMinimo) stockMinimo.value = producto.stock_minimo || 1;
+
+    const diasAviso = this.dom.get('campoDiasAviso');
+    if (diasAviso) diasAviso.value = producto.dias_aviso || 30;
+
+    this._mostrarIconoSeleccionado(producto.icono);
+  }
+
+  _resetearFormulario() {
+    const form = this.dom.get('formProducto');
+    if (form) form.reset();
+    this.dom.get('campoIcono').value = '';
+    this._mostrarIconoSeleccionado(null);
+  }
+
+  _llenarSelectCategoria(seleccionada = null) {
+    const select = this.dom.get('campoCategoria');
+    if (!select) return;
+
+    select.innerHTML = `
+      <option value="">-- Selecciona categoría --</option>
+      ${window.categoriasManager.categorias
+        .map(c => `
+          <option value="${c.nombre}" ${c.nombre === seleccionada ? 'selected' : ''}>
+            ${c.icono} ${c.nombre}
+          </option>
+        `)
+        .join('')}
+    `;
+  }
+
+  _mostrarIconoSeleccionado(icono) {
+    const btn = this.dom.get('btnQuitarIconoProducto');
+    if (btn) btn.hidden = !icono;
+  }
+
   // ===== HELPERS =====
   obtenerPorId(id) {
     return this.productos.find(p => p.id === id);

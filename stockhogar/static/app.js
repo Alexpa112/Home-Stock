@@ -294,7 +294,69 @@ managers.ui.suscribir((evento, datos) => {
   }
 });
 
-// ===== 6. HANDLERS DE PÁGINA =====
+// ===== 6. EVENT LISTENERS DE FORMULARIOS =====
+
+// Botón FAB (+) - Abrir modal crear producto
+const btnAbrirModal = window.DOM.get('btnAbrirModal');
+if (btnAbrirModal) {
+  btnAbrirModal.addEventListener('click', () => {
+    managers.productos.abrirModalCrear();
+  });
+}
+
+// Formulario de producto - Guardar
+const formProducto = window.DOM.get('formProducto');
+if (formProducto) {
+  formProducto.addEventListener('submit', (e) => {
+    managers.productos.guardarProducto(e);
+  });
+}
+
+// Botón cancelar modal producto
+const btnCancelar = window.DOM.get('btnCancelar');
+if (btnCancelar) {
+  btnCancelar.addEventListener('click', () => {
+    managers.productos.cerrarModal();
+  });
+}
+
+// Cerrar modal al hacer clic en el fondo
+const modal = window.DOM.get('modal');
+if (modal) {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      managers.productos.cerrarModal();
+    }
+  });
+}
+
+// Formulario de artículos compra - Guardar
+const formCompra = window.DOM.get('formCompra');
+if (formCompra) {
+  formCompra.addEventListener('submit', (e) => {
+    managers.compra.guardarArticulo(e);
+  });
+}
+
+// Cerrar modal compra
+const btnCancelarCompra = window.DOM.get('btnCancelarCompra');
+if (btnCancelarCompra) {
+  btnCancelarCompra.addEventListener('click', () => {
+    managers.compra.cerrarModal();
+  });
+}
+
+// Cerrar modal compra al hacer clic en el fondo
+const modalCompra = window.DOM.get('modalCompra');
+if (modalCompra) {
+  modalCompra.addEventListener('click', (e) => {
+    if (e.target === modalCompra) {
+      managers.compra.cerrarModal();
+    }
+  });
+}
+
+// ===== 7. HANDLERS DE PÁGINA =====
 
 // Cuando carga la página
 window.addEventListener('load', () => {

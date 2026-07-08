@@ -63,6 +63,42 @@ class CategoriasManager {
     return cat ? cat.icono : '🗂️';
   }
 
+  // ===== FORMULARIOS MODALES =====
+  abrirModalCrear() {
+    this._resetearFormularioCategoria();
+    this.dom.get('modal').hidden = false;
+  }
+
+  cerrarModal() {
+    this.dom.get('modal').hidden = true;
+    this._resetearFormularioCategoria();
+  }
+
+  async guardarCategoria(e) {
+    e?.preventDefault();
+
+    const nombre = this.dom.get('categoriaCampoNombre')?.value.trim();
+    const icono = this.dom.get('categoriaCampoIcono')?.value || '🗂️';
+
+    if (!nombre) {
+      console.warn('Nombre de categoría requerido');
+      return;
+    }
+
+    try {
+      await this.crear({ nombre, icono });
+      this.cerrarModal();
+    } catch (error) {
+      console.error('Error guardando categoría:', error);
+    }
+  }
+
+  // ===== HELPERS DE FORMULARIO =====
+  _resetearFormularioCategoria() {
+    const form = this.dom.get('formCategoria');
+    if (form) form.reset();
+  }
+
   // ===== RENDERIZADO =====
   render() {
     // Renderizar lista de categorías (en modal)

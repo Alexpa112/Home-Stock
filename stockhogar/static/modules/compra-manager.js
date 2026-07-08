@@ -107,6 +107,88 @@ class CompraManager {
     return this.completados.length;
   }
 
+  // ===== FORMULARIOS MODALES =====
+  abrirModalCrear() {
+    this._resetearFormularioCompra();
+    this.dom.get('compraModalTitulo').textContent = 'Añadir a la lista';
+    this.dom.get('compraEditId').value = '';
+    this.dom.get('modalCompra').hidden = false;
+  }
+
+  abrirModalEditar(id) {
+    const articulo = this.obtenerPorId(id);
+    if (!articulo) return;
+
+    this._llenarFormularioCompra(articulo);
+    this.dom.get('compraModalTitulo').textContent = `Editar: ${articulo.nombre}`;
+    this.dom.get('compraEditId').value = id;
+    this.dom.get('modalCompra').hidden = false;
+  }
+
+  cerrarModal() {
+    this.dom.get('modalCompra').hidden = true;
+    this._resetearFormularioCompra();
+  }
+
+  async guardarArticulo(e) {
+    e?.preventDefault();
+
+    const id = parseInt(this.dom.get('compraEditId').value);
+    const datos = this._extraerDatosFormularioCompra();
+
+    try {
+      if (id) {
+        await this.actualizar(id, datos);
+      } else {
+        await this.crear(datos);
+      }
+      this.cerrarModal();
+    } catch (error) {
+      console.error('Error guardando artículo:', error);
+      this.notificar('articulo-error', error.message);
+    }
+  }
+
+  // ===== HELPERS DE FORMULARIO =====
+  _extraerDatosFormularioCompra() {
+    return {
+      nombre: this.dom.get('compraCampoNombre')?.value.trim() || '',
+      cantidad: parseInt(this.dom.get('compraCampoCantidad')?.value) || 1,
+      unidad: this.dom.get('compraCampoUnidad')?.value.trim() || 'ud',
+      categoria: this.dom.get('compraCampoCategoria')?.value || 'Otros',
+      icono: this.dom.get('compraCampoIcono')?.value || null,
+      sub_descripcion: this.dom.get('compraCampoSubdescripcion')?.value.trim() || null,
+    };
+  }
+
+  _llenarFormularioCompra(articulo) {
+    const form = this.dom.get('formCompra');
+    if (!form) return;
+
+    const nombreInput = this.dom.get('compraCampoNombre');
+    if (nombreInput) nombreInput.value = articulo.nombre;
+
+    const cantidadInput = this.dom.get('compraCampoCantidad');
+    if (cantidadInput) cantidadInput.value = articulo.cantidad || 1;
+
+    const unidadInput = this.dom.get('compraCampoUnidad');
+    if (unidadInput) unidadInput.value = articulo.unidad || 'ud';
+
+    const categoriaSelect = this.dom.get('compraCampoCategoria');
+    if (categoriaSelect) categoriaSelect.value = articulo.categoria || 'Otros';
+
+    const iconoInput = this.dom.get('compraCampoIcono');
+    if (iconoInput) iconoInput.value = articulo.icono || '';
+
+    const subdescInput = this.dom.get('compraCampoSubdescripcion');
+    if (subdescInput) subdescInput.value = articulo.sub_descripcion || '';
+  }
+
+  _resetearFormularioCompra() {
+    const form = this.dom.get('formCompra');
+    if (form) form.reset();
+  }
+
   // ===== RENDERIZADO =====
   render() {
     const gruposCompra = this.dom.gruposCompra;
