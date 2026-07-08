@@ -3,12 +3,6 @@
  *
  * Patrón: Orquestador limpio
  * Responsabilidad: Inicializar managers y conectarlos
- *
- * Estructura:
- * 1. Constantes globales (iconos, etc.)
- * 2. Funciones helper reutilizables
- * 3. Instanciación de managers
- * 4. Wireado de eventos inter-managers
  */
 
 // ===== 1. CONSTANTES GLOBALES =====
@@ -160,8 +154,6 @@ const CATALOGO_ICONOS = [
   { icono: "🗂️", palabras: ["carpeta", "otros", "varios"] },
 ];
 
-// ===== 2. FUNCIONES HELPER =====
-
 function escapeHtml(texto) {
   const div = document.createElement("div");
   div.textContent = texto;
@@ -177,223 +169,165 @@ function normalizarTexto(texto) {
     .trim();
 }
 
-// ===== 3. INSTANCIACIÓN DE MANAGERS =====
+// ===== 2. CUANDO DOM ESTÁ LISTO =====
 
-console.log('🚀 Inicializando Frontend OOP...');
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 Inicializando aplicación...');
 
-// Verificar que singletons base estén disponibles
-if (!window.API || !window.DOM) {
-  console.error('❌ Error: window.API o window.DOM no disponibles');
-  throw new Error('Core singletons not loaded');
-}
-
-// Instanciar managers en orden de dependencia
-const managers = {
-  categorias: window.categoriasManager,
-  productos: window.productosManager,
-  compra: window.compraManager,
-  espacios: window.espaciosManager,
-  tickets: window.ticketsManager,
-  ui: window.uiManager,
-};
-
-// ===== 4. CARGA INICIAL =====
-
-async function inicializarApp() {
-  try {
-    // Cargar datos base
-    console.log('📦 Cargando categorías...');
-    await managers.categorias.cargar();
-
-    console.log('📦 Cargando productos...');
-    await managers.productos.cargar();
-
-    console.log('📦 Cargando espacios...');
-    await managers.espacios.cargar();
-
-    console.log('✅ Aplicación inicializada correctamente');
-  } catch (error) {
-    console.error('❌ Error inicializando aplicación:', error);
+  // Verificar que singletons base estén disponibles
+  if (!window.API || !window.DOM) {
+    console.error('❌ Error: window.API o window.DOM no disponibles');
+    return;
   }
-}
 
-// ===== 5. WIREADO DE EVENTOS Y RENDERS =====
+  // Instanciar managers AQUÍ, dentro de DOMContentLoaded
+  const managers = {
+    categorias: new CategoriasManager(window.API, window.DOM),
+    productos: new ProductosManager(window.API, window.DOM),
+    compra: new CompraManager(window.API, window.DOM),
+    espacios: new EspaciosManager(window.API, window.DOM),
+    tickets: new TicketsManager(window.API, window.DOM),
+    ui: new UIManager(window.API, window.DOM),
+    listas: new ListasManager(window.API, window.DOM),
+    usuarios: new UsuariosManager(window.API, window.DOM),
+    historial: new HistorialManager(window.API, window.DOM),
+  };
 
-// ProductosManager: Renderizar cuando cambian productos o filtros
-managers.productos.suscribir((evento, datos) => {
-  switch (evento) {
-    case 'productos-cargados':
-    case 'producto-creado':
-    case 'producto-actualizado':
-    case 'producto-borrado':
-    case 'filtro-cambiado':
-      console.log(`📦 ${evento}, renderizando...`);
+  // Hacer managers disponibles globalmente
+  window.productosManager = managers.productos;
+  window.compraManager = managers.compra;
+  window.categoriasManager = managers.categorias;
+  window.espaciosManager = managers.espacios;
+  window.ticketsManager = managers.tickets;
+  window.uiManager = managers.ui;
+  window.listasManager = managers.listas;
+  window.usuariosManager = managers.usuarios;
+  window.historialManager = managers.historial;
+
+  // ===== 3. WIREADO DE EVENTOS =====
+
+  // ProductosManager
+  managers.productos.suscribir((evento) => {
+    if (['productos-cargados', 'producto-creado', 'producto-actualizado', 'producto-borrado', 'filtro-cambiado'].includes(evento)) {
       managers.productos.render();
-      break;
-  }
-});
+    }
+  });
 
-// CompraManager: Renderizar cuando cambian artículos
-managers.compra.suscribir((evento, datos) => {
-  switch (evento) {
-    case 'articulos-cargados':
-    case 'articulo-creado':
-    case 'articulo-actualizado':
-    case 'articulo-borrado':
-      console.log(`🛒 ${evento}, renderizando...`);
+  // CompraManager
+  managers.compra.suscribir((evento) => {
+    if (['articulos-cargados', 'articulo-creado', 'articulo-actualizado', 'articulo-borrado'].includes(evento)) {
       managers.compra.render();
-      break;
-  }
-});
+    }
+  });
 
-// CategoriasManager: Renderizar cuando cambian categorías
-managers.categorias.suscribir((evento, datos) => {
-  switch (evento) {
-    case 'categorias-cargadas':
-    case 'categoria-creada':
-    case 'categoria-borrada':
-      console.log(`🏷️ ${evento}, renderizando...`);
+  // CategoriasManager
+  managers.categorias.suscribir((evento) => {
+    if (['categorias-cargadas', 'categoria-creada', 'categoria-borrada'].includes(evento)) {
       managers.categorias.render();
-      // También renderizar productos porque el filtro cambió
       managers.productos.render();
-      break;
-    case 'filtro-categoria-cambio':
-      // Delegado al ProductosManager
-      managers.productos.filtrar(datos);
-      break;
-  }
-});
+    }
+  });
 
-// EspaciosManager: Renderizar cuando cambian espacios
-managers.espacios.suscribir((evento, datos) => {
-  switch (evento) {
-    case 'espacios-cargados':
-    case 'espacio-creado':
-    case 'espacio-actualizado':
-    case 'espacio-borrado':
-    case 'espacio-seleccionado':
-      console.log(`🏠 ${evento}, renderizando...`);
+  // EspaciosManager
+  managers.espacios.suscribir((evento) => {
+    if (['espacios-cargados', 'espacio-creado', 'espacio-actualizado', 'espacio-borrado', 'espacio-seleccionado'].includes(evento)) {
       managers.espacios.render();
-      // Recargar productos del nuevo espacio
       if (evento === 'espacio-seleccionado') {
         managers.productos.cargar();
       }
-      break;
-  }
-});
+    }
+  });
 
-// UIManager: Sincronizar estado
-managers.ui.suscribir((evento, datos) => {
-  switch (evento) {
-    case 'modal-abierto':
-    case 'modal-cerrado':
-    case 'tema-cambiado':
-      console.log(`🎨 ${evento}`);
+  // UIManager
+  managers.ui.suscribir((evento) => {
+    if (['modal-abierto', 'modal-cerrado', 'tema-cambiado'].includes(evento)) {
       managers.ui.render();
-      break;
-  }
-});
-
-// ===== 6. EVENT LISTENERS DE FORMULARIOS =====
-
-// Botón FAB (+) - Abrir modal crear producto
-const btnAbrirModal = window.DOM.get('btnAbrirModal');
-if (btnAbrirModal) {
-  btnAbrirModal.addEventListener('click', () => {
-    managers.productos.abrirModalCrear();
-  });
-}
-
-// Formulario de producto - Guardar
-const formProducto = window.DOM.get('formProducto');
-if (formProducto) {
-  formProducto.addEventListener('submit', (e) => {
-    managers.productos.guardarProducto(e);
-  });
-}
-
-// Botón cancelar modal producto
-const btnCancelar = window.DOM.get('btnCancelar');
-if (btnCancelar) {
-  btnCancelar.addEventListener('click', () => {
-    managers.productos.cerrarModal();
-  });
-}
-
-// Cerrar modal al hacer clic en el fondo
-const modal = window.DOM.get('modal');
-if (modal) {
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      managers.productos.cerrarModal();
     }
   });
-}
 
-// Formulario de artículos compra - Guardar
-const formCompra = window.DOM.get('formCompra');
-if (formCompra) {
-  formCompra.addEventListener('submit', (e) => {
-    managers.compra.guardarArticulo(e);
-  });
-}
+  // ===== 4. EVENT LISTENERS DE BOTONES =====
 
-// Cerrar modal compra
-const btnCancelarCompra = window.DOM.get('btnCancelarCompra');
-if (btnCancelarCompra) {
-  btnCancelarCompra.addEventListener('click', () => {
-    managers.compra.cerrarModal();
-  });
-}
+  // Botón tema
+  const btnTema = window.DOM.get('btnTema');
+  if (btnTema) {
+    btnTema.addEventListener('click', () => managers.ui.toggleTema());
+  }
 
-// Cerrar modal compra al hacer clic en el fondo
-const modalCompra = window.DOM.get('modalCompra');
-if (modalCompra) {
-  modalCompra.addEventListener('click', (e) => {
-    if (e.target === modalCompra) {
-      managers.compra.cerrarModal();
+  // Botón categorías
+  const btnCategorias = window.DOM.get('btnCategorias');
+  if (btnCategorias) {
+    btnCategorias.addEventListener('click', () => managers.categorias.abrirModal?.());
+  }
+
+  // Botón crear producto (+)
+  const btnCrear = document.querySelector('.fab-button');
+  if (btnCrear) {
+    btnCrear.addEventListener('click', () => managers.productos.abrirModalCrear());
+  }
+
+  // Botón selector listas
+  const btnCambiarLista = window.DOM.get('btnCambiarLista');
+  if (btnCambiarLista) {
+    btnCambiarLista.addEventListener('click', () => managers.listas.abrirModal());
+  }
+
+  // Botón ajustes/usuarios
+  const btnAjustes = window.DOM.get('btnAjustes');
+  if (btnAjustes) {
+    btnAjustes.addEventListener('click', () => managers.usuarios.cargar());
+  }
+
+  // Botón escanear tickets
+  const btnEscanear = window.DOM.get('btnEscanearTicket');
+  if (btnEscanear) {
+    btnEscanear.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) managers.tickets.procesarArchivo?.(file);
+      });
+      input.click();
+    });
+  }
+
+  // Formulario productos
+  const formProducto = window.DOM.get('formProducto');
+  if (formProducto) {
+    formProducto.addEventListener('submit', (e) => managers.productos.guardarProducto?.(e));
+  }
+
+  // Formulario compra
+  const formCompra = window.DOM.get('formCompra');
+  if (formCompra) {
+    formCompra.addEventListener('submit', (e) => managers.compra.guardarArticulo?.(e));
+  }
+
+  // ===== 5. CARGAR DATOS INICIALES =====
+
+  async function inicializarApp() {
+    try {
+      console.log('📦 Cargando datos iniciales...');
+      await managers.categorias.cargar();
+      await managers.productos.cargar();
+      await managers.espacios.cargar();
+      console.log('✅ Aplicación lista');
+    } catch (error) {
+      console.error('❌ Error inicializando:', error);
     }
-  });
-}
-
-// ===== 7. HANDLERS DE CAMBIO RÁPIDO DE CANTIDAD =====
-
-// Delegar eventos de +/- en la lista de productos
-document.addEventListener('click', (e) => {
-  // Botones de aumentar cantidad
-  if (e.target.classList.contains('btn-cantidad-mas')) {
-    const id = parseInt(e.target.dataset.id);
-    managers.productos.cambiarCantidad(id, 1);
   }
 
-  // Botones de disminuir cantidad
-  if (e.target.classList.contains('btn-cantidad-menos')) {
-    const id = parseInt(e.target.dataset.id);
-    managers.productos.cambiarCantidad(id, -1);
-  }
-
-  // Botones de editar producto
-  if (e.target.classList.contains('btn-editar-producto')) {
-    const id = parseInt(e.target.dataset.id);
-    managers.productos.abrirModalEditar(id);
-  }
-});
-
-// ===== 7. HANDLERS DE PÁGINA =====
-
-// Cuando carga la página
-window.addEventListener('load', () => {
-  console.log('📄 Página cargada, iniciando app...');
   inicializarApp();
+
+  // ===== 6. DEBUG =====
+
+  window.__DEBUG__ = {
+    managers,
+    CATALOGO_ICONOS,
+    escapeHtml,
+    normalizarTexto,
+  };
+
+  console.log('💡 Tip: window.__DEBUG__.managers para inspeccionar');
 });
-
-// ===== 7. EXPORTAR PARA DEBUGGING =====
-
-window.__DEBUG__ = {
-  managers,
-  CATALOGO_ICONOS,
-  escapeHtml,
-  normalizarTexto,
-};
-
-console.log('💡 Tip: window.__DEBUG__.managers para inspeccionar');
