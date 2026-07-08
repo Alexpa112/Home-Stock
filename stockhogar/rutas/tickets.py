@@ -8,6 +8,7 @@ from flask import Blueprint, request
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import get_db
 from ..integraciones import ticket_ocr
+from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..utils import Validator
 from .productos import crear_producto_nuevo, sumar_stock
 
@@ -27,13 +28,27 @@ def analizar_ticket():
     try:
         archivo.save(tmp.name)
         tmp.close()
-        items = ticket_ocr.procesar_ticket(tmp.name)
-    except Exception:
-        return APIResponse.error("No se pudo leer la imagen. Comprueba que Tesseract está instalado.", 500)
+
+        # Extraer texto con OCR (Tesseract)
+        texto_ocr = ticket_ocr.extraer_texto(tmp.name)
+
+        # Procesar con sistema v2 (inteligente, sin IA)
+        proc = ProcesadorTicketsV2()
+        db = get_db()
+        items = proc.procesar_completo(texto_ocr, db)
+
+        # Formatear respuesta para UI con sugerencias
+        respuesta = crear_respuesta_usuario(items, db)
+
+    except Exception as e:
+        return APIResponse.error(
+            f"No se pudo leer la imagen. Comprueba que Tesseract está instalado. Detalle: {str(e)}",
+            500
+        )
     finally:
         os.unlink(tmp.name)
 
-    return APIResponse.success(items)
+    return APIResponse.success(respuesta)
 
 
 @bp.route("/confirmar", methods=["POST"])
