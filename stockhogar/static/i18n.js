@@ -291,7 +291,8 @@ class TranslationManager {
       // El formato es "Categoria · Avisos" o solo "Categoria"
       const partes = texto.split(' · ');
       if (partes.length > 0) {
-        const categoriaOriginal = partes[0].trim();
+        // Usar el atributo data-categoria-original si existe, sino usar el textContent
+        const categoriaOriginal = el.dataset.categoriaOriginal || partes[0].trim();
 
         // No traducir si es vacío o contiene puntos suspensivos
         if (!categoriaOriginal || categoriaOriginal === '...' || categoriaOriginal === '·') {
@@ -299,7 +300,8 @@ class TranslationManager {
         }
 
         const clave = `categoria_${categoriaOriginal.toLowerCase().replace(/ /g, '_').replace(/&/g, 'y')}`;
-        const categoriaTrad = this.t(clave) ?? categoriaOriginal;  // Usar nullish coalescing
+        // Comprobar explícitamente si la clave existe en las traducciones
+        const categoriaTrad = (this.traducciones[clave] !== undefined) ? this.traducciones[clave] : categoriaOriginal;
         const avisos = partes.slice(1).join(' · ');
         el.textContent = avisos ? `${categoriaTrad} · ${avisos}` : categoriaTrad;
         console.log(`  Tarjeta detalle: ${categoriaOriginal} -> ${categoriaTrad}`);

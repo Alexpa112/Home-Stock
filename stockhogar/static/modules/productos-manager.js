@@ -253,7 +253,7 @@ class ProductosManager {
       <div class="icono">${icono}</div>
       <div class="info">
         <div class="nombre">${nombre}</div>
-        <div class="detalle">${categoria}${detalles}</div>
+        <div class="detalle" data-categoria-original="${categoria}">${categoria}${detalles}</div>
       </div>
       <div class="contador">
         <button class="btn-restar" data-id="${producto.id}" title="Quitar uno">−</button>
