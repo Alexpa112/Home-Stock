@@ -10,6 +10,27 @@ window.fetch = async (...args) => {
   return res;
 };
 
+// Función auxiliar para fetch con timeout y manejo de errores
+async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
+    }
+
+    return res;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error(`Fetch error for ${url}:`, error);
+    throw error;
+  }
+}
+
 // Catalogo de iconos con palabras clave (para el buscador del selector).
 // Deliberadamente son emoji (no SVGs a medida): cero peso extra para la
 // Raspberry Pi y se ven bien en cualquier tema. Para que no resulten
@@ -434,9 +455,15 @@ let historialLista = [];
 let historialPorNombre = new Map();
 
 async function cargarHistorial() {
-  const res = await fetch("/api/historial");
-  historialLista = await res.json();
-  historialPorNombre = new Map(historialLista.map((h) => [h.nombre.toLowerCase(), h]));
+  try {
+    const res = await fetchConTimeout("/api/historial", {}, 8000);
+    historialLista = await res.json();
+    historialPorNombre = new Map(historialLista.map((h) => [h.nombre.toLowerCase(), h]));
+  } catch (error) {
+    console.error("Error cargando historial:", error);
+    historialLista = [];
+    historialPorNombre = new Map();
+  }
 }
 
 // Quita acentos para que buscar "platano" encuentre "Plátanos".
@@ -478,10 +505,15 @@ function agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, duracion = 480
 }
 
 async function cargarCategorias() {
-  const res = await fetch("/api/categorias");
-  categorias = await res.json();
-  renderFiltros();
-  poblarSelectCategoria(campoCategoria, campoCategoria.value);
+  try {
+    const res = await fetchConTimeout("/api/categorias", {}, 8000);
+    categorias = await res.json();
+    renderFiltros();
+    poblarSelectCategoria(campoCategoria, campoCategoria.value);
+  } catch (error) {
+    console.error("Error cargando categorías:", error);
+    categorias = [];
+  }
 }
 
 function renderFiltros() {
@@ -530,17 +562,18 @@ function renderCategoriasLista() {
 
 async function borrarCategoria(cat) {
   if (!confirm(`¿Borrar la categoría "${cat.nombre}"?`)) return;
-  const res = await fetch(`/api/categorias/${cat.id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const datos = await res.json().catch(() => ({}));
-    alert(datos.error || "No se pudo borrar la categoría");
-    return;
+
+  try {
+    const res = await fetchConTimeout(`/api/categorias/${cat.id}`, { method: "DELETE" }, 8000);
+    categorias = categorias.filter((c) => c.id !== cat.id);
+    renderCategoriasLista();
+    renderFiltros();
+    poblarSelectCategoria(campoCategoria, campoCategoria.value);
+    render();
+  } catch (error) {
+    console.error("Error borrando categoría:", error);
+    alert("Error al borrar la categoría. Por favor, intenta de nuevo.");
   }
-  categorias = categorias.filter((c) => c.id !== cat.id);
-  renderCategoriasLista();
-  renderFiltros();
-  poblarSelectCategoria(campoCategoria, campoCategoria.value);
-  render();
 }
 
 /* Selector de iconos reutilizable: buscador + rejilla filtrable. Se usa en
@@ -847,20 +880,22 @@ async function seleccionarEspacio(id) {
 
 async function borrarEspacio(esp) {
   if (!confirm(`¿Borrar el stock "${esp.nombre}"? Se borrará también todo su inventario y su lista de la compra.`)) return;
-  const res = await fetch(`/api/espacios/${esp.id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const datos = await res.json().catch(() => ({}));
-    alert(datos.error || "No se pudo borrar el stock");
-    return;
-  }
-  const eraElActual = esp.id === espacioActualId;
-  espacios = espacios.filter((e) => e.id !== esp.id);
-  renderTarjetasEspacios();
-  if (eraElActual) {
-    const actual = await (await fetch("/api/espacios/actual")).json();
-    espacioActualId = actual.id;
-    renderEspacioActual(actual);
-    await Promise.all([cargarProductos(), cargarListaCompra()]);
+
+  try {
+    await fetchConTimeout(`/api/espacios/${esp.id}`, { method: "DELETE" }, 8000);
+    const eraElActual = esp.id === espacioActualId;
+    espacios = espacios.filter((e) => e.id !== esp.id);
+    renderTarjetasEspacios();
+    if (eraElActual) {
+      const resActual = await fetchConTimeout("/api/espacios/actual", {}, 8000);
+      const actual = await resActual.json();
+      espacioActualId = actual.id;
+      renderEspacioActual(actual);
+      await Promise.all([cargarProductos(), cargarListaCompra()]);
+    }
+  } catch (error) {
+    console.error("Error borrando espacio:", error);
+    alert("Error al borrar el stock. Por favor, intenta de nuevo.");
   }
 }
 
@@ -964,9 +999,15 @@ formEspacio.addEventListener("submit", async (e) => {
 /* --- Stock --- */
 
 async function cargarProductos() {
-  const res = await fetch("/api/productos");
-  productos = await res.json();
-  render();
+  try {
+    const res = await fetchConTimeout("/api/productos", {}, 10000);
+    productos = await res.json();
+    render();
+  } catch (error) {
+    console.error("Error cargando productos:", error);
+    productos = [];
+    render();
+  }
 }
 
 function render() {
@@ -1218,11 +1259,18 @@ async function cargarListaCompra() {
   const listaId = localStorage.getItem('lista-actual');
   if (!listaId) return;
 
-  const res = await fetch(`/api/articulos?lista_id=${listaId}`);
-  const datos = await res.json();
-  pendientesCompra = datos.pendientes || [];
-  completadosCompra = datos.completados || [];
-  renderListaCompra();
+  try {
+    const res = await fetchConTimeout(`/api/articulos?lista_id=${listaId}`, {}, 8000);
+    const datos = await res.json();
+    pendientesCompra = datos.data?.pendientes || datos.pendientes || [];
+    completadosCompra = datos.data?.completados || datos.completados || [];
+    renderListaCompra();
+  } catch (error) {
+    console.error("Error cargando lista de compra:", error);
+    pendientesCompra = [];
+    completadosCompra = [];
+    renderListaCompra();
+  }
 }
 
 function ordenGrupos(nombresCategorias) {
@@ -1431,9 +1479,14 @@ if (btnBorrarArticuloEl) {
     const id = compraEditIdEl.value;
     if (!id || !confirm("¿Borrar este artículo de la lista?")) return;
 
-    await fetch(`/api/articulos/${id}`, { method: "DELETE" });
-    cerrarModalCompra();
-    cargarListaCompra();
+    try {
+      await fetchConTimeout(`/api/articulos/${id}`, { method: "DELETE" }, 8000);
+      cerrarModalCompra();
+      await cargarListaCompra();
+    } catch (error) {
+      console.error("Error eliminando artículo:", error);
+      alert("Error al eliminar artículo. Por favor, intenta de nuevo.");
+    }
   });
 }
 
