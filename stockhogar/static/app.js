@@ -2065,10 +2065,7 @@ async function cargarMisListas() {
     const response = await fetch('/api/listas');
     const data = await response.json();
 
-    renderizarSelectorListas(data.propias, data.compartidas);
-    await actualizarListaActual(data.propias);
-
-    // FASE 2: Mostrar banner si no hay listas
+    // FASE 2: Mostrar banner si no hay listas (ANTES de actualizarListaActual)
     const totalListas = (data.propias?.length || 0) + (data.compartidas?.length || 0);
     const banner = document.getElementById('bannerSinListas');
     if (banner) {
@@ -2079,6 +2076,9 @@ async function cargarMisListas() {
         banner.hidden = true;
       }
     }
+
+    renderizarSelectorListas(data.propias, data.compartidas);
+    await actualizarListaActual(data.propias);
   } catch (error) {
     console.error('Error cargando listas:', error);
   }
