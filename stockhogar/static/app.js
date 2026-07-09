@@ -2072,6 +2072,13 @@ async function cargarMisListas() {
       if (totalListas === 0) {
         banner.hidden = false;
         console.log('⚠️ Usuario sin listas - Banner visible');
+        // Configurar evento del botón del banner
+        const btnBannerCrearLista = document.getElementById('btnBannerCrearLista');
+        if (btnBannerCrearLista && window.crearListaModal) {
+          btnBannerCrearLista.addEventListener('click', () => {
+            window.crearListaModal.open();
+          });
+        }
       } else {
         banner.hidden = true;
       }
