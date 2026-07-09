@@ -1146,33 +1146,6 @@ class CrearListaModal extends FormModal {
   onOpen() {
     super.onOpen();
 
-    // Inyectar formulario dinámico cada vez que se abre el modal
-    // Esto asegura que siempre tenemos un formulario fresco sin problemas de caching
-    if (typeof FormBuilder !== 'undefined') {
-      try {
-        const modal = document.getElementById('modalCrearLista');
-        const modalContent = modal?.querySelector('.modal-content');
-        if (modalContent) {
-          FormBuilder.inyectarFormularioEnModal(modalContent);
-          // Actualizar referencia al form
-          this.form = document.querySelector('#modalCrearLista .modal-content form');
-
-          // Reinicializar handlers
-          if (this.form) {
-            this.setupIconoSelector();
-            this.setupValidaciones();
-
-            // Re-attach submit handler
-            this.form.removeEventListener('submit', this.onSubmitBound || (() => {}));
-            this.onSubmitBound = (e) => this.onSubmit(e);
-            this.form.addEventListener('submit', this.onSubmitBound);
-          }
-        }
-      } catch (error) {
-        console.error('Error en onOpen:', error);
-      }
-    }
-
     // Focus en nombre
     const inputNombre = this.form?.querySelector('input[name="nombre"]');
     if (inputNombre) {
@@ -1237,6 +1210,16 @@ class CrearListaModal extends FormModal {
 // Inicializar inmediatamente (no esperar a DOMContentLoaded porque app.js ya se ejecutó)
 function initializeDrawerListas() {
   console.log('🚀 Inicializando DrawerListasManager...');
+
+  // Inyectar formulario dinámico ANTES de crear instancias
+  if (typeof FormBuilder !== 'undefined') {
+    const modal = document.getElementById('modalCrearLista');
+    const modalContent = modal?.querySelector('.modal-content');
+    if (modalContent && !modalContent.querySelector('input[name="nombre"]')) {
+      FormBuilder.inyectarFormularioEnModal(modalContent);
+    }
+  }
+
   // Crear instancias
   window.drawerListasManager = new DrawerListasManager();
   window.crearListaModal = new CrearListaModal();
@@ -1248,7 +1231,7 @@ function initializeDrawerListas() {
   }
 
   // Agregar event listener al form
-  const form = document.getElementById('formCrearLista');
+  const form = document.querySelector('#modalCrearLista .modal-content form') || document.getElementById('formCrearLista');
   if (form) {
     form.addEventListener('submit', (e) => window.crearListaModal.onSubmit(e));
   }
