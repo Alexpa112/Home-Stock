@@ -1155,17 +1155,19 @@ class CrearListaModal extends FormModal {
   async onSubmit(e) {
     e.preventDefault();
 
-    // Fix para inputs que no se renderizan correctamente en el DOM
+    // Obtener valores del formulario, con fallback a valores por defecto
     let nombreInput = this.form.querySelector('input[name="nombre"]');
-    if (!nombreInput) {
-      nombreInput = document.createElement('input');
-      nombreInput.type = 'text';
-      nombreInput.name = 'nombre';
-      nombreInput.value = prompt('Nombre de la lista:') || '';
-      this.form.insertBefore(nombreInput, this.form.firstChild);
+    let nombre = nombreInput?.value?.trim();
+
+    if (!nombre) {
+      // Si no hay input de nombre, pedir al usuario
+      nombre = prompt('Nombre de la lista:') || '';
+      if (!nombre) {
+        alert('El nombre es requerido');
+        return;
+      }
     }
 
-    const nombre = nombreInput.value.trim();
     const icono = this.form.querySelector('input[name="icono"]')?.value || '📋';
     const color = this.form.querySelector('input[name="color"]').value || '#B5551A';
 
