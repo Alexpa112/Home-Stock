@@ -53,7 +53,8 @@ def revisar_stock_bajo(db, producto_id, lista_id=None):
             (producto_id, lista_id),
         ).fetchone()
 
-        if cantidad < stock_minimo:
+        # CAMBIO CRÍTICO: Aviso cuando cantidad <= stock_minimo (igual O menor)
+        if cantidad <= stock_minimo:
             if pendiente is None:
                 db.execute(
                     "INSERT INTO articulos_lista "
