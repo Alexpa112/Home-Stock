@@ -6,7 +6,7 @@ Crea usuarios, listas y productos directamente en BD
 import sqlite3
 import os
 from datetime import datetime
-import hashlib
+from werkzeug.security import generate_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "data", "stock.db")
@@ -15,8 +15,8 @@ def ahora():
     return datetime.now().isoformat(timespec="seconds")
 
 def hash_password(password):
-    """Hash simple (Flask usa Werkzeug)"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Mismo hash que usa la app real (stockhogar/rutas/auth.py)."""
+    return generate_password_hash(password)
 
 def setup_test_data():
     """Crea datos de prueba"""
