@@ -1224,6 +1224,11 @@ class CrearListaModal extends FormModal {
 
       this.close();
 
+      // Recargar listas para actualizar banner de FASE 2
+      if (typeof cargarMisListas === 'function') {
+        cargarMisListas();
+      }
+
       // Mensaje de éxito
       console.log('Lista creada:', datos.nombre);
     } catch (error) {
@@ -1256,10 +1261,14 @@ function initializeDrawerListas() {
     window.crearListaModal.drawerManager = window.drawerListasManager;
   }
 
-  // Agregar event listener al form
-  const form = document.querySelector('#modalCrearLista .modal-content form') || document.getElementById('formCrearLista');
-  if (form) {
-    form.addEventListener('submit', (e) => window.crearListaModal.onSubmit(e));
+  // Usar event delegation en el modal para que funcione con form inyectado dinámicamente
+  const modalCrearLista = document.getElementById('modalCrearLista');
+  if (modalCrearLista) {
+    modalCrearLista.addEventListener('submit', (e) => {
+      if (e.target && e.target.id === 'formCrearLista' && window.crearListaModal) {
+        window.crearListaModal.onSubmit(e);
+      }
+    }, true);
   }
 }
 
