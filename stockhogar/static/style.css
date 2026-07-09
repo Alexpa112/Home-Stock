@@ -162,7 +162,7 @@ body.keyboard-open #appShell {
   z-index: 5;
   background: var(--surface);
   padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--border), var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -170,9 +170,9 @@ body.keyboard-open #appShell {
 
 .topbar h1 {
   margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .acciones-cabecera {
@@ -525,16 +525,24 @@ body.keyboard-open #appShell {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 7px 14px;
+  padding: 9px 16px;
+  min-height: 40px;
   border-radius: var(--radius-pill);
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .1s ease;
 }
 .chip:hover { border-color: var(--accent); }
-.chip.activo { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+.chip:active { transform: scale(0.96); }
+.chip.activo { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); box-shadow: var(--shadow-sm); }
 .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.filtros {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
+}
 .chip-crear {
   color: var(--accent);
   border-style: dashed;
@@ -562,10 +570,11 @@ main.lista {
   align-items: flex-start;
   gap: 14px;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow .15s ease, border-color .15s ease;
+  transition: box-shadow .15s ease, border-color .15s ease, transform .1s ease;
   min-height: 100px;
 }
-.tarjeta:hover { box-shadow: var(--shadow-md); }
+.tarjeta:hover { box-shadow: var(--shadow-md); border-color: var(--accent-soft); }
+.tarjeta:active { transform: scale(0.99); }
 
 .tarjeta.bajo {
   border-color: var(--danger);
@@ -579,14 +588,14 @@ main.lista {
 .tarjeta.bajo .detalle { color: var(--danger); font-weight: 600; }
 
 .icono {
-  font-size: 2rem;
+  font-size: 1.8rem;
   flex: none;
-  width: 50px;
-  height: 50px;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-2);
+  background: var(--accent-soft);
   border-radius: var(--radius-md);
   margin-top: 2px;
 }
@@ -623,27 +632,29 @@ main.lista {
 }
 
 .contador button {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 1.05rem;
+  border: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.15rem;
+  font-weight: 700;
   cursor: pointer;
   line-height: 1;
-  transition: background-color .15s ease, color .15s ease;
+  transition: background-color .15s ease, color .15s ease, transform .1s ease;
   touch-action: manipulation;
 }
-.contador button:hover { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+.contador button:hover { background: var(--accent); color: var(--accent-contrast); }
+.contador button:active { transform: scale(0.92); }
 .contador button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .contador .cantidad {
-  min-width: 30px;
+  min-width: 34px;
   text-align: center;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .acciones {
@@ -671,9 +682,20 @@ main.lista {
 .vacio {
   text-align: center;
   color: var(--text-soft);
-  margin-top: 40px;
-  font-size: 0.95rem;
+  margin: 48px auto 0;
+  font-size: 1rem;
+  max-width: 280px;
+  line-height: 1.5;
 }
+.vacio::before {
+  content: "📦";
+  display: block;
+  font-size: 2.75rem;
+  margin-bottom: 12px;
+  opacity: 0.85;
+}
+#compraVacia::before { content: "🛒"; }
+#catalogoVacio::before { content: "🔍"; }
 
 /* ---------- Boton flotante ---------- */
 
@@ -717,7 +739,8 @@ body.modal-open .fab {
   pointer-events: none;
 }
 
-.fab:active { transform: scale(0.95); }
+.fab:active { transform: scale(0.92); }
+.fab:hover { box-shadow: 0 12px 28px -12px rgba(181,85,26,.55); transform: translateY(-1px); }
 .fab:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
 /* ---------- Modales ---------- */
@@ -837,18 +860,19 @@ body.modal-open .fab {
 }
 
 .modal-footer button {
-  padding: 0 6px;
-  height: 20px;
-  font-size: 0.65rem;
+  padding: 0 14px;
+  height: 42px;
+  min-height: 42px;
+  font-size: 0.85rem;
   white-space: nowrap;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   border: none;
   cursor: pointer;
   transition: all 200ms ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 500;
+  font-weight: 600;
   flex: 1 1 calc(50% - 1px);
   min-width: 55px;
   max-width: calc(33.333% - 2px);
