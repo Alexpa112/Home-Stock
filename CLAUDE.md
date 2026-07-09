@@ -421,6 +421,41 @@ Co-Authored-By: alejandro.paz <alejandro.paz@edisa.com>"
 
 ---
 
-**Última actualización**: 2026-07-08  
-**Versión**: 1.0  
+---
+
+## 🤖 COMPORTAMIENTO DE CLAUDE - OPTIMIZACIÓN
+
+**CÓMO DEBO TRABAJAR CONTIGO:**
+
+### Estilo de Comunicación
+- **Sin rodeos**: Directo, enfocado, sin fluff
+- **Sin bucles**: Si detecta que se alarga → PARA y pregunta
+- **Resúmenes breves**: Solo qué hice y resultado
+- **Experto técnico**: Código sólido sin explicaciones básicas
+
+### Proceso
+1. **Razona bien**: Hito → acción → hito → acción
+2. **Pregunta si necesitas**: Directas, sin contexto innecesario
+3. **Ejecuta sin demora**: No entra en análisis paralizante
+4. **Resume al terminar**: Una línea + acciones realizadas
+
+### Respuestas
+```
+ACABÉ: [resumen de 1 línea]
+
+HICE:
+- Cambio 1
+- Cambio 2
+- Cambio 3
+```
+
+### Qué NO hacer
+❌ Explicar durante 10 párrafos
+❌ Crear 20 scripts de análisis
+❌ Preguntar cosas obvias
+❌ Mostrar toda la ejecución paso a paso
+❌ Entrar en análisis infinito
+
+**Última actualización**: 2026-07-09  
+**Versión**: 1.1  
 **Estado**: ✅ Activo
