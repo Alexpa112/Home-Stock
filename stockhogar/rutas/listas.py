@@ -80,22 +80,14 @@ def crear_lista():
     )
     nueva_lista_id = cur.lastrowid
 
-    # Poblar stock_lista con TODOS los productos existentes
-    productos = db.execute("SELECT id, cantidad, stock_minimo FROM productos").fetchall()
-    for prod in productos:
-        try:
-            db.execute(
-                """INSERT OR IGNORE INTO stock_lista
-                   (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (nueva_lista_id, prod["id"], prod["cantidad"], prod["stock_minimo"], ahora(), ahora())
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.debug(f"[crear_lista] stock_lista insert error: {e}")
-
+    # Cada lista nace sin stock: el usuario añade sus propios productos
+    # (antes se poblaba con TODOS los productos de TODAS las listas/usuarios,
+    # lo que hacía que el stock pareciera compartido globalmente).
     db.commit()
+
+    # La lista recién creada pasa a ser la lista activa del usuario
+    session["lista_actual_id"] = nueva_lista_id
+    session.modified = True
 
     lista = db.execute("SELECT * FROM listas WHERE id = ?", (nueva_lista_id,)).fetchone()
     return APIResponse.success(DataConverter.lista_to_dict(lista, usuario_id, include_detalles=True), 201)

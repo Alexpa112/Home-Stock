@@ -54,7 +54,10 @@ def anadir_articulo():
     """Añade un artículo a una lista (requiere permiso 'editar')."""
     usuario_id = session.get("usuario_id")
     datos = request.get_json(force=True) or {}
-    lista_id = datos.get("lista_id", type=int)
+    try:
+        lista_id = int(datos.get("lista_id")) if datos.get("lista_id") is not None else None
+    except (TypeError, ValueError):
+        return APIResponse.error("lista_id debe ser un número", 400)
     nombre = (datos.get("nombre") or "").strip()
 
     if not nombre:

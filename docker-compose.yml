@@ -8,10 +8,15 @@ services:
     container_name: stockhogar-app
     ports:
       - "${STOCKHOGAR_PORT:-5000}:5000"
+    # env_file inyecta TODAS las variables de .env (OAuth, SMTP, APP_URL...) que
+    # stockhogar/config.py lee vía os.getenv. Sin esto, aunque el .env exista en
+    # el host, el contenedor no las ve y el login OAuth / envío de invitaciones
+    # por email quedan rotos en silencio.
+    env_file:
+      - .env
     environment:
       - FLASK_APP=stockhogar
       - FLASK_ENV=${FLASK_ENV:-production}
-      - DATABASE_URL=sqlite:////app/data/stockhogar.db
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs

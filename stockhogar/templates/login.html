@@ -422,6 +422,10 @@
     document.getElementById("campoUsuarioReg").disabled = true;
     document.getElementById("campoPasswordReg").disabled = true;
     document.getElementById("campoPassword2Reg").disabled = true;
+    // Reactivar los de login: son "required" y bloquean el submit (constraint
+    // validation) si quedan habilitados-pero-vacíos desde el estado anterior.
+    document.getElementById("campoUsuario").disabled = false;
+    document.getElementById("campoPassword").disabled = false;
     document.getElementById("subtituloForm").textContent = "Inicia sesión para continuar.";
     document.getElementById("btnFormulario").textContent = "Entrar";
     document.getElementById("textoAlternar").textContent = '¿No tienes cuenta?';
@@ -436,6 +440,11 @@
     document.getElementById("campoUsuarioReg").disabled = false;
     document.getElementById("campoPasswordReg").disabled = false;
     document.getElementById("campoPassword2Reg").disabled = false;
+    // Deshabilitar los de login: siguen siendo "required" aunque estén ocultos,
+    // así que si se dejan habilitados-pero-vacíos bloquean el submit entero
+    // (constraint validation) sin ningún error visible para el usuario.
+    document.getElementById("campoUsuario").disabled = true;
+    document.getElementById("campoPassword").disabled = true;
     document.getElementById("subtituloForm").textContent = "Crea tu cuenta para empezar.";
     document.getElementById("btnFormulario").textContent = "Crear cuenta";
     document.getElementById("textoAlternar").textContent = '¿Ya tienes cuenta?';

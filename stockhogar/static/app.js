@@ -1036,7 +1036,9 @@ function render() {
 
 function crearTarjeta(p) {
   const div = document.createElement("div");
-  const bajoStock = p.cantidad < p.stock_minimo;
+  // <= (no <): igual que el aviso automático del backend (revisar_stock_bajo),
+  // así la tarjeta se marca "pocas unidades" exactamente cuando ese aviso se dispara.
+  const bajoStock = p.cantidad <= p.stock_minimo;
   div.className = "tarjeta" + (bajoStock ? " bajo" : "") + (p.revisar_caducidad ? " aviso-caducidad" : "");
 
   const avisos = [];
@@ -2221,6 +2223,24 @@ async function actualizarListaActual(listas = null) {
 }
 
 async function cambiarLista(listaId) {
+  // Fuente única de verdad: primero confirma con el backend (sesión) que el
+  // usuario tiene acceso a la lista, y solo entonces persiste en localStorage.
+  // Antes había una segunda implementación (DrawerListasManager.cambiarLista)
+  // que sí llamaba a /seleccionar; esta no lo hacía y dejaba la sesión del
+  // backend desincronizada con localStorage, mostrando stock de otra lista.
+  try {
+    const res = await fetch(`/api/listas/${listaId}/seleccionar`, { method: 'POST' });
+    if (!res.ok) {
+      console.error('Error cambiando lista:', res.status);
+      alert('No se pudo cambiar la lista');
+      return;
+    }
+  } catch (error) {
+    console.error('Error en cambiarLista:', error);
+    alert('Error al cambiar de lista');
+    return;
+  }
+
   localStorage.setItem('lista-actual', listaId);
 
   // Cerrar modal
@@ -2237,6 +2257,7 @@ async function cambiarLista(listaId) {
   // Actualizar selector visible
   await cargarMisListas();
 }
+window.cambiarLista = cambiarLista;
 
 // ============ INICIALIZACIONES ============
 
@@ -2401,7 +2422,6 @@ if (listaActualBtnEl) {
   const formCrearLista = document.getElementById('formCrearLista');
   const modalCrearLista = document.getElementById('modalCrearLista');
   const btnCerrarCrearLista = document.getElementById('btnCerrarCrearLista');
-  const btnSeleccionarIconoNuevaLista = document.getElementById('btnSeleccionarIconoNuevaLista');
   const iconoSeleccionadoNuevaLista = document.getElementById('iconoSeleccionadoNuevaLista');
   const crearListaColor = document.getElementById('crearListaColor');
   const colorPreviewCrear = document.getElementById('colorPreviewCrear');
@@ -2442,17 +2462,12 @@ if (listaActualBtnEl) {
     }
   });
 
-  // Botón para seleccionar icono
-  if (btnSeleccionarIconoNuevaLista) {
-    btnSeleccionarIconoNuevaLista.addEventListener('click', (e) => {
-      e.preventDefault();
-      const iconoActual = formCrearLista.querySelector('input[name="icono"]').value || '📋';
-      abrirModalSelectorIconos(iconoActual, (nuevoIcono) => {
-        iconoSeleccionadoNuevaLista.textContent = nuevoIcono;
-        formCrearLista.querySelector('input[name="icono"]').value = nuevoIcono;
-      });
-    });
-  }
+  // NOTA: El botón "Cambiar icono" NO se enlaza aquí: FormBuilder.inyectarFormularioEnModal
+  // recrea ese botón cada vez que se abre el modal (ver CrearListaModal.onOpen en
+  // drawer-listas.js), así que un listener añadido una sola vez aquí, al cargar la página,
+  // queda enganchado al nodo original y deja de funcionar tras la primera apertura.
+  // El handler real vive en CrearListaModal.setupIconoSelector (drawer-listas.js),
+  // que se reejecuta cada vez que el botón se regenera.
 
   // Preview de color
   if (crearListaColor) {

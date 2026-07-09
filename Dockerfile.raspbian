@@ -1,98 +1,60 @@
-# Dockerfile para StockHogar en Raspbian (ARM)
+# Dockerfile para StockHogar en Raspberry Pi / Debian (ARM o x86)
 FROM python:3.11-slim-bullseye
 
-# Metadatos
 LABEL maintainer="StockHogar Dev Team"
-LABEL version="1.0"
+LABEL version="1.1"
 LABEL description="StockHogar - Inventory Management System"
 
-# Variables de entorno
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive \
-    TZ=Europe/Madrid
+    TZ=Europe/Madrid \
+    PORT=5000
 
-# Actualizar sistema base
-RUN apt-get update && apt-get upgrade -y
-
-# Instalar dependencias del sistema (Tesseract, OpenCV, etc.)
-RUN apt-get install -y --no-install-recommends \
-    # Tesseract OCR
-    tesseract-ocr \
-    tesseract-ocr-spa \
-    libtesseract-dev \
-    \
-    # OpenCV dependencias
-    libatlas-base-dev \
-    libjasper-dev \
-    libtiff-dev \
-    libjasper1 \
-    libharfbuzz0b \
-    libwebp6 \
-    libtiff5 \
-    libjasper1 \
-    libatlas3-base \
-    libqtgui4 \
-    python3-pyqt5 \
-    libqt4-test \
-    libhdf5-dev \
-    libharfbuzz0b \
-    libwebp6 \
-    libtiff5 \
-    \
-    # Herramientas generales
-    curl \
-    wget \
-    git \
-    build-essential \
-    pkg-config \
-    cmake \
-    \
-    # Dependencias adicionales
-    libssl-dev \
-    libffi-dev \
-    libbz2-dev \
-    zlib1g-dev \
-    liblzma-dev \
-    libsqlite3-dev \
-    && \
-    apt-get clean && \
+# Paquetes de sistema: solo lo que hace falta para compilar/ejecutar las
+# dependencias Python de requirements.txt (Tesseract para OCR, tesseract-ocr-spa
+# para el idioma, y toolchain mínimo para compilar python-Levenshtein en ARM
+# si no hay wheel prebuilt). Se evita instalar dependencias de OpenCV a nivel
+# de sistema (libjasper1, libwebp6, libtiff5, python3-pyqt5, libqt4-test...):
+# son paquetes de la era Debian Buster que YA NO EXISTEN en Bullseye/Bookworm
+# y rompían el build; opencv-python-headless (ver requirements.txt) trae sus
+# propios binarios y no necesita ninguno de ellos.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        tesseract-ocr \
+        tesseract-ocr-spa \
+        libtesseract-dev \
+        curl \
+        build-essential \
+        pkg-config \
+    && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Crear directorio de la aplicación
 WORKDIR /app
 
-# Copiar archivos del proyecto
+# Se copian primero solo las dependencias para aprovechar la cache de capas
+# de Docker: si el código cambia pero requirements.txt no, no se reinstala nada.
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
 COPY . /app/
 
-# Instalar dependencias Python
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir \
-    Flask==3.1.3 \
-    Pillow==12.3.0 \
-    opencv-python==5.0.0.93 \
-    pytesseract==0.3.13 \
-    fuzzywuzzy==0.18.0 \
-    python-Levenshtein==0.27.3 \
-    rapidfuzz==3.14.5 \
-    numpy==2.5.1
+# data/, logs/ y uploads/ ya se montan como volúmenes desde docker-compose.yml;
+# se crean aquí también para que el healthcheck y una ejecución sin compose
+# (docker run suelto) no fallen por directorios inexistentes.
+RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr
 
-# Crear estructura de directorios necesarios
-RUN mkdir -p /app/data \
-    /app/logs \
-    /app/uploads \
-    /app/stockhogar/servicios/ocr
+# Verificación en build-time: si falta algún paquete crítico, el build falla
+# aquí en vez de fallar en producción al primer request.
+RUN python3 -c "import flask, cv2, pytesseract, fuzzywuzzy, gunicorn; print('[OK] Paquetes Python verificados')" && \
+    tesseract --version | head -1 && echo "[OK] Tesseract instalado"
 
-# Verificar instalaciones críticas
-RUN python3 -c "import flask, cv2, pytesseract, fuzzywuzzy; print('[OK] All Python packages installed')" && \
-    which tesseract && tesseract --version && echo "[OK] Tesseract installed"
-
-# Puerto por defecto
 EXPOSE 5000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import flask; print('OK')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -fsS "http://localhost:${PORT}/" >/dev/null || exit 1
 
-# Comando por defecto
-CMD ["python3", "-m", "flask", "--app", "stockhogar", "run", "--host", "0.0.0.0", "--port", "5000"]
+# gunicorn en vez del servidor de desarrollo de Flask: soporta varios workers
+# y no muestra el aviso de "esto no es apto para producción" en los logs.
+CMD ["sh", "-c", "gunicorn --workers 2 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - run:app"]

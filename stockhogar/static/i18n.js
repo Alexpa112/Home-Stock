@@ -138,25 +138,33 @@ class TranslationManager {
       }
     });
 
-    // Traducir labels y sus textos
-    document.querySelectorAll('label').forEach(el => {
-      const texto = el.textContent.trim();
-      const claveMap = {
-        'Nombre': 'nombre',
-        'Categoria': 'categoria',
-        'Icono': 'icono',
-        'Cantidad': 'cantidad',
-        'Unidad': 'unidad',
-        'Stock minimo': 'stock_minimo',
-        'Sub-descripción': 'sub_descripcion',
-        'Avisar para revisar caducidad si no cambia en (días)': 'avisar_caducidad',
-      };
+    // Traducir labels y sus textos.
+    // IMPORTANTE: nunca usar `el.textContent = ...` aquí. Muchos <label> de la
+    // app envuelven un <input>/<select> (p.ej. <label>Cantidad<input ...></label>),
+    // y asignar textContent borra esos hijos (textContent los reemplaza por un
+    // único nodo de texto), dejando el campo sin su <input> y rompiendo el
+    // formulario entero (añadir producto, añadir a la lista de la compra, etc.).
+    // Por eso se sustituye solo dentro de los nodos de texto directos del label.
+    const claveMapLabels = {
+      'Nombre': 'nombre',
+      'Categoria': 'categoria',
+      'Icono': 'icono',
+      'Cantidad': 'cantidad',
+      'Unidad': 'unidad',
+      'Stock minimo': 'stock_minimo',
+      'Sub-descripción': 'sub_descripcion',
+      'Avisar para revisar caducidad si no cambia en (días)': 'avisar_caducidad',
+    };
 
-      Object.entries(claveMap).forEach(([texto_es, clave]) => {
-        if (el.textContent.includes(texto_es)) {
-          const trad = this.t(clave);
-          el.textContent = el.textContent.replace(texto_es, trad);
-        }
+    document.querySelectorAll('label').forEach(el => {
+      Array.from(el.childNodes).forEach(nodo => {
+        if (nodo.nodeType !== Node.TEXT_NODE) return;
+        Object.entries(claveMapLabels).forEach(([texto_es, clave]) => {
+          if (nodo.textContent.includes(texto_es)) {
+            const trad = this.t(clave);
+            nodo.textContent = nodo.textContent.replace(texto_es, trad);
+          }
+        });
       });
     });
 

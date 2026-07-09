@@ -971,39 +971,25 @@ class DrawerListasManager {
   }
 
   async cambiarLista(listaId) {
-    try {
-      const res = await fetch(`/api/listas/${listaId}/seleccionar`, {
-        method: 'POST'
-      });
-
-      if (!res.ok) {
-        console.error('Error cambiando lista:', res.status);
-        alert('No se pudo cambiar la lista');
-        return;
-      }
-
-      // Actualizar localStorage para que la app sepa qué lista cargar
-      const listaSeleccionada = this.listas.find(l => l.id === listaId);
-      if (listaSeleccionada) {
-        localStorage.setItem('lista-actual', listaSeleccionada.id);
-        localStorage.setItem('lista-actual-nombre', listaSeleccionada.nombre);
-        localStorage.setItem('lista-actual-icono', listaSeleccionada.icono || '📋');
-      }
-
-      // Actualizar en memoria
-      this.listaActualId = listaId;
-      this.renderizarListas();
-      this.cerrarModal();
-
-      console.log(`Lista seleccionada: ${listaId}`);
-
-      // Recargar la aplicación para mostrar nueva lista
-      await new Promise(resolve => setTimeout(resolve, 300));
-      location.reload();
-    } catch (error) {
-      console.error('Error en cambiarLista:', error);
-      alert('Error al cambiar de lista');
+    // Delega en la función global (app.js), que es la única fuente de verdad
+    // para sincronizar sesión backend + localStorage. Evita mantener dos
+    // implementaciones que podían desincronizarse entre sí.
+    if (typeof window.cambiarLista !== 'function') {
+      console.error('window.cambiarLista no está disponible');
+      return;
     }
+
+    await window.cambiarLista(listaId);
+
+    const listaSeleccionada = this.listas.find(l => l.id === listaId);
+    if (listaSeleccionada) {
+      localStorage.setItem('lista-actual-nombre', listaSeleccionada.nombre);
+      localStorage.setItem('lista-actual-icono', listaSeleccionada.icono || '📋');
+    }
+
+    this.listaActualId = listaId;
+    this.renderizarListas();
+    this.cerrarModal();
   }
 
   abrirModal() {
@@ -1111,8 +1097,22 @@ class CrearListaModal extends FormModal {
     this.btnIcono = document.getElementById('btnSeleccionarIconoNuevaLista');
     this.iconoSeleccionado = document.getElementById('iconoSeleccionadoNuevaLista');
 
-    // NOTA: El handler para este botón se registra en app.js (línea ~2238)
-    // No duplicar aquí para evitar conflictos con el callback
+    // El handler se registra AQUÍ (no en app.js) porque FormBuilder.inyectarFormularioEnModal
+    // recrea este botón en cada apertura del modal (onOpen); un listener añadido una sola vez
+    // en app.js al cargar la página queda enganchado al nodo viejo y ya destruido, y el botón
+    // deja de responder a partir de la primera apertura.
+    if (this.btnIcono) {
+      this.btnIcono.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!window.abrirModalSelectorIconos) return;
+        const iconoInput = this.form.querySelector('input[name="icono"]');
+        const iconoActual = iconoInput?.value || '📋';
+        window.abrirModalSelectorIconos(iconoActual, (nuevoIcono) => {
+          if (this.iconoSeleccionado) this.iconoSeleccionado.textContent = nuevoIcono;
+          if (iconoInput) iconoInput.value = nuevoIcono;
+        });
+      });
+    }
 
     // Color picker
     const colorInput = this.form.querySelector('input[name="color"]');
@@ -1223,8 +1223,12 @@ class CrearListaModal extends FormModal {
 
       this.close();
 
-      // Recargar listas para actualizar banner de FASE 2
-      if (typeof cargarMisListas === 'function') {
+      // La lista recién creada se selecciona y abre automáticamente
+      // (backend ya la deja como lista_actual_id en sesión; aquí sincronizamos
+      // localStorage y recargamos stock/lista de la compra con ella).
+      if (typeof window.cambiarLista === 'function') {
+        await window.cambiarLista(datos.id);
+      } else if (typeof cargarMisListas === 'function') {
         cargarMisListas();
       }
 
@@ -1260,7 +1264,22 @@ function initializeDrawerListas() {
     window.crearListaModal.drawerManager = window.drawerListasManager;
   }
 
-  // Usar event delegation en el modal para que funcione con form inyectado dinámicamente
+  // Blindaje: el botón "Crear lista" es type="button" (no submit) para que un
+  // click NUNCA pueda disparar la sumisión nativa del <form> (que navegaría a
+  // "/" con GET e interrumpiría el fetch de creación a medias). El handler se
+  // llama explícitamente aquí en vez de depender de un evento 'submit'.
+  const btnCrearListaSubmit = document.getElementById('btnCrearListaSubmit');
+  if (btnCrearListaSubmit) {
+    btnCrearListaSubmit.addEventListener('click', (e) => {
+      if (window.crearListaModal) {
+        window.crearListaModal.onSubmit(e);
+      }
+    });
+  }
+
+  // Se mantiene también la delegación del evento 'submit' (p.ej. si el usuario
+  // pulsa Enter dentro del input de nombre, el <form> dispara 'submit' aunque
+  // no haya un botón submit dentro); previene igualmente la navegación nativa.
   const modalCrearLista = document.getElementById('modalCrearLista');
   if (modalCrearLista) {
     modalCrearLista.addEventListener('submit', (e) => {

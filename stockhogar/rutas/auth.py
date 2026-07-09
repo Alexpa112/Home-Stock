@@ -54,9 +54,6 @@ def registrar():
     if len(password) < 8:
         return APIResponse.validacion("La contraseña debe tener al menos 8 caracteres")
 
-    if hay_usuarios(db) and not usuario_actual():
-        return APIResponse.no_autorizado()
-
     existente = db.execute(
         "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
     ).fetchone()
