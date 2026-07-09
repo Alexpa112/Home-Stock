@@ -2067,6 +2067,19 @@ async function cargarMisListas() {
 
     renderizarSelectorListas(data.propias, data.compartidas);
     await actualizarListaActual(data.propias);
+
+    // FASE 2: Si el usuario no tiene listas, obligar a crear una
+    const totalListas = (data.propias?.length || 0) + (data.compartidas?.length || 0);
+    if (totalListas === 0 && window.crearListaModal) {
+      console.log('⚠️ Usuario sin listas - Forzando creación');
+      // Abrir modal de crear lista
+      window.crearListaModal.open();
+      // Deshabilitar botón de cerrar para hacerlo obligatorio
+      const btnCerrar = document.getElementById('btnCerrarCrearLista');
+      if (btnCerrar) {
+        btnCerrar.style.display = 'none';
+      }
+    }
   } catch (error) {
     console.error('Error cargando listas:', error);
   }
