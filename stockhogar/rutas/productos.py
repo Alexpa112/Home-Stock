@@ -76,23 +76,54 @@ def revisar_stock_bajo(db, producto_id, lista_id=None):
         logger.error(f"[revisar_stock_bajo] Error: {type(e).__name__}: {e}", exc_info=True)
 
 
-def sumar_stock(db, producto_id, cantidad_a_sumar):
-    """Suma unidades a un producto existente (usado por +/- y por la confirmacion de tickets)."""
+def sumar_stock(db, producto_id, cantidad_a_sumar, lista_id=None):
+    """Suma unidades a un producto (mantiene sincronía entre productos y stock_lista)."""
+    from flask import session
+
     fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
     if fila is None:
         return
+
     nueva_cantidad = max(0, fila["cantidad"] + cantidad_a_sumar)
+
+    # Actualizar productos (compatibilidad)
     db.execute(
         "UPDATE productos SET cantidad = ?, fecha_actualizacion = ? WHERE id = ?",
         (nueva_cantidad, ahora(), producto_id),
     )
-    revisar_stock_bajo(db, producto_id)
+
+    # Actualizar stock_lista: si lista_id no se proporciona, actualizar TODAS las listas
+    if lista_id is None:
+        # Obtener lista_id de sesión
+        lista_id = session.get("lista_actual_id")
+        if not lista_id:
+            usuario_id = session.get("usuario_id")
+            if usuario_id:
+                lista = db.execute(
+                    "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                    (usuario_id,)
+                ).fetchone()
+                if lista:
+                    lista_id = lista["id"]
+
+    # Actualizar en stock_lista si existe entrada
+    if lista_id:
+        db.execute(
+            """UPDATE stock_lista SET cantidad = ?, fecha_actualizacion = ?
+               WHERE lista_id = ? AND producto_id = ?""",
+            (nueva_cantidad, ahora(), lista_id, producto_id)
+        )
+
+    revisar_stock_bajo(db, producto_id, lista_id)
 
 
 def crear_producto_nuevo(
     db, nombre, categoria, cantidad, unidad, stock_minimo=1, dias_aviso=DIAS_AVISO_DEFECTO,
-    icono=None, espacio_id=None,
+    icono=None, espacio_id=None, lista_id=None,
 ):
+    """Crea producto en catálogo y registra stock en stock_lista."""
+    from flask import session
+
     categoria = normalizar_categoria(db, categoria)
     if not icono:
         recuerdo = buscar_historial(db, nombre)
@@ -100,16 +131,41 @@ def crear_producto_nuevo(
             icono = recuerdo["icono"]
     if espacio_id is None:
         espacio_id = obtener_espacio_actual(db)
+
+    # Obtener lista_id si no se proporciona
+    if lista_id is None:
+        lista_id = session.get("lista_actual_id")
+        if not lista_id:
+            usuario_id = session.get("usuario_id")
+            if usuario_id:
+                lista = db.execute(
+                    "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                    (usuario_id,)
+                ).fetchone()
+                if lista:
+                    lista_id = lista["id"]
+
     cur = db.execute(
         "INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo, "
         "fecha_creacion, fecha_actualizacion, dias_aviso, icono, espacio_id) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono, espacio_id),
     )
+    producto_id = cur.lastrowid
+
+    # Crear entrada en stock_lista para esta lista
+    if lista_id:
+        db.execute(
+            """INSERT OR IGNORE INTO stock_lista
+               (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (lista_id, producto_id, cantidad, stock_minimo, ahora(), ahora())
+        )
+
     # Siempre guardar en historial para sincronización stock ↔ catálogo
     recordar_articulo(db, nombre, icono or "📦", categoria, unidad, cantidad_defecto=cantidad)
-    revisar_stock_bajo(db, cur.lastrowid)
-    return cur.lastrowid
+    revisar_stock_bajo(db, producto_id, lista_id)
+    return producto_id
 
 
 @bp.route("", methods=["GET"])
@@ -129,6 +185,7 @@ def listar_productos():
 @requerir_sesion
 @manejo_errores
 def crear_producto():
+    from flask import session
     datos = request.get_json(force=True) or {}
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 80)
     categoria = Validator.string_opcional(datos.get("categoria"), "Otros", 50)
@@ -140,8 +197,21 @@ def crear_producto():
 
     db = get_db()
     espacio_id = obtener_espacio_actual(db)
+
+    # Obtener lista actual
+    lista_id = session.get("lista_actual_id")
+    if not lista_id:
+        usuario_id = session.get("usuario_id")
+        if usuario_id:
+            lista = db.execute(
+                "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                (usuario_id,)
+            ).fetchone()
+            if lista:
+                lista_id = lista["id"]
+
     producto_id = crear_producto_nuevo(
-        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, espacio_id
+        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, espacio_id, lista_id
     )
     db.commit()
     fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
@@ -242,6 +312,7 @@ def traducir_producto_auto():
 @requerir_sesion
 @manejo_errores
 def actualizar_producto(producto_id):
+    from flask import session
     db = get_db()
     espacio_id = obtener_espacio_actual(db)
     fila = db.execute(
@@ -253,9 +324,21 @@ def actualizar_producto(producto_id):
     datos = request.get_json(force=True) or {}
     actual = DataConverter.producto_to_dict(fila)
 
+    # Obtener lista_id actual para actualizaciones en stock_lista
+    lista_id = session.get("lista_actual_id")
+    if not lista_id:
+        usuario_id = session.get("usuario_id")
+        if usuario_id:
+            lista = db.execute(
+                "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                (usuario_id,)
+            ).fetchone()
+            if lista:
+                lista_id = lista["id"]
+
     if "delta" in datos:
         delta = int(datos.get("delta", 0))
-        sumar_stock(db, producto_id, delta)
+        sumar_stock(db, producto_id, delta, lista_id)
     else:
         nombre = Validator.string_opcional(datos.get("nombre"), actual["nombre"], 80)
         categoria = datos.get("categoria") or actual["categoria"]
@@ -274,9 +357,18 @@ def actualizar_producto(producto_id):
             "dias_aviso=?, icono=?, fecha_actualizacion=? WHERE id=?",
             (nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, ahora(), producto_id),
         )
+
+        # Actualizar también en stock_lista
+        if lista_id:
+            db.execute(
+                """UPDATE stock_lista SET cantidad=?, stock_minimo=?, fecha_actualizacion=?
+                   WHERE lista_id=? AND producto_id=?""",
+                (cantidad, stock_minimo, ahora(), lista_id, producto_id)
+            )
+
         if icono:
             recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
-        revisar_stock_bajo(db, producto_id)
+        revisar_stock_bajo(db, producto_id, lista_id)
 
     db.commit()
     fila = db.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()

@@ -291,6 +291,49 @@ def init_db():
         """
     )
 
+    # Tabla stock_lista: NUEVA - stock POR LISTA, no global
+    # Modelo B: cada lista tiene su propio stock independiente
+    # Listas compartidas comparten las mismas filas de stock
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS stock_lista (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lista_id INTEGER NOT NULL REFERENCES listas(id) ON DELETE CASCADE,
+            producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+            cantidad INTEGER NOT NULL DEFAULT 0,
+            stock_minimo INTEGER NOT NULL DEFAULT 1,
+            fecha_creacion TEXT NOT NULL,
+            fecha_actualizacion TEXT NOT NULL,
+            UNIQUE(lista_id, producto_id)
+        )
+        """
+    )
+
+    # Migración de datos: si stock_lista está vacía, poblarla desde productos
+    # Para cada lista del usuario, crear entrada de stock para todos los productos
+    stock_count = db.execute("SELECT COUNT(*) AS n FROM stock_lista").fetchone()["n"]
+    if stock_count == 0:
+        listas = db.execute("SELECT id FROM listas").fetchall()
+        productos = db.execute("SELECT id, cantidad, stock_minimo FROM productos").fetchall()
+
+        for lista in listas:
+            lista_id = lista["id"]
+            for prod in productos:
+                try:
+                    db.execute(
+                        """INSERT OR IGNORE INTO stock_lista
+                           (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        (lista_id, prod["id"], prod["cantidad"], prod["stock_minimo"], ahora(), ahora())
+                    )
+                except Exception as e:
+                    # Ignorar errores de duplicados o constraints
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"[stock_lista migration] Ignorando error: {e}")
+
+        db.commit()
+
     # Compatibilidad: si existe lista_compra antigua, no hacer nada por ahora
     # (se migrará después con la función _migrar_lista_compra_a_articulos)
     tabla_existe = db.execute(
