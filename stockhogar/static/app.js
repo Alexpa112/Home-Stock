@@ -328,8 +328,15 @@ function ajustarViewportMovil() {
   const hayModalAbierto = Array.from(document.querySelectorAll('.modal-fondo')).some((modal) => !modal.hidden);
   tecladoOffset = offsetEfectivo;
   document.documentElement.style.setProperty("--keyboard-offset", `${offsetEfectivo}px`);
+  // --keyboard-height y la clase is-keyboard-open son leídos por ui-components.js
+  // (TicketModal/CatalogModal.getMaxHeight() y responsive.css). Se fijan aquí
+  // también para que exista una única fuente de verdad: antes KeyboardManager
+  // (ui-components.js) los calculaba de forma independiente vía focusin/focusout
+  // y un umbral distinto, pudiendo desincronizarse del alto real del teclado.
+  document.documentElement.style.setProperty("--keyboard-height", `${offsetEfectivo}px`);
   // Aplicar clase SIEMPRE que el teclado esté abierto, incluso con modal
   document.body.classList.toggle("keyboard-open", offsetEfectivo > 0);
+  document.body.classList.toggle("is-keyboard-open", offsetEfectivo > 0);
   sincronizarEstadoModal();
 
   if (offsetEfectivo > 0 && !hayModalAbierto && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {

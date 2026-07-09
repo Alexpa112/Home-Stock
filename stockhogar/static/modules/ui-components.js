@@ -303,52 +303,11 @@ class KeyboardManager {
   }
 
   init() {
-    // Detectar teclado iOS
-    window.visualViewport?.addEventListener('resize', () => this.updateKeyboardHeight());
-
-    // Detectar teclado Android
-    window.addEventListener('focusin', () => this.handleFocusIn());
-    window.addEventListener('focusout', () => this.handleFocusOut());
-  }
-
-  updateKeyboardHeight() {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const windowHeight = window.innerHeight;
-    const viewportHeight = viewport.height;
-    const newHeight = Math.max(0, windowHeight - viewportHeight);
-
-    if (newHeight > 50) {
-      this.height = newHeight;
-      this.isOpen = true;
-    } else {
-      this.height = 0;
-      this.isOpen = false;
-    }
-
-    this.updateCSS();
-  }
-
-  handleFocusIn() {
-    document.body.classList.add('is-keyboard-open');
-  }
-
-  handleFocusOut() {
-    setTimeout(() => {
-      const activeEl = document.activeElement;
-      if (!this.isInputElement(activeEl)) {
-        document.body.classList.remove('is-keyboard-open');
-      }
-    }, 100);
-  }
-
-  isInputElement(el) {
-    return el && ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName);
-  }
-
-  updateCSS() {
-    document.documentElement.style.setProperty('--keyboard-height', `${this.height}px`);
+    // No engancha sus propios listeners de visualViewport/focus: app.js
+    // (ajustarViewportMovil) es la única fuente de verdad para el alto de
+    // teclado y ya escribe --keyboard-height e is-keyboard-open. Dos
+    // trackers independientes (éste usaba un umbral y cálculo distintos)
+    // podían desincronizarse y dar una altura de modal incorrecta.
   }
 
   getHeight() {
