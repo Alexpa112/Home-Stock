@@ -1517,6 +1517,45 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   width: 100%;
   padding: 12px;
   border-radius: var(--radius-sm);
+}
+
+/* Banner para usuarios sin listas */
+.banner-alerta {
+  background: var(--warn-soft);
+  border-left: 4px solid var(--warn);
+  padding: 16px;
+  margin: 0 0 16px 0;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.banner-alerta p {
+  margin: 0;
+  flex: 1;
+  font-weight: 500;
+}
+
+.btn-banner {
+  padding: 8px 16px;
+  background: var(--warn);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 200ms ease;
+  white-space: nowrap;
+}
+
+.btn-banner:hover {
+  opacity: 0.9;
+}
   border: 1px solid var(--border);
   font-size: 1rem;
   min-height: 44px;

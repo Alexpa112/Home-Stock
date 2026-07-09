@@ -2067,6 +2067,18 @@ async function cargarMisListas() {
 
     renderizarSelectorListas(data.propias, data.compartidas);
     await actualizarListaActual(data.propias);
+
+    // FASE 2: Mostrar banner si no hay listas
+    const totalListas = (data.propias?.length || 0) + (data.compartidas?.length || 0);
+    const banner = document.getElementById('bannerSinListas');
+    if (banner) {
+      if (totalListas === 0) {
+        banner.hidden = false;
+        console.log('⚠️ Usuario sin listas - Banner visible');
+      } else {
+        banner.hidden = true;
+      }
+    }
   } catch (error) {
     console.error('Error cargando listas:', error);
   }
