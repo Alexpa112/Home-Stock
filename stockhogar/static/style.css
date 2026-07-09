@@ -1556,6 +1556,15 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .btn-banner:hover {
   opacity: 0.9;
 }
+
+.banner-alerta[hidden] {
+  display: none;
+}
+
+.nueva-categoria-fila input {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   font-size: 1rem;
   min-height: 44px;

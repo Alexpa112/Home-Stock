@@ -2065,6 +2065,15 @@ async function cargarMisListas() {
     const response = await fetch('/api/listas');
     const data = await response.json();
 
+    // Descartar 'lista-actual' guardada en localStorage si no pertenece a este
+    // usuario (p.ej. quedó de una sesión anterior de otro usuario en el mismo
+    // navegador) para evitar 403 en cascada y la pantalla atascada en "Cargando...".
+    const idsValidos = new Set([...(data.propias || []), ...(data.compartidas || [])].map(l => String(l.id)));
+    const listaGuardada = localStorage.getItem('lista-actual');
+    if (listaGuardada && !idsValidos.has(String(listaGuardada))) {
+      localStorage.removeItem('lista-actual');
+    }
+
     // FASE 2: Mostrar banner si no hay listas (ANTES de actualizarListaActual)
     const totalListas = (data.propias?.length || 0) + (data.compartidas?.length || 0);
     const banner = document.getElementById('bannerSinListas');
@@ -2072,11 +2081,17 @@ async function cargarMisListas() {
       if (totalListas === 0) {
         banner.hidden = false;
         console.log('⚠️ Usuario sin listas - Banner visible');
-        // Configurar evento del botón del banner
+        // Configurar evento del botón del banner (una sola vez; el modal puede
+        // no estar listo aún porque drawer-listas.js lo inicializa con delay)
         const btnBannerCrearLista = document.getElementById('btnBannerCrearLista');
-        if (btnBannerCrearLista && window.crearListaModal) {
+        if (btnBannerCrearLista && !btnBannerCrearLista.dataset.listenerAttached) {
+          btnBannerCrearLista.dataset.listenerAttached = 'true';
           btnBannerCrearLista.addEventListener('click', () => {
-            window.crearListaModal.open();
+            if (window.crearListaModal) {
+              window.crearListaModal.open();
+            } else {
+              console.error('crearListaModal no está inicializado todavía');
+            }
           });
         }
       } else {
@@ -2219,10 +2234,14 @@ async function cambiarLista(listaId) {
 // ============ INICIALIZACIONES ============
 
 // cargarEspacios(); // Obsoleto: usar listas en su lugar
-cargarMisListas();
-cargarCategorias().then(() => {
-  cargarProductos();
-  cargarListaCompra();
+// Se espera a cargarMisListas() antes de cargar productos/compra porque esa
+// función valida y limpia 'lista-actual' en localStorage; si no, otras
+// llamadas pueden usar un lista_id obsoleto y recibir 403 en cascada.
+cargarMisListas().then(() => {
+  cargarCategorias().then(() => {
+    cargarProductos();
+    cargarListaCompra();
+  });
 });
 cargarHistorial();
 cargarEstadoAuth();

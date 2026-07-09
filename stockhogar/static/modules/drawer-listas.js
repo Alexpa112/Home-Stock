@@ -1154,14 +1154,13 @@ class CrearListaModal extends FormModal {
         FormBuilder.inyectarFormularioEnModal(modalContent);
         // Re-referencias el form después de regenerarlo
         this.form = document.getElementById('formCrearLista');
-        // Re-setup ALL listeners (form listeners + custom + SUBMIT LISTENER)
+        // Re-setup listeners de foco/validación. El submit NO se reañade aquí:
+        // el listener delegado en el modal (ver initializeDrawerListas) ya lo
+        // captura y sobrevive a la regeneración del form; añadirlo también
+        // aquí duplicaba la creación de listas en cada apertura del modal.
         this.setupFormListeners();
         this.setupIconoSelector();
         this.setupValidaciones();
-        // RE-REGISTER submit listener que se perdió al regenerar el form
-        if (this.form) {
-          this.form.addEventListener('submit', (e) => this.onSubmit(e));
-        }
       }
     }
 
