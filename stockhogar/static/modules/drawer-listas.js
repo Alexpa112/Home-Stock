@@ -1146,6 +1146,25 @@ class CrearListaModal extends FormModal {
   onOpen() {
     super.onOpen();
 
+    // CRITICAL: Regenerar formulario dinámicamente desde FormBuilder
+    // para evitar problemas de caching/rendering de Jinja2
+    if (typeof FormBuilder !== 'undefined') {
+      const modalContent = document.getElementById('modalCrearLista')?.querySelector('.modal-content');
+      if (modalContent) {
+        FormBuilder.inyectarFormularioEnModal(modalContent);
+        // Re-referencias el form después de regenerarlo
+        this.form = document.getElementById('formCrearLista');
+        // Re-setup ALL listeners (form listeners + custom + SUBMIT LISTENER)
+        this.setupFormListeners();
+        this.setupIconoSelector();
+        this.setupValidaciones();
+        // RE-REGISTER submit listener que se perdió al regenerar el form
+        if (this.form) {
+          this.form.addEventListener('submit', (e) => this.onSubmit(e));
+        }
+      }
+    }
+
     // Focus en nombre
     const inputNombre = this.form?.querySelector('input[name="nombre"]');
     if (inputNombre) {
@@ -1154,11 +1173,16 @@ class CrearListaModal extends FormModal {
   }
 
   async onSubmit(e) {
+    console.log('🚀 onSubmit called');
     e.preventDefault();
 
     // Obtener valores del formulario, con fallback a valores por defecto
     let nombreInput = this.form.querySelector('input[name="nombre"]');
     let nombre = nombreInput?.value?.trim();
+
+    console.log('Nombre:', nombre);
+    console.log('Form:', this.form);
+    console.log('Form inputs:', this.form.querySelectorAll('input').length);
 
     if (!nombre) {
       // Si no hay input de nombre, pedir al usuario
@@ -1171,6 +1195,8 @@ class CrearListaModal extends FormModal {
 
     const icono = this.form.querySelector('input[name="icono"]')?.value || '📋';
     const color = this.form.querySelector('input[name="color"]').value || '#B5551A';
+
+    console.log('Datos:', { nombre, icono, color });
 
     if (!nombre) {
       alert('El nombre es requerido');
