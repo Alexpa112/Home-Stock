@@ -555,20 +555,7 @@
         return;
       }
 
-      // Login automático después de registrar
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuario, password }),
-      });
-
-      if (!res.ok) {
-        error.textContent = "Cuenta creada pero no se pudo iniciar sesión";
-        error.hidden = false;
-        return;
-      }
-
-      // Redirigir a crear primera lista
+      // Backend ya inicia sesión automáticamente - redirigir directo
       window.location.href = "/?crear_primera_lista=true";
     } else {
       // Flujo de login
