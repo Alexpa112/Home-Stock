@@ -1145,8 +1145,36 @@ class CrearListaModal extends FormModal {
 
   onOpen() {
     super.onOpen();
+
+    // Inyectar formulario dinámico cada vez que se abre el modal
+    // Esto asegura que siempre tenemos un formulario fresco sin problemas de caching
+    if (typeof FormBuilder !== 'undefined') {
+      try {
+        const modal = document.getElementById('modalCrearLista');
+        const modalContent = modal?.querySelector('.modal-content');
+        if (modalContent) {
+          FormBuilder.inyectarFormularioEnModal(modalContent);
+          // Actualizar referencia al form
+          this.form = document.querySelector('#modalCrearLista .modal-content form');
+
+          // Reinicializar handlers
+          if (this.form) {
+            this.setupIconoSelector();
+            this.setupValidaciones();
+
+            // Re-attach submit handler
+            this.form.removeEventListener('submit', this.onSubmitBound || (() => {}));
+            this.onSubmitBound = (e) => this.onSubmit(e);
+            this.form.addEventListener('submit', this.onSubmitBound);
+          }
+        }
+      } catch (error) {
+        console.error('Error en onOpen:', error);
+      }
+    }
+
     // Focus en nombre
-    const inputNombre = this.form.querySelector('input[name="nombre"]');
+    const inputNombre = this.form?.querySelector('input[name="nombre"]');
     if (inputNombre) {
       setTimeout(() => inputNombre.focus(), 100);
     }
