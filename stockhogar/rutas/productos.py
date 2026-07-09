@@ -153,14 +153,21 @@ def crear_producto_nuevo(
     )
     producto_id = cur.lastrowid
 
-    # Crear entrada en stock_lista para esta lista
-    if lista_id:
-        db.execute(
-            """INSERT OR IGNORE INTO stock_lista
-               (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (lista_id, producto_id, cantidad, stock_minimo, ahora(), ahora())
-        )
+    # Crear entradas en stock_lista para TODAS las listas (no solo la lista actual)
+    # Esto asegura que cuando se crea un producto, está disponible en todas las listas
+    todas_las_listas = db.execute("SELECT id FROM listas").fetchall()
+    for lista in todas_las_listas:
+        try:
+            db.execute(
+                """INSERT OR IGNORE INTO stock_lista
+                   (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (lista["id"], producto_id, cantidad, stock_minimo, ahora(), ahora())
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f"[crear_producto_nuevo] Error en stock_lista: {e}")
 
     # Siempre guardar en historial para sincronización stock ↔ catálogo
     recordar_articulo(db, nombre, icono or "📦", categoria, unidad, cantidad_defecto=cantidad)
@@ -172,12 +179,42 @@ def crear_producto_nuevo(
 @requerir_sesion
 @manejo_errores
 def listar_productos():
+    from flask import session
+
     db = get_db()
     espacio_id = obtener_espacio_actual(db)
-    filas = db.execute(
-        "SELECT * FROM productos WHERE espacio_id = ? ORDER BY categoria, nombre COLLATE NOCASE",
-        (espacio_id,),
-    ).fetchall()
+
+    # Obtener lista actual
+    lista_id = session.get("lista_actual_id")
+    if not lista_id:
+        usuario_id = session.get("usuario_id")
+        if usuario_id:
+            lista = db.execute(
+                "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                (usuario_id,)
+            ).fetchone()
+            if lista:
+                lista_id = lista["id"]
+
+    # FASE 3: Leer de stock_lista cuando esté disponible, con fallback a productos
+    if lista_id:
+        filas = db.execute(
+            """SELECT p.*,
+                      COALESCE(sl.cantidad, p.cantidad) as cantidad_lista,
+                      COALESCE(sl.stock_minimo, p.stock_minimo) as stock_minimo_lista
+               FROM productos p
+               LEFT JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
+               WHERE p.espacio_id = ?
+               ORDER BY p.categoria, p.nombre COLLATE NOCASE""",
+            (lista_id, espacio_id),
+        ).fetchall()
+    else:
+        # Fallback a productos si no hay lista
+        filas = db.execute(
+            "SELECT * FROM productos WHERE espacio_id = ? ORDER BY categoria, nombre COLLATE NOCASE",
+            (espacio_id,),
+        ).fetchall()
+
     return APIResponse.success([DataConverter.producto_to_dict(f) for f in filas])
 
 

@@ -78,9 +78,26 @@ def crear_lista():
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (nombre, descripcion, usuario_id, int(privada), icono, color, ahora(), ahora()),
     )
+    nueva_lista_id = cur.lastrowid
+
+    # Poblar stock_lista con TODOS los productos existentes
+    productos = db.execute("SELECT id, cantidad, stock_minimo FROM productos").fetchall()
+    for prod in productos:
+        try:
+            db.execute(
+                """INSERT OR IGNORE INTO stock_lista
+                   (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (nueva_lista_id, prod["id"], prod["cantidad"], prod["stock_minimo"], ahora(), ahora())
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f"[crear_lista] stock_lista insert error: {e}")
+
     db.commit()
 
-    lista = db.execute("SELECT * FROM listas WHERE id = ?", (cur.lastrowid,)).fetchone()
+    lista = db.execute("SELECT * FROM listas WHERE id = ?", (nueva_lista_id,)).fetchone()
     return APIResponse.success(DataConverter.lista_to_dict(lista, usuario_id, include_detalles=True), 201)
 
 
