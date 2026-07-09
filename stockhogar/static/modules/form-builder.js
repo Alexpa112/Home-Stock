@@ -12,7 +12,7 @@ class FormBuilder {
   static crearFormularioLista() {
     const form = document.createElement('form');
     form.id = 'formCrearLista';
-    form.innerHTML = '<label>Nombre<input type="text" name="nombre" maxlength="50" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label>Icono<div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display">📋</span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button></div><input type="hidden" name="icono" value="📋"></label><label>Color de la lista<div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label><button type="button" class="primario" id="btnCrearLista" onclick="window.crearListaModal?.onSubmit?.call(window.crearListaModal, {preventDefault: () => {}})">Crear lista</button>';
+    form.innerHTML = '<label>Nombre<input type="text" name="nombre" maxlength="50" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label>Icono<div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display">📋</span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button></div><input type="hidden" name="icono" value="📋"></label><label>Color de la lista<div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label>';
     return form;
   }
 
@@ -26,7 +26,7 @@ class FormBuilder {
 
     if (formExistente) {
       // Si existe, limpiar y llenar con contenido nuevo
-      formExistente.innerHTML = '<label>Nombre<input type="text" name="nombre" maxlength="50" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label>Icono<div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display">📋</span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button></div><input type="hidden" name="icono" value="📋"></label><label>Color de la lista<div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label><button type="button" class="primario" id="btnCrearLista" onclick="window.crearListaModal?.onSubmit?.call(window.crearListaModal, {preventDefault: () => {}})">Crear lista</button>';
+      formExistente.innerHTML = '<label>Nombre<input type="text" name="nombre" maxlength="50" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label>Icono<div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display">📋</span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button></div><input type="hidden" name="icono" value="📋"></label><label>Color de la lista<div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label>';
       return formExistente;
     }
 
