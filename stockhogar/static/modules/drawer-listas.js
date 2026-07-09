@@ -1155,8 +1155,18 @@ class CrearListaModal extends FormModal {
   async onSubmit(e) {
     e.preventDefault();
 
-    const nombre = this.form.querySelector('input[name="nombre"]').value.trim();
-    const icono = this.form.querySelector('input[name="icono"]').value || '📋';
+    // Fix para inputs que no se renderizan correctamente en el DOM
+    let nombreInput = this.form.querySelector('input[name="nombre"]');
+    if (!nombreInput) {
+      nombreInput = document.createElement('input');
+      nombreInput.type = 'text';
+      nombreInput.name = 'nombre';
+      nombreInput.value = prompt('Nombre de la lista:') || '';
+      this.form.insertBefore(nombreInput, this.form.firstChild);
+    }
+
+    const nombre = nombreInput.value.trim();
+    const icono = this.form.querySelector('input[name="icono"]')?.value || '📋';
     const color = this.form.querySelector('input[name="color"]').value || '#B5551A';
 
     if (!nombre) {

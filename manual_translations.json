@@ -1,0 +1,130 @@
+{
+  "professional_translations": {
+    "ajustes": {
+      "es": "Ajustes",
+      "gl": "Axustes",
+      "en": "Settings",
+      "pt": "Configurações",
+      "fr": "Paramètres",
+      "it": "Impostazioni",
+      "de": "Einstellungen"
+    },
+    "analizar": {
+      "es": "Analizar",
+      "gl": "Analizar",
+      "en": "Analyze",
+      "pt": "Analisar",
+      "fr": "Analyser",
+      "it": "Analizzare",
+      "de": "Analysieren"
+    },
+    "cambiar_tema": {
+      "es": "Cambiar tema",
+      "gl": "Cambiar tema",
+      "en": "Change theme",
+      "pt": "Mudar tema",
+      "fr": "Changer le thème",
+      "it": "Cambia tema",
+      "de": "Design ändern"
+    },
+    "cambiar_lista": {
+      "es": "Cambiar lista",
+      "gl": "Cambiar lista",
+      "en": "Change list",
+      "pt": "Mudar lista",
+      "fr": "Changer la liste",
+      "it": "Cambia lista",
+      "de": "Liste ändern"
+    },
+    "categorías": {
+      "es": "Categorías",
+      "gl": "Categorías",
+      "en": "Categories",
+      "pt": "Categorias",
+      "fr": "Catégories",
+      "it": "Categorie",
+      "de": "Kategorien"
+    },
+    "crear_lista": {
+      "es": "Crear lista",
+      "gl": "Crear lista",
+      "en": "Create list",
+      "pt": "Criar lista",
+      "fr": "Créer une liste",
+      "it": "Crea lista",
+      "de": "Liste erstellen"
+    },
+    "editar_listas": {
+      "es": "Editar listas",
+      "gl": "Editar listas",
+      "en": "Edit lists",
+      "pt": "Editar listas",
+      "fr": "Modifier les listes",
+      "it": "Modifica liste",
+      "de": "Listen bearbeiten"
+    },
+    "escanear_ticket_1": {
+      "es": "Escanear ticket",
+      "gl": "Escanear tíquet",
+      "en": "Scan receipt",
+      "pt": "Escanear recibo",
+      "fr": "Numériser le reçu",
+      "it": "Scansiona ricevuta",
+      "de": "Beleg scannen"
+    },
+    "nuevo_stock": {
+      "es": "Nuevo stock",
+      "gl": "Novo stock",
+      "en": "New stock",
+      "pt": "Novo estoque",
+      "fr": "Nouveau stock",
+      "it": "Nuovo stock",
+      "de": "Neuer Bestand"
+    },
+    "tus_stocks": {
+      "es": "Tus stocks",
+      "gl": "Teus stocks",
+      "en": "Your stocks",
+      "pt": "Seus estoques",
+      "fr": "Vos stocks",
+      "it": "I tuoi stock",
+      "de": "Deine Bestände"
+    },
+    "compartir_lista": {
+      "es": "Compartir lista",
+      "gl": "Compartir lista",
+      "en": "Share list",
+      "pt": "Compartilhar lista",
+      "fr": "Partager la liste",
+      "it": "Condividi lista",
+      "de": "Liste teilen"
+    },
+    "mis_listas": {
+      "es": "Mis Listas",
+      "gl": "Miñas listas",
+      "en": "My Lists",
+      "pt": "Minhas Listas",
+      "fr": "Mes Listes",
+      "it": "Le mie liste",
+      "de": "Meine Listen"
+    },
+    "miembros_de_la_lista": {
+      "es": "Miembros de la lista",
+      "gl": "Membros da lista",
+      "en": "List members",
+      "pt": "Membros da lista",
+      "fr": "Membres de la liste",
+      "it": "Membri della lista",
+      "de": "Listenmitglieder"
+    },
+    "salir_de_esta_lista": {
+      "es": "Salir de esta lista",
+      "gl": "Saír desta lista",
+      "en": "Leave this list",
+      "pt": "Sair desta lista",
+      "fr": "Quitter cette liste",
+      "it": "Esci da questo elenco",
+      "de": "Diese Liste verlassen"
+    }
+  }
+}
