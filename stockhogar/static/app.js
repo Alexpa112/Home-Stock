@@ -334,9 +334,10 @@ function ajustarViewportMovil() {
   // (ui-components.js) los calculaba de forma independiente vía focusin/focusout
   // y un umbral distinto, pudiendo desincronizarse del alto real del teclado.
   document.documentElement.style.setProperty("--keyboard-height", `${offsetEfectivo}px`);
-  // Aplicar clase SIEMPRE que el teclado esté abierto, incluso con modal
+  // Aplicar clase SOLO cuando el teclado esté abierto y NO haya modales abiertos
+  // para que los modales se adapten correctamente al teclado
   document.body.classList.toggle("keyboard-open", offsetEfectivo > 0);
-  document.body.classList.toggle("is-keyboard-open", offsetEfectivo > 0);
+  document.body.classList.toggle("is-keyboard-open", offsetEfectivo > 0 && !hayModalAbierto);
   sincronizarEstadoModal();
 
   if (offsetEfectivo > 0 && !hayModalAbierto && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
@@ -1417,6 +1418,10 @@ function abrirModalCompra(item) {
   formCompra.reset();
   const esEdicion = Boolean(item && item.id !== undefined);
   compraEditIdEl.value = esEdicion ? item.id : "";
+  // Establecer ID de artículo personalizado si existe
+  const articuloPersonalizadoId = item && item.articulo_personalizado_id;
+  document.getElementById("compraArticuloPersonalizadoId").value = articuloPersonalizadoId || "";
+  
   compraModalTitulo.textContent = esEdicion
     ? "Editar artículo"
     : item
@@ -1424,6 +1429,11 @@ function abrirModalCompra(item) {
     : "Añadir a la lista de la compra";
   compraBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
   document.getElementById("btnBorrarArticulo").hidden = !esEdicion;
+  // Mostrar botón de edición avanzada solo si es artículo personalizado
+  const btnEdicionAvanzada = document.getElementById("btnEdicionAvanzada");
+  if (btnEdicionAvanzada) {
+    btnEdicionAvanzada.hidden = !articuloPersonalizadoId;
+  }
 
   document.getElementById("compraCampoNombre").value = item ? item.nombre : "";
   compraCampoCantidad.value = (item && item.cantidad) || 1;
@@ -1497,6 +1507,19 @@ formCompra.addEventListener("submit", async (e) => {
     payload.lista_id = parseInt(listaId);
   }
 
+  // Si es una edición y el artículo tiene ID personalizado, usar API de artículos personalizados
+  const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId")?.value;
+  if (id && articuloPersonalizadoId) {
+    try {
+      const articuloActualizado = await editarArticuloPersonalizado(articuloPersonalizadoId, payload);
+      console.log("Artículo personalizado actualizado:", articuloActualizado);
+    } catch (error) {
+      console.error("Error actualizando artículo personalizado:", error);
+      alert("Error al actualizar artículo personalizado. Por favor, intenta de nuevo.");
+      return;
+    }
+  }
+
   const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
     method: id ? "PATCH" : "POST",
     headers: { "Content-Type": "application/json" },
@@ -1544,6 +1567,21 @@ if (btnBorrarArticuloEl) {
 }
 
 habilitarCierreSeguro(modalCompraFondo, cerrarModalCompra);
+
+// Botón de edición avanzada para artículos personalizados
+const btnEdicionAvanzadaEl = document.getElementById("btnEdicionAvanzada");
+if (btnEdicionAvanzadaEl) {
+  btnEdicionAvanzadaEl.addEventListener("click", () => {
+    const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId").value;
+    if (!articuloPersonalizadoId) {
+      alert("Este artículo no es personalizado, no tiene edición avanzada.");
+      return;
+    }
+    // Abrir modal de edición avanzada (por ahora solo alerta)
+    alert(`Edición avanzada para artículo personalizado ID ${articuloPersonalizadoId}. Esta funcionalidad puede extenderse para gestionar traducciones, imágenes, etc.`);
+    // En el futuro: abrir un modal específico para traducciones y detalles avanzados
+  });
+}
 
 // ===== FUNCIONES PARA ARTÍCULOS PERSONALIZADOS =====
 

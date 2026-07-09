@@ -1,4 +1,5 @@
 """Rutas de artículos en listas (antes lista_compra)."""
+import logging
 from flask import Blueprint, request, session, jsonify
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
@@ -9,6 +10,7 @@ from .historial import buscar_historial, recordar_articulo
 from .listas import _usuario_tiene_permiso
 
 bp = Blueprint("lista_compra", __name__, url_prefix="/api/articulos")
+logger = logging.getLogger(__name__)
 
 LIMITE_COMPLETADOS = 12
 CAMPOS_EDITABLES = {"nombre", "cantidad", "unidad", "categoria", "icono", "sub_descripcion"}
@@ -159,9 +161,9 @@ def anadir_articulo():
                                     (articulo_personalizado_id, tipo, idioma, original, texto, ahora())
                                 )
                             except Exception as e:
-                                print(f"Error almacenando traducción: {e}")
+                                logger.error(f"Error almacenando traducción: {e}")
             except Exception as e:
-                print(f"Error traduciendo artículo: {e}")
+                logger.error(f"Error traduciendo artículo: {e}")
 
     # Crear artículo en lista
     cur = db.execute(
@@ -362,7 +364,7 @@ def actualizar_articulo_personalizado(articulo_id):
                             (articulo_id, "descripcion", idioma, sub_descripcion, texto, ahora())
                         )
         except Exception as e:
-            print(f"Error al traducir cambios: {e}")
+            logger.error(f"Error al traducir cambios: {e}")
 
     db.commit()
     fila = db.execute(

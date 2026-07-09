@@ -49,15 +49,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 5vh 16px 16px 16px;
+  padding: 10vh 16px 0 16px;
   min-height: 100vh;
   overflow: hidden;
+}
+
+body.keyboard-open .modal-fondo,
+body.is-keyboard-open .modal-fondo {
+  padding-bottom: 0;
+  justify-content: flex-end;
 }
 
 .modal {
   width: 100%;
   max-width: min(100vw - var(--spacing-md) * 2, 600px);
-  max-height: 85dvh;
+  max-height: 95dvh;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   display: flex;
   flex-direction: column;
@@ -85,8 +91,10 @@
 }
 
 /* Asegurar que el modal se adapte al teclado */
-body.is-keyboard-open .modal {
-  max-height: calc(100dvh - var(--keyboard-offset, 0px) - var(--spacing-lg));
+body.is-keyboard-open .modal,
+body.keyboard-open .modal {
+  max-height: calc(100dvh - var(--keyboard-offset, 0px));
+  margin-bottom: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -301,7 +309,7 @@ body.is-keyboard-open .modal {
 
   .modal {
     max-width: 600px;
-    max-height: 80dvh;
+    max-height: 90dvh;
     border-radius: var(--radius-lg);
   }
 

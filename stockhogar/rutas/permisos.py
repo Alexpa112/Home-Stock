@@ -116,9 +116,9 @@ def compartir_lista(lista_id):
     if not lista or lista["usuario_propietario_id"] != usuario_id:
         return APIResponse.no_permitido()
 
-    # Obtener email o nombre de usuario destino
+    # Obtener email o nombre de usuario destino (acepta "usuario" como alias)
     email_destino = (datos.get("email") or "").strip()
-    nombre_usuario_destino = (datos.get("nombre_usuario") or "").strip()
+    nombre_usuario_destino = (datos.get("nombre_usuario") or datos.get("usuario") or "").strip()
     nivel = Validator.string_opcional(datos.get("nivel"), "editar", 10)
 
     if nivel not in ["ver", "editar"]:

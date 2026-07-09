@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 data/*.db
 data/secret.json
+.env
+.env.development
+server.log

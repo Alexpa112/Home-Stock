@@ -146,7 +146,7 @@ body.modal-open {
   overflow-x: hidden;
 }
 
-body.keyboard-open #appShell {
+body.keyboard-open:not(.modal-open) #appShell {
   transform: translateY(calc(-1 * min(var(--keyboard-offset, 0px), 20vh)));
 }
 
@@ -753,9 +753,9 @@ body.modal-open .fab {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: flex-end;
+  justify-content: flex-start;
   z-index: 100;
-  padding: 0;
+  padding: 5vh 0 0 0;
   min-height: 100dvh;
   overscroll-behavior: contain;
   overflow-y: auto;
@@ -766,7 +766,7 @@ body.modal-open .fab {
   background: var(--surface);
   width: 100vw;
   max-width: 100vw;
-  max-height: 90dvh;
+  max-height: 95dvh;
   border-radius: 32px 32px 0 0;
   display: flex;
   flex-direction: column;
@@ -955,17 +955,30 @@ form button.secundario:hover {
 
 body.keyboard-open .modal {
   /* En iOS, usar 100vh (fijo) en lugar de dvh que se reduce con el teclado */
-  max-height: calc(100vh - var(--keyboard-offset) - 32px);
-  min-height: 50vh; /* Altura mínima garantizada para evitar compresión excesiva */
-  margin-bottom: calc(var(--keyboard-offset) + 16px);
-  padding-bottom: 20px;
+  max-height: calc(100vh - var(--keyboard-offset) - 16px);
+  min-height: 40vh; /* Altura mínima garantizada para evitar compresión excesiva */
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Excepción para modales superpuestas (selector de iconos) */
+body.keyboard-open .modal-superpuesta .modal {
+  max-height: 70vh !important;
+  min-height: unset !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 /* Específico para iOS: asegurar que la modal mantenga espacio para contenido */
 @supports (padding: max(0px)) {
   body.keyboard-open .modal {
-    max-height: calc(100vh - var(--keyboard-offset) - 32px - env(safe-area-inset-bottom, 0px));
-    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - var(--keyboard-offset) - 16px - env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+  body.keyboard-open .modal-superpuesta .modal {
+    max-height: 70vh !important;
+    padding-bottom: 0 !important;
   }
 }
 
@@ -1014,8 +1027,14 @@ body.keyboard-open .modal {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 9999;
   padding: 20px;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  isolation: isolate;
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .modal-superpuesta .modal-fondo {
@@ -1027,6 +1046,12 @@ body.keyboard-open .modal {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10000;
+}
+
+/* Asegurar que el modal de creación de lista tenga z-index menor */
+.modal-fondo:not(.modal-superpuesta) {
+  z-index: 100;
 }
 
 .modal-pequeño {
@@ -1034,6 +1059,18 @@ body.keyboard-open .modal {
   max-width: 600px;
   max-height: 70vh;
   border-radius: var(--radius-lg);
+}
+
+.modal-superpuesta .modal {
+  z-index: 10001;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Asegurar que el selector de iconos esté por encima incluso con teclado abierto */
+body.keyboard-open .modal-superpuesta,
+body.is-keyboard-open .modal-superpuesta {
+  z-index: 9999;
 }
 
 .modal-pequeño h3 {

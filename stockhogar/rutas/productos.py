@@ -1,4 +1,5 @@
 """Rutas del inventario de productos (stock)."""
+import logging
 from flask import Blueprint, request
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
@@ -12,6 +13,7 @@ from .listas import _usuario_tiene_permiso
 from ..servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
+logger = logging.getLogger(__name__)
 
 
 def _lista_actual_con_permiso(db, session, nivel_requerido=None):
@@ -330,7 +332,7 @@ def traducir_producto_auto():
                         (producto_id, articulo_id, "nombre", idioma, nombre, traducciones_nombre[idioma], ahora())
                     )
                 except Exception as e:
-                    print(f"Error almacenando traducción: {e}")
+                    logger.error(f"Error almacenando traducción: {e}")
 
         for idioma in traducciones_desc:
             if idioma != "es" and descripcion:
@@ -342,7 +344,7 @@ def traducir_producto_auto():
                         (producto_id, articulo_id, "descripcion", idioma, descripcion, traducciones_desc[idioma], ahora())
                     )
                 except Exception as e:
-                    print(f"Error almacenando traducción: {e}")
+                    logger.error(f"Error almacenando traducción: {e}")
 
         db.commit()
 

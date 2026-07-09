@@ -136,6 +136,7 @@
     <div class="modal-content">
       <form id="formCompra">
         <input type="hidden" id="compraEditId">
+        <input type="hidden" id="compraArticuloPersonalizadoId">
 
         <label>Nombre
           <input id="compraCampoNombre" type="text" required maxlength="80" placeholder="Ej. Bolsas de basura">
@@ -167,6 +168,7 @@
     </div>
     <div class="modal-footer">
       <button type="button" id="btnBorrarArticulo" class="secundario" hidden style="color: var(--danger);">Borrar</button>
+      <button type="button" id="btnEdicionAvanzada" class="secundario" hidden>Edición avanzada</button>
       <button type="submit" form="formCompra" class="primario" id="compraBotonGuardar">Añadir</button>
     </div>
   </div>
@@ -178,15 +180,13 @@
     <div class="modal-header">
       <button id="btnCerrarCatalogo" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
       <h2 id="catalogoTitulo">Añadir a la lista</h2>
+      <button id="btnCrearDesdeCatalogo" class="btn-header-editar" type="button" aria-label="Crear producto nuevo" style="display: inline-block; opacity: 1; visibility: visible;">+</button>
     </div>
     <div class="modal-content">
       <input id="catalogoBuscador" type="search" placeholder="Buscar producto... (ej. leche, pan, mascotas)">
       <p class="aviso" id="catalogoAyuda">Toca un producto para añadirlo. Mantén pulsado para ajustar cantidad, unidad, sub-descripción o icono antes de añadirlo.</p>
       <div id="catalogoGrupos" class="grupos-compra catalogo-scroll"></div>
       <p id="catalogoVacio" class="vacio" hidden></p>
-    </div>
-    <div class="modal-footer acciones-modal" id="accionesModalCatalogo">
-      <button type="button" id="btnCrearDesdeCatalogo" class="primario">+ Crear producto nuevo</button>
     </div>
   </div>
 </div>
