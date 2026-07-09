@@ -17,6 +17,8 @@ def create_app():
     app.config["SECRET_KEY"] = seguridad.FLASK_SECRET_KEY
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=DIAS_SESION)
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SECURE"] = False  # Desarrollo: sin HTTPS
     app.teardown_appcontext(db.close_db)
 
     app.register_blueprint(paginas.bp)
