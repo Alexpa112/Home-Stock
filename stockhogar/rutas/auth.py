@@ -68,7 +68,17 @@ def registrar():
         (nombre_usuario, generate_password_hash(password), ahora()),
     )
     db.commit()
-    return APIResponse.success({"creado": True}, 201)
+
+    # Iniciar sesión automáticamente después de registrar
+    usuario = db.execute(
+        "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
+    ).fetchone()
+
+    session.permanent = True
+    session["usuario"] = nombre_usuario
+    session["usuario_id"] = usuario["id"]
+
+    return APIResponse.success({"creado": True, "usuario": nombre_usuario}, 201)
 
 
 @bp.route("/api/auth/login", methods=["POST"])
