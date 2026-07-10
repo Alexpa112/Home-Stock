@@ -3,10 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5, user-scalable=yes">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#B5551A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Dreame!</title>
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<link rel="icon" href="{{ url_for('static', filename='icons/favicon.svg') }}" type="image/svg+xml">
+<link rel="icon" href="{{ url_for('static', filename='icons/favicon-32.png') }}" sizes="32x32" type="image/png">
+<link rel="icon" href="{{ url_for('static', filename='icons/favicon-16.png') }}" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <script>
   (function () {
@@ -28,8 +33,33 @@
     margin: 0;
     padding: 0;
     font-family: inherit;
-    background: var(--background, #ffffff);
+    background: var(--bg, #ffffff);
   }
+
+  /* Fondo decorativo: patrón de cajas/estanterías relacionado con stock del hogar */
+  .pantalla-login {
+    background: linear-gradient(160deg, var(--accent-soft) 0%, var(--bg) 55%, var(--accent-soft) 100%);
+    position: relative;
+    overflow-x: hidden;
+  }
+  .pantalla-login::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23B5551A' stroke-width='1.6' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M25 39 L45 29 L65 39 L65 61 L45 71 L25 61 Z'/%3E%3Cpath d='M25 39 L45 49 L65 39 M45 49 L45 71'/%3E%3Crect x='102' y='32' width='36' height='26' rx='2'/%3E%3Cpath d='M102 40 h36 M116 32 v8 M124 32 v8'/%3E%3Cpath d='M178 42 L228 42 L218 67 L188 67 Z M173 32 L178 42 M173 32 L163 32'/%3E%3Ccircle cx='195' cy='74' r='4'/%3E%3Ccircle cx='215' cy='74' r='4'/%3E%3Cpath d='M23 125 h44 M23 125 v22 h44 v-22 M29 125 v-8 a4 4 0 0 1 4 -4 h20 a4 4 0 0 1 4 4 v8'/%3E%3Ccircle cx='120' cy='115' r='14'/%3E%3Cpath d='M112 128 h16 M115 137 h10 M120 101 v8'/%3E%3Crect x='179' y='108' width='32' height='44' rx='2'/%3E%3Cpath d='M185 118 h20 M185 130 h20 M185 142 h14'/%3E%3Cpath d='M42 209 c0 -10 8 -18 18 -18 s18 8 18 18 M42 209 h36 M54 199 v10 M66 199 v10'/%3E%3Cpath d='M120 221 L140 203 L160 221 Z M116 221 h48 M136 191 q8 -10 0 -12'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 240px 240px;
+    background-repeat: repeat;
+  }
+  @media (prefers-color-scheme: dark) {
+    .pantalla-login::before {
+      opacity: 0.3;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23E68A4F' stroke-width='1.6' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M14 40 L34 30 L54 40 L54 62 L34 72 L14 62 Z'/%3E%3Cpath d='M14 40 L34 50 L54 40 M34 50 L34 72'/%3E%3Crect x='96' y='24' width='36' height='26' rx='2'/%3E%3Cpath d='M96 32 h36 M110 24 v8 M118 24 v8'/%3E%3Cpath d='M90 110 h44 M90 110 v22 h44 v-22 M96 110 v-8 a4 4 0 0 1 4 -4 h20 a4 4 0 0 1 4 4 v8'/%3E%3Cpath d='M20 118 c0 -10 8 -18 18 -18 s18 8 18 18 M20 118 h36 M32 108 v10 M44 108 v10'/%3E%3Cpath d='M155 30 L205 30 L195 55 L165 55 Z M150 20 L155 30 M150 20 L140 20'/%3E%3Ccircle cx='172' cy='62' r='4'/%3E%3Ccircle cx='192' cy='62' r='4'/%3E%3Ccircle cx='172' cy='108' r='14'/%3E%3Cpath d='M164 121 h16 M167 130 h10 M172 94 v8'/%3E%3Crect x='190' y='150' width='32' height='44' rx='2'/%3E%3Cpath d='M196 160 h20 M196 172 h20 M196 184 h14'/%3E%3Cpath d='M70 192 L90 174 L110 192 Z M66 192 h48 M86 162 q8 -10 0 -12'/%3E%3C/g%3E%3C/svg%3E");
+    }
+  }
+  .pantalla-login > * { position: relative; z-index: 1; }
 
   /* Solución para keyboard virtual en móvil */
   .pantalla-login {
@@ -326,15 +356,6 @@
     }
   }
 
-  /* Dark mode en iOS 13+ */
-  @supports (padding: max(0px)) {
-    @media (prefers-color-scheme: dark) {
-      .pantalla-login {
-        background: var(--background);
-      }
-    }
-  }
-
   /* Accesibilidad: movimiento reducido */
   @media (prefers-reduced-motion: reduce) {
     .tarjeta-login input {
@@ -351,7 +372,7 @@
 
 <div class="pantalla-login">
   <form class="tarjeta-login" id="formLogin">
-    <h1>📦 Dreame!</h1>
+    <h1><svg class="logo-app" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13 12 3.5 22 13Z" fill="currentColor"/><rect x="4" y="10.5" width="16" height="10" rx="3" fill="currentColor"/><path d="M16.3 7.6a2.3 2.3 0 1 0 0 4.6 2.9 2.9 0 0 1 0-4.6Z" fill="var(--surface)"/><rect x="10.2" y="15" width="3.6" height="5.5" rx="1.2" fill="var(--surface)"/><path d="M19.2 2.2 19.8 3.7 21.3 4.3 19.8 4.9 19.2 6.4 18.6 4.9 17.1 4.3 18.6 3.7Z" fill="currentColor"/></svg> Dreame!</h1>
     <p class="subtitulo" id="subtituloForm">Inicia sesión para continuar.</p>
 
     <div id="seccionLogin">
