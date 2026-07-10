@@ -1050,7 +1050,7 @@ function crearTarjeta(p) {
     <div class="icono">${iconoEfectivo(p)}</div>
     <div class="info">
       <div class="nombre">${escapeHtml(p.nombre)}</div>
-      <div class="detalle">${escapeHtml(p.categoria)}${avisos.length ? " · " + avisos.join(" · ") : ""}</div>
+      <div class="detalle" data-categoria-original="${escapeHtml(p.categoria)}">${escapeHtml(p.categoria)}${avisos.length ? " · " + avisos.join(" · ") : ""}</div>
     </div>
     <div class="contador">
       <button data-accion="restar" title="Quitar uno">−</button>

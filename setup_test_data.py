@@ -54,7 +54,7 @@ def setup_test_data():
         """INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo,
                                    dias_aviso, icono, espacio_id, fecha_creacion, fecha_actualizacion)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("Leche", "Lacteos e Ovos", 5, "L", 2, 30, "🥛", 1, ahora(), ahora())
+        ("Leche", "Lácteos y Huevos", 5, "L", 2, 30, "🥛", 1, ahora(), ahora())
     )
     prod1_id = cur.lastrowid
     print(f"    ID: {prod1_id}, cantidad=5, stock_minimo=2")
@@ -65,7 +65,7 @@ def setup_test_data():
         """INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo,
                                    dias_aviso, icono, espacio_id, fecha_creacion, fecha_actualizacion)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("Pan", "Panaderia e Bolleria", 3, "piezas", 1, 30, "🥖", 1, ahora(), ahora())
+        ("Pan", "Panadería y Bollería", 3, "piezas", 1, 30, "🥖", 1, ahora(), ahora())
     )
     prod2_id = cur.lastrowid
     print(f"    ID: {prod2_id}, cantidad=3, stock_minimo=1")
