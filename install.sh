@@ -5,13 +5,17 @@
 # Uso:
 #   ./install.sh            Instala o actualiza StockHogar
 #   ./install.sh --update   Además hace `git pull` antes de reconstruir
+#   ./install.sh --help     Muestra esta ayuda
 #
-# Seguro de re-ejecutar: no pisa un .env existente, hace backup de la base de
-# datos antes de reconstruir contenedores, y detecta si Docker Compose está
-# disponible como plugin v2 (`docker compose`) o binario v1 (`docker-compose`).
+# Seguro de re-ejecutar: no pisa un .env existente (y lo respalda antes de
+# tocarlo), hace backup de la base de datos antes de reconstruir contenedores,
+# detecta si Docker Compose está disponible como plugin v2 (`docker compose`)
+# o binario v1 (`docker-compose`), reintenta operaciones de red con backoff,
+# valida la configuración antes de construir, y si algo falla deja el sistema
+# en un estado conocido (no a medias) y vuelca los logs relevantes.
 ################################################################################
 
-set -uo pipefail
+set -Eeuo pipefail
 
 # --- Rutas: el script funciona sin importar desde dónde se invoque ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,8 +28,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 STEPS_COMPLETED=0
-STEPS_TOTAL=11
+STEPS_TOTAL=12
 LOG_FILE="$SCRIPT_DIR/install.log"
+LOCK_FILE="$SCRIPT_DIR/.install.lock"
 : > "$LOG_FILE"
 
 log_info()    { echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"; }
@@ -42,9 +47,80 @@ step_end() { log_success "Paso completado"; }
 
 check_cmd() { command -v "$1" &> /dev/null; }
 
+# --- Bloqueo: evita que dos ejecuciones se pisen (cron + manual, doble clic) -
+if [[ -e "$LOCK_FILE" ]]; then
+    OTHER_PID="$(cat "$LOCK_FILE" 2>/dev/null || echo "")"
+    if [[ -n "$OTHER_PID" ]] && kill -0 "$OTHER_PID" 2>/dev/null; then
+        log_error "Ya hay una instalación en curso (PID $OTHER_PID). Espera a que termine o borra $LOCK_FILE si sabes que quedó huérfana."
+        exit 1
+    fi
+    log_warning "Se encontró un lock huérfano de una ejecución anterior; se ignora y se continúa."
+fi
+echo "$$" > "$LOCK_FILE"
+
+CLEANUP_DONE=0
+cleanup() {
+    [[ "$CLEANUP_DONE" -eq 1 ]] && return
+    CLEANUP_DONE=1
+    rm -f "$LOCK_FILE"
+}
+trap cleanup EXIT
+
+on_interrupt() {
+    echo ""
+    log_warning "Instalación interrumpida por el usuario. El sistema puede haber quedado a medias;" \
+                "vuelve a ejecutar ./install.sh para reintentar de forma segura."
+    exit 130
+}
+trap on_interrupt INT TERM
+
+ROLLBACK_DONE=0
+rollback() {
+    # Revierte a la imagen, código y base de datos anteriores. Solo actúa sobre
+    # lo que realmente se llegó a respaldar en esta ejecución (variables
+    # IMAGE_NAME/PREV_GIT_COMMIT/DB_BACKUP_FILE), así que en una primera
+    # instalación (sin "anterior" al que volver) es un no-op seguro.
+    [[ "$ROLLBACK_DONE" -eq 1 ]] && return
+    ROLLBACK_DONE=1
+    log_warning "Iniciando rollback automático a la versión anterior..."
+
+    if [[ -n "${IMAGE_NAME:-}" ]] && $DOCKER image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
+        if $DOCKER tag "${IMAGE_NAME}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 \
+           && $COMPOSE up -d --force-recreate >> "$LOG_FILE" 2>&1; then
+            log_warning "Imagen Docker revertida a la versión anterior y contenedor recreado."
+        else
+            log_error "El rollback de la imagen Docker también falló; revisa $LOG_FILE manualmente."
+        fi
+    else
+        log_warning "No había una imagen anterior guardada para revertir (probablemente es la primera instalación)."
+    fi
+
+    if [[ -n "${PREV_GIT_COMMIT:-}" ]]; then
+        if git reset --hard "$PREV_GIT_COMMIT" >> "$LOG_FILE" 2>&1; then
+            log_warning "Código revertido al commit anterior: $PREV_GIT_COMMIT"
+        else
+            log_error "No se pudo revertir el código a $PREV_GIT_COMMIT; revísalo manualmente con git."
+        fi
+    fi
+
+    if [[ -n "${DB_BACKUP_FILE:-}" && -f "$DB_BACKUP_FILE" ]]; then
+        cp "$DB_BACKUP_FILE" "data/stock.db"
+        log_warning "Base de datos restaurada desde el backup: $DB_BACKUP_FILE"
+    fi
+
+    log_error "Rollback completado: se ha vuelto a la versión anterior que funcionaba." \
+               "Revisa $LOG_FILE para ver qué falló en la actualización antes de reintentar."
+}
+
 handle_error() {
-    log_error "Fallo en la línea $1 (código $2)"
+    local line="$1" code="$2"
+    log_error "Fallo en la línea $line (código $code)"
     log_error "Log completo: $LOG_FILE"
+    if [[ -n "${COMPOSE:-}" ]] && $COMPOSE ps &> /dev/null; then
+        log_error "Últimas líneas de los contenedores (para diagnóstico):"
+        $COMPOSE logs --tail=60 2>&1 | tee -a "$LOG_FILE" || true
+    fi
+    rollback
     exit 1
 }
 trap 'handle_error ${LINENO} $?' ERR
@@ -60,10 +136,45 @@ run() {
     fi
 }
 
+retry() {
+    # Reintenta un comando propenso a fallos de red (apt, curl, docker build)
+    # con backoff exponencial en vez de abortar al primer fallo transitorio.
+    local max_attempts=3 attempt=1 delay=5
+    local desc="$*"
+    while true; do
+        log_info "\$ $desc (intento $attempt/$max_attempts)"
+        if "$@" >> "$LOG_FILE" 2>&1; then
+            return 0
+        fi
+        if [[ "$attempt" -ge "$max_attempts" ]]; then
+            log_error "Comando falló tras $max_attempts intentos: $desc"
+            log_error "Log completo: $LOG_FILE"
+            exit 1
+        fi
+        log_warning "Falló (intento $attempt/$max_attempts); reintentando en ${delay}s..."
+        sleep "$delay"
+        delay=$((delay * 2))
+        attempt=$((attempt + 1))
+    done
+}
+
+usage() {
+    cat <<EOF
+Uso: ./install.sh [--update] [--help]
+
+  (sin flags)  Instala o reconstruye StockHogar en este directorio.
+  --update     Además hace 'git pull --ff-only' antes de reconstruir.
+  --help       Muestra esta ayuda y sale.
+EOF
+}
+
 UPDATE_MODE=0
-if [[ "${1:-}" == "--update" ]]; then
-    UPDATE_MODE=1
-fi
+case "${1:-}" in
+    --update) UPDATE_MODE=1 ;;
+    --help|-h) usage; exit 0 ;;
+    "") ;;
+    *) log_error "Opción desconocida: ${1}"; usage; exit 1 ;;
+esac
 
 ################################################################################
 step_start "Detectar sistema y Docker"
@@ -76,7 +187,10 @@ else
 fi
 
 ARCH="$(uname -m)"
-log_info "Arquitectura: $ARCH"
+case "$ARCH" in
+    x86_64|aarch64|armv7l|armv6l) log_success "Arquitectura: $ARCH (soportada)" ;;
+    *) log_warning "Arquitectura no probada: $ARCH; puede que no existan imágenes base compatibles" ;;
+esac
 
 MEMORY_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}' || echo "")
 if [[ -n "$MEMORY_MB" ]]; then
@@ -88,9 +202,29 @@ if [[ -n "$MEMORY_MB" ]]; then
 fi
 
 FREE_DISK_MB=$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo "")
-if [[ -n "$FREE_DISK_MB" && "$FREE_DISK_MB" -lt 2048 ]]; then
-    log_warning "Espacio libre en disco: ${FREE_DISK_MB}MB (recomendado: 2GB+ para construir la imagen)"
+if [[ -n "$FREE_DISK_MB" ]]; then
+    if [[ "$FREE_DISK_MB" -lt 800 ]]; then
+        log_error "Espacio libre en disco: ${FREE_DISK_MB}MB. Insuficiente para construir la imagen" \
+                   "(Python, OpenCV y los modelos de Argos Translate necesitan varios cientos de MB). Libera espacio y reintenta."
+        exit 1
+    elif [[ "$FREE_DISK_MB" -lt 2048 ]]; then
+        log_warning "Espacio libre en disco: ${FREE_DISK_MB}MB (recomendado: 2GB+ para construir la imagen con margen)"
+    else
+        log_success "Espacio libre en disco: ${FREE_DISK_MB}MB"
+    fi
 fi
+
+if ! [[ -w "$SCRIPT_DIR" ]]; then
+    log_error "No hay permiso de escritura en $SCRIPT_DIR; no se pueden crear data/, logs/, uploads/ ni .env"
+    exit 1
+fi
+
+log_info "Comprobando conectividad de red (necesaria para Docker, apt y los modelos de traducción)..."
+if check_cmd curl && ! curl -fsS --max-time 5 -o /dev/null https://get.docker.com; then
+    log_error "Sin conectividad a internet (no se alcanza get.docker.com). Revisa la conexión de red y reintenta."
+    exit 1
+fi
+log_success "Conectividad de red OK"
 
 SUDO=""
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -108,8 +242,8 @@ fi
 for c in curl git; do
     if ! check_cmd "$c"; then
         log_info "Instalando $c..."
-        run $SUDO apt-get update -qq
-        run $SUDO apt-get install -y -qq "$c"
+        retry $SUDO apt-get update -qq
+        retry $SUDO apt-get install -y -qq "$c"
     fi
 done
 log_success "curl y git disponibles"
@@ -124,7 +258,7 @@ if check_cmd docker; then
     log_success "Docker ya instalado: $(docker --version)"
 else
     log_info "Instalando Docker (script oficial get.docker.com)..."
-    run curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+    retry curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
     run $SUDO sh /tmp/get-docker.sh
     rm -f /tmp/get-docker.sh
     if [[ -n "$SUDO" ]]; then
@@ -140,17 +274,25 @@ if ! $SUDO systemctl is-active --quiet docker 2>/dev/null && ! docker info &> /d
     run $SUDO systemctl enable --now docker || run $SUDO service docker start
 fi
 
-if ! docker info &> /dev/null; then
-    if ! $SUDO docker info &> /dev/null; then
-        log_error "El daemon de Docker no responde. Revisa: sudo systemctl status docker"
-        exit 1
+DOCKER=""
+for i in 1 2 3 4 5; do
+    if docker info &> /dev/null; then
+        DOCKER="docker"
+        break
+    elif $SUDO docker info &> /dev/null; then
+        DOCKER="$SUDO docker"
+        log_warning "Docker solo responde con sudo (el usuario aún no tiene el grupo 'docker' activo en esta sesión)"
+        break
     fi
-    log_warning "Docker solo responde con sudo (el usuario aún no tiene el grupo 'docker' activo en esta sesión)"
-    DOCKER="$SUDO docker"
-else
-    DOCKER="docker"
+    log_info "Esperando a que el daemon de Docker esté listo (intento $i/5)..."
+    sleep 3
+done
+
+if [[ -z "$DOCKER" ]]; then
+    log_error "El daemon de Docker no responde tras varios intentos. Revisa: sudo systemctl status docker"
+    exit 1
 fi
-log_success "Docker operativo"
+log_success "Docker operativo: $($DOCKER version --format '{{.Server.Version}}' 2>/dev/null || echo desconocida)"
 
 step_end
 
@@ -167,8 +309,8 @@ elif check_cmd docker-compose; then
     log_warning "Usando docker-compose v1 (binario independiente). Se recomienda migrar al plugin v2."
 else
     log_info "Instalando el plugin docker-compose-plugin vía apt..."
-    run $SUDO apt-get update -qq
-    if $SUDO apt-get install -y -qq docker-compose-plugin 2>>"$LOG_FILE"; then
+    retry $SUDO apt-get update -qq
+    if retry $SUDO apt-get install -y -qq docker-compose-plugin; then
         COMPOSE="$DOCKER compose"
         log_success "Docker Compose (plugin v2) instalado"
     else
@@ -185,7 +327,8 @@ step_start "Verificar estructura del proyecto"
 ################################################################################
 
 MISSING=0
-for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" "run.py"; do
+for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" "run.py" \
+            "stockhogar/static/manifest.json" "stockhogar/static/icons/sprite.svg" "stockhogar/static/icons/icon-192.png"; do
     if [[ ! -f "$FILE" ]]; then
         log_error "Falta: $FILE"
         MISSING=1
@@ -194,9 +337,11 @@ done
 
 if [[ $MISSING -eq 1 ]]; then
     log_error "Estructura del proyecto incompleta. ¿Se ejecutó el script dentro del repo clonado?"
+    log_error "Los iconos y el sprite se generan en desarrollo con 'npm install && node scripts/generar-sprite-iconos.js" \
+               "&& node scripts/generar-iconos-png.js' y deben estar ya commiteados en el repo; este script no los genera."
     exit 1
 fi
-log_success "Proyecto verificado"
+log_success "Proyecto verificado (incluye iconos PWA y manifest)"
 
 step_end
 
@@ -206,6 +351,13 @@ step_start "Actualizar código (git pull)"
 
 if [[ $UPDATE_MODE -eq 1 ]]; then
     if [[ -d .git ]]; then
+        if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+            log_error "Hay cambios locales sin commitear en el repo; 'git pull --ff-only' podría fallar o perder trabajo."
+            log_error "Guárdalos (git stash) o commitéalos antes de usar --update."
+            exit 1
+        fi
+        PREV_GIT_COMMIT="$(git rev-parse HEAD)"
+        log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
         run git pull --ff-only
         log_success "Código actualizado"
     else
@@ -235,8 +387,13 @@ step_start "Backup de la base de datos"
 
 if [[ -f "data/stock.db" ]]; then
     TS="$(date +%Y%m%d-%H%M%S)"
-    cp "data/stock.db" "data/backups/stock-${TS}.db"
-    log_success "Backup creado: data/backups/stock-${TS}.db"
+    DB_BACKUP_FILE="data/backups/stock-${TS}.db"
+    cp "data/stock.db" "$DB_BACKUP_FILE"
+    if [[ ! -s "$DB_BACKUP_FILE" ]]; then
+        log_error "El backup de la base de datos quedó vacío o no se creó; se aborta antes de tocar los contenedores."
+        exit 1
+    fi
+    log_success "Backup creado: $DB_BACKUP_FILE"
     # Nos quedamos con las 10 copias más recientes para no llenar el disco.
     ls -1t data/backups/stock-*.db 2>/dev/null | tail -n +11 | xargs -r rm -f
 else
@@ -252,7 +409,8 @@ step_start "Configurar variables de entorno (.env)"
 # El .env real del usuario NUNCA se sobrescribe. Si no existe, se crea a partir
 # de .env.example (con valores de ejemplo, el usuario debe rellenarlos luego
 # para OAuth/email). Si ya existe, se completan solo las claves que falten,
-# sin tocar las que el usuario ya haya configurado.
+# sin tocar las que el usuario ya haya configurado, y se respalda antes por
+# si el añadido de variables faltantes tuviera que deshacerse a mano.
 REQUIRED_VARS=(
     GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
     APPLE_CLIENT_ID APPLE_CLIENT_SECRET APPLE_TEAM_ID
@@ -281,7 +439,9 @@ if [[ ! -f ".env" ]]; then
     fi
     log_success ".env creado a partir de .env.example"
 else
-    log_info ".env ya existe: se conservan los valores actuales"
+    cp ".env" "data/backups/env-$(date +%Y%m%d-%H%M%S).bak"
+    ls -1t data/backups/env-*.bak 2>/dev/null | tail -n +6 | xargs -r rm -f
+    log_info ".env ya existe: se conservan los valores actuales (respaldado antes de tocarlo)"
 fi
 
 for VAR in "${REQUIRED_VARS[@]}"; do
@@ -291,6 +451,25 @@ for VAR in "${REQUIRED_VARS[@]}"; do
     fi
 done
 
+STOCKHOGAR_PORT="$(grep -m1 '^STOCKHOGAR_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')"
+STOCKHOGAR_PORT="${STOCKHOGAR_PORT:-5000}"
+if ! [[ "$STOCKHOGAR_PORT" =~ ^[0-9]+$ ]] || [[ "$STOCKHOGAR_PORT" -lt 1 ]] || [[ "$STOCKHOGAR_PORT" -gt 65535 ]]; then
+    log_error "STOCKHOGAR_PORT='$STOCKHOGAR_PORT' en .env no es un puerto válido (1-65535)."
+    exit 1
+fi
+
+# Si el puerto ya está en uso por algo que NO sea el propio stack de compose de
+# este proyecto (p.ej. otro servicio, u otra instalación de StockHogar), avisamos
+# ahora en vez de dejar que 'compose up' falle de forma confusa más tarde.
+if check_cmd ss && ss -ltn 2>/dev/null | grep -q ":${STOCKHOGAR_PORT} "; then
+    if ! $COMPOSE ps 2>/dev/null | grep -q .; then
+        log_error "El puerto ${STOCKHOGAR_PORT} ya está en uso por otro proceso y no hay contenedores de" \
+                   "este proyecto corriendo todavía. Cambia STOCKHOGAR_PORT en .env o libera el puerto."
+        exit 1
+    fi
+    log_info "El puerto ${STOCKHOGAR_PORT} está en uso, probablemente por una instalación previa de este mismo stack; se reconstruirá sobre ella."
+fi
+
 log_warning "Revisa .env y rellena GOOGLE_CLIENT_ID / APPLE_CLIENT_ID / SMTP_* si vas a" \
              "usar login social o invitaciones por email. Sin ellos la app funciona igual" \
              "(login con usuario/contraseña, invitaciones como enlace copiable)."
@@ -298,12 +477,33 @@ log_warning "Revisa .env y rellena GOOGLE_CLIENT_ID / APPLE_CLIENT_ID / SMTP_* s
 step_end
 
 ################################################################################
+step_start "Validar configuración de Docker Compose"
+################################################################################
+
+if ! $COMPOSE config -q 2>>"$LOG_FILE"; then
+    log_error "docker-compose.yml (o el .env) no es válido. Revisa el log:"
+    tail -n 30 "$LOG_FILE"
+    exit 1
+fi
+log_success "docker-compose.yml válido"
+
+step_end
+
+################################################################################
 step_start "Construir imagen"
 ################################################################################
 
+IMAGE_NAME="$($COMPOSE config --images 2>/dev/null | head -1)"
+if [[ -n "$IMAGE_NAME" ]] && $DOCKER image inspect "$IMAGE_NAME" &> /dev/null; then
+    run $DOCKER tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
+    log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback por si hay que revertir"
+else
+    log_info "No hay imagen anterior (primera instalación); no hay nada que respaldar todavía"
+fi
+
 log_info "Construyendo imagen Docker (puede tardar varios minutos)..."
 log_info "Se descargan también los modelos de traducción (Argos Translate); requiere conexión a internet."
-run $COMPOSE build
+retry $COMPOSE build
 
 step_end
 
@@ -311,7 +511,7 @@ step_end
 step_start "Iniciar contenedores"
 ################################################################################
 
-run $COMPOSE up -d
+run $COMPOSE up -d --remove-orphans
 
 log_info "Esperando a que el contenedor arranque..."
 sleep 5
@@ -323,9 +523,7 @@ step_end
 step_start "Instalación completada"
 ################################################################################
 
-STOCKHOGAR_PORT="$(grep -m1 '^STOCKHOGAR_PORT=' .env 2>/dev/null | cut -d= -f2)"
-STOCKHOGAR_PORT="${STOCKHOGAR_PORT:-5000}"
-IP_ADDRESS=$(hostname -I 2>/dev/null | awk '{print $1}')
+IP_ADDRESS=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
 IP_ADDRESS="${IP_ADDRESS:-localhost}"
 
 echo ""
@@ -351,13 +549,29 @@ for i in $(seq 1 15); do
         READY=1
         break
     fi
+    if ! $COMPOSE ps stockhogar 2>/dev/null | grep -qi "up"; then
+        log_error "El contenedor stockhogar no está en marcha. Últimas líneas de log:"
+        $COMPOSE logs --tail=60 stockhogar 2>&1 | tee -a "$LOG_FILE" || true
+        rollback
+        exit 1
+    fi
     sleep 4
 done
 
 if [[ $READY -eq 1 ]]; then
     log_success "Aplicación respondiendo correctamente en el puerto ${STOCKHOGAR_PORT}"
     exit 0
+elif [[ $UPDATE_MODE -eq 1 ]]; then
+    # En --update SÍ tenemos una versión anterior conocida-buena a la que
+    # volver, así que un healthcheck fallido dispara el rollback automático
+    # en vez de dejar la instalación en un estado roto.
+    log_error "La aplicación no respondió en 60s tras la actualización. Últimas líneas de log:"
+    $COMPOSE logs --tail=60 stockhogar 2>&1 | tee -a "$LOG_FILE" || true
+    rollback
+    exit 1
 else
-    log_warning "La aplicación aún no responde. Revisa los logs: $COMPOSE logs -f stockhogar"
+    log_warning "La aplicación aún no responde tras 60s. Últimas líneas de log:"
+    $COMPOSE logs --tail=60 stockhogar 2>&1 | tee -a "$LOG_FILE" || true
+    log_warning "Puede seguir arrancando (p.ej. descarga de modelos); revisa: $COMPOSE logs -f stockhogar"
     exit 0
 fi
