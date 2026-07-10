@@ -183,26 +183,25 @@ def anadir_articulo():
 
 
 @bp.route("/<int:item_id>", methods=["PATCH"])
+@requerir_sesion
+@manejo_errores
 def actualizar_articulo(item_id):
     """Actualiza un artículo (requiere permiso 'editar')."""
     usuario_id = session.get("usuario_id")
-    if not usuario_id:
-        return jsonify({"error": "No autorizado"}), 401
-
     db = get_db()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
 
     if fila is None:
-        return jsonify({"error": "No encontrado"}), 404
+        return APIResponse.no_encontrado("Artículo")
 
     # Validar permisos sobre la lista
     permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
     if not permiso or (permiso != "propietario" and permiso != "editar"):
-        return jsonify({"error": "No tienes permisos para editar esta lista"}), 403
+        return APIResponse.no_permitido("No tienes permisos para editar esta lista")
 
     datos = request.get_json(force=True) or {}
     if not datos:
-        return jsonify({"error": "No hay nada que actualizar"}), 400
+        return APIResponse.validacion("No hay nada que actualizar")
 
     if "activo" in datos:
         if datos["activo"]:
@@ -236,7 +235,7 @@ def actualizar_articulo(item_id):
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
-    return jsonify(DataConverter.articulo_lista_to_dict(fila))
+    return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
 
 @bp.route("/<int:item_id>", methods=["DELETE"])

@@ -53,7 +53,11 @@ def cambiar_idioma():
             )
             db.commit()
     except Exception:
-        pass  # Si falla BD, al menos quedó en sesión
+        import logging
+        logging.getLogger(__name__).exception(
+            "No se pudo persistir el idioma preferido en BD (usuario_id=%s)", usuario_id
+        )
+        # Sigue en sesión aunque falle la persistencia en BD
 
     return APIResponse.success({
         "idioma": idioma,

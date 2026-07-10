@@ -289,7 +289,7 @@ class DrawerListasManager {
     e.preventDefault();
 
     if (!this.listaEditandoId) {
-      alert('Error: No hay lista seleccionada');
+      Toast.error('Error: No hay lista seleccionada');
       return;
     }
 
@@ -297,7 +297,7 @@ class DrawerListasManager {
     const color = this.inputEditarColor.value;
 
     if (!nombre) {
-      alert('El nombre de la lista es requerido');
+      Toast.error('El nombre de la lista es requerido');
       return;
     }
 
@@ -309,8 +309,8 @@ class DrawerListasManager {
       });
 
       if (!res.ok) {
-        const error = await res.json();
-        alert(error.error || 'Error al guardar cambios');
+        const error = await res.json().catch(() => ({}));
+        Toast.error(error.error || 'Error al guardar cambios');
         return;
       }
 
@@ -323,10 +323,10 @@ class DrawerListasManager {
 
       this.cerrarModalEditar();
       this.renderizarListas();
-      alert('Lista actualizada correctamente');
+      Toast.success('Lista actualizada correctamente');
     } catch (error) {
       console.error('Error guardando cambios:', error);
-      alert('Error al guardar cambios');
+      Toast.error('No se pudo guardar los cambios. Comprueba tu conexión.');
     }
   }
 
@@ -371,7 +371,7 @@ class DrawerListasManager {
     const icono = document.querySelector('.icon-button[style*="2px solid var(--accent)"]')?.dataset.icon;
 
     if (!nombre) {
-      alert('El nombre no puede estar vacío');
+      Toast.error('El nombre no puede estar vacío');
       return;
     }
 
@@ -383,8 +383,8 @@ class DrawerListasManager {
       });
 
       if (!res.ok) {
-        const error = await res.json();
-        alert(error.error || 'Error al guardar');
+        const error = await res.json().catch(() => ({}));
+        Toast.error(error.error || 'Error al guardar');
         return;
       }
 
@@ -405,11 +405,11 @@ class DrawerListasManager {
 
       // Cerrar modal
       document.getElementById('modalNombreImagen').hidden = true;
-      alert('Cambios guardados correctamente');
+      Toast.success('Cambios guardados correctamente');
       this.refrescar();
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al guardar cambios');
+      Toast.error('No se pudo guardar los cambios. Comprueba tu conexión.');
     }
   }
 
@@ -504,8 +504,8 @@ class DrawerListasManager {
       });
 
       if (!res.ok) {
-        const error = await res.json();
-        alert(error.error || 'Error al salir de la lista');
+        const error = await res.json().catch(() => ({}));
+        Toast.error(error.error || 'Error al salir de la lista');
         return;
       }
 
@@ -514,7 +514,7 @@ class DrawerListasManager {
 
       this.cerrarModalEditar();
       this.renderizarListas();
-      alert('Has salido de la lista');
+      Toast.success('Has salido de la lista');
 
       // Si la lista era la actual, recargar
       if (this.listaActualId === this.listaEditandoId) {
@@ -522,7 +522,7 @@ class DrawerListasManager {
       }
     } catch (error) {
       console.error('Error al salir:', error);
-      alert('Error al salir de la lista');
+      Toast.error('No se pudo salir de la lista. Comprueba tu conexión.');
     }
   }
 
@@ -1187,7 +1187,7 @@ class CrearListaModal extends FormModal {
       // Si no hay input de nombre, pedir al usuario
       nombre = prompt('Nombre de la lista:') || '';
       if (!nombre) {
-        alert('El nombre es requerido');
+        Toast.error('El nombre es requerido');
         return;
       }
     }
@@ -1198,7 +1198,7 @@ class CrearListaModal extends FormModal {
     console.log('Datos:', { nombre, icono, color });
 
     if (!nombre) {
-      alert('El nombre es requerido');
+      Toast.error('El nombre es requerido');
       return;
     }
 
@@ -1212,7 +1212,7 @@ class CrearListaModal extends FormModal {
       const datos = await res.json();
 
       if (!res.ok) {
-        alert(datos.error || 'Error al crear lista');
+        Toast.error(datos.error || 'Error al crear lista');
         return;
       }
 
@@ -1236,7 +1236,7 @@ class CrearListaModal extends FormModal {
       console.log('Lista creada:', datos.nombre);
     } catch (error) {
       console.error('Error creando lista:', error);
-      alert('Error al crear lista');
+      Toast.error('No se pudo crear la lista. Comprueba tu conexión.');
     }
   }
 }

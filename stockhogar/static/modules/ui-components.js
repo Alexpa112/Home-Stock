@@ -386,9 +386,69 @@ class ScreenUtils {
   }
 }
 
+/** Notificaciones no bloqueantes (sustituye a alert()) */
+class ToastManager {
+  constructor() {
+    this.container = null;
+    this.init();
+  }
+
+  init() {
+    this.container = document.createElement('div');
+    this.container.className = 'toast-container';
+    this.container.setAttribute('role', 'status');
+    this.container.setAttribute('aria-live', 'polite');
+    document.body.appendChild(this.container);
+  }
+
+  show(mensaje, { type = 'info', duration = 5000 } = {}) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+
+    const texto = document.createElement('span');
+    texto.className = 'toast__mensaje';
+    texto.textContent = mensaje;
+    toast.appendChild(texto);
+
+    const cerrar = document.createElement('button');
+    cerrar.type = 'button';
+    cerrar.className = 'toast__cerrar';
+    cerrar.setAttribute('aria-label', 'Cerrar notificación');
+    cerrar.textContent = '×';
+    const quitar = () => {
+      toast.classList.add('toast--saliendo');
+      toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    };
+    cerrar.addEventListener('click', quitar);
+    toast.appendChild(cerrar);
+
+    this.container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('toast--visible'));
+
+    if (duration > 0) {
+      setTimeout(quitar, duration);
+    }
+    return toast;
+  }
+
+  error(mensaje, opciones = {}) {
+    return this.show(mensaje, { duration: 7000, ...opciones, type: 'error' });
+  }
+
+  success(mensaje, opciones = {}) {
+    return this.show(mensaje, { ...opciones, type: 'success' });
+  }
+
+  info(mensaje, opciones = {}) {
+    return this.show(mensaje, { ...opciones, type: 'info' });
+  }
+}
+
 // Inicializar managers globales
 const keyboardManager = new KeyboardManager();
 const themeManager = new ThemeManager();
+const toastManager = new ToastManager();
 
 // Exponer globalmente
 window.UIComponents = {
@@ -400,5 +460,7 @@ window.UIComponents = {
   ValidatedInput,
   KeyboardManager,
   ThemeManager,
-  ScreenUtils
+  ScreenUtils,
+  ToastManager
 };
+window.Toast = toastManager;

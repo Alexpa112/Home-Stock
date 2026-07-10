@@ -61,8 +61,13 @@ def manejo_errores(f):
             return f(*args, **kwargs)
         except ValidationError as e:
             return APIResponse.validacion(str(e))
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return APIResponse.error(f"Error interno: {str(e)}", 500)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Error no controlado en %s", f.__name__
+            )
+            return APIResponse.error(
+                "Ha ocurrido un error interno. Inténtalo de nuevo o contacta con soporte.",
+                500,
+            )
     return decorated

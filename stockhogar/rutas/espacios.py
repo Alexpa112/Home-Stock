@@ -56,19 +56,21 @@ def listar_espacios():
 
 
 @bp.route("", methods=["POST"])
+@requerir_sesion
+@manejo_errores
 def crear_espacio():
     datos = request.get_json(force=True) or {}
     nombre = (datos.get("nombre") or "").strip()
     if not nombre:
-        return jsonify({"error": "El nombre es obligatorio"}), 400
-    icono = (datos.get("icono") or "").strip() or "🏠"
+        return APIResponse.validacion("El nombre es obligatorio")
+    icono = (datos.get("icono") or "").strip() or "h-home"
 
     db = get_db()
     existente = db.execute(
         "SELECT id FROM espacios WHERE nombre = ? COLLATE NOCASE", (nombre,)
     ).fetchone()
     if existente:
-        return jsonify({"error": "Ya tienes un stock con ese nombre"}), 400
+        return APIResponse.validacion("Ya tienes un stock con ese nombre")
 
     color = _color_valido(datos.get("color"))
     if not color:
@@ -83,15 +85,17 @@ def crear_espacio():
     fila = db.execute(
         "SELECT *, 0 AS productos_count FROM espacios WHERE id = ?", (cur.lastrowid,)
     ).fetchone()
-    return jsonify(espacio_a_dict(fila)), 201
+    return APIResponse.success(DataConverter.espacio_to_dict(fila), 201)
 
 
 @bp.route("/<int:espacio_id>", methods=["PATCH"])
+@requerir_sesion
+@manejo_errores
 def actualizar_espacio(espacio_id):
     db = get_db()
     fila = db.execute("SELECT * FROM espacios WHERE id = ?", (espacio_id,)).fetchone()
     if fila is None:
-        return jsonify({"error": "No encontrado"}), 404
+        return APIResponse.no_encontrado("Stock")
 
     datos = request.get_json(force=True) or {}
     nombre = (datos.get("nombre") or fila["nombre"]).strip() or fila["nombre"]
@@ -107,15 +111,17 @@ def actualizar_espacio(espacio_id):
         "FROM espacios e WHERE e.id = ?",
         (espacio_id,),
     ).fetchone()
-    return jsonify(espacio_a_dict(fila))
+    return APIResponse.success(DataConverter.espacio_to_dict(fila))
 
 
 @bp.route("/<int:espacio_id>", methods=["DELETE"])
+@requerir_sesion
+@manejo_errores
 def borrar_espacio(espacio_id):
     db = get_db()
     total = db.execute("SELECT COUNT(*) AS n FROM espacios").fetchone()["n"]
     if total <= 1:
-        return jsonify({"error": "No puedes borrar el único stock que tienes"}), 400
+        return APIResponse.validacion("No puedes borrar el único stock que tienes")
 
     db.execute("DELETE FROM lista_compra WHERE espacio_id = ?", (espacio_id,))
     db.execute("DELETE FROM productos WHERE espacio_id = ?", (espacio_id,))
@@ -124,23 +130,27 @@ def borrar_espacio(espacio_id):
 
     if session.get("espacio_id") == espacio_id:
         session.pop("espacio_id", None)
-    return "", 204
+    return APIResponse.success(None, 204)
 
 
 @bp.route("/actual", methods=["GET"])
+@requerir_sesion
+@manejo_errores
 def obtener_actual():
     db = get_db()
     espacio_id = obtener_espacio_actual(db)
     fila = db.execute("SELECT * FROM espacios WHERE id = ?", (espacio_id,)).fetchone()
-    return jsonify(espacio_a_dict(fila))
+    return APIResponse.success(DataConverter.espacio_to_dict(fila))
 
 
 @bp.route("/actual", methods=["POST"])
+@requerir_sesion
+@manejo_errores
 def cambiar_actual():
     datos = request.get_json(force=True) or {}
     db = get_db()
     fila = db.execute("SELECT * FROM espacios WHERE id = ?", (datos.get("espacio_id"),)).fetchone()
     if fila is None:
-        return jsonify({"error": "Stock no encontrado"}), 404
+        return APIResponse.no_encontrado("Stock")
     session["espacio_id"] = fila["id"]
-    return jsonify(espacio_a_dict(fila))
+    return APIResponse.success(DataConverter.espacio_to_dict(fila))

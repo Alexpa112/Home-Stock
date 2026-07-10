@@ -349,26 +349,25 @@ def revocar_permiso(lista_id, usuario_id):
 
 
 @bp.route("/<int:lista_id>/permisos/<int:usuario_id>", methods=["PATCH"])
+@requerir_sesion
+@manejo_errores
 def cambiar_nivel_permiso(lista_id, usuario_id):
     """Cambia el nivel de permiso de un usuario (solo propietario)."""
     propietario_id = session.get("usuario_id")
-    if not propietario_id:
-        return jsonify({"error": "No autorizado"}), 401
-
     db = get_db()
     lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
 
     if not lista:
-        return jsonify({"error": "Lista no encontrada"}), 404
+        return APIResponse.no_encontrado("Lista")
 
     if lista["usuario_propietario_id"] != propietario_id:
-        return jsonify({"error": "Solo el propietario puede cambiar permisos"}), 403
+        return APIResponse.no_permitido("Solo el propietario puede cambiar permisos")
 
     datos = request.get_json(force=True) or {}
     nivel = (datos.get("nivel") or "").lower()
 
     if nivel not in ("ver", "editar"):
-        return jsonify({"error": "Nivel debe ser 'ver' o 'editar'"}), 400
+        return APIResponse.validacion("Nivel debe ser 'ver' o 'editar'")
 
     db.execute(
         "UPDATE permisos_lista SET nivel = ? WHERE lista_id = ? AND usuario_id = ?",
@@ -376,4 +375,4 @@ def cambiar_nivel_permiso(lista_id, usuario_id):
     )
     db.commit()
 
-    return jsonify({"mensaje": "Permiso actualizado", "nivel": nivel}), 200
+    return APIResponse.success({"mensaje": "Permiso actualizado", "nivel": nivel})

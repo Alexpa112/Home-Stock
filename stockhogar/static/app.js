@@ -20,12 +20,20 @@ async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
+      const cuerpo = await res.clone().json().catch(() => null);
+      const error = new Error(cuerpo?.error || `Error del servidor (${res.status})`);
+      error.status = res.status;
+      throw error;
     }
 
     return res;
   } catch (error) {
     clearTimeout(timeoutId);
+    if (error.name === "AbortError") {
+      const timeoutError = new Error("La petición ha tardado demasiado. Comprueba tu conexión e inténtalo de nuevo.");
+      console.error(`Fetch timeout for ${url}`);
+      throw timeoutError;
+    }
     console.error(`Fetch error for ${url}:`, error);
     throw error;
   }
@@ -522,6 +530,7 @@ async function cargarCategorias() {
     poblarSelectCategoria(campoCategoria, campoCategoria.value);
   } catch (error) {
     console.error("Error cargando categorías:", error);
+    Toast.error("No se pudieron cargar las categorías. Comprueba tu conexión.");
     categorias = [];
   }
 }
@@ -582,7 +591,7 @@ async function borrarCategoria(cat) {
     render();
   } catch (error) {
     console.error("Error borrando categoría:", error);
-    alert("Error al borrar la categoría. Por favor, intenta de nuevo.");
+    Toast.error(error.message || "No se pudo borrar la categoría. Inténtalo de nuevo.");
   }
 }
 
@@ -736,14 +745,21 @@ formCategoria.addEventListener("submit", async (e) => {
   if (!nombre) return;
   const icono = categoriaCampoIcono.value || "🗂️";
 
-  const res = await fetch("/api/categorias", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nombre, icono }),
-  });
-  const datos = await res.json();
-  if (!res.ok) {
-    alert(datos.error || "No se pudo crear la categoría");
+  let datos;
+  try {
+    const res = await fetch("/api/categorias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre, icono }),
+    });
+    datos = await res.json();
+    if (!res.ok) {
+      Toast.error(datos.error || "No se pudo crear la categoría");
+      return;
+    }
+  } catch (error) {
+    console.error("Error creando categoría:", error);
+    Toast.error("No se pudo crear la categoría. Comprueba tu conexión e inténtalo de nuevo.");
     return;
   }
 
@@ -905,7 +921,7 @@ async function borrarEspacio(esp) {
     }
   } catch (error) {
     console.error("Error borrando espacio:", error);
-    alert("Error al borrar el stock. Por favor, intenta de nuevo.");
+    Toast.error(error.message || "No se pudo borrar el stock. Inténtalo de nuevo.");
   }
 }
 
@@ -983,14 +999,21 @@ formEspacio.addEventListener("submit", async (e) => {
   };
   if (!payload.nombre) return;
 
-  const res = await fetch(id ? `/api/espacios/${id}` : "/api/espacios", {
-    method: id ? "PATCH" : "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const datos = await res.json();
-  if (!res.ok) {
-    alert(datos.error || "No se pudo guardar el stock");
+  let datos;
+  try {
+    const res = await fetch(id ? `/api/espacios/${id}` : "/api/espacios", {
+      method: id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    datos = await res.json();
+    if (!res.ok) {
+      Toast.error(datos.error || "No se pudo guardar el stock");
+      return;
+    }
+  } catch (error) {
+    console.error("Error guardando espacio:", error);
+    Toast.error("No se pudo guardar el stock. Comprueba tu conexión e inténtalo de nuevo.");
     return;
   }
 
@@ -1015,6 +1038,7 @@ async function cargarProductos() {
     render();
   } catch (error) {
     console.error("Error cargando productos:", error);
+    Toast.error("No se pudo cargar el stock. Comprueba tu conexión.");
     productos = [];
     render();
   }
@@ -1072,22 +1096,28 @@ function crearTarjeta(p) {
 }
 
 async function cambiarCantidad(id, delta) {
-  const res = await fetch(`/api/productos/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ delta }),
-  });
-
-  if (!res.ok) {
-    console.error(`Error PATCH: ${res.status} ${res.statusText}`);
-    alert(`Error al cambiar cantidad: ${res.status}`);
-    return;
-  }
-
-  const actualizado = await res.json();
-  if (!actualizado || !actualizado.id) {
-    console.error("Respuesta inválida del servidor", actualizado);
-    alert("Error: respuesta inválida del servidor");
+  let actualizado;
+  try {
+    const res = await fetch(`/api/productos/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delta }),
+    });
+    const datos = await res.json().catch(() => null);
+    if (!res.ok) {
+      console.error(`Error PATCH: ${res.status} ${res.statusText}`);
+      Toast.error(datos?.error || `No se pudo cambiar la cantidad (${res.status})`);
+      return;
+    }
+    if (!datos || !datos.id) {
+      console.error("Respuesta inválida del servidor", datos);
+      Toast.error("Respuesta inválida del servidor al cambiar la cantidad");
+      return;
+    }
+    actualizado = datos;
+  } catch (error) {
+    console.error("Error cambiando cantidad:", error);
+    Toast.error("No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
     return;
   }
 
@@ -1098,7 +1128,18 @@ async function cambiarCantidad(id, delta) {
 
 async function borrarProducto(id) {
   if (!confirm("¿Eliminar este producto del stock?")) return;
-  await fetch(`/api/productos/${id}`, { method: "DELETE" });
+  try {
+    const res = await fetch(`/api/productos/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const datos = await res.json().catch(() => null);
+      Toast.error(datos?.error || "No se pudo eliminar el producto");
+      return;
+    }
+  } catch (error) {
+    console.error("Error borrando producto:", error);
+    Toast.error("No se pudo eliminar el producto. Comprueba tu conexión e inténtalo de nuevo.");
+    return;
+  }
   productos = productos.filter((p) => p.id !== id);
   render();
 }
@@ -1200,7 +1241,7 @@ form.addEventListener("submit", async (e) => {
   const stockMinimo = Number(minimoRaw);
 
   if (!Number.isInteger(cantidad) || cantidad < 0 || !Number.isInteger(stockMinimo) || stockMinimo < 0) {
-    alert("La cantidad y el stock mínimo deben ser números enteros y no negativos.");
+    Toast.error("La cantidad y el stock mínimo deben ser números enteros y no negativos.");
     return;
   }
 
@@ -1297,6 +1338,7 @@ async function cargarListaCompra() {
     renderListaCompra();
   } catch (error) {
     console.error("Error cargando lista de compra:", error);
+    Toast.error("No se pudo cargar la lista de la compra. Comprueba tu conexión.");
     pendientesCompra = [];
     completadosCompra = [];
     renderListaCompra();
@@ -1489,7 +1531,7 @@ formCompra.addEventListener("submit", async (e) => {
   const id = compraEditIdEl.value;
   const listaId = localStorage.getItem('lista-actual');
   if (!listaId) {
-    alert("Selecciona una lista primero");
+    Toast.error("Selecciona una lista primero");
     return;
   }
 
@@ -1515,18 +1557,28 @@ formCompra.addEventListener("submit", async (e) => {
       console.log("Artículo personalizado actualizado:", articuloActualizado);
     } catch (error) {
       console.error("Error actualizando artículo personalizado:", error);
-      alert("Error al actualizar artículo personalizado. Por favor, intenta de nuevo.");
+      Toast.error(error.message || "No se pudo actualizar el artículo personalizado. Inténtalo de nuevo.");
       return;
     }
   }
 
-  const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
-    method: id ? "PATCH" : "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const articulo = await res.json();
+  let articulo;
+  try {
+    const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
+      method: id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    articulo = await res.json();
+    if (!res.ok) {
+      Toast.error(articulo?.error || "No se pudo guardar el artículo");
+      return;
+    }
+  } catch (error) {
+    console.error("Error guardando artículo:", error);
+    Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
+    return;
+  }
 
   // Traducir automáticamente el nombre del artículo a todos los idiomas
   // (en background, sin bloquear la UI)
@@ -1561,7 +1613,7 @@ if (btnBorrarArticuloEl) {
       await cargarListaCompra();
     } catch (error) {
       console.error("Error eliminando artículo:", error);
-      alert("Error al eliminar artículo. Por favor, intenta de nuevo.");
+      Toast.error(error.message || "No se pudo eliminar el artículo. Inténtalo de nuevo.");
     }
   });
 }
@@ -1574,7 +1626,7 @@ if (btnEdicionAvanzadaEl) {
   btnEdicionAvanzadaEl.addEventListener("click", () => {
     const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId").value;
     if (!articuloPersonalizadoId) {
-      alert("Este artículo no es personalizado, no tiene edición avanzada.");
+      Toast.info("Este artículo no es personalizado, no tiene edición avanzada.");
       return;
     }
     // Abrir modal de edición avanzada (por ahora solo alerta)
@@ -1748,7 +1800,7 @@ function crearTileCatalogo(entry) {
 async function anadirDesdeCatalogo(entry) {
   const listaId = localStorage.getItem('lista-actual');
   if (!listaId) {
-    alert("Selecciona una lista primero");
+    Toast.error("Selecciona una lista primero");
     return;
   }
 
@@ -1770,7 +1822,7 @@ async function anadirDesdeCatalogo(entry) {
 async function toggleArticuloEnLista(entry, btn) {
   const listaId = localStorage.getItem('lista-actual');
   if (!listaId) {
-    alert("Selecciona una lista primero");
+    Toast.error("Selecciona una lista primero");
     return;
   }
 
@@ -1851,8 +1903,19 @@ async function cargarEstadoAuth() {
 
 async function cargarUsuarios() {
   if (!usuariosListaEl) return;
-  const res = await fetch("/api/usuarios");
-  const usuarios = await res.json();
+  let usuarios;
+  try {
+    const res = await fetch("/api/usuarios");
+    usuarios = await res.json();
+    if (!res.ok) {
+      Toast.error(usuarios?.error || "No se pudo cargar la lista de usuarios");
+      return;
+    }
+  } catch (error) {
+    console.error("Error cargando usuarios:", error);
+    Toast.error("No se pudo cargar la lista de usuarios. Comprueba tu conexión.");
+    return;
+  }
   usuariosListaEl.innerHTML = "";
   for (const u of usuarios) {
     const chip = document.createElement("div");
@@ -1872,10 +1935,16 @@ async function cargarUsuarios() {
 
 async function borrarUsuario(u) {
   if (!confirm(`¿Borrar el usuario "${u.nombre_usuario}"?`)) return;
-  const res = await fetch(`/api/usuarios/${u.id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const datos = await res.json().catch(() => ({}));
-    alert(datos.error || "No se pudo borrar el usuario");
+  try {
+    const res = await fetch(`/api/usuarios/${u.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const datos = await res.json().catch(() => ({}));
+      Toast.error(datos.error || "No se pudo borrar el usuario");
+      return;
+    }
+  } catch (error) {
+    console.error("Error borrando usuario:", error);
+    Toast.error("No se pudo borrar el usuario. Comprueba tu conexión e inténtalo de nuevo.");
     return;
   }
   cargarUsuarios();
@@ -1955,7 +2024,7 @@ btnAnadirLineaTicket.addEventListener("click", () => {
 btnAnalizarTicket.addEventListener("click", async () => {
   const archivo = ticketArchivo.files[0];
   if (!archivo) {
-    alert("Elige antes una foto del ticket");
+    Toast.error("Elige antes una foto del ticket");
     return;
   }
 
@@ -1969,7 +2038,7 @@ btnAnalizarTicket.addEventListener("click", async () => {
     const res = await fetch("/api/tickets/analizar", { method: "POST", body: formData });
     const datos = await res.json();
     if (!res.ok) {
-      alert(datos.error || "No se pudo analizar el ticket");
+      Toast.error(datos.error || "No se pudo analizar el ticket");
       ticketPasoFoto.hidden = false;
       ticketCargando.hidden = true;
       return;
@@ -1986,7 +2055,8 @@ btnAnalizarTicket.addEventListener("click", async () => {
     ticketCargando.hidden = true;
     ticketPasoRevision.hidden = false;
   } catch (err) {
-    alert("No se pudo analizar el ticket");
+    console.error("Error analizando ticket:", err);
+    Toast.error("No se pudo analizar el ticket. Comprueba tu conexión e inténtalo de nuevo.");
     ticketPasoFoto.hidden = false;
     ticketCargando.hidden = true;
   }
@@ -2150,6 +2220,7 @@ async function cargarMisListas() {
     await actualizarListaActual(data.propias);
   } catch (error) {
     console.error('Error cargando listas:', error);
+    Toast.error('No se pudieron cargar tus listas. Comprueba tu conexión.');
   }
 }
 
@@ -2257,6 +2328,7 @@ async function actualizarListaActual(listas = null) {
     if (rolEl) rolEl.textContent = (lista.mi_rol || 'ver').toUpperCase();
   } catch (error) {
     console.error('Error actualizando lista actual:', error);
+    Toast.error('No se pudo cargar la información de la lista actual.');
   }
 }
 
@@ -2269,13 +2341,14 @@ async function cambiarLista(listaId) {
   try {
     const res = await fetch(`/api/listas/${listaId}/seleccionar`, { method: 'POST' });
     if (!res.ok) {
+      const datos = await res.json().catch(() => ({}));
       console.error('Error cambiando lista:', res.status);
-      alert('No se pudo cambiar la lista');
+      Toast.error(datos.error || 'No se pudo cambiar la lista');
       return;
     }
   } catch (error) {
     console.error('Error en cambiarLista:', error);
-    alert('Error al cambiar de lista');
+    Toast.error('No se pudo cambiar de lista. Comprueba tu conexión e inténtalo de nuevo.');
     return;
   }
 

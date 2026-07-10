@@ -3,6 +3,7 @@ from flask import Blueprint, request, session, redirect, url_for
 from urllib.parse import urlencode
 import requests
 import json
+import logging
 
 from ..api import APIResponse, manejo_errores
 from ..db import ahora, get_db
@@ -19,6 +20,7 @@ APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
 
 
 @bp.route("/google", methods=["GET"])
+@manejo_errores
 def oauth_google():
     """Iniciar flujo OAuth con Google."""
     params = {
@@ -125,11 +127,13 @@ def oauth_google_callback():
 
         return redirect("/")
 
-    except requests.RequestException as e:
-        return APIResponse.error(f"Error en autenticación Google: {str(e)}", 500)
+    except requests.RequestException:
+        logging.getLogger(__name__).exception("Error en autenticación Google")
+        return APIResponse.error("No se pudo completar el inicio de sesión con Google. Inténtalo de nuevo.", 500)
 
 
 @bp.route("/apple", methods=["GET"])
+@manejo_errores
 def oauth_apple():
     """Iniciar flujo OAuth con Apple."""
     params = {
@@ -237,5 +241,6 @@ def oauth_apple_callback():
 
         return redirect("/")
 
-    except (requests.RequestException, Exception) as e:
-        return APIResponse.error(f"Error en autenticación Apple: {str(e)}", 500)
+    except Exception:
+        logging.getLogger(__name__).exception("Error en autenticación Apple")
+        return APIResponse.error("No se pudo completar el inicio de sesión con Apple. Inténtalo de nuevo.", 500)
