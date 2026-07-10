@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Dreame!</title>
+<meta name="theme-color" content="#B5551A">
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<link rel="icon" href="{{ url_for('static', filename='icons/favicon.svg') }}" type="image/svg+xml">
+<link rel="icon" href="{{ url_for('static', filename='icons/favicon-32.png') }}" sizes="32x32" type="image/png">
+<link rel="icon" href="{{ url_for('static', filename='icons/favicon-16.png') }}" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 <script>
@@ -17,7 +23,7 @@
 
 <div id="appShell">
   <header class="topbar">
-    <h1>📦 Dreame!</h1>
+    <h1><svg class="logo-app" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13 12 3.5 22 13Z" fill="currentColor"/><rect x="4" y="10.5" width="16" height="10" rx="3" fill="currentColor"/><path d="M16.3 7.6a2.3 2.3 0 1 0 0 4.6 2.9 2.9 0 0 1 0-4.6Z" fill="var(--surface)"/><rect x="10.2" y="15" width="3.6" height="5.5" rx="1.2" fill="var(--surface)"/><path d="M19.2 2.2 19.8 3.7 21.3 4.3 19.8 4.9 19.2 6.4 18.6 4.9 17.1 4.3 18.6 3.7Z" fill="currentColor"/></svg> Dreame!</h1>
     <div class="acciones-cabecera">
       <button id="btnTema" class="icono-cabecera" title="Cambiar tema" style="display: none;">🌙</button>
       <button id="btnCategorias" class="icono-cabecera" title="Categorías">🏷️</button>
@@ -347,7 +353,7 @@
         <label>Icono: <span id="espacioIconoElegido">🏠</span>
           <input type="hidden" id="espacioCampoIcono" value="🏠">
         </label>
-        <div id="selectorIconoEspacio"></div>
+        <button type="button" id="btnSeleccionarIconoEspacio" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button>
 
         <span>Color <small class="nota-icono">(se usa en su tarjeta y en los acentos de la app mientras estás en este stock)</small></span>
         <div id="paletaColorEspacio" class="paleta-color"></div>
@@ -406,7 +412,7 @@
       <h2>📋 Crear nueva lista</h2>
     </div>
     <div class="modal-content">
-      <form id="formCrearLista"><label>Nombre<input type="text" name="nombre" maxlength="50" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label>Icono<div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display">📋</span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button></div><input type="hidden" name="icono" value="📋"></label><label>Color de la lista<div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label></form>
+      <form id="formCrearLista"><label>Nombre<input type="text" name="nombre" maxlength="50" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label>Icono<div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display"><svg class="icono-svg" width="20" height="20" aria-hidden="true"><use href="#icon-h-clipboard-document-list"></use></svg></span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button></div><input type="hidden" name="icono" value="h-clipboard-document-list"></label><label>Color de la lista<div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label></form>
     </div>
     <div class="modal-footer">
       <button type="button" id="btnCrearListaSubmit" class="primario">
@@ -711,13 +717,11 @@
 
         <div>
           <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Icono</label>
-          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px;">
-            <button type="button" class="icon-button" data-icon="📋" style="padding: 12px; border: 2px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">📋</button>
-            <button type="button" class="icon-button" data-icon="🛒" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">🛒</button>
-            <button type="button" class="icon-button" data-icon="🏠" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">🏠</button>
-            <button type="button" class="icon-button" data-icon="👨‍👩‍👧‍👦" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">👨‍👩‍👧‍👦</button>
-            <button type="button" class="icon-button" data-icon="🎉" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">🎉</button>
-            <button type="button" class="icon-button" data-icon="✨" style="padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 1.5rem; cursor: pointer;">✨</button>
+          <div style="margin-top: 6px;">
+            <input type="hidden" id="inputIconoLista" value="h-clipboard-document-list">
+            <button type="button" id="btnSeleccionarIconoLista" class="secundario" aria-label="Seleccionar icono">
+              Icono: <span id="iconoSeleccionadoLista"></span>
+            </button>
           </div>
         </div>
       </form>
@@ -732,6 +736,10 @@
 
 <!-- Sistema de traducciones (se ejecuta primero) -->
 <script src="{{ url_for('static', filename='i18n.js') }}"></script>
+
+<!-- Catálogo e iconos SVG (requerido por app.js y drawer-listas) -->
+<script src="{{ url_for('static', filename='icons/catalogo-iconos.js') }}"></script>
+<script src="{{ url_for('static', filename='utils/iconos.js') }}"></script>
 
 <!-- Componentes base (requerido por drawer-listas) -->
 <script src="{{ url_for('static', filename='modules/ui-components.js') }}"></script>
