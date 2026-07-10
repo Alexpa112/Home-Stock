@@ -150,12 +150,12 @@ def crear_producto_nuevo(
     from flask import session
 
     categoria = normalizar_categoria(db, categoria)
-    if not icono:
-        recuerdo = buscar_historial(db, nombre)
-        if recuerdo:
-            icono = recuerdo["icono"]
     if espacio_id is None:
         espacio_id = obtener_espacio_actual(db)
+    if not icono:
+        recuerdo = buscar_historial(db, nombre, espacio_id)
+        if recuerdo:
+            icono = recuerdo["icono"]
 
     # Obtener lista_id si no se proporciona
     if lista_id is None:
@@ -192,8 +192,8 @@ def crear_producto_nuevo(
             logger = logging.getLogger(__name__)
             logger.debug(f"[crear_producto_nuevo] Error en stock_lista: {e}")
 
-    # Siempre guardar en historial para sincronización stock ↔ catálogo
-    recordar_articulo(db, nombre, icono or "📦", categoria, unidad, cantidad_defecto=cantidad)
+    # Guardar en el historial de ESTE espacio (nunca en el catálogo global)
+    recordar_articulo(db, espacio_id, nombre, icono or "📦", categoria, unidad, cantidad_defecto=cantidad)
     revisar_stock_bajo(db, producto_id, lista_id)
     return producto_id
 
@@ -410,7 +410,7 @@ def actualizar_producto(producto_id):
         )
 
         if icono:
-            recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
+            recordar_articulo(db, actual["espacio_id"], nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
         revisar_stock_bajo(db, producto_id, lista_id)
 
     db.commit()

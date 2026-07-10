@@ -297,6 +297,22 @@ class TranslationManager {
   }
 
   /**
+   * Genera la clave de traducción para una categoría, quitando tildes/diacríticos
+   * y caracteres especiales para que sea estable independientemente de cómo
+   * esté escrito el nombre original.
+   */
+  claveCategoria(nombre) {
+    const sinTildes = nombre
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, ''); // quita diacríticos (á->a, ñ no se ve afectada)
+    return `categoria_${sinTildes
+      .toLowerCase()
+      .replace(/&/g, 'y')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')}`;
+  }
+
+  /**
    * Traduce categorías visibles en la página
    */
   traducirCategorias() {
@@ -310,7 +326,7 @@ class TranslationManager {
       const categoriaOriginal = el.dataset.cat;
       if (categoriaOriginal && categoriaOriginal !== 'todas') {
         // Generar clave usando el dataset.cat (que no tiene emoji)
-        const clave = `categoria_${categoriaOriginal.toLowerCase().replace(/ /g, '_').replace(/&/g, 'y')}`;
+        const clave = this.claveCategoria(categoriaOriginal);
         const categoriaTrad = this.t(clave) ?? categoriaOriginal;
 
         // Extraer emoji del texto actual si existe
@@ -344,7 +360,7 @@ class TranslationManager {
           return;
         }
 
-        const clave = `categoria_${categoriaOriginal.toLowerCase().replace(/ /g, '_').replace(/&/g, 'y')}`;
+        const clave = this.claveCategoria(categoriaOriginal);
         // Comprobar explícitamente si la clave existe en las traducciones
         const categoriaTrad = (this.traducciones[clave] !== undefined) ? this.traducciones[clave] : categoriaOriginal;
         const avisos = partes.slice(1).join(' · ');

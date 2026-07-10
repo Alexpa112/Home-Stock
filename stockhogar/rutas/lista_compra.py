@@ -105,8 +105,11 @@ def anadir_articulo():
         fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (completado["id"],)).fetchone()
         return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
+    from .espacios import obtener_espacio_actual
+    espacio_id = obtener_espacio_actual(db)
+
     # Buscar en historial estándar
-    recuerdo = buscar_historial(db, nombre)
+    recuerdo = buscar_historial(db, nombre, espacio_id)
     categoria = normalizar_categoria(db, datos.get("categoria") or (recuerdo["categoria"] if recuerdo else None))
     icono = (datos.get("icono") or "").strip() or (recuerdo["icono"] if recuerdo else None)
     unidad = (datos.get("unidad") or "").strip() or (recuerdo["unidad"] if recuerdo else "ud")
@@ -118,9 +121,6 @@ def anadir_articulo():
     # Si el artículo NO está en historial estándar → crearlo en articulos_personalizados
     articulo_personalizado_id = None
     if not recuerdo:
-        from .espacios import obtener_espacio_actual
-        espacio_id = obtener_espacio_actual(db)
-
         # Buscar/crear en articulos_personalizados
         articulo_personal = db.execute(
             "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE AND espacio_id = ?",
@@ -175,7 +175,7 @@ def anadir_articulo():
 
     # Recordar para historial si tiene icono
     if icono and recuerdo:
-        recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
+        recordar_articulo(db, espacio_id, nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -231,7 +231,8 @@ def actualizar_articulo(item_id):
             (nombre, cantidad, unidad, categoria, icono, sub_descripcion, item_id),
         )
         if icono:
-            recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
+            from .espacios import obtener_espacio_actual
+            recordar_articulo(db, obtener_espacio_actual(db), nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()

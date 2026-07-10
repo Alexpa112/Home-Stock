@@ -136,9 +136,33 @@ def _migrar_lista_compra_a_articulos(db, espacio_defecto_id):
         pass  # Si no se puede renombrar, simplemente continuar
 
 
+def _reparar_fk_articulos_personalizados_old(db):
+    """Corrige una instalación afectada por un bug de una migración previa: al
+    renombrar articulos_personalizados a un nombre temporal, SQLite reescribió
+    automáticamente la FK de articulos_lista para que apuntara a ese nombre
+    temporal ("articulos_personalizados_old"), y se quedó rota al borrar la
+    tabla vieja. No se puede arreglar con ALTER TABLE; se reescribe el texto
+    del CREATE TABLE guardado en sqlite_master (autoreparable, no destructivo).
+    """
+    fila = db.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='articulos_lista'"
+    ).fetchone()
+    if not fila or "articulos_personalizados_old" not in fila["sql"]:
+        return
+    db.commit()
+    db.execute("PRAGMA writable_schema = ON")
+    db.execute(
+        "UPDATE sqlite_master SET sql = REPLACE(sql, '\"articulos_personalizados_old\"', 'articulos_personalizados') "
+        "WHERE type='table' AND name='articulos_lista'"
+    )
+    db.commit()
+    db.execute("PRAGMA writable_schema = OFF")
+
+
 def init_db():
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
+    _reparar_fk_articulos_personalizados_old(db)
 
     # Tabla de usuarios (debe existir antes de crear listas, ya que las listas
     # tienen una relación con usuarios)
@@ -362,11 +386,13 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS historial_articulos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            espacio_id INTEGER REFERENCES espacios(id) ON DELETE CASCADE,
+            nombre TEXT NOT NULL COLLATE NOCASE,
             icono TEXT NOT NULL,
             categoria TEXT,
             unidad TEXT NOT NULL DEFAULT 'ud',
             sub_descripcion TEXT,
+            cantidad_defecto INTEGER NOT NULL DEFAULT 1,
             fecha_actualizacion TEXT NOT NULL
         )
         """
@@ -374,6 +400,53 @@ def init_db():
     asegurar_columna(db, "historial_articulos", "unidad", "TEXT NOT NULL DEFAULT 'ud'")
     asegurar_columna(db, "historial_articulos", "sub_descripcion", "TEXT")
     asegurar_columna(db, "historial_articulos", "cantidad_defecto", "INTEGER NOT NULL DEFAULT 1")
+    # espacio_id NULL = catálogo por defecto compartido (CATALOGO_DEFECTO); no NULL = aprendido
+    # por ese espacio en concreto, y no debe filtrarse a otros espacios.
+    asegurar_columna(db, "historial_articulos", "espacio_id", "INTEGER REFERENCES espacios(id) ON DELETE CASCADE")
+
+    # Migración: el UNIQUE(nombre) original (una instalación antigua sin espacio_id) no
+    # distingue espacios y bloquearía nombres repetidos entre espacios distintos. SQLite no
+    # permite eliminar el índice autogenerado de un UNIQUE inline con DROP INDEX, así que
+    # reconstruimos la tabla si detectamos ese índice.
+    tiene_unique_antiguo = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='index' AND tbl_name='historial_articulos' "
+        "AND name='sqlite_autoindex_historial_articulos_1'"
+    ).fetchone()
+    if tiene_unique_antiguo:
+        db.execute("ALTER TABLE historial_articulos RENAME TO historial_articulos_old")
+        db.execute(
+            """
+            CREATE TABLE historial_articulos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                espacio_id INTEGER REFERENCES espacios(id) ON DELETE CASCADE,
+                nombre TEXT NOT NULL COLLATE NOCASE,
+                icono TEXT NOT NULL,
+                categoria TEXT,
+                unidad TEXT NOT NULL DEFAULT 'ud',
+                sub_descripcion TEXT,
+                cantidad_defecto INTEGER NOT NULL DEFAULT 1,
+                fecha_actualizacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "INSERT INTO historial_articulos "
+            "(espacio_id, nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
+            "SELECT espacio_id, nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion "
+            "FROM historial_articulos_old"
+        )
+        db.execute("DROP TABLE historial_articulos_old")
+
+    # El UNIQUE ahora se aplica con dos índices parciales: uno para el catálogo global
+    # (espacio_id NULL) y otro por espacio, en vez de un UNIQUE(nombre) global.
+    db.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_global ON historial_articulos(nombre COLLATE NOCASE) "
+        "WHERE espacio_id IS NULL"
+    )
+    db.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_espacio ON historial_articulos(espacio_id, nombre COLLATE NOCASE) "
+        "WHERE espacio_id IS NOT NULL"
+    )
 
     # Tabla articulos_personalizados: artículos únicos de cada cliente/espacio
     # NO se comparten entre clientes, disponibles en múltiples listas del mismo espacio
@@ -382,7 +455,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS articulos_personalizados (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             espacio_id INTEGER NOT NULL REFERENCES espacios(id) ON DELETE CASCADE,
-            nombre TEXT NOT NULL,
+            nombre TEXT NOT NULL COLLATE NOCASE,
             categoria TEXT NOT NULL DEFAULT 'Otros',
             icono TEXT,
             unidad TEXT NOT NULL DEFAULT 'ud',
@@ -396,6 +469,66 @@ def init_db():
     )
     asegurar_columna(db, "articulos_personalizados", "fecha_creacion", "TEXT")
     asegurar_columna(db, "articulos_personalizados", "fecha_actualizacion", "TEXT")
+
+    # Migración: el UNIQUE(espacio_id, nombre) original era sensible a mayúsculas (la
+    # columna no tenía COLLATE NOCASE), aunque las búsquedas de la app sí usan
+    # COLLATE NOCASE. Bajo concurrencia esto permitía crear duplicados tipo "Leche"/"leche".
+    # SQLite no permite cambiar la colación de una columna con ALTER TABLE, así que
+    # reconstruimos la tabla, fusionando duplicados case-insensitive si los hubiera.
+    sql_actual = db.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='articulos_personalizados'"
+    ).fetchone()
+    if sql_actual and "COLLATE NOCASE" not in sql_actual["sql"]:
+        # OJO: articulos_lista.articulo_personalizado_id tiene una FK hacia esta tabla.
+        # Si la renombrásemos primero (RENAME TO ..._old), SQLite reescribe automáticamente
+        # esa FK para que apunte al nombre temporal, y se queda rota al borrar la tabla vieja.
+        # Seguimos el procedimiento oficial de SQLite: creamos la tabla nueva con un nombre
+        # temporal, copiamos los datos, borramos la tabla vieja (con su nombre original) y
+        # solo al final renombramos la nueva a ese mismo nombre original; así la FK de
+        # articulos_lista (que nunca cambia de texto) sigue resolviendo correctamente.
+        db.commit()
+        db.execute("PRAGMA foreign_keys = OFF")
+        db.execute(
+            """
+            CREATE TABLE articulos_personalizados_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                espacio_id INTEGER NOT NULL REFERENCES espacios(id) ON DELETE CASCADE,
+                nombre TEXT NOT NULL COLLATE NOCASE,
+                categoria TEXT NOT NULL DEFAULT 'Otros',
+                icono TEXT,
+                unidad TEXT NOT NULL DEFAULT 'ud',
+                sub_descripcion TEXT,
+                cantidad_defecto INTEGER NOT NULL DEFAULT 1,
+                fecha_creacion TEXT,
+                fecha_actualizacion TEXT,
+                UNIQUE(espacio_id, nombre)
+            )
+            """
+        )
+        # Por cada (espacio_id, nombre case-insensitive) nos quedamos con el id más antiguo.
+        db.execute(
+            "INSERT INTO articulos_personalizados_new "
+            "(id, espacio_id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+            "fecha_creacion, fecha_actualizacion) "
+            "SELECT id, espacio_id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+            "fecha_creacion, fecha_actualizacion FROM articulos_personalizados o "
+            "WHERE o.id = (SELECT MIN(id) FROM articulos_personalizados "
+            "WHERE espacio_id = o.espacio_id AND nombre = o.nombre COLLATE NOCASE)"
+        )
+        # Repuntar los artículos de lista que apuntaban a un duplicado descartado hacia el
+        # id que sobrevivió, para no perderlos por el ON DELETE CASCADE al borrar la tabla vieja.
+        db.execute(
+            "UPDATE articulos_lista SET articulo_personalizado_id = ("
+            "  SELECT MIN(o2.id) FROM articulos_personalizados o2, articulos_personalizados o1 "
+            "  WHERE o1.id = articulos_lista.articulo_personalizado_id "
+            "  AND o2.espacio_id = o1.espacio_id AND o2.nombre = o1.nombre COLLATE NOCASE"
+            ") "
+            "WHERE articulo_personalizado_id IS NOT NULL"
+        )
+        db.execute("DROP TABLE articulos_personalizados")
+        db.execute("ALTER TABLE articulos_personalizados_new RENAME TO articulos_personalizados")
+        db.commit()
+        db.execute("PRAGMA foreign_keys = ON")
 
     # Actualizar articulos_lista para vincular artículos personalizados
     asegurar_columna(db, "articulos_lista", "articulo_personalizado_id", "INTEGER REFERENCES articulos_personalizados(id) ON DELETE CASCADE")
