@@ -85,17 +85,13 @@ class TranslationManager {
       }
     });
 
-    // Traducir tabs especiales (mantienen emoji)
+    // Traducir tabs especiales (la traducción ya incluye el emoji)
     document.querySelectorAll('.tab').forEach(el => {
       const vista = el.dataset.vista;
       if (vista === 'stock') {
-        const clave = 'stock';
-        const trad = this.t(clave);
-        el.textContent = `📦 ${trad}`;
+        el.textContent = this.t('stock');
       } else if (vista === 'compra') {
-        const clave = 'lista_compra';
-        const trad = this.t(clave);
-        el.textContent = `🛒 ${trad}`;
+        el.textContent = this.t('lista_compra');
       }
     });
 

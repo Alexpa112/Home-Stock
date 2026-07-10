@@ -39,157 +39,9 @@ async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
   }
 }
 
-// Catalogo de iconos con palabras clave (para el buscador del selector).
-// Deliberadamente son emoji (no SVGs a medida): cero peso extra para la
-// Raspberry Pi y se ven bien en cualquier tema. Para que no resulten
-// "pesados" visualmente, los mosaicos que los usan van sin fondo de color
-// (ver .tile-compra en style.css).
-const CATALOGO_ICONOS = [
-  { icono: "🍎", palabras: ["manzana", "fruta"] },
-  { icono: "🍏", palabras: ["manzana verde", "fruta"] },
-  { icono: "🍌", palabras: ["platano", "fruta"] },
-  { icono: "🍊", palabras: ["naranja", "fruta", "mandarina"] },
-  { icono: "🍋", palabras: ["limon", "fruta"] },
-  { icono: "🍉", palabras: ["sandia", "fruta"] },
-  { icono: "🍇", palabras: ["uvas", "fruta"] },
-  { icono: "🍓", palabras: ["fresa", "fruta"] },
-  { icono: "🫐", palabras: ["arandanos", "fruta"] },
-  { icono: "🍒", palabras: ["cerezas", "fruta"] },
-  { icono: "🍑", palabras: ["melocoton", "fruta"] },
-  { icono: "🥭", palabras: ["mango", "fruta"] },
-  { icono: "🍍", palabras: ["piña", "fruta"] },
-  { icono: "🥝", palabras: ["kiwi", "fruta"] },
-  { icono: "🥑", palabras: ["aguacate", "fruta"] },
-  { icono: "🍅", palabras: ["tomate", "verdura"] },
-  { icono: "🥦", palabras: ["brocoli", "verdura"] },
-  { icono: "🥬", palabras: ["lechuga", "verdura", "ensalada"] },
-  { icono: "🥒", palabras: ["pepino", "verdura"] },
-  { icono: "🌶️", palabras: ["pimiento", "picante", "verdura"] },
-  { icono: "🫑", palabras: ["pimiento verde", "verdura"] },
-  { icono: "🌽", palabras: ["maiz", "verdura"] },
-  { icono: "🥕", palabras: ["zanahoria", "verdura"] },
-  { icono: "🧄", palabras: ["ajo"] },
-  { icono: "🧅", palabras: ["cebolla"] },
-  { icono: "🥔", palabras: ["patata", "verdura"] },
-  { icono: "🍠", palabras: ["boniato"] },
-  { icono: "🥐", palabras: ["croissant", "bolleria", "pan"] },
-  { icono: "🥖", palabras: ["pan", "barra"] },
-  { icono: "🍞", palabras: ["pan", "molde"] },
-  { icono: "🧀", palabras: ["queso"] },
-  { icono: "🥚", palabras: ["huevo", "huevos"] },
-  { icono: "🥩", palabras: ["carne", "filete"] },
-  { icono: "🍗", palabras: ["pollo", "carne"] },
-  { icono: "🍖", palabras: ["carne", "hueso"] },
-  { icono: "🥓", palabras: ["bacon", "panceta"] },
-  { icono: "🌭", palabras: ["salchicha"] },
-  { icono: "🍔", palabras: ["hamburguesa"] },
-  { icono: "🍕", palabras: ["pizza"] },
-  { icono: "🐟", palabras: ["pescado"] },
-  { icono: "🦐", palabras: ["gamba", "marisco"] },
-  { icono: "🍱", palabras: ["comida preparada"] },
-  { icono: "🍚", palabras: ["arroz"] },
-  { icono: "🍜", palabras: ["pasta", "fideos", "sopa"] },
-  { icono: "🥣", palabras: ["cereales", "sopa", "bol"] },
-  { icono: "🥫", palabras: ["lata", "conserva"] },
-  { icono: "🫙", palabras: ["tarro", "bote", "conserva"] },
-  { icono: "🍫", palabras: ["chocolate"] },
-  { icono: "🍬", palabras: ["caramelo", "dulce"] },
-  { icono: "🍩", palabras: ["donut", "dulce"] },
-  { icono: "🍪", palabras: ["galleta"] },
-  { icono: "🎂", palabras: ["tarta", "pastel"] },
-  { icono: "🍯", palabras: ["miel"] },
-  { icono: "🥜", palabras: ["frutos secos", "cacahuete"] },
-  { icono: "🧈", palabras: ["mantequilla"] },
-  { icono: "🧂", palabras: ["sal"] },
-  { icono: "🫒", palabras: ["aceituna", "aceite"] },
-  { icono: "☕", palabras: ["cafe"] },
-  { icono: "🍵", palabras: ["te", "infusion"] },
-  { icono: "🧃", palabras: ["zumo", "brik"] },
-  { icono: "🥤", palabras: ["refresco", "bebida"] },
-  { icono: "🧋", palabras: ["bebida", "batido"] },
-  { icono: "🍶", palabras: ["botella", "bebida"] },
-  { icono: "🍾", palabras: ["cava", "champan"] },
-  { icono: "🍷", palabras: ["vino"] },
-  { icono: "🍺", palabras: ["cerveza"] },
-  { icono: "🥛", palabras: ["leche"] },
-  { icono: "💧", palabras: ["agua"] },
-  { icono: "🧴", palabras: ["gel", "champu", "jabon liquido", "crema"] },
-  { icono: "🧼", palabras: ["jabon"] },
-  { icono: "🧽", palabras: ["esponja", "limpieza"] },
-  { icono: "🪥", palabras: ["cepillo de dientes"] },
-  { icono: "🦷", palabras: ["dientes", "dental"] },
-  { icono: "🧻", palabras: ["papel higienico", "papel"] },
-  { icono: "🧺", palabras: ["cesta", "colada"] },
-  { icono: "🪣", palabras: ["cubo", "fregona"] },
-  { icono: "🚽", palabras: ["wc", "bano"] },
-  { icono: "🛁", palabras: ["bañera", "baño"] },
-  { icono: "🚿", palabras: ["ducha"] },
-  { icono: "🕯️", palabras: ["vela"] },
-  { icono: "🔥", palabras: ["fuego", "gas"] },
-  { icono: "🧯", palabras: ["extintor"] },
-  { icono: "💊", palabras: ["pastilla", "medicina", "farmacia"] },
-  { icono: "🩹", palabras: ["tirita", "botiquin"] },
-  { icono: "🩺", palabras: ["salud", "medico"] },
-  { icono: "🌡️", palabras: ["termometro", "fiebre"] },
-  { icono: "👶", palabras: ["bebe"] },
-  { icono: "🍼", palabras: ["biberon", "bebe"] },
-  { icono: "🧸", palabras: ["peluche", "juguete"] },
-  { icono: "🐶", palabras: ["perro", "mascota"] },
-  { icono: "🐱", palabras: ["gato", "mascota"] },
-  { icono: "🐹", palabras: ["hamster", "mascota"] },
-  { icono: "🐟", palabras: ["pez", "mascota"] },
-  { icono: "🦴", palabras: ["hueso", "mascota"] },
-  { icono: "🐾", palabras: ["mascota", "huellas"] },
-  { icono: "👕", palabras: ["ropa", "camiseta"] },
-  { icono: "👖", palabras: ["pantalon", "ropa"] },
-  { icono: "🧦", palabras: ["calcetines", "ropa"] },
-  { icono: "🧣", palabras: ["bufanda", "ropa"] },
-  { icono: "🧤", palabras: ["guantes", "ropa"] },
-  { icono: "👗", palabras: ["vestido", "ropa"] },
-  { icono: "👟", palabras: ["zapatillas", "calzado"] },
-  { icono: "🧥", palabras: ["abrigo", "ropa"] },
-  { icono: "🔧", palabras: ["llave inglesa", "herramienta", "bricolaje"] },
-  { icono: "🔩", palabras: ["tornillo", "herramienta"] },
-  { icono: "🔨", palabras: ["martillo", "herramienta"] },
-  { icono: "🪛", palabras: ["destornillador", "herramienta"] },
-  { icono: "🪜", palabras: ["escalera"] },
-  { icono: "🖨️", palabras: ["impresora", "tinta"] },
-  { icono: "📱", palabras: ["movil", "telefono"] },
-  { icono: "💻", palabras: ["ordenador", "portatil"] },
-  { icono: "🔌", palabras: ["enchufe", "cargador"] },
-  { icono: "🔋", palabras: ["pila", "bateria"] },
-  { icono: "💡", palabras: ["bombilla", "luz"] },
-  { icono: "📷", palabras: ["camara", "foto"] },
-  { icono: "🎧", palabras: ["auriculares"] },
-  { icono: "⌚", palabras: ["reloj"] },
-  { icono: "🔦", palabras: ["linterna"] },
-  { icono: "🗝️", palabras: ["llave"] },
-  { icono: "📓", palabras: ["cuaderno", "libreta"] },
-  { icono: "✏️", palabras: ["lapiz", "oficina"] },
-  { icono: "🖊️", palabras: ["boligrafo", "oficina"] },
-  { icono: "📎", palabras: ["clip", "oficina"] },
-  { icono: "✂️", palabras: ["tijeras"] },
-  { icono: "📚", palabras: ["libros"] },
-  { icono: "🌱", palabras: ["planta", "semilla"] },
-  { icono: "🪴", palabras: ["maceta", "planta"] },
-  { icono: "🌻", palabras: ["flor", "girasol"] },
-  { icono: "🍀", palabras: ["trebol", "jardin"] },
-  { icono: "🪵", palabras: ["madera", "leña"] },
-  { icono: "⚽", palabras: ["futbol", "deporte"] },
-  { icono: "🏀", palabras: ["baloncesto", "deporte"] },
-  { icono: "🚴", palabras: ["bici", "bicicleta"] },
-  { icono: "🎮", palabras: ["videojuego", "mando"] },
-  { icono: "🎲", palabras: ["juego", "dados"] },
-  { icono: "🧩", palabras: ["puzzle", "juego"] },
-  { icono: "🚗", palabras: ["coche", "vehiculo"] },
-  { icono: "⛽", palabras: ["gasolina", "combustible"] },
-  { icono: "🎁", palabras: ["regalo"] },
-  { icono: "🧳", palabras: ["maleta", "viaje"] },
-  { icono: "🎈", palabras: ["globo", "fiesta"] },
-  { icono: "📦", palabras: ["caja", "paquete"] },
-  { icono: "🛒", palabras: ["carrito", "compra"] },
-  { icono: "🗂️", palabras: ["carpeta", "otros", "varios"] },
-];
+// Catálogo de iconos (CATALOGO_ICONOS) e icono por defecto ("h-folder") ahora
+// viven en static/icons/catalogo-iconos.js y se renderizan como SVG vía
+// renderIcono() (static/utils/iconos.js), cargados antes de este script.
 
 const lista = document.getElementById("lista");
 const vacio = document.getElementById("vacio");
@@ -290,7 +142,7 @@ const espacioBotonGuardar = document.getElementById("espacioBotonGuardar");
 const espacioCampoNombre = document.getElementById("espacioCampoNombre");
 const espacioCampoIcono = document.getElementById("espacioCampoIcono");
 const espacioIconoElegido = document.getElementById("espacioIconoElegido");
-const selectorIconoEspacioEl = document.getElementById("selectorIconoEspacio");
+const btnSeleccionarIconoEspacio = document.getElementById("btnSeleccionarIconoEspacio");
 const paletaColorEspacioEl = document.getElementById("paletaColorEspacio");
 const espacioCampoColor = document.getElementById("espacioCampoColor");
 const espacioCampoColorPicker = document.getElementById("espacioCampoColorPicker");
@@ -458,7 +310,7 @@ actualizarBotonTema();
 
 function iconoDeCategoria(nombre) {
   const cat = categorias.find((c) => c.nombre === nombre);
-  return cat ? cat.icono : "🗂️";
+  return cat ? cat.icono : "h-folder";
 }
 
 // Icono a mostrar para un producto o articulo de la compra: el suyo propio
@@ -542,7 +394,7 @@ function renderFiltros() {
     const btnCat = document.createElement("button");
     btnCat.className = "chip";
     btnCat.dataset.cat = cat.nombre;
-    btnCat.textContent = `${cat.icono} ${cat.nombre}`;
+    btnCat.innerHTML = `${renderIcono(cat.icono)} ${escapeHtml(cat.nombre)}`;
     filtros.appendChild(btnCat);
   }
   categoriaActiva = "todas";
@@ -556,7 +408,7 @@ function renderFiltros() {
 
 function poblarSelectCategoria(select, seleccionada) {
   select.innerHTML = categorias
-    .map((c) => `<option value="${escapeHtml(c.nombre)}">${c.icono} ${escapeHtml(c.nombre)}</option>`)
+    .map((c) => `<option value="${escapeHtml(c.nombre)}">${escapeHtml(c.nombre)}</option>`)
     .join("");
   if (seleccionada) select.value = seleccionada;
 }
@@ -566,7 +418,7 @@ function renderCategoriasLista() {
   for (const cat of categorias) {
     const chip = document.createElement("div");
     chip.className = "categoria-chip";
-    chip.innerHTML = `<span>${cat.icono} ${escapeHtml(cat.nombre)}</span>`;
+    chip.innerHTML = `<span>${renderIcono(cat.icono)} ${escapeHtml(cat.nombre)}</span>`;
     if (cat.nombre !== "Otros") {
       const btnBorrar = document.createElement("button");
       btnBorrar.type = "button";
@@ -595,52 +447,8 @@ async function borrarCategoria(cat) {
   }
 }
 
-/* Selector de iconos reutilizable: buscador + rejilla filtrable. Se usa en
-   Categorías, en el formulario de producto y en el de la lista de la compra. */
-function crearSelectorIconos(contenedor, seleccionado, alElegir) {
-  contenedor.innerHTML = "";
-  const buscador = document.createElement("input");
-  buscador.type = "search";
-  buscador.placeholder = "Buscar icono... (ej. leche, limpieza, mascota)";
-  buscador.className = "buscador-iconos";
-
-  const rejilla = document.createElement("div");
-  rejilla.className = "selector-iconos";
-
-  function pintar(filtro) {
-    rejilla.innerHTML = "";
-    const texto = filtro.trim().toLowerCase();
-    const items = texto
-      ? CATALOGO_ICONOS.filter((it) => it.palabras.some((p) => p.includes(texto)))
-      : CATALOGO_ICONOS;
-    for (const it of items) {
-      const btnIcono = document.createElement("button");
-      btnIcono.type = "button";
-      btnIcono.textContent = it.icono;
-      btnIcono.title = it.palabras[0] || "";
-      btnIcono.className = it.icono === seleccionado ? "seleccionado" : "";
-      btnIcono.addEventListener("click", () => {
-        seleccionado = it.icono;
-        rejilla.querySelectorAll("button").forEach((b) => b.classList.remove("seleccionado"));
-        btnIcono.classList.add("seleccionado");
-        alElegir(it.icono);
-      });
-      rejilla.appendChild(btnIcono);
-    }
-    if (items.length === 0) {
-      const vacioAviso = document.createElement("p");
-      vacioAviso.className = "aviso";
-      vacioAviso.textContent = "Ningún icono coincide con esa búsqueda.";
-      rejilla.appendChild(vacioAviso);
-    }
-  }
-
-  buscador.addEventListener("input", () => pintar(buscador.value));
-  pintar("");
-  contenedor.append(buscador, rejilla);
-}
-
-// Modal superpuesta para seleccionar icono
+// Modal superpuesta para seleccionar icono: única implementación del
+// selector, reutilizada por categorías, producto, compra y espacio.
 const modalSelectorIconos = document.getElementById("modalSelectorIconos");
 const contenedorIconos = document.getElementById("contenedorIconos");
 const buscadorIconos = document.getElementById("buscadorIconos");
@@ -659,7 +467,7 @@ function renderizarIconosGrid(filtro = "") {
   for (const it of items) {
     const btnIcono = document.createElement("button");
     btnIcono.type = "button";
-    btnIcono.textContent = it.icono;
+    btnIcono.innerHTML = renderIcono(it.icono, { tamano: 28 });
     btnIcono.title = it.palabras[0] || "";
     btnIcono.className = it.icono === iconoActualmentSeleccionado ? "seleccionado" : "";
     btnIcono.addEventListener("click", (e) => {
@@ -714,8 +522,8 @@ modalSelectorIconos.addEventListener("click", (e) => {
 function abrirModalCategorias() {
   renderCategoriasLista();
   formCategoria.reset();
-  categoriaCampoIcono.value = "🗂️";
-  categoriaIconoElegido.textContent = "🗂️";
+  categoriaCampoIcono.value = "h-folder";
+  categoriaIconoElegido.innerHTML = renderIcono("h-folder");
   modalCategoriasFondo.hidden = false;
 }
 
@@ -734,7 +542,7 @@ if (btnSeleccionarIconoCategoria) {
     e.preventDefault();
     abrirModalSelectorIconos(categoriaCampoIcono.value, (icono) => {
       categoriaCampoIcono.value = icono;
-      categoriaIconoElegido.textContent = icono;
+      categoriaIconoElegido.innerHTML = renderIcono(icono);
     });
   });
 }
@@ -743,7 +551,7 @@ formCategoria.addEventListener("submit", async (e) => {
   e.preventDefault();
   const nombre = categoriaCampoNombre.value.trim();
   if (!nombre) return;
-  const icono = categoriaCampoIcono.value || "🗂️";
+  const icono = categoriaCampoIcono.value || "h-folder";
 
   let datos;
   try {
@@ -771,12 +579,8 @@ formCategoria.addEventListener("submit", async (e) => {
 
   cerrarModalCategorias();
   formCategoria.reset();
-  categoriaCampoIcono.value = "🗂️";
-  categoriaIconoElegido.textContent = "🗂️";
-  crearSelectorIconos(selectorIconosEl, "🗂️", (icono) => {
-    categoriaCampoIcono.value = icono;
-    categoriaIconoElegido.textContent = icono;
-  });
+  categoriaCampoIcono.value = "h-folder";
+  categoriaIconoElegido.innerHTML = renderIcono("h-folder");
   categoriaCampoNombre.focus();
 });
 
@@ -821,7 +625,7 @@ async function cargarEspacios() {
 }
 
 function renderEspacioActual(actual) {
-  if (espacioActualIconoEl) espacioActualIconoEl.textContent = actual.icono;
+  if (espacioActualIconoEl) espacioActualIconoEl.innerHTML = renderIcono(actual.icono);
   if (espacioActualNombreEl) espacioActualNombreEl.textContent = actual.nombre;
   aplicarColorEspacio(actual.color);
 }
@@ -856,7 +660,7 @@ function renderTarjetasEspacios() {
     tarjeta.className = "tarjeta-espacio";
     tarjeta.style.background = `linear-gradient(135deg, ${ajustarColor(esp.color, 25)}, ${ajustarColor(esp.color, -25)})`;
     tarjeta.innerHTML = `
-      <span class="tarjeta-espacio-icono">${esp.icono}</span>
+      <span class="tarjeta-espacio-icono">${renderIcono(esp.icono, { tamano: 24 })}</span>
       <p class="tarjeta-espacio-nombre">${escapeHtml(esp.nombre)}</p>
       ${esp.productos_count ? `<span class="tarjeta-espacio-contador">${esp.productos_count} producto${esp.productos_count === 1 ? "" : "s"}</span>` : ""}
       <span class="tarjeta-espacio-flecha">${editandoEspacios ? "✏️" : "›"}</span>
@@ -964,15 +768,11 @@ function abrirFormEspacio(esp) {
   espacioBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
 
   espacioCampoNombre.value = esEdicion ? esp.nombre : "";
-  const icono = esEdicion ? esp.icono : "🏠";
+  const icono = esEdicion ? esp.icono : "h-home";
   const color = esEdicion ? esp.color : PALETA_COLOR_ESPACIOS[espacios.length % PALETA_COLOR_ESPACIOS.length];
 
   espacioCampoIcono.value = icono;
-  espacioIconoElegido.textContent = icono;
-  crearSelectorIconos(selectorIconoEspacioEl, icono, (nuevoIcono) => {
-    espacioCampoIcono.value = nuevoIcono;
-    espacioIconoElegido.textContent = nuevoIcono;
-  });
+  espacioIconoElegido.innerHTML = renderIcono(icono);
 
   espacioCampoColor.value = color;
   espacioCampoColorPicker.value = color;
@@ -989,12 +789,22 @@ function cerrarFormEspacio() {
 btnCancelarEspacio.addEventListener("click", cerrarFormEspacio);
 habilitarCierreSeguro(modalEspacioFormFondo, cerrarFormEspacio);
 
+if (btnSeleccionarIconoEspacio) {
+  btnSeleccionarIconoEspacio.addEventListener("click", (e) => {
+    e.preventDefault();
+    abrirModalSelectorIconos(espacioCampoIcono.value, (icono) => {
+      espacioCampoIcono.value = icono;
+      espacioIconoElegido.innerHTML = renderIcono(icono);
+    });
+  });
+}
+
 formEspacio.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = espacioEditId.value;
   const payload = {
     nombre: espacioCampoNombre.value.trim(),
-    icono: espacioCampoIcono.value || "🏠",
+    icono: espacioCampoIcono.value || "h-home",
     color: espacioCampoColor.value,
   };
   if (!payload.nombre) return;
@@ -1071,7 +881,7 @@ function crearTarjeta(p) {
   if (p.revisar_caducidad) avisos.push("⏰ Revisar caducidad");
 
   div.innerHTML = `
-    <div class="icono">${iconoEfectivo(p)}</div>
+    <div class="icono">${renderIcono(iconoEfectivo(p), { tamano: 26 })}</div>
     <div class="info">
       <div class="nombre">${escapeHtml(p.nombre)}</div>
       <div class="detalle" data-categoria-original="${escapeHtml(p.categoria)}">${escapeHtml(p.categoria)}${avisos.length ? " · " + avisos.join(" · ") : ""}</div>
@@ -1149,7 +959,7 @@ let iconoProductoTocado = false;
 function actualizarSelectorIconoProducto() {
   btnQuitarIconoProducto.hidden = !campoIcono.value;
   // Mostrar el icono actual en el botón
-  iconoProductoDisplay.textContent = campoIcono.value || "Elegir icono";
+  iconoProductoDisplay.innerHTML = campoIcono.value ? renderIcono(campoIcono.value) : "Elegir icono";
 }
 
 // producto === undefined/null -> alta en blanco.
@@ -1374,7 +1184,7 @@ function renderListaCompra() {
     grupo.className = "grupo-compra";
     const titulo = document.createElement("h3");
     titulo.className = "grupo-compra-titulo";
-    titulo.textContent = `${iconoDeCategoria(nombreCategoria)} ${nombreCategoria}`;
+    titulo.innerHTML = `${renderIcono(iconoDeCategoria(nombreCategoria))} ${escapeHtml(nombreCategoria)}`;
     const rejilla = document.createElement("div");
     rejilla.className = "tiles-grid";
     for (const item of porCategoria.get(nombreCategoria)) {
@@ -1400,7 +1210,7 @@ function crearTileCompra(item, completado) {
     ? `Volver a añadir a la lista${detalle ? " · " + detalle : ""}`
     : `Mantén pulsado para editar${detalle ? " · " + detalle : ""}`;
   btn.innerHTML = `
-    <span class="tile-compra-icono">${iconoEfectivo(item)}</span>
+    <span class="tile-compra-icono">${renderIcono(iconoEfectivo(item), { tamano: 30 })}</span>
     <span class="tile-compra-nombre">${escapeHtml(item.nombre)}</span>
     ${item.cantidad > 1 ? `<span class="tile-compra-cantidad">×${item.cantidad}</span>` : ""}
   `;
@@ -1450,7 +1260,7 @@ let iconoCompraTocado = false;
 function actualizarSelectorIconoCompra() {
   btnQuitarIconoCompra.hidden = !compraCampoIcono.value;
   // Mostrar el icono actual en el botón
-  iconoCompraDisplay.textContent = compraCampoIcono.value || "Elegir icono";
+  iconoCompraDisplay.innerHTML = compraCampoIcono.value ? renderIcono(compraCampoIcono.value) : "Elegir icono";
 }
 
 // item === undefined/null -> alta en blanco.
@@ -1753,7 +1563,7 @@ function renderCatalogo(filtro) {
     grupo.className = "grupo-compra";
     const titulo = document.createElement("h3");
     titulo.className = "grupo-compra-titulo";
-    titulo.textContent = `${iconoDeCategoria(nombreCategoria)} ${nombreCategoria}`;
+    titulo.innerHTML = `${renderIcono(iconoDeCategoria(nombreCategoria))} ${escapeHtml(nombreCategoria)}`;
     const rejilla = document.createElement("div");
     rejilla.className = "tiles-grid";
     for (const item of porCategoria.get(nombreCategoria)) {
@@ -1774,7 +1584,7 @@ function crearTileCatalogo(entry) {
   btn.className = "tile-compra";
   const detalle = [entry.unidad, entry.sub_descripcion].filter(Boolean).join(" · ");
   btn.innerHTML = `
-    <span class="tile-compra-icono">${entry.icono || iconoDeCategoria(entry.categoria)}</span>
+    <span class="tile-compra-icono">${renderIcono(entry.icono || iconoDeCategoria(entry.categoria), { tamano: 30 })}</span>
     <span class="tile-compra-nombre">${escapeHtml(entry.nombre)}</span>
   `;
 
@@ -2271,8 +2081,7 @@ function crearItemLista(lista) {
   `;
 
   const icono = document.createElement('span');
-  icono.textContent = lista.icono || '📋';
-  icono.style.fontSize = '1.2rem';
+  icono.innerHTML = renderIcono(lista.icono || 'h-clipboard-document-list', { tamano: 19 });
 
   const info = document.createElement('div');
   info.style.cssText = 'flex: 1;';
@@ -2324,7 +2133,7 @@ async function actualizarListaActual(listas = null) {
     const rolEl = document.getElementById('listaActualRol');
 
     if (nombreEl) nombreEl.textContent = lista.nombre;
-    if (iconoEl) iconoEl.textContent = lista.icono || '📋';
+    if (iconoEl) iconoEl.innerHTML = renderIcono(lista.icono || 'h-clipboard-document-list');
     if (rolEl) rolEl.textContent = (lista.mi_rol || 'ver').toUpperCase();
   } catch (error) {
     console.error('Error actualizando lista actual:', error);
@@ -2544,8 +2353,8 @@ if (listaActualBtnEl) {
   if (btnCrearNuevaLista) {
     btnCrearNuevaLista.addEventListener('click', () => {
       formCrearLista.reset();
-      iconoSeleccionadoNuevaLista.textContent = '📋';
-      formCrearLista.querySelector('input[name="icono"]').value = '📋';
+      iconoSeleccionadoNuevaLista.innerHTML = renderIcono('h-clipboard-document-list');
+      formCrearLista.querySelector('input[name="icono"]').value = 'h-clipboard-document-list';
       crearListaColor.value = '#B5551A';
       if (colorPreviewCrear) colorPreviewCrear.style.backgroundColor = '#B5551A';
       modalCrearLista.hidden = false;

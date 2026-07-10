@@ -241,8 +241,8 @@ class ProductosManager {
     if (bajoStock) avisos.push('¡Pocas unidades!');
     if (producto.revisar_caducidad) avisos.push('⏰ Revisar caducidad');
 
-    // Icono efectivo
-    const icono = producto.icono || this._obtenerIconoCategoria(producto.categoria);
+    // Icono efectivo: el propio del producto o el de su categoría real (BD)
+    const icono = producto.icono || window.categoriasManager?.obtenerIconoPorNombre(producto.categoria) || 'h-folder';
     const nombre = this._escapeHtml(producto.nombre);
     const categoria = this._escapeHtml(producto.categoria);
     const cantidad = producto.cantidad || 0;
@@ -250,7 +250,7 @@ class ProductosManager {
     const detalles = avisos.length ? ` · ${avisos.join(' · ')}` : '';
 
     div.innerHTML = `
-      <div class="icono">${icono}</div>
+      <div class="icono">${window.renderIcono(icono)}</div>
       <div class="info">
         <div class="nombre">${nombre}</div>
         <div class="detalle" data-categoria-original="${categoria}">${categoria}${detalles}</div>
@@ -267,28 +267,6 @@ class ProductosManager {
     `;
 
     return div;
-  }
-
-  _obtenerIconoCategoria(categoria) {
-    const iconos = {
-      'Alimentacion': '🍎',
-      'Limpieza': '🧴',
-      'Higiene': '🧼',
-      'Bebidas': '🥤',
-      'Otros': '🗂️',
-      'Frutas y Verduras': '🥕',
-      'Panadería y Bollería': '🥖',
-      'Lácteos y Huevos': '🥚',
-      'Carnes y Embutidos': '🥩',
-      'Pescados y Mariscos': '🐟',
-      'Congelados': '🧊',
-      'Despensa': '🥫',
-      'Cereales y Pasta': '🍝',
-      'Snacks y Dulces': '🍫',
-      'Bebé': '🍼',
-      'Mascotas': '🐶'
-    };
-    return iconos[categoria] || '📦';
   }
 
   _escapeHtml(texto) {

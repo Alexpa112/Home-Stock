@@ -143,6 +143,8 @@ def obtener_todas_traducciones(idioma):
             'Panadería y Bollería': 'Panadería y Bollería',
             'Pescados y Mariscos': 'Pescados y Mariscos',
             'Snacks y Dulces': 'Snacks y Dulces',
+            'Hogar': 'Hogar',
+            'Farmacia y Botiquin': 'Farmacia y Botiquín',
         },
         'gl': {
             'Alimentacion': 'Alimentación',
@@ -161,6 +163,8 @@ def obtener_todas_traducciones(idioma):
             'Panadería y Bollería': 'Panadería e Bollería',
             'Pescados y Mariscos': 'Peixes e Mariscos',
             'Snacks y Dulces': 'Snacks e Doces',
+            'Hogar': 'Fogar',
+            'Farmacia y Botiquin': 'Farmacia e Botiquín',
         },
         'en': {
             'Alimentacion': 'Food',
@@ -179,6 +183,8 @@ def obtener_todas_traducciones(idioma):
             'Panadería y Bollería': 'Bakery & Pastries',
             'Pescados y Mariscos': 'Fish & Seafood',
             'Snacks y Dulces': 'Snacks & Sweets',
+            'Hogar': 'Home',
+            'Farmacia y Botiquin': 'Pharmacy & First Aid',
         },
         'pt': {
             'Alimentacion': 'Alimentação',
@@ -197,6 +203,8 @@ def obtener_todas_traducciones(idioma):
             'Panadería y Bollería': 'Padaria e Bolos',
             'Pescados y Mariscos': 'Peixes e Frutos do Mar',
             'Snacks y Dulces': 'Lanches e Doces',
+            'Hogar': 'Casa',
+            'Farmacia y Botiquin': 'Farmácia e Kit de Primeiros Socorros',
         },
         'fr': {
             'Alimentacion': 'Alimentation',
@@ -215,6 +223,8 @@ def obtener_todas_traducciones(idioma):
             'Panadería y Bollería': 'Boulangerie et Pâtisserie',
             'Pescados y Mariscos': 'Poissons et Fruits de Mer',
             'Snacks y Dulces': 'Snacks et Bonbons',
+            'Hogar': 'Maison',
+            'Farmacia y Botiquin': 'Pharmacie et Trousse de Secours',
         },
         'it': {
             'Alimentacion': 'Alimentazione',
@@ -233,6 +243,8 @@ def obtener_todas_traducciones(idioma):
             'Panadería y Bollería': 'Panetteria e Pasticceria',
             'Pescados y Mariscos': 'Pesce e Frutti di Mare',
             'Snacks y Dulces': 'Snack e Dolcetti',
+            'Hogar': 'Casa',
+            'Farmacia y Botiquin': 'Farmacia e Pronto Soccorso',
         },
         'de': {
             'Alimentacion': 'Lebensmittel',
@@ -251,6 +263,8 @@ def obtener_todas_traducciones(idioma):
             'Panadería y Bollería': 'Bäckerei und Gebäck',
             'Pescados y Mariscos': 'Fisch und Meeresfrüchte',
             'Snacks y Dulces': 'Snacks und Süßigkeiten',
+            'Hogar': 'Haushalt',
+            'Farmacia y Botiquin': 'Apotheke & Erste Hilfe',
         },
     }
 

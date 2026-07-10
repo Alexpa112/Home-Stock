@@ -109,11 +109,21 @@ class DrawerListasManager {
       btnRegion.addEventListener('click', () => this.abrirModalRegion());
     }
 
-    // Event listeners para iconos en modal nombre/imagen
-    const iconButtons = document.querySelectorAll('.icon-button');
-    iconButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => this.seleccionarIcon(e));
-    });
+    // Event listener para icono en modal nombre/imagen
+    const btnSeleccionarIconoLista = document.getElementById('btnSeleccionarIconoLista');
+    if (btnSeleccionarIconoLista) {
+      btnSeleccionarIconoLista.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!window.abrirModalSelectorIconos) return;
+        const iconoInput = document.getElementById('inputIconoLista');
+        const iconoActual = iconoInput?.value || 'h-clipboard-document-list';
+        window.abrirModalSelectorIconos(iconoActual, (nuevoIcono) => {
+          if (iconoInput) iconoInput.value = nuevoIcono;
+          const display = document.getElementById('iconoSeleccionadoLista');
+          if (display) display.innerHTML = window.renderIcono(nuevoIcono);
+        });
+      });
+    }
 
     // Event listener para color en modal nombre/imagen
     const colorInput = document.getElementById('inputColorLista');
@@ -351,11 +361,11 @@ class DrawerListasManager {
       this.actualizarPreviewColor(lista.color || '#B5551A');
 
       // Establecer icono seleccionado
-      document.querySelectorAll('.icon-button').forEach(btn => {
-        btn.style.border = '1px solid var(--border)';
-      });
-      const iconoActual = document.querySelector(`.icon-button[data-icon="${lista.icono || '📋'}"]`);
-      if (iconoActual) iconoActual.style.border = '2px solid var(--accent)';
+      const iconoInput = document.getElementById('inputIconoLista');
+      const iconoActual = lista.icono || 'h-clipboard-document-list';
+      if (iconoInput) iconoInput.value = iconoActual;
+      const iconoDisplay = document.getElementById('iconoSeleccionadoLista');
+      if (iconoDisplay) iconoDisplay.innerHTML = window.renderIcono(iconoActual);
 
       modal.hidden = false;
       if (input) input.focus();
@@ -367,8 +377,7 @@ class DrawerListasManager {
 
     const nombre = document.getElementById('inputNombreLista')?.value.trim();
     const color = document.getElementById('inputColorLista')?.value;
-    const iconoSeleccionado = document.querySelector('.icon-button[style*="border-bottom: 3px"]');
-    const icono = document.querySelector('.icon-button[style*="2px solid var(--accent)"]')?.dataset.icon;
+    const icono = document.getElementById('inputIconoLista')?.value;
 
     if (!nombre) {
       Toast.error('El nombre no puede estar vacío');
@@ -421,14 +430,6 @@ class DrawerListasManager {
   abrirModalRegion() {
     const modal = document.getElementById('modalRegion');
     if (modal) modal.hidden = false;
-  }
-
-  seleccionarIcon(e) {
-    e.preventDefault();
-    e.target.parentElement?.querySelectorAll('.icon-button').forEach(btn => {
-      btn.style.border = '1px solid var(--border)';
-    });
-    e.target.style.border = '2px solid var(--accent)';
   }
 
   actualizarPreviewColor(color) {
@@ -536,7 +537,7 @@ class DrawerListasManager {
       }
 
       const data = await res.json();
-      this.renderizarMiembros(data.data);
+      this.renderizarMiembros(data);
     } catch (error) {
       console.error('Error cargando miembros:', error);
       const listaMiembros = document.getElementById('listaMiembros');
@@ -756,7 +757,7 @@ class DrawerListasManager {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre_usuario: nombreUsuario, nivel })
+        body: JSON.stringify({ usuario: nombreUsuario, nivel })
       });
 
       if (!res.ok) {
@@ -802,8 +803,8 @@ class DrawerListasManager {
       }
 
       const resultado = await res.json();
-      if (resultado.data?.codigo) {
-        this.mostrarEnlaceInvitacion(resultado.data.codigo);
+      if (resultado.codigo) {
+        this.mostrarEnlaceInvitacion(resultado.codigo);
         this.mostrarMensaje('Enlace de invitación generado!', 'exito');
       }
 
@@ -837,8 +838,8 @@ class DrawerListasManager {
       }
 
       const resultado = await res.json();
-      if (resultado.data?.codigo) {
-        this.mostrarEnlaceInvitacion(resultado.data.codigo);
+      if (resultado.codigo) {
+        this.mostrarEnlaceInvitacion(resultado.codigo);
         this.mostrarMensaje('Enlace generado - cópialo y comparte!', 'exito');
       }
     } catch (error) {
@@ -895,31 +896,59 @@ class DrawerListasManager {
     }
   }
 
-  compartirPorWhatsApp() {
+  async compartirPorWhatsApp() {
     if (!this.listaEditandoId) return;
 
     const telefonoInput = document.getElementById('inputTelefonoWhatsApp');
-    const telefono = (telefonoInput?.value || '').trim();
+    // wa.me solo acepta dígitos (código de país + número, sin '+' ni espacios)
+    const telefono = (telefonoInput?.value || '').replace(/\D/g, '');
+
+    const nivel = document.getElementById('nivelPermisoEnlace')?.value || 'editar';
+    const emailTemporal = `temp_${Date.now()}@dreame.local`;
+
+    let enlace;
+    try {
+      const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailTemporal, nivel })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        this.mostrarMensaje(error.error || 'Error al generar enlace', 'error');
+        return;
+      }
+
+      const resultado = await res.json();
+      if (!resultado.codigo) {
+        this.mostrarMensaje('Error al generar enlace', 'error');
+        return;
+      }
+      enlace = `${window.location.origin}/aceptar-invitacion/${resultado.codigo}`;
+    } catch (error) {
+      console.error('Error:', error);
+      this.mostrarMensaje('Error al generar enlace', 'error');
+      return;
+    }
 
     // Obtener nombre de la lista
     const lista = this.listas.find(l => l.id === this.listaEditandoId);
     const nombreLista = lista?.nombre || 'Mi lista';
 
-    // Mensaje para WhatsApp con instrucciones
+    // Mensaje para WhatsApp con el enlace de invitación real
     const mensaje = encodeURIComponent(
       `Hola! Te quiero compartir mi lista de compra "${nombreLista}" en Dreame! (aplicacion de listas compartidas).\n\n` +
-      `Puedes verla y actualizarla en tiempo real.\n\n` +
-      `Instalate la app en: https://dreame.app (o desde tu navegador en el navegador)\n\n` +
-      `¿Te gustaría aceptar?`
+      `Puedes verla y actualizarla en tiempo real. Únete aquí:\n${enlace}`
     );
 
     // URL de WhatsApp
     let urlWhatsApp;
     if (telefono) {
-      // Con número específico (web.whatsapp)
+      // Con número específico
       urlWhatsApp = `https://wa.me/${telefono}?text=${mensaje}`;
     } else {
-      // Sin número (abre chat list en móvil)
+      // Sin número (abre selector de chat)
       urlWhatsApp = `https://web.whatsapp.com/send?text=${mensaje}`;
     }
 
@@ -984,7 +1013,7 @@ class DrawerListasManager {
     const listaSeleccionada = this.listas.find(l => l.id === listaId);
     if (listaSeleccionada) {
       localStorage.setItem('lista-actual-nombre', listaSeleccionada.nombre);
-      localStorage.setItem('lista-actual-icono', listaSeleccionada.icono || '📋');
+      localStorage.setItem('lista-actual-icono', listaSeleccionada.icono || 'h-clipboard-document-list');
     }
 
     this.listaActualId = listaId;
@@ -1106,9 +1135,9 @@ class CrearListaModal extends FormModal {
         e.preventDefault();
         if (!window.abrirModalSelectorIconos) return;
         const iconoInput = this.form.querySelector('input[name="icono"]');
-        const iconoActual = iconoInput?.value || '📋';
+        const iconoActual = iconoInput?.value || 'h-clipboard-document-list';
         window.abrirModalSelectorIconos(iconoActual, (nuevoIcono) => {
-          if (this.iconoSeleccionado) this.iconoSeleccionado.textContent = nuevoIcono;
+          if (this.iconoSeleccionado) this.iconoSeleccionado.innerHTML = window.renderIcono(nuevoIcono);
           if (iconoInput) iconoInput.value = nuevoIcono;
         });
       });
@@ -1192,7 +1221,7 @@ class CrearListaModal extends FormModal {
       }
     }
 
-    const icono = this.form.querySelector('input[name="icono"]')?.value || '📋';
+    const icono = this.form.querySelector('input[name="icono"]')?.value || 'h-clipboard-document-list';
     const color = this.form.querySelector('input[name="color"]').value || '#B5551A';
 
     console.log('Datos:', { nombre, icono, color });

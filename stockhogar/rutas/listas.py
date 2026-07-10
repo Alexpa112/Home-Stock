@@ -67,7 +67,7 @@ def crear_lista():
     datos = request.get_json(force=True) or {}
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 100)
     descripcion = Validator.string_opcional(datos.get("descripcion"), None, 500)
-    icono = Validator.string_opcional(datos.get("icono"), "📋", 10)
+    icono = Validator.string_opcional(datos.get("icono"), "h-clipboard-document-list", 30)
     color = Validator.string_opcional(datos.get("color"), "#B5551A", 7)
     privada = datos.get("privada", True)
 
@@ -145,7 +145,7 @@ def actualizar_lista(lista_id):
         parametros.append(descripcion)
 
     if "icono" in datos:
-        icono = Validator.string_opcional(datos.get("icono"), "📋", 10)
+        icono = Validator.string_opcional(datos.get("icono"), "h-clipboard-document-list", 30)
         actualizaciones["icono"] = "?"
         parametros.append(icono)
 
@@ -237,142 +237,5 @@ def salir_lista(lista_id):
     return APIResponse.success()
 
 
-@bp.route("/<int:lista_id>/compartir", methods=["POST"])
-@requerir_sesion
-@manejo_errores
-def compartir_lista(lista_id):
-    """Comparte una lista con otro usuario (solo el propietario)."""
-    usuario_id = session.get("usuario_id")
-    db = get_db()
-    lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
-
-    if not lista:
-        return APIResponse.no_encontrado("Lista")
-
-    if lista["usuario_propietario_id"] != usuario_id:
-        return APIResponse.no_permitido()
-
-    datos = request.get_json(force=True) or {}
-    nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
-    nivel = (datos.get("nivel") or "ver").lower()
-
-    if nivel not in ("ver", "editar"):
-        return APIResponse.error("Nivel debe ser 'ver' o 'editar'", 400)
-
-    usuario_destino = db.execute(
-        "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
-    ).fetchone()
-
-    if not usuario_destino:
-        return APIResponse.no_encontrado("Usuario")
-
-    usuario_destino_id = usuario_destino["id"]
-
-    if usuario_destino_id == usuario_id:
-        return APIResponse.error("No puedes compartir la lista contigo mismo", 400)
-
-    db.execute(
-        """INSERT OR REPLACE INTO permisos_lista
-           (lista_id, usuario_id, nivel, fecha_otorgado)
-           VALUES (?, ?, ?, ?)""",
-        (lista_id, usuario_destino_id, nivel, ahora()),
-    )
-    db.commit()
-
-    return APIResponse.success({
-        "mensaje": f"Lista compartida con {nombre_usuario}",
-        "nivel": nivel,
-        "usuario": nombre_usuario,
-    }, 201)
-
-
-@bp.route("/<int:lista_id>/permisos", methods=["GET"])
-@requerir_sesion
-@manejo_errores
-def listar_permisos(lista_id):
-    """Lista usuarios con acceso a la lista (solo el propietario)."""
-    usuario_id = session.get("usuario_id")
-    db = get_db()
-    lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
-
-    if not lista:
-        return APIResponse.no_encontrado("Lista")
-
-    if lista["usuario_propietario_id"] != usuario_id:
-        return APIResponse.no_permitido()
-
-    propietario = {
-        "usuario_id": lista["usuario_propietario_id"],
-        "nombre_usuario": db.execute(
-            "SELECT nombre_usuario FROM usuarios WHERE id = ?", (lista["usuario_propietario_id"],)
-        ).fetchone()["nombre_usuario"],
-        "nivel": "propietario",
-    }
-
-    permisos = db.execute(
-        """SELECT pl.usuario_id, u.nombre_usuario, pl.nivel, pl.fecha_otorgado
-           FROM permisos_lista pl JOIN usuarios u ON pl.usuario_id = u.id
-           WHERE pl.lista_id = ? ORDER BY u.nombre_usuario""",
-        (lista_id,),
-    ).fetchall()
-
-    return APIResponse.success({
-        "propietario": propietario,
-        "compartida_con": [dict(p) for p in permisos],
-    })
-
-
-@bp.route("/<int:lista_id>/permisos/<int:usuario_id>", methods=["DELETE"])
-@requerir_sesion
-@manejo_errores
-def revocar_permiso(lista_id, usuario_id):
-    """Revoca acceso a un usuario (solo propietario)."""
-    propietario_id = session.get("usuario_id")
-    db = get_db()
-    lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
-
-    if not lista:
-        return APIResponse.no_encontrado("Lista")
-
-    if lista["usuario_propietario_id"] != propietario_id:
-        return APIResponse.no_permitido()
-
-    if usuario_id == propietario_id:
-        return APIResponse.error("El propietario no puede revocar su propio acceso", 400)
-
-    db.execute(
-        "DELETE FROM permisos_lista WHERE lista_id = ? AND usuario_id = ?",
-        (lista_id, usuario_id),
-    )
-    db.commit()
-    return APIResponse.success()
-
-
-@bp.route("/<int:lista_id>/permisos/<int:usuario_id>", methods=["PATCH"])
-@requerir_sesion
-@manejo_errores
-def cambiar_nivel_permiso(lista_id, usuario_id):
-    """Cambia el nivel de permiso de un usuario (solo propietario)."""
-    propietario_id = session.get("usuario_id")
-    db = get_db()
-    lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
-
-    if not lista:
-        return APIResponse.no_encontrado("Lista")
-
-    if lista["usuario_propietario_id"] != propietario_id:
-        return APIResponse.no_permitido("Solo el propietario puede cambiar permisos")
-
-    datos = request.get_json(force=True) or {}
-    nivel = (datos.get("nivel") or "").lower()
-
-    if nivel not in ("ver", "editar"):
-        return APIResponse.validacion("Nivel debe ser 'ver' o 'editar'")
-
-    db.execute(
-        "UPDATE permisos_lista SET nivel = ? WHERE lista_id = ? AND usuario_id = ?",
-        (nivel, lista_id, usuario_id),
-    )
-    db.commit()
-
-    return APIResponse.success({"mensaje": "Permiso actualizado", "nivel": nivel})
+# Nota: compartir/miembros/permisos de lista se gestionan en rutas/permisos.py
+# (incluye compartir por usuario, por email con invitación, y aceptar invitación).

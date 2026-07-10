@@ -60,7 +60,7 @@ class CategoriasManager {
 
   obtenerIconoPorNombre(nombre) {
     const cat = this.obtenerPorNombre(nombre);
-    return cat ? cat.icono : '🗂️';
+    return cat ? cat.icono : 'h-folder';
   }
 
   // ===== FORMULARIOS MODALES =====
@@ -78,7 +78,7 @@ class CategoriasManager {
     e?.preventDefault();
 
     const nombre = this.dom.get('categoriaCampoNombre')?.value.trim();
-    const icono = this.dom.get('categoriaCampoIcono')?.value || '🗂️';
+    const icono = this.dom.get('categoriaCampoIcono')?.value || 'h-folder';
 
     if (!nombre) {
       console.warn('Nombre de categoría requerido');
@@ -126,7 +126,7 @@ class CategoriasManager {
         </button>
         ${this.categorias.map(c => `
           <button class="chip ${this._esActiva(c.nombre) ? 'activo' : ''}" data-categoria="${c.nombre}">
-            ${c.icono} ${c.nombre}
+            ${window.renderIcono(c.icono)} ${this._escapeHtml(c.nombre)}
           </button>
         `).join('')}
       `;
@@ -144,7 +144,7 @@ class CategoriasManager {
   _crearFilaCategoriaLista(categoria) {
     return `
       <div class="categoria-item" data-categoria-id="${categoria.id}">
-        <span class="icono">${categoria.icono}</span>
+        <span class="icono">${window.renderIcono(categoria.icono)}</span>
         <span class="nombre">${this._escapeHtml(categoria.nombre)}</span>
       </div>
     `;

@@ -173,6 +173,16 @@ body.keyboard-open:not(.modal-open) #appShell {
   font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logo-app {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--accent, currentColor);
 }
 
 .acciones-cabecera {
@@ -586,6 +596,13 @@ main.lista {
 }
 .tarjeta.aviso-caducidad:not(.bajo) .detalle { color: var(--warn); font-weight: 600; }
 .tarjeta.bajo .detalle { color: var(--danger); font-weight: 600; }
+
+.icono-svg {
+  color: currentColor;
+  stroke: currentColor;
+  flex: none;
+  vertical-align: middle;
+}
 
 .icono {
   font-size: 1.8rem;

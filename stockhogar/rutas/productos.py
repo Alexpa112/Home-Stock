@@ -51,7 +51,8 @@ def revisar_stock_bajo(db, producto_id, lista_id=None):
             usuario_id = session.get("usuario_id")
             if usuario_id:
                 lista = db.execute(
-                    "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                    "SELECT id FROM listas WHERE usuario_propietario_id = ? "
+                    "ORDER BY fecha_actualizacion DESC LIMIT 1",
                     (usuario_id,)
                 ).fetchone()
                 if lista:
@@ -116,7 +117,8 @@ def sumar_stock(db, producto_id, cantidad_a_sumar, lista_id=None):
             usuario_id = session.get("usuario_id")
             if usuario_id:
                 lista = db.execute(
-                    "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                    "SELECT id FROM listas WHERE usuario_propietario_id = ? "
+                    "ORDER BY fecha_actualizacion DESC LIMIT 1",
                     (usuario_id,)
                 ).fetchone()
                 if lista:
@@ -164,7 +166,8 @@ def crear_producto_nuevo(
             usuario_id = session.get("usuario_id")
             if usuario_id:
                 lista = db.execute(
-                    "SELECT id FROM listas WHERE usuario_propietario_id = ? LIMIT 1",
+                    "SELECT id FROM listas WHERE usuario_propietario_id = ? "
+                    "ORDER BY fecha_actualizacion DESC LIMIT 1",
                     (usuario_id,)
                 ).fetchone()
                 if lista:
@@ -193,7 +196,7 @@ def crear_producto_nuevo(
             logger.debug(f"[crear_producto_nuevo] Error en stock_lista: {e}")
 
     # Guardar en el historial de ESTE espacio (nunca en el catálogo global)
-    recordar_articulo(db, espacio_id, nombre, icono or "📦", categoria, unidad, cantidad_defecto=cantidad)
+    recordar_articulo(db, espacio_id, nombre, icono or "h-archive-box", categoria, unidad, cantidad_defecto=cantidad)
     revisar_stock_bajo(db, producto_id, lista_id)
     return producto_id
 
@@ -240,7 +243,7 @@ def crear_producto():
     stock_minimo = Validator.entero_no_negativo(datos.get("stock_minimo", 1), "stock mínimo")
     dias_aviso = int(datos.get("dias_aviso", DIAS_AVISO_DEFECTO))
     unidad = Validator.string_opcional(datos.get("unidad"), "ud", 20)
-    icono = Validator.string_opcional(datos.get("icono"), None, 10)
+    icono = Validator.string_opcional(datos.get("icono"), None, 30)
 
     db = get_db()
     espacio_id = obtener_espacio_actual(db)
@@ -393,7 +396,7 @@ def actualizar_producto(producto_id):
         )
         dias_aviso = int(datos.get("dias_aviso", actual["dias_aviso"]))
         unidad = Validator.string_opcional(datos.get("unidad"), actual["unidad"], 20)
-        icono = Validator.string_opcional(datos.get("icono"), actual.get("icono"), 10)
+        icono = Validator.string_opcional(datos.get("icono"), actual.get("icono"), 30)
 
         # nombre/categoria/unidad/icono son datos de catálogo compartidos entre listas;
         # cantidad/stock_minimo son propios de ESTA lista y solo se guardan en stock_lista.

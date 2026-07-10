@@ -15,10 +15,10 @@ def formulario_crear_lista():
     </label>
     <label>Icono
       <div class="icono-selector-row">
-        <span id="iconoSeleccionadoNuevaLista" class="icono-display">📋</span>
+        <span id="iconoSeleccionadoNuevaLista" class="icono-display"><svg class="icono-svg" width="20" height="20" aria-hidden="true"><use href="#icon-h-clipboard-document-list"></use></svg></span>
         <button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button>
       </div>
-      <input type="hidden" name="icono" value="📋">
+      <input type="hidden" name="icono" value="h-clipboard-document-list">
     </label>
     <label>Color de la lista
       <div class="color-picker-row">

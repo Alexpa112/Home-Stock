@@ -30,7 +30,7 @@ def listar_categorias():
 def crear_categoria():
     datos = request.get_json(force=True) or {}
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 50)
-    icono = Validator.string_opcional(datos.get("icono"), "🗂️", 10)
+    icono = Validator.string_opcional(datos.get("icono"), "h-folder", 30)
 
     db = get_db()
     existente = db.execute(
