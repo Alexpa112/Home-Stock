@@ -302,6 +302,7 @@ step_start "Construir imagen"
 ################################################################################
 
 log_info "Construyendo imagen Docker (puede tardar varios minutos)..."
+log_info "Se descargan también los modelos de traducción (Argos Translate); requiere conexión a internet."
 run $COMPOSE build
 
 step_end

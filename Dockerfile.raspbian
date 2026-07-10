@@ -45,9 +45,15 @@ COPY . /app/
 # (docker run suelto) no fallen por directorios inexistentes.
 RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr
 
+# Descarga en build-time de los paquetes de idioma de Argos Translate
+# (es-en, en-es, en-fr, en-it, en-de, es-pt): requiere red durante el build,
+# pero así el contenedor queda funcional sin conexión desde el primer arranque
+# (importante en Raspberry Pi, donde la red puede ser lenta o intermitente).
+RUN python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"
+
 # Verificación en build-time: si falta algún paquete crítico, el build falla
 # aquí en vez de fallar en producción al primer request.
-RUN python3 -c "import flask, cv2, pytesseract, fuzzywuzzy, gunicorn; print('[OK] Paquetes Python verificados')" && \
+RUN python3 -c "import flask, cv2, pytesseract, fuzzywuzzy, gunicorn, argostranslate; print('[OK] Paquetes Python verificados')" && \
     tesseract --version | head -1 && echo "[OK] Tesseract instalado"
 
 EXPOSE 5000

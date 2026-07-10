@@ -8,6 +8,8 @@ más búsqueda de términos similares.
 import json
 from pathlib import Path
 
+from . import diccionario_gallego, traductor_argos
+
 # Diccionario de palabras clave de supermercado en múltiples idiomas
 DICCIONARIO_PRODUCTOS = {
     # Alimentos básicos
@@ -207,9 +209,20 @@ class TraductorAutomatico:
         if not texto or idioma_destino == idioma_origen:
             return texto
 
+        # Gallego: Argos Translate no distribuye modelo neuronal para gl,
+        # así que usamos nuestro propio diccionario.
+        if idioma_destino == "gl" and idioma_origen == "es":
+            return diccionario_gallego.traducir_texto(texto)
+
+        # Resto de idiomas: traducción offline con Argos Translate.
+        if idioma_origen == "es":
+            traduccion_argos = traductor_argos.traducir_texto(texto, idioma_destino)
+            if traduccion_argos:
+                return traduccion_argos
+
         texto_limpio = texto.lower().strip()
 
-        # Buscar coincidencias exactas
+        # Fallback: diccionario propio de palabras clave
         if texto_limpio in DICCIONARIO_PRODUCTOS:
             traducciones = DICCIONARIO_PRODUCTOS[texto_limpio]
             if idioma_destino in traducciones:

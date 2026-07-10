@@ -1045,7 +1045,7 @@ body.keyboard-open .modal-superpuesta .modal {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 9999 !important;
   padding: 20px;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);

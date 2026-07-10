@@ -20,6 +20,11 @@ COPY . .
 
 RUN mkdir -p /app/data /app/logs /app/uploads
 
+# Descarga en build-time de los paquetes de idioma de Argos Translate, igual
+# que en Dockerfile.raspbian, para que el contenedor no dependa de red en el
+# primer arranque.
+RUN python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"
+
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
