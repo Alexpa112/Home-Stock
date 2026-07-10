@@ -812,6 +812,24 @@ body.modal-open .fab {
   transition: opacity 200ms ease;
 }
 
+.btn-header-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  text-indent: 0;
+  font-family: sans-serif;
+}
+
 .btn-header-invisible {
   background: none;
   border: none;

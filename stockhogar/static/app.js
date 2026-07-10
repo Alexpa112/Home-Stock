@@ -1658,7 +1658,7 @@ function abrirModalCatalogo(modo = "compra") {
   if (modo === "stock") {
     catalogoTitulo.textContent = "Añadir al stock";
     catalogoAyuda.textContent = "Toca un producto para indicar su cantidad y añadirlo al stock.";
-    if (btnCrearDesdeCatalogo) btnCrearDesdeCatalogo.textContent = "+ Crear producto nuevo";
+    if (btnCrearDesdeCatalogo) btnCrearDesdeCatalogo.textContent = "+";
     if (botonesAccion) botonesAccion.style.display = "flex";
   } else {
     catalogoTitulo.textContent = "Añadir a la lista";
