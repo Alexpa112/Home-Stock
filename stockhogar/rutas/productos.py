@@ -85,12 +85,25 @@ def revisar_stock_bajo(db, producto_id, lista_id=None):
         # CAMBIO CRÍTICO: Aviso cuando cantidad <= stock_minimo (igual O menor)
         if cantidad <= stock_minimo:
             if pendiente is None:
-                db.execute(
-                    "INSERT INTO articulos_lista "
-                    "(lista_id, producto_id, nombre, unidad, categoria, icono, origen, fecha_creacion) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 'auto', ?)",
-                    (lista_id, producto_id, nombre, unidad, categoria, icono, ahora()),
-                )
+                # Si ya existe una fila completada (comprada) para este producto, reactivarla
+                # en vez de crear una nueva: evita duplicados entre "pendientes" y "comprados".
+                completado = db.execute(
+                    "SELECT id FROM articulos_lista WHERE producto_id = ? AND activo = 0 AND lista_id = ?",
+                    (producto_id, lista_id),
+                ).fetchone()
+                if completado is not None:
+                    db.execute(
+                        "UPDATE articulos_lista SET activo = 1, origen = 'auto', nombre = ?, unidad = ?, "
+                        "categoria = ?, icono = ?, fecha_completado = NULL WHERE id = ?",
+                        (nombre, unidad, categoria, icono, completado["id"]),
+                    )
+                else:
+                    db.execute(
+                        "INSERT INTO articulos_lista "
+                        "(lista_id, producto_id, nombre, unidad, categoria, icono, origen, fecha_creacion) "
+                        "VALUES (?, ?, ?, ?, ?, ?, 'auto', ?)",
+                        (lista_id, producto_id, nombre, unidad, categoria, icono, ahora()),
+                    )
         elif pendiente is not None:
             # Se ha vuelto a subir el stock: lo damos por comprado en vez de borrarlo
             db.execute(
