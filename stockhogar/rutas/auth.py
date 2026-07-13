@@ -19,6 +19,7 @@ RUTAS_PUBLICAS = {
     "oauth.oauth_google_callback",
     "oauth.oauth_apple",
     "oauth.oauth_apple_callback",
+    "paginas.service_worker",
     "static",
 }
 
@@ -40,7 +41,14 @@ def pagina_login():
 @manejo_errores
 def estado():
     db = get_db()
-    return APIResponse.success({"necesita_setup": not hay_usuarios(db), "usuario": usuario_actual()})
+    email = None
+    usuario_id = session.get("usuario_id")
+    if usuario_id is not None:
+        fila = db.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+        email = fila["email"] if fila else None
+    return APIResponse.success(
+        {"necesita_setup": not hay_usuarios(db), "usuario": usuario_actual(), "email": email}
+    )
 
 
 @bp.route("/api/auth/registrar", methods=["POST"])

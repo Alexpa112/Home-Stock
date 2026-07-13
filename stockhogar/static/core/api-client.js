@@ -170,51 +170,6 @@ class APIClient {
     });
   }
 
-  // ===== HISTORIAL =====
-  async obtenerHistorial() {
-    return this._fetch(`${this.baseUrl}/historial`);
-  }
-
-  async buscarHistorial(nombre) {
-    return this._fetch(`${this.baseUrl}/historial?nombre=${encodeURIComponent(nombre)}`);
-  }
-
-  // ===== USUARIOS =====
-  async obtenerUsuarios() {
-    return this._fetch(`${this.baseUrl}/usuarios`);
-  }
-
-  async crearUsuario(datos) {
-    return this._fetch(`${this.baseUrl}/usuarios`, {
-      method: 'POST',
-      body: JSON.stringify(datos),
-    });
-  }
-
-  async borrarUsuario(id) {
-    return this._fetch(`${this.baseUrl}/usuarios/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // ===== TICKETS OCR =====
-  async procesarTicket(formData) {
-    return fetch(`${this.baseUrl}/tickets/procesar`, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': this._csrfToken() },
-      body: formData,
-    }).then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Sesión expirada');
-      }
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: res.statusText }));
-        throw new APIError(error.error || 'Error', res.status);
-      }
-      return res.json();
-    });
-  }
 }
 
 /**

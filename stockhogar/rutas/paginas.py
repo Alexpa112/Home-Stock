@@ -1,6 +1,6 @@
 """Ruta de la pagina principal (SPA)."""
 import logging
-from flask import Blueprint, render_template, session, redirect, url_for, request
+from flask import Blueprint, render_template, session, redirect, url_for, request, current_app, send_from_directory
 
 from ..api import manejo_errores, APIResponse
 
@@ -13,6 +13,16 @@ bp = Blueprint("paginas", __name__)
 @manejo_errores
 def index():
     return render_template("index.html")
+
+
+@bp.route("/sw.js")
+@manejo_errores
+def service_worker():
+    """Sirve el Service Worker desde la raíz para que su scope cubra toda la app."""
+    respuesta = send_from_directory(current_app.static_folder, "sw.js", mimetype="application/javascript")
+    respuesta.headers["Service-Worker-Allowed"] = "/"
+    respuesta.headers["Cache-Control"] = "no-cache"
+    return respuesta
 
 
 @bp.route("/aceptar-invitacion/<codigo>")

@@ -100,13 +100,7 @@ const btnCerrarCatalogo = document.getElementById("btnCerrarCatalogo");
 const btnAjustes = document.getElementById("btnAjustes");
 const modalAjustesFondo = document.getElementById("modalAjustes");
 
-const ajustesUsuarioActual = document.getElementById("ajustesUsuarioActual");
 const btnCerrarSesion = document.getElementById("btnCerrarSesion");
-const usuariosListaEl = document.getElementById("usuariosLista");
-const usuarioCampoNombre = document.getElementById("usuarioCampoNombre");
-const usuarioCampoPassword = document.getElementById("usuarioCampoPassword");
-const btnAnadirUsuario = document.getElementById("btnAnadirUsuario");
-const usuariosEstado = document.getElementById("usuariosEstado");
 
 const btnEscanearTicket = document.getElementById("btnEscanearTicket");
 const modalTicketFondo = document.getElementById("modalTicket");
@@ -1419,7 +1413,6 @@ habilitarCierreSeguro(modalCatalogoFondo, cerrarModalCatalogo);
 /* --- Ajustes --- */
 
 function abrirModalAjustes() {
-  cargarUsuarios();
   modalAjustesFondo.hidden = false;
 }
 
@@ -1428,66 +1421,6 @@ function cerrarModalAjustes() {
 }
 
 // Event listeners for settings modal are added during late initialization
-
-/* --- Sesion y usuarios --- */
-
-async function cargarEstadoAuth() {
-  if (!ajustesUsuarioActual) return;
-  const res = await fetch("/api/auth/estado");
-  const datos = await res.json();
-  ajustesUsuarioActual.textContent = datos.usuario || "-";
-}
-
-async function cargarUsuarios() {
-  if (!usuariosListaEl) return;
-  let usuarios;
-  try {
-    const res = await fetch("/api/usuarios");
-    usuarios = await res.json();
-    if (!res.ok) {
-      Toast.error(usuarios?.error || "No se pudo cargar la lista de usuarios");
-      return;
-    }
-  } catch (error) {
-    console.error("Error cargando usuarios:", error);
-    Toast.error("No se pudo cargar la lista de usuarios. Comprueba tu conexión.");
-    return;
-  }
-  usuariosListaEl.innerHTML = "";
-  for (const u of usuarios) {
-    const chip = document.createElement("div");
-    chip.className = "categoria-chip";
-    chip.innerHTML = `<span>👤 ${escapeHtml(u.nombre_usuario)}</span>`;
-    if (usuarios.length > 1) {
-      const btnBorrar = document.createElement("button");
-      btnBorrar.type = "button";
-      btnBorrar.title = "Borrar usuario";
-      btnBorrar.textContent = "✕";
-      btnBorrar.addEventListener("click", () => borrarUsuario(u));
-      chip.appendChild(btnBorrar);
-    }
-    usuariosListaEl.appendChild(chip);
-  }
-}
-
-async function borrarUsuario(u) {
-  if (!confirm(`¿Borrar el usuario "${u.nombre_usuario}"?`)) return;
-  try {
-    const res = await fetch(`/api/usuarios/${u.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const datos = await res.json().catch(() => ({}));
-      Toast.error(datos.error || "No se pudo borrar el usuario");
-      return;
-    }
-  } catch (error) {
-    console.error("Error borrando usuario:", error);
-    Toast.error("No se pudo borrar el usuario. Comprueba tu conexión e inténtalo de nuevo.");
-    return;
-  }
-  cargarUsuarios();
-}
-
-// Event listeners for user management buttons are added during late initialization
 
 /* --- Escaneo de tickets --- */
 
@@ -1918,7 +1851,6 @@ cargarMisListas().then(() => {
   });
 });
 cargarHistorial();
-cargarEstadoAuth();
 
 // ============ EVENTOS DE UI ============
 
@@ -1948,19 +1880,28 @@ if (listaActualBtnEl) {
     const selectTema = document.getElementById('selectTema');
     const btnGuardarPerfil = document.getElementById('btnGuardarPerfil');
     const inputNombre = document.getElementById('ajustesNombreUsuario');
+    const inputEmail = document.getElementById('ajustesEmailUsuario');
     const inputPassword = document.getElementById('ajustesPasswordUsuario');
     const spanEstado = document.getElementById('ajustesEstado');
 
     if (!modalAjustes || !selectTema || !btnGuardarPerfil) return;
 
-    // Cargar datos del usuario cuando se abre el modal
-    modalAjustes.addEventListener('focusin', () => {
+    // Cargar datos del usuario cuando se abre el modal. Se comprueba
+    // "!inputNombre.value" para no pisar lo que el usuario esté editando
+    // si el foco cambia entre campos del propio modal (focusin reentra).
+    modalAjustes.addEventListener('focusin', async () => {
       const temaGuardado = localStorage.getItem('stockhogar-tema') || 'auto';
       selectTema.value = temaGuardado;
 
-      const nombreActual = document.getElementById('ajustesUsuarioActual')?.textContent || '-';
-      if (inputNombre && nombreActual !== '-') {
-        inputNombre.value = nombreActual;
+      if ((inputNombre && !inputNombre.value) || (inputEmail && !inputEmail.value)) {
+        try {
+          const res = await fetch('/api/auth/estado');
+          const datos = await res.json();
+          if (inputNombre && !inputNombre.value) inputNombre.value = datos.usuario || '';
+          if (inputEmail && !inputEmail.value) inputEmail.value = datos.email || '';
+        } catch (error) {
+          console.error('Error cargando datos del perfil:', error);
+        }
       }
     });
 
@@ -2019,11 +1960,6 @@ if (listaActualBtnEl) {
           const error = await res.json();
           mostrarEstado(error.error || 'Error al guardar', 'error');
           return;
-        }
-
-        const usuarioActualEl = document.getElementById('ajustesUsuarioActual');
-        if (usuarioActualEl) {
-          usuarioActualEl.textContent = nombre;
         }
 
         if (inputPassword) {
@@ -2182,40 +2118,6 @@ if (listaActualBtnEl) {
       });
     }
 
-    // Add user button
-    const btnAnadirUsuarioInit = document.getElementById('btnAnadirUsuario');
-    if (btnAnadirUsuarioInit) {
-      btnAnadirUsuarioInit.addEventListener("click", async () => {
-        const usuariosEstadoEl = document.getElementById('usuariosEstado');
-        const usuarioCampoNombreEl = document.getElementById('usuarioCampoNombre');
-        const usuarioCampoPasswordEl = document.getElementById('usuarioCampoPassword');
-
-        if (!usuariosEstadoEl || !usuarioCampoNombreEl || !usuarioCampoPasswordEl) return;
-
-        usuariosEstadoEl.hidden = true;
-        const usuario = usuarioCampoNombreEl.value.trim();
-        const password = usuarioCampoPasswordEl.value;
-        if (!usuario || password.length < 4) {
-          usuariosEstadoEl.textContent = "Pon un nombre y una contraseña de al menos 4 caracteres";
-          usuariosEstadoEl.hidden = false;
-          return;
-        }
-        const res = await fetch("/api/auth/registrar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ usuario, password }),
-        });
-        const datos = await res.json();
-        if (!res.ok) {
-          usuariosEstadoEl.textContent = datos.error || "No se pudo crear el usuario";
-          usuariosEstadoEl.hidden = false;
-          return;
-        }
-        usuarioCampoNombreEl.value = "";
-        usuarioCampoPasswordEl.value = "";
-        cargarUsuarios();
-      });
-    }
   }
 
   if (document.readyState === 'loading') {

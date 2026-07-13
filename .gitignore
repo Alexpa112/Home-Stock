@@ -1,8 +1,10 @@
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 data/*.db
 data/secret.json
 .env
 .env.development
 server.log
+server_dev.log

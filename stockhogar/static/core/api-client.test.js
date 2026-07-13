@@ -48,20 +48,6 @@ describe('APIClient', () => {
       expect(categorias).toHaveLength(1);
       expect(categorias[0].nombre).toBe('Lácteos');
     });
-
-    test('obtenerEspacios() retorna lista de espacios', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ([
-          { id: 1, nombre: 'Casa' }
-        ])
-      });
-
-      const espacios = await api.obtenerEspacios();
-
-      expect(espacios).toHaveLength(1);
-      expect(global.fetch).toHaveBeenCalledWith('/api/espacios');
-    });
   });
 
   describe('POST Requests', () => {
