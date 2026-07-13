@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Dreame!</title>
 <meta name="theme-color" content="#B5551A">
 <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
@@ -42,15 +43,6 @@
     </div>
     <button class="btn-cambiar-lista" id="btnCambiarLista" title="Cambiar lista" aria-label="Abrir selector de listas">▾</button>
   </div>
-
-  <section id="vistaEspacios" hidden>
-    <div class="espacios-cabecera">
-      <button type="button" id="btnCerrarEspacios" class="icono-cabecera" title="Volver">✕</button>
-      <h2>Tus stocks</h2>
-      <button type="button" id="btnEditarEspacios" class="secundario">Editar</button>
-    </div>
-    <div id="espaciosTarjetas" class="espacios-tarjetas"></div>
-  </section>
 
   <nav class="tabs" id="tabs">
     <button class="tab activo" data-vista="stock">📦 Stock</button>
@@ -332,40 +324,6 @@
     </div>
     <div class="modal-footer">
       <button type="submit" form="formCategoria" class="primario">Listo</button>
-    </div>
-  </div>
-</div>
-
-<div id="modalEspacioForm" class="modal-fondo" hidden>
-  <div class="modal">
-    <div class="modal-header">
-      <button id="btnCancelarEspacio" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
-      <h2 id="espacioFormTitulo">Nuevo stock</h2>
-    </div>
-    <div class="modal-content">
-      <form id="formEspacio">
-        <input type="hidden" id="espacioEditId">
-
-        <label>Nombre
-          <input id="espacioCampoNombre" type="text" maxlength="30" placeholder="Ej. Piso de la playa" required>
-        </label>
-
-        <label>Icono: <span id="espacioIconoElegido">🏠</span>
-          <input type="hidden" id="espacioCampoIcono" value="🏠">
-        </label>
-        <button type="button" id="btnSeleccionarIconoEspacio" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button>
-
-        <span>Color <small class="nota-icono">(se usa en su tarjeta y en los acentos de la app mientras estás en este stock)</small></span>
-        <div id="paletaColorEspacio" class="paleta-color"></div>
-        <label class="fila-color-personalizado">
-          Personalizado
-          <input type="color" id="espacioCampoColorPicker" value="#B5551A">
-        </label>
-        <input type="hidden" id="espacioCampoColor" value="#B5551A">
-      </form>
-    </div>
-    <div class="modal-footer">
-      <button type="submit" form="formEspacio" class="primario" id="espacioBotonGuardar">Añadir</button>
     </div>
   </div>
 </div>

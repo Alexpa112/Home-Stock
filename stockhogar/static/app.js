@@ -2,8 +2,15 @@
 // API devolvera 401: mandamos a la pantalla de login en vez de dejar la app
 // a medio cargar con errores silenciosos.
 const fetchOriginal = window.fetch.bind(window);
-window.fetch = async (...args) => {
-  const res = await fetchOriginal(...args);
+window.fetch = async (input, init = {}) => {
+  const metodo = (init.method || "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(metodo)) {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (token) {
+      init = { ...init, headers: { ...(init.headers || {}), "X-CSRFToken": token } };
+    }
+  }
+  const res = await fetchOriginal(input, init);
   if (res.status === 401) {
     window.location.href = "/login";
   }
@@ -125,35 +132,10 @@ const categoriaIconoElegido = document.getElementById("categoriaIconoElegido");
 const selectorIconosEl = document.getElementById("selectorIconos");
 const btnCerrarCategorias = document.getElementById("btnCerrarCategorias");
 
-const barraEspacio = document.getElementById("barraEspacio");
-const btnEspacios = document.getElementById("btnEspacios");
-const espacioActualIconoEl = document.getElementById("espacioActualIcono");
-const espacioActualNombreEl = document.getElementById("espacioActualNombre");
-const vistaEspacios = document.getElementById("vistaEspacios");
-const btnCerrarEspacios = document.getElementById("btnCerrarEspacios");
-const btnEditarEspacios = document.getElementById("btnEditarEspacios");
-const espaciosTarjetasEl = document.getElementById("espaciosTarjetas");
-
-const modalEspacioFormFondo = document.getElementById("modalEspacioForm");
-const formEspacio = document.getElementById("formEspacio");
-const espacioFormTitulo = document.getElementById("espacioFormTitulo");
-const espacioEditId = document.getElementById("espacioEditId");
-const espacioBotonGuardar = document.getElementById("espacioBotonGuardar");
-const espacioCampoNombre = document.getElementById("espacioCampoNombre");
-const espacioCampoIcono = document.getElementById("espacioCampoIcono");
-const espacioIconoElegido = document.getElementById("espacioIconoElegido");
-const btnSeleccionarIconoEspacio = document.getElementById("btnSeleccionarIconoEspacio");
-const paletaColorEspacioEl = document.getElementById("paletaColorEspacio");
-const espacioCampoColor = document.getElementById("espacioCampoColor");
-const espacioCampoColorPicker = document.getElementById("espacioCampoColorPicker");
-const btnCancelarEspacio = document.getElementById("btnCancelarEspacio");
-
 let productos = [];
 let pendientesCompra = [];
 let completadosCompra = [];
 let categorias = [];
-let espacios = [];
-let espacioActualId = null;
 let categoriaActiva = "todas";
 let textoBusqueda = "";
 let vistaActiva = "stock";
@@ -582,261 +564,6 @@ formCategoria.addEventListener("submit", async (e) => {
   categoriaCampoIcono.value = "h-folder";
   categoriaIconoElegido.innerHTML = renderIcono("h-folder");
   categoriaCampoNombre.focus();
-});
-
-/* --- Espacios (varios stocks independientes: casa, oficina, etc.) --- */
-
-const PALETA_COLOR_ESPACIOS = [
-  "#B5551A", "#3E7C8C", "#7B6B9E", "#5B8C5A",
-  "#C77B9E", "#C9A227", "#4A6FA5", "#B5473F",
-];
-
-let editandoEspacios = false;
-
-function ajustarColor(hex, delta) {
-  const num = parseInt(hex.slice(1), 16);
-  const canal = (despl) => Math.max(0, Math.min(255, ((num >> despl) & 0xff) + delta));
-  const r = canal(16), g = canal(8), b = canal(0);
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
-}
-
-function colorEsClaro(hex) {
-  const num = parseInt(hex.slice(1), 16);
-  const r = (num >> 16) & 0xff, g = (num >> 8) & 0xff, b = num & 0xff;
-  return (0.299 * r + 0.587 * g + 0.114 * b) > 170;
-}
-
-function aplicarColorEspacio(color) {
-  const raiz = document.documentElement.style;
-  raiz.setProperty("--accent", color);
-  raiz.setProperty("--accent-soft", ajustarColor(color, 95));
-  raiz.setProperty("--accent-contrast", colorEsClaro(color) ? "#26211C" : "#FFFFFF");
-}
-
-async function cargarEspacios() {
-  const [listaRes, actualRes] = await Promise.all([
-    fetch("/api/espacios"),
-    fetch("/api/espacios/actual"),
-  ]);
-  espacios = await listaRes.json();
-  const actual = await actualRes.json();
-  espacioActualId = actual.id;
-  renderEspacioActual(actual);
-}
-
-function renderEspacioActual(actual) {
-  if (espacioActualIconoEl) espacioActualIconoEl.innerHTML = renderIcono(actual.icono);
-  if (espacioActualNombreEl) espacioActualNombreEl.textContent = actual.nombre;
-  aplicarColorEspacio(actual.color);
-}
-
-function mostrarVistaEspacios() {
-  editandoEspacios = false;
-  renderTarjetasEspacios();
-  barraEspacio.hidden = true;
-  vistaEspacios.hidden = false;
-  tabs.hidden = true;
-  vistaStock.hidden = true;
-  vistaCompra.hidden = true;
-  fab.hidden = true;
-}
-
-function ocultarVistaEspacios() {
-  barraEspacio.hidden = false;
-  vistaEspacios.hidden = true;
-  tabs.hidden = false;
-  vistaStock.hidden = vistaActiva !== "stock";
-  vistaCompra.hidden = vistaActiva !== "compra";
-  fab.hidden = false;
-}
-
-function renderTarjetasEspacios() {
-  btnEditarEspacios.textContent = editandoEspacios ? "Listo" : "Editar";
-  espaciosTarjetasEl.innerHTML = "";
-
-  for (const esp of espacios) {
-    const tarjeta = document.createElement("button");
-    tarjeta.type = "button";
-    tarjeta.className = "tarjeta-espacio";
-    tarjeta.style.background = `linear-gradient(135deg, ${ajustarColor(esp.color, 25)}, ${ajustarColor(esp.color, -25)})`;
-    tarjeta.innerHTML = `
-      <span class="tarjeta-espacio-icono">${renderIcono(esp.icono, { tamano: 24 })}</span>
-      <p class="tarjeta-espacio-nombre">${escapeHtml(esp.nombre)}</p>
-      ${esp.productos_count ? `<span class="tarjeta-espacio-contador">${esp.productos_count} producto${esp.productos_count === 1 ? "" : "s"}</span>` : ""}
-      <span class="tarjeta-espacio-flecha">${editandoEspacios ? "✏️" : "›"}</span>
-    `;
-    tarjeta.addEventListener("click", () => {
-      if (editandoEspacios) abrirFormEspacio(esp);
-      else seleccionarEspacio(esp.id);
-    });
-
-    if (editandoEspacios && espacios.length > 1) {
-      const btnBorrar = document.createElement("button");
-      btnBorrar.type = "button";
-      btnBorrar.className = "tarjeta-espacio-borrar";
-      btnBorrar.title = "Borrar stock";
-      btnBorrar.textContent = "✕";
-      btnBorrar.addEventListener("click", (e) => {
-        e.stopPropagation();
-        borrarEspacio(esp);
-      });
-      tarjeta.appendChild(btnBorrar);
-    }
-    espaciosTarjetasEl.appendChild(tarjeta);
-  }
-
-  const btnNueva = document.createElement("button");
-  btnNueva.type = "button";
-  btnNueva.className = "tarjeta-espacio tarjeta-espacio-nueva";
-  btnNueva.textContent = "+ Nuevo stock";
-  btnNueva.addEventListener("click", () => abrirFormEspacio(null));
-  espaciosTarjetasEl.appendChild(btnNueva);
-}
-
-async function seleccionarEspacio(id) {
-  if (id !== espacioActualId) {
-    const res = await fetch("/api/espacios/actual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ espacio_id: id }),
-    });
-    const actual = await res.json();
-    espacioActualId = actual.id;
-    renderEspacioActual(actual);
-    await Promise.all([cargarProductos(), cargarListaCompra()]);
-  }
-  ocultarVistaEspacios();
-}
-
-async function borrarEspacio(esp) {
-  if (!confirm(`¿Borrar el stock "${esp.nombre}"? Se borrará también todo su inventario y su lista de la compra.`)) return;
-
-  try {
-    await fetchConTimeout(`/api/espacios/${esp.id}`, { method: "DELETE" }, 8000);
-    const eraElActual = esp.id === espacioActualId;
-    espacios = espacios.filter((e) => e.id !== esp.id);
-    renderTarjetasEspacios();
-    if (eraElActual) {
-      const resActual = await fetchConTimeout("/api/espacios/actual", {}, 8000);
-      const actual = await resActual.json();
-      espacioActualId = actual.id;
-      renderEspacioActual(actual);
-      await Promise.all([cargarProductos(), cargarListaCompra()]);
-    }
-  } catch (error) {
-    console.error("Error borrando espacio:", error);
-    Toast.error(error.message || "No se pudo borrar el stock. Inténtalo de nuevo.");
-  }
-}
-
-if (btnEspacios) btnEspacios.addEventListener("click", mostrarVistaEspacios);
-if (btnCerrarEspacios) btnCerrarEspacios.addEventListener("click", ocultarVistaEspacios);
-if (btnEditarEspacios) btnEditarEspacios.addEventListener("click", () => {
-  editandoEspacios = !editandoEspacios;
-  renderTarjetasEspacios();
-});
-
-/* --- Formulario de alta/edición de un stock (nombre, icono, color) --- */
-
-function renderPaletaColorEspacio(seleccionado) {
-  paletaColorEspacioEl.innerHTML = "";
-  for (const color of PALETA_COLOR_ESPACIOS) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.style.background = color;
-    btn.className = color.toLowerCase() === seleccionado.toLowerCase() ? "seleccionado" : "";
-    btn.title = color;
-    btn.addEventListener("click", () => {
-      espacioCampoColor.value = color;
-      espacioCampoColorPicker.value = color;
-      renderPaletaColorEspacio(color);
-    });
-    paletaColorEspacioEl.appendChild(btn);
-  }
-}
-
-espacioCampoColorPicker.addEventListener("input", (e) => {
-  espacioCampoColor.value = e.target.value;
-  renderPaletaColorEspacio(e.target.value);
-});
-
-function abrirFormEspacio(esp) {
-  formEspacio.reset();
-  const esEdicion = Boolean(esp);
-  espacioEditId.value = esEdicion ? esp.id : "";
-  espacioFormTitulo.textContent = esEdicion ? "Editar stock" : "Nuevo stock";
-  espacioBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
-
-  espacioCampoNombre.value = esEdicion ? esp.nombre : "";
-  const icono = esEdicion ? esp.icono : "h-home";
-  const color = esEdicion ? esp.color : PALETA_COLOR_ESPACIOS[espacios.length % PALETA_COLOR_ESPACIOS.length];
-
-  espacioCampoIcono.value = icono;
-  espacioIconoElegido.innerHTML = renderIcono(icono);
-
-  espacioCampoColor.value = color;
-  espacioCampoColorPicker.value = color;
-  renderPaletaColorEspacio(color);
-
-  modalEspacioFormFondo.hidden = false;
-  espacioCampoNombre.focus();
-}
-
-function cerrarFormEspacio() {
-  modalEspacioFormFondo.hidden = true;
-}
-
-btnCancelarEspacio.addEventListener("click", cerrarFormEspacio);
-habilitarCierreSeguro(modalEspacioFormFondo, cerrarFormEspacio);
-
-if (btnSeleccionarIconoEspacio) {
-  btnSeleccionarIconoEspacio.addEventListener("click", (e) => {
-    e.preventDefault();
-    abrirModalSelectorIconos(espacioCampoIcono.value, (icono) => {
-      espacioCampoIcono.value = icono;
-      espacioIconoElegido.innerHTML = renderIcono(icono);
-    });
-  });
-}
-
-formEspacio.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const id = espacioEditId.value;
-  const payload = {
-    nombre: espacioCampoNombre.value.trim(),
-    icono: espacioCampoIcono.value || "h-home",
-    color: espacioCampoColor.value,
-  };
-  if (!payload.nombre) return;
-
-  let datos;
-  try {
-    const res = await fetch(id ? `/api/espacios/${id}` : "/api/espacios", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    datos = await res.json();
-    if (!res.ok) {
-      Toast.error(datos.error || "No se pudo guardar el stock");
-      return;
-    }
-  } catch (error) {
-    console.error("Error guardando espacio:", error);
-    Toast.error("No se pudo guardar el stock. Comprueba tu conexión e inténtalo de nuevo.");
-    return;
-  }
-
-  if (id) {
-    espacios = espacios.map((esp) => (esp.id === datos.id ? { ...esp, ...datos } : esp));
-    if (Number(id) === espacioActualId) renderEspacioActual(datos);
-  } else {
-    espacios.push(datos);
-  }
-  espacios.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-
-  cerrarFormEspacio();
-  renderTarjetasEspacios();
 });
 
 /* --- Stock --- */
@@ -2181,7 +1908,6 @@ window.cambiarLista = cambiarLista;
 
 // ============ INICIALIZACIONES ============
 
-// cargarEspacios(); // Obsoleto: usar listas en su lugar
 // Se espera a cargarMisListas() antes de cargar productos/compra porque esa
 // función valida y limpia 'lista-actual' en localStorage; si no, otras
 // llamadas pueden usar un lista_id obsoleto y recibir 403 en cascada.

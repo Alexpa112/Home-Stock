@@ -53,7 +53,7 @@ RUN python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paque
 
 # Verificación en build-time: si falta algún paquete crítico, el build falla
 # aquí en vez de fallar en producción al primer request.
-RUN python3 -c "import flask, cv2, pytesseract, fuzzywuzzy, gunicorn, argostranslate; print('[OK] Paquetes Python verificados')" && \
+RUN python3 -c "import flask, flask_wtf, cv2, pytesseract, fuzzywuzzy, gunicorn, argostranslate; print('[OK] Paquetes Python verificados')" && \
     tesseract --version | head -1 && echo "[OK] Tesseract instalado"
 
 EXPOSE 5000

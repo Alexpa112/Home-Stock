@@ -20,6 +20,10 @@ DIAS_AVISO_DEFECTO = 30
 # el login es persistente para no tener que volver a autenticarse cada vez.
 DIAS_SESION = 365
 
+# La cookie de sesion solo se marca "Secure" (exigir HTTPS) si APP_URL usa https.
+# En local (http://localhost) se deja sin marcar para poder seguir probando sin TLS.
+USAR_COOKIE_SEGURA = os.getenv("APP_URL", "http://localhost:5000").startswith("https://")
+
 # Categorias de partida (se insertan una sola vez; a partir de ahi son
 # totalmente editables desde la app). "Otros" es el comodin de respaldo y
 # no se puede borrar. Se mantienen las 5 originales (por compatibilidad con

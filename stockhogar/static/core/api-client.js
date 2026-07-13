@@ -11,17 +11,30 @@ class APIClient {
   }
 
   /**
+   * Token CSRF publicado por el backend en <meta name="csrf-token">
+   */
+  _csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+  }
+
+  /**
    * Método privado: realiza fetch con manejo de errores
    */
   async _fetch(url, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    const metodo = (options.method || 'GET').toUpperCase();
+    const headers = { ...this.headers, ...options.headers };
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(metodo)) {
+      headers['X-CSRFToken'] = this._csrfToken();
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
-        headers: { ...this.headers, ...options.headers },
+        headers,
       });
 
       clearTimeout(timeoutId);
@@ -157,31 +170,6 @@ class APIClient {
     });
   }
 
-  // ===== ESPACIOS =====
-  async obtenerEspacios() {
-    return this._fetch(`${this.baseUrl}/espacios`);
-  }
-
-  async crearEspacio(datos) {
-    return this._fetch(`${this.baseUrl}/espacios`, {
-      method: 'POST',
-      body: JSON.stringify(datos),
-    });
-  }
-
-  async actualizarEspacio(id, datos) {
-    return this._fetch(`${this.baseUrl}/espacios/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(datos),
-    });
-  }
-
-  async borrarEspacio(id) {
-    return this._fetch(`${this.baseUrl}/espacios/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
   // ===== HISTORIAL =====
   async obtenerHistorial() {
     return this._fetch(`${this.baseUrl}/historial`);
@@ -213,6 +201,7 @@ class APIClient {
   async procesarTicket(formData) {
     return fetch(`${this.baseUrl}/tickets/procesar`, {
       method: 'POST',
+      headers: { 'X-CSRFToken': this._csrfToken() },
       body: formData,
     }).then(async (res) => {
       if (res.status === 401) {
