@@ -1213,12 +1213,8 @@ class CrearListaModal extends FormModal {
     console.log('Form inputs:', this.form.querySelectorAll('input').length);
 
     if (!nombre) {
-      // Si no hay input de nombre, pedir al usuario
-      nombre = prompt('Nombre de la lista:') || '';
-      if (!nombre) {
-        Toast.error('El nombre es requerido');
-        return;
-      }
+      Toast.error('El nombre es requerido');
+      return;
     }
 
     const icono = this.form.querySelector('input[name="icono"]')?.value || 'h-clipboard-document-list';

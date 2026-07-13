@@ -2,10 +2,12 @@
 // stockhogar/static/icons/sprite.svg a partir de los iconos usados en
 // stockhogar/static/icons/catalogo-iconos.js.
 //
-// Dos fuentes posibles por icono (mismo catálogo, dos librerías con estilos
-// consistentes entre sí porque ambas son de trazo/línea, no relleno sólido):
-//   - "nombre"   -> node_modules/lucide-static/icons/nombre.svg   (comida/bebida)
-//   - "h-nombre" -> node_modules/heroicons/24/outline/nombre.svg  (hogar/utilidad)
+// Tres fuentes posibles por icono (mismo catálogo, todas de trazo/línea, no
+// relleno sólido, para que el estilo sea consistente):
+//   - "nombre"   -> node_modules/lucide-static/icons/nombre.svg    (comida/bebida)
+//   - "h-nombre" -> node_modules/heroicons/24/outline/nombre.svg   (hogar/utilidad)
+//   - "c-nombre" -> stockhogar/static/icons/custom/nombre.svg      (diseño propio,
+//     para conceptos que no existen en ninguna de las dos librerías)
 //
 // Ejecutar con: node scripts/generar-sprite-iconos.js
 // cada vez que se añada/quite un icono en catalogo-iconos.js.
@@ -16,6 +18,7 @@ const RAIZ = path.join(__dirname, "..");
 const CATALOGO_PATH = path.join(RAIZ, "stockhogar/static/icons/catalogo-iconos.js");
 const ICONOS_LUCIDE_DIR = path.join(RAIZ, "node_modules/lucide-static/icons");
 const ICONOS_HEROICONS_DIR = path.join(RAIZ, "node_modules/heroicons/24/outline");
+const ICONOS_CUSTOM_DIR = path.join(RAIZ, "stockhogar/static/icons/custom");
 const SALIDA_PATH = path.join(RAIZ, "stockhogar/static/icons/sprite.svg");
 
 // Atributos de presentación que Lucide/Heroicons ponen en la etiqueta <svg>
@@ -37,6 +40,9 @@ function extraerNombresIconos(contenidoCatalogo) {
 function rutaFuente(nombre) {
   if (nombre.startsWith("h-")) {
     return path.join(ICONOS_HEROICONS_DIR, `${nombre.slice(2)}.svg`);
+  }
+  if (nombre.startsWith("c-")) {
+    return path.join(ICONOS_CUSTOM_DIR, `${nombre.slice(2)}.svg`);
   }
   return path.join(ICONOS_LUCIDE_DIR, `${nombre}.svg`);
 }

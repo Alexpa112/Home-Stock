@@ -687,8 +687,8 @@ main.lista {
   cursor: pointer;
   font-size: 0.95rem;
   color: var(--text-soft);
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   transition: background-color .15s ease;
   touch-action: manipulation;
@@ -1706,7 +1706,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .contador { gap: 5px; }
   .contador button { width: 32px; height: 32px; }
   .acciones { gap: 4px; }
-  .acciones button { width: 28px; height: 28px; }
+  .acciones button { width: 44px; height: 44px; }
 }
 
 /* ---------- Grid de Listas - Mis Listas Modal ---------- */
