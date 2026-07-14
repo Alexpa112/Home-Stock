@@ -2,15 +2,13 @@
  * Tests para APIClient (Singleton)
  * Cubre: HTTP requests, error handling, endpoints
  */
+const { APIClient, APIError } = require('./api-client.js');
 
 describe('APIClient', () => {
   let api;
 
   beforeEach(() => {
-    // Mock fetch globalmente
     global.fetch = jest.fn();
-
-    // Crear nueva instancia para cada test
     api = new APIClient();
   });
 
@@ -22,6 +20,7 @@ describe('APIClient', () => {
     test('obtenerProductos() retorna lista de productos', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ([
           { id: 1, nombre: 'Leche' },
           { id: 2, nombre: 'Pan' }
@@ -32,12 +31,13 @@ describe('APIClient', () => {
 
       expect(productos).toHaveLength(2);
       expect(productos[0].nombre).toBe('Leche');
-      expect(global.fetch).toHaveBeenCalledWith('/api/productos');
+      expect(global.fetch.mock.calls[0][0]).toBe('/api/productos');
     });
 
     test('obtenerCategorias() retorna lista de categorías', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ([
           { id: 1, nombre: 'Lácteos', icono: '🥛' }
         ])
@@ -48,12 +48,22 @@ describe('APIClient', () => {
       expect(categorias).toHaveLength(1);
       expect(categorias[0].nombre).toBe('Lácteos');
     });
+
+    test('GET no añade cabecera X-CSRFToken', async () => {
+      global.fetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ([]) });
+
+      await api.obtenerProductos();
+
+      const [, options] = global.fetch.mock.calls[0];
+      expect(options.headers['X-CSRFToken']).toBeUndefined();
+    });
   });
 
   describe('POST Requests', () => {
-    test('crearProducto() envía datos correctos', async () => {
+    test('crearProducto() envía datos correctos y cabecera CSRF', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
+        status: 201,
         json: async () => ({ id: 3, nombre: 'Nuevo' })
       });
 
@@ -62,15 +72,18 @@ describe('APIClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/productos', expect.objectContaining({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos)
+        body: JSON.stringify(datos),
       }));
+      const [, options] = global.fetch.mock.calls[0];
+      expect(options.headers['Content-Type']).toBe('application/json');
+      expect(options.headers['X-CSRFToken']).toBe('');
       expect(resultado.id).toBe(3);
     });
 
     test('crearCategoria() envía datos correctos', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
+        status: 201,
         json: async () => ({ id: 3, nombre: 'Frutas' })
       });
 
@@ -83,10 +96,11 @@ describe('APIClient', () => {
     });
   });
 
-  describe('PUT Requests', () => {
-    test('actualizarProducto() envía PUT request correcto', async () => {
+  describe('PATCH Requests', () => {
+    test('actualizarProducto() envía PATCH request correcto', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({ id: 1, nombre: 'Actualizado' })
       });
 
@@ -94,7 +108,7 @@ describe('APIClient', () => {
       await api.actualizarProducto(1, datos);
 
       expect(global.fetch).toHaveBeenCalledWith('/api/productos/1', expect.objectContaining({
-        method: 'PUT',
+        method: 'PATCH',
         body: JSON.stringify(datos)
       }));
     });
@@ -104,47 +118,64 @@ describe('APIClient', () => {
     test('borrarProducto() envía DELETE request', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ success: true })
+        status: 204,
       });
 
-      await api.borrarProducto(1);
+      const resultado = await api.borrarProducto(1);
 
       expect(global.fetch).toHaveBeenCalledWith('/api/productos/1', expect.objectContaining({
         method: 'DELETE'
       }));
+      expect(resultado).toBeNull();
     });
   });
 
   describe('Error Handling', () => {
-    test('lanza APIError si respuesta no es OK', async () => {
+    test('lanza APIError con el mensaje del backend si la respuesta no es OK', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
         statusText: 'Not Found',
-        json: async () => ({ message: 'Producto no encontrado' })
+        json: async () => ({ error: 'Producto no encontrado' })
       });
 
-      await expect(api.obtenerProductos()).rejects.toThrow('404: Not Found');
+      await expect(api.obtenerProductos()).rejects.toThrow('Producto no encontrado');
     });
 
-    test('lanza APIError si fetch falla', async () => {
+    test('lanza APIError con mensaje por defecto si el backend no da detalle', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        json: async () => { throw new Error('no es JSON'); }
+      });
+
+      await expect(api.obtenerProductos()).rejects.toThrow('Internal Server Error');
+    });
+
+    test('lanza APIError si fetch falla por red', async () => {
       global.fetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(api.obtenerProductos()).rejects.toThrow();
+      await expect(api.obtenerProductos()).rejects.toThrow('Network error');
     });
 
-    test('maneja timeout de request', async () => {
-      const originalFetch = global.fetch;
-      global.fetch = jest.fn(() =>
-        new Promise(resolve => setTimeout(resolve, 15000)) // Más que timeout
-      );
+    test('hace timeout tras 10s sin respuesta y lanza APIError', async () => {
+      jest.useFakeTimers();
+      global.fetch.mockImplementationOnce((url, { signal }) => new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          const error = new Error('This operation was aborted');
+          error.name = 'AbortError';
+          reject(error);
+        });
+      }));
 
-      const timeoutPromise = api.obtenerProductos();
+      const promesa = api.obtenerProductos();
+      const expectacion = expect(promesa).rejects.toBeInstanceOf(APIError);
 
-      // Simular que pasa el timeout
-      jest.advanceTimersByTime(15000);
+      await jest.advanceTimersByTimeAsync(10000);
+      await expectacion;
 
-      global.fetch = originalFetch;
+      jest.useRealTimers();
     });
   });
 
@@ -159,7 +190,8 @@ describe('APIClient', () => {
 
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockData
+        status: 200,
+        json: async () => [mockData]
       });
 
       const resultado = await api.obtenerProductos();
@@ -167,6 +199,14 @@ describe('APIClient', () => {
       expect(resultado).toEqual([mockData]);
       expect(resultado[0].cantidad).toBe(5);
       expect(resultado[0].completado).toBe(true);
+    });
+
+    test('devuelve null en respuestas 204 sin cuerpo', async () => {
+      global.fetch.mockResolvedValueOnce({ ok: true, status: 204 });
+
+      const resultado = await api.borrarProducto(1);
+
+      expect(resultado).toBeNull();
     });
   });
 });

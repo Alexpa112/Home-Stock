@@ -216,14 +216,24 @@ function habilitarCierreSeguro(fondo, alCerrar) {
   });
 }
 
-/* --- Cierre de modales por drag-down --- */
+/* --- Cierre de modales por drag-down (solo móvil, sin interferir con el scroll interno) --- */
 function habilitarDragDown(modal, alCerrar) {
+  const ZONA_ARRASTRE_PX = 32;
   let startY = 0;
   let currentY = 0;
   let isDragging = false;
 
+  function scrollTopContenido() {
+    const scrollable = modal.querySelector("form, .modal-content") || modal;
+    return scrollable.scrollTop || 0;
+  }
+
   modal.addEventListener("touchstart", (e) => {
-    startY = e.touches[0].clientY;
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    const toqueY = e.touches[0].clientY;
+    const zonaSuperior = modal.getBoundingClientRect().top + ZONA_ARRASTRE_PX;
+    if (toqueY > zonaSuperior && scrollTopContenido() > 0) return;
+    startY = toqueY;
     currentY = startY;
     isDragging = true;
   });
@@ -250,6 +260,15 @@ function habilitarDragDown(modal, alCerrar) {
     }
   });
 }
+
+/* --- Bottom sheet completo: cierre por fondo + arrastre seguro --- */
+function habilitarBottomSheet(fondo, contenedor, alCerrar) {
+  habilitarCierreSeguro(fondo, alCerrar);
+  if (contenedor) habilitarDragDown(contenedor, alCerrar);
+}
+window.habilitarCierreSeguro = habilitarCierreSeguro;
+window.habilitarDragDown = habilitarDragDown;
+window.habilitarBottomSheet = habilitarBottomSheet;
 
 function escapeHtml(texto) {
   const div = document.createElement("div");
@@ -488,12 +507,7 @@ buscadorIconos.addEventListener("input", () => {
 
 btnCerrarSelectorIconos.addEventListener("click", cerrarModalSelectorIconos);
 
-// Cerrar modal al hacer click en el fondo
-modalSelectorIconos.addEventListener("click", (e) => {
-  if (e.target === modalSelectorIconos) {
-    cerrarModalSelectorIconos();
-  }
-});
+habilitarBottomSheet(modalSelectorIconos, modalSelectorIconos.querySelector(".modal"), cerrarModalSelectorIconos);
 
 function abrirModalCategorias() {
   renderCategoriasLista();
@@ -509,7 +523,7 @@ function cerrarModalCategorias() {
 
 btnCategorias.addEventListener("click", abrirModalCategorias);
 btnCerrarCategorias.addEventListener("click", cerrarModalCategorias);
-habilitarCierreSeguro(modalCategoriasFondo, cerrarModalCategorias);
+habilitarBottomSheet(modalCategoriasFondo, modalCategoriasFondo.querySelector(".modal"), cerrarModalCategorias);
 
 // Botón para seleccionar icono en categorías
 const btnSeleccionarIconoCategoria = document.getElementById("btnSeleccionarIconoCategoria");
@@ -823,7 +837,7 @@ form.addEventListener("submit", async (e) => {
 });
 
 btnCancelar.addEventListener("click", cerrarModal);
-habilitarCierreSeguro(modalFondo, cerrarModal);
+habilitarBottomSheet(modalFondo, modalFondo.querySelector(".modal"), cerrarModal);
 
 buscador.addEventListener("input", (e) => {
   textoBusqueda = e.target.value;
@@ -1149,7 +1163,7 @@ if (btnBorrarArticuloEl) {
   });
 }
 
-habilitarCierreSeguro(modalCompraFondo, cerrarModalCompra);
+habilitarBottomSheet(modalCompraFondo, modalCompraFondo.querySelector(".modal"), cerrarModalCompra);
 
 // Botón de edición avanzada para artículos personalizados
 const btnEdicionAvanzadaEl = document.getElementById("btnEdicionAvanzada");
@@ -1408,7 +1422,7 @@ if (btnCrearDesdeCatalogo) {
 if (btnCerrarCatalogo) {
   btnCerrarCatalogo.addEventListener("click", cerrarModalCatalogo);
 }
-habilitarCierreSeguro(modalCatalogoFondo, cerrarModalCatalogo);
+habilitarBottomSheet(modalCatalogoFondo, modalCatalogoFondo.querySelector(".modal"), cerrarModalCatalogo);
 
 /* --- Ajustes --- */
 
@@ -1481,11 +1495,7 @@ function crearFilaTicket(item) {
 if (btnEscanearTicket) btnEscanearTicket.addEventListener("click", abrirModalTicket);
 if (btnCancelarTicket) btnCancelarTicket.addEventListener("click", cerrarModalTicket);
 if (btnCancelarRevisionTicket) btnCancelarRevisionTicket.addEventListener("click", cerrarModalTicket);
-if (modalTicketFondo) habilitarCierreSeguro(modalTicketFondo, cerrarModalTicket);
-const modalTicketContenedor = modalTicketFondo.querySelector(".modal");
-if (modalTicketContenedor) {
-  habilitarDragDown(modalTicketContenedor, cerrarModalTicket);
-}
+if (modalTicketFondo) habilitarBottomSheet(modalTicketFondo, modalTicketFondo.querySelector(".modal"), cerrarModalTicket);
 
 btnAnadirLineaTicket.addEventListener("click", () => {
   ticketItemsEl.appendChild(crearFilaTicket({ nombre: "", cantidad: 1, unidad: "ud" }));
@@ -2029,20 +2039,15 @@ if (listaActualBtnEl) {
   }
 
   // Cerrar modal
+  function cerrarModalCrearLista() {
+    modalCrearLista.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
   if (btnCerrarCrearLista) {
-    btnCerrarCrearLista.addEventListener('click', () => {
-      modalCrearLista.hidden = true;
-      document.body.classList.remove('modal-open');
-    });
+    btnCerrarCrearLista.addEventListener('click', cerrarModalCrearLista);
   }
 
-  // Cerrar modal al hacer click en el fondo
-  modalCrearLista.addEventListener('click', (e) => {
-    if (e.target === modalCrearLista) {
-      modalCrearLista.hidden = true;
-      document.body.classList.remove('modal-open');
-    }
-  });
+  window.habilitarBottomSheet(modalCrearLista, modalCrearLista.querySelector('.modal'), cerrarModalCrearLista);
 
   // NOTA: El botón "Cambiar icono" NO se enlaza aquí: FormBuilder.inyectarFormularioEnModal
   // recrea ese botón cada vez que se abre el modal (ver CrearListaModal.onOpen en
@@ -2102,11 +2107,7 @@ if (listaActualBtnEl) {
     const modalAjustesFondoInit = document.getElementById('modalAjustes');
     if (btnAjustesInit && modalAjustesFondoInit) {
       btnAjustesInit.addEventListener("click", abrirModalAjustes);
-      habilitarCierreSeguro(modalAjustesFondoInit, cerrarModalAjustes);
-      const modalAjustesContenedor = modalAjustesFondoInit.querySelector(".modal");
-      if (modalAjustesContenedor) {
-        habilitarDragDown(modalAjustesContenedor, cerrarModalAjustes);
-      }
+      habilitarBottomSheet(modalAjustesFondoInit, modalAjustesFondoInit.querySelector(".modal"), cerrarModalAjustes);
     }
 
     // Close session button

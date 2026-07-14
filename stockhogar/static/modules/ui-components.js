@@ -445,22 +445,39 @@ class ToastManager {
   }
 }
 
-// Inicializar managers globales
-const keyboardManager = new KeyboardManager();
-const themeManager = new ThemeManager();
-const toastManager = new ToastManager();
+// Inicializar managers globales (solo en navegador: en tests se usa require(),
+// que envuelve el fichero como módulo CommonJS y por tanto define `module`).
+if (typeof module === 'undefined') {
+  const keyboardManager = new KeyboardManager();
+  const themeManager = new ThemeManager();
+  const toastManager = new ToastManager();
 
-// Exponer globalmente
-window.UIComponents = {
-  ModalBase,
-  FormModal,
-  TicketModal,
-  CatalogModal,
-  ResponsiveList,
-  ValidatedInput,
-  KeyboardManager,
-  ThemeManager,
-  ScreenUtils,
-  ToastManager
-};
-window.Toast = toastManager;
+  window.UIComponents = {
+    ModalBase,
+    FormModal,
+    TicketModal,
+    CatalogModal,
+    ResponsiveList,
+    ValidatedInput,
+    KeyboardManager,
+    ThemeManager,
+    ScreenUtils,
+    ToastManager
+  };
+  window.Toast = toastManager;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    ModalBase,
+    FormModal,
+    TicketModal,
+    CatalogModal,
+    ResponsiveList,
+    ValidatedInput,
+    KeyboardManager,
+    ThemeManager,
+    ScreenUtils,
+    ToastManager
+  };
+}

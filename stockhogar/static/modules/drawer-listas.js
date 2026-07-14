@@ -150,6 +150,31 @@ class DrawerListasManager {
       btnSalirLista.addEventListener('click', () => this.salirDeLista());
     }
 
+    // Bottom sheet: cerrar tocando el fondo + arrastre seguro (misListas y editarLista)
+    if (window.habilitarBottomSheet) {
+      window.habilitarBottomSheet(this.modal, this.modal.querySelector('.modal'), () => this.cerrarModal());
+      window.habilitarBottomSheet(this.modalEditar, this.modalEditar.querySelector('.modal'), () => this.cerrarModalEditar());
+
+      const modalNombreImagen = document.getElementById('modalNombreImagen');
+      if (modalNombreImagen) {
+        window.habilitarBottomSheet(modalNombreImagen, modalNombreImagen.querySelector('.modal'), () => {
+          modalNombreImagen.hidden = true;
+        });
+      }
+      const modalOrdenando = document.getElementById('modalOrdenando');
+      if (modalOrdenando) {
+        window.habilitarBottomSheet(modalOrdenando, modalOrdenando.querySelector('.modal'), () => {
+          modalOrdenando.hidden = true;
+        });
+      }
+      const modalRegion = document.getElementById('modalRegion');
+      if (modalRegion) {
+        window.habilitarBottomSheet(modalRegion, modalRegion.querySelector('.modal'), () => {
+          modalRegion.hidden = true;
+        });
+      }
+    }
+
     // Actualizar color preview
     if (this.inputEditarColor) {
       this.inputEditarColor.addEventListener('change', (e) => {
@@ -512,13 +537,14 @@ class DrawerListasManager {
 
       // Eliminar de memoria
       this.listas = this.listas.filter(l => l.id !== this.listaEditandoId);
+      const eraLaActual = this.listaActualId === this.listaEditandoId;
 
       this.cerrarModalEditar();
       this.renderizarListas();
       Toast.success('Has salido de la lista');
 
       // Si la lista era la actual, recargar
-      if (this.listaActualId === this.listaEditandoId) {
+      if (eraLaActual) {
         location.reload();
       }
     } catch (error) {
@@ -972,15 +998,7 @@ class DrawerListasManager {
 
       // Cambiar botón a checkmark verde
       this.btnEditarModal.textContent = '✓';
-      this.btnEditarModal.style.background = '#4CAF50';
-      this.btnEditarModal.style.borderRadius = '50%';
-      this.btnEditarModal.style.width = '44px';
-      this.btnEditarModal.style.height = '44px';
-      this.btnEditarModal.style.display = 'flex';
-      this.btnEditarModal.style.alignItems = 'center';
-      this.btnEditarModal.style.justifyContent = 'center';
-      this.btnEditarModal.style.color = 'white';
-      this.btnEditarModal.style.fontSize = '1.5rem';
+      this.btnEditarModal.classList.add('btn-editar-modo-check');
     } else {
       // Remover clase modo-edicion
       if (this.listaListasEl) {
@@ -989,13 +1007,7 @@ class DrawerListasManager {
 
       // Cambiar botón de vuelta a "Editar"
       this.btnEditarModal.textContent = 'Editar';
-      this.btnEditarModal.style.background = 'none';
-      this.btnEditarModal.style.borderRadius = '0';
-      this.btnEditarModal.style.width = 'auto';
-      this.btnEditarModal.style.height = 'auto';
-      this.btnEditarModal.style.display = 'block';
-      this.btnEditarModal.style.color = 'var(--text)';
-      this.btnEditarModal.style.fontSize = '1rem';
+      this.btnEditarModal.classList.remove('btn-editar-modo-check');
     }
   }
 
@@ -1031,51 +1043,11 @@ class DrawerListasManager {
     // Recargar listas cuando se abre la modal
     this.cargarListas();
 
-    // Agregar drag-down para cerrar
-    this.setupDragDown();
-
     // Enfoque para accesibilidad
     const primerTarjeta = this.listaListasEl.querySelector('.tarjeta-lista');
     if (primerTarjeta) {
       primerTarjeta.focus();
     }
-  }
-
-  setupDragDown() {
-    const contenedor = this.modal.querySelector('.modal');
-    if (!contenedor) return;
-
-    let startY = 0;
-    let currentY = 0;
-    let isDragging = false;
-
-    contenedor.addEventListener('touchstart', (e) => {
-      startY = e.touches[0].clientY;
-      currentY = startY;
-      isDragging = true;
-    });
-
-    contenedor.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
-      currentY = e.touches[0].clientY;
-      const diff = currentY - startY;
-      if (diff > 0) {
-        contenedor.style.transform = `translateY(${diff}px)`;
-      }
-    });
-
-    contenedor.addEventListener('touchend', () => {
-      if (!isDragging) return;
-      const diff = currentY - startY;
-      isDragging = false;
-
-      if (diff > 80) {
-        contenedor.style.transform = '';
-        this.cerrarModal();
-      } else {
-        contenedor.style.transform = '';
-      }
-    });
   }
 
   cerrarModal() {
@@ -1315,15 +1287,22 @@ function initializeDrawerListas() {
   }
 }
 
-// Inicializar si DOM ya está listo, o esperar a que esté listo
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeDrawerListas);
-} else {
-  // Si el DOM ya está listo, inicializar después de un pequeño delay
-  // para evitar race conditions
-  setTimeout(initializeDrawerListas, 100);
+// Inicializar si DOM ya está listo, o esperar a que esté listo (solo en
+// navegador: en tests se usa require() y se instancian las clases a mano).
+if (typeof module === 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeDrawerListas);
+  } else {
+    // Si el DOM ya está listo, inicializar después de un pequeño delay
+    // para evitar race conditions
+    setTimeout(initializeDrawerListas, 100);
+  }
+
+  // Exportar para uso global
+  window.DrawerListasManager = DrawerListasManager;
+  window.CrearListaModal = CrearListaModal;
 }
 
-// Exportar para uso global
-window.DrawerListasManager = DrawerListasManager;
-window.CrearListaModal = CrearListaModal;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { DrawerListasManager, CrearListaModal, initializeDrawerListas };
+}

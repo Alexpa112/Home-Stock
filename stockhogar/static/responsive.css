@@ -69,6 +69,21 @@ body.is-keyboard-open .modal-fondo {
   flex-direction: column;
   overflow: hidden;
   animation: slideUp var(--transition-normal) ease-out;
+  position: relative;
+}
+
+/* Grip del bottom sheet: solo en móvil, indica que se puede arrastrar hacia abajo para cerrar */
+.modal::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  pointer-events: none;
 }
 
 @keyframes slideUp {
@@ -311,6 +326,11 @@ body.keyboard-open .modal {
     max-width: 600px;
     max-height: 90dvh;
     border-radius: var(--radius-lg);
+  }
+
+  /* En escritorio el modal es centrado, no un sheet arrastrable: sin grip */
+  .modal::before {
+    display: none;
   }
 
   .modal > form {

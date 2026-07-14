@@ -204,5 +204,11 @@ class APIError extends Error {
   }
 }
 
-// Instancia global singleton
-window.API = new APIClient();
+// Instancia global singleton (solo en navegador: en tests se usa require())
+if (typeof window !== 'undefined') {
+  window.API = new APIClient();
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { APIClient, APIError };
+}

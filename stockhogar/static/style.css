@@ -195,8 +195,8 @@ body.keyboard-open:not(.modal-open) #appShell {
   background: none;
   color: var(--text);
   font-size: 1.2rem;
-  width: 42px;
-  height: 42px;
+  width: var(--touch-height);
+  height: var(--touch-height);
   border-radius: var(--radius-pill);
   cursor: pointer;
   line-height: 1;
@@ -205,6 +205,19 @@ body.keyboard-open:not(.modal-open) #appShell {
 }
 .icono-cabecera:hover { background: var(--surface-2); }
 .icono-cabecera:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Botón "Editar" de Mis Listas cuando pasa a checkmark de confirmación */
+.btn-editar-modo-check {
+  background: var(--success);
+  border-radius: var(--radius-pill);
+  width: var(--touch-height);
+  height: var(--touch-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.5rem;
+}
 
 /* ---------- Selector de lista ---------- */
 
@@ -528,8 +541,8 @@ main.lista {
   cursor: pointer;
   font-size: 0.95rem;
   color: var(--text-soft);
-  width: 44px;
-  height: 44px;
+  width: var(--touch-height);
+  height: var(--touch-height);
   border-radius: var(--radius-sm);
   transition: background-color .15s ease;
   touch-action: manipulation;
@@ -1121,7 +1134,7 @@ body.is-keyboard-open .modal-superpuesta {
 
 .color-picker-row input[type="color"] {
   width: 60px;
-  height: 44px;
+  height: var(--touch-height);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
@@ -1504,14 +1517,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   font-size: 1rem;
-  min-height: 44px;
+  min-height: var(--touch-height);
   background: var(--surface-2);
   color: var(--text);
 }
 .nueva-categoria-fila button {
   flex: 0 0 auto;
   padding: 12px 20px;
-  min-height: 44px;
+  min-height: var(--touch-height);
   font-weight: 600;
 }
 
@@ -1536,9 +1549,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
    dentro comparten selector con reglas de más arriba y, al tener la misma
    especificidad, solo ganan la cascada si aparecen despues. */
 @media (max-width: 380px) {
-  .topbar { padding: 10px 10px; }
+  .topbar { padding: 10px 8px; }
   .topbar h1 { font-size: 0.98rem; }
-  .icono-cabecera { width: 38px; height: 38px; font-size: 1.05rem; }
+  .icono-cabecera { font-size: 1.05rem; }
   .tabs { gap: 0; padding: 8px 6px 0; }
   .tab { font-size: 0.72rem; padding: 9px 2px; }
   .modal { padding: 18px; }
@@ -1547,7 +1560,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .contador { gap: 5px; }
   .contador button { width: 32px; height: 32px; }
   .acciones { gap: 4px; }
-  .acciones button { width: 44px; height: 44px; }
+  .acciones button { width: var(--touch-height); height: var(--touch-height); }
 }
 
 /* ---------- Grid de Listas - Mis Listas Modal ---------- */
