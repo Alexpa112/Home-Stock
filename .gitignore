@@ -8,3 +8,4 @@ data/secret.json
 .env.development
 server.log
 server_dev.log
+coverage/
