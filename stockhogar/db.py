@@ -228,6 +228,24 @@ def _migrar_lista_compra_a_articulos(db, espacio_defecto_id):
         pass  # Si no se puede renombrar, simplemente continuar
 
 
+def _renombrar_categoria(db, nombre_viejo, nombre_nuevo):
+    """Renombra una categoria ya sembrada (p.ej. correccion de un typo en
+    CATEGORIAS_DEFECTO) y actualiza el texto libre 'categoria' en las tablas
+    que lo guardan por nombre en vez de por FK."""
+    vieja = db.execute("SELECT id FROM categorias WHERE nombre = ?", (nombre_viejo,)).fetchone()
+    if vieja is None:
+        return
+
+    nueva = db.execute("SELECT id FROM categorias WHERE nombre = ?", (nombre_nuevo,)).fetchone()
+    if nueva is None:
+        db.execute("UPDATE categorias SET nombre = ? WHERE id = ?", (nombre_nuevo, vieja["id"]))
+    else:
+        db.execute("DELETE FROM categorias WHERE id = ?", (vieja["id"],))
+
+    for tabla in ("productos", "articulos_lista", "historial_articulos", "articulos_personalizados"):
+        db.execute(f"UPDATE {tabla} SET categoria = ? WHERE categoria = ?", (nombre_nuevo, nombre_viejo))
+
+
 def _reparar_fk_articulos_personalizados_old(db):
     """Corrige una instalación afectada por un bug de una migración previa: al
     renombrar articulos_personalizados a un nombre temporal, SQLite reescribió
@@ -675,6 +693,7 @@ def init_db():
     )
 
     migrar_iconos_emoji_a_lucide(db)
+    _renombrar_categoria(db, "Alimentacion", "Alimentación")
 
     db.commit()
     db.close()

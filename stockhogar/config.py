@@ -31,7 +31,7 @@ USAR_COOKIE_SEGURA = os.getenv("APP_URL", "http://localhost:5000").startswith("h
 # un supermercado español, para que el catálogo de productos quede bien
 # organizado.
 CATEGORIAS_DEFECTO = [
-    ("Alimentacion", "🍎"),
+    ("Alimentación", "🍎"),
     ("Limpieza", "🧴"),
     ("Higiene", "🧼"),
     ("Bebidas", "🥤"),
