@@ -71,18 +71,17 @@ def test_fase2_completo():
         result = query_db(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='stock_lista'"
         )
-        if result:
-            print_ok("Tabla 'stock_lista' existe")
-        else:
-            print_error("Tabla 'stock_lista' NO existe")
-            return False
+        assert result, "Tabla 'stock_lista' NO existe"
+        print_ok("Tabla 'stock_lista' existe")
 
         # Verificar UNIQUE constraint
         result = query_db("PRAGMA index_info('sqlite_autoindex_stock_lista_1')")
         print_ok(f"Constraint UNIQUE(lista_id, producto_id) existe")
+    except AssertionError:
+        raise
     except Exception as e:
         print_error(f"Error verificando estructura: {e}")
-        return False
+        raise
 
     # PASO 2: Contar usuarios existentes
     print_step(2, "Verificar usuarios en BD")
@@ -94,9 +93,7 @@ def test_fase2_completo():
     print_step(3, "Obtener usuario de prueba")
     all_users = query_db("SELECT id, nombre_usuario FROM usuarios ORDER BY id LIMIT 2")
 
-    if not all_users:
-        print_error("No hay usuarios en la BD")
-        return False
+    assert all_users, "No hay usuarios en la BD"
 
     user1_id = all_users[0]['id']
     user1_name = all_users[0]['nombre_usuario']
@@ -239,12 +236,11 @@ def test_fase2_completo():
     print_info("  3. Cada lista tiene stock_lista entries para TODOS los productos")
     print_info("  4. Datos estan aislados por usuario")
 
-    return True
 
 if __name__ == "__main__":
     try:
-        success = test_fase2_completo()
-        exit(0 if success else 1)
+        test_fase2_completo()
+        exit(0)
     except Exception as e:
         print_error(f"Error fatal: {e}")
         import traceback

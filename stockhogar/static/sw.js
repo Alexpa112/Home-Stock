@@ -1,4 +1,5 @@
-const CACHE_NAME = 'stockhogar-v1';
+const CACHE_NAME = 'stockhogar-v2';
+const OFFLINE_URL = '/static/offline.html';
 
 const SHELL_ASSETS = [
   '/static/style.css',
@@ -7,6 +8,12 @@ const SHELL_ASSETS = [
   '/static/i18n.js',
   '/static/manifest.json',
   '/static/icons/favicon.svg',
+  '/static/icons/catalogo-iconos.js',
+  '/static/utils/iconos.js',
+  '/static/modules/ui-components.js',
+  '/static/modules/form-builder.js',
+  '/static/modules/drawer-listas.js',
+  OFFLINE_URL,
 ];
 
 self.addEventListener('install', (event) => {
@@ -33,6 +40,14 @@ self.addEventListener('fetch', (event) => {
 
   // Llamadas a la API: siempre red, sin cache (datos dinámicos)
   if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Navegación (recarga de página): red primero, y si falla, shell offline
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(OFFLINE_URL))
+    );
     return;
   }
 

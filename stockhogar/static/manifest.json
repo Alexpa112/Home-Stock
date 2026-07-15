@@ -1,13 +1,16 @@
 {
+  "id": "/",
   "name": "Dreame!",
   "short_name": "Dreame!",
   "description": "Inventario del hogar",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#F7F3EE",
   "theme_color": "#B5551A",
   "lang": "es",
+  "categories": ["productivity", "shopping", "lifestyle"],
   "icons": [
     {
       "src": "icons/favicon.svg",

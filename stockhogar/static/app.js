@@ -1,3 +1,15 @@
+console.log(
+  "%c" +
+    " _____                              _ \n" +
+    "|  __ \\                            | |\n" +
+    "| |  | |_ __ ___  __ _ _ __ ___   __| |\n" +
+    "| |  | | '__/ _ \\/ _` | '_ ` _ \\ / _` |\n" +
+    "| |__| | | |  __/ (_| | | | | | | (_| |\n" +
+    "|_____/|_|  \\___|\\__,_|_| |_| |_|\\__,_|\n" +
+    "                                     ! ",
+  "color:#2e8b57;font-weight:bold;font-family:monospace"
+);
+
 // Si la sesion caduca o se borra el usuario conectado, cualquier llamada a la
 // API devolvera 401: mandamos a la pantalla de login en vez de dejar la app
 // a medio cargar con errores silenciosos.
@@ -114,9 +126,16 @@ const ticketPasoFoto = document.getElementById("ticketPasoFoto");
 const ticketCargando = document.getElementById("ticketCargando");
 const ticketPasoRevision = document.getElementById("ticketPasoRevision");
 const ticketArchivo = document.getElementById("ticketArchivo");
+const ticketDropzone = document.getElementById("ticketDropzone");
+const ticketPreviewWrap = document.getElementById("ticketPreviewWrap");
+const ticketPreview = document.getElementById("ticketPreview");
+const btnCambiarFotoTicket = document.getElementById("btnCambiarFotoTicket");
+const btnVolverFotoTicket = document.getElementById("btnVolverFotoTicket");
+const ticketDot1 = document.getElementById("ticketDot1");
+const ticketDot2 = document.getElementById("ticketDot2");
+const ticketResumenEl = document.getElementById("ticketResumen");
 const btnAnalizarTicket = document.getElementById("btnAnalizarTicket");
 const btnCancelarTicket = document.getElementById("btnCancelarTicket");
-const btnCancelarRevisionTicket = document.getElementById("btnCancelarRevisionTicket");
 const btnAnadirLineaTicket = document.getElementById("btnAnadirLineaTicket");
 const btnConfirmarTicket = document.getElementById("btnConfirmarTicket");
 const ticketItemsEl = document.getElementById("ticketItems");
@@ -132,6 +151,10 @@ const categoriaCampoIcono = document.getElementById("categoriaCampoIcono");
 const categoriaIconoElegido = document.getElementById("categoriaIconoElegido");
 const selectorIconosEl = document.getElementById("selectorIconos");
 const btnCerrarCategorias = document.getElementById("btnCerrarCategorias");
+const botonesEnviarCategoria = [
+  ...formCategoria.querySelectorAll('button[type="submit"]'),
+  ...document.querySelectorAll(`button[form="${formCategoria.id}"]`),
+];
 
 let productos = [];
 // Productos con un PATCH de cantidad en curso: evita que clics rápidos en +/-
@@ -552,8 +575,13 @@ formCategoria.addEventListener("submit", async (e) => {
   e.preventDefault();
   const nombre = categoriaCampoNombre.value.trim();
   if (!nombre) return;
+  if (categorias.some((c) => c.nombre.localeCompare(nombre, "es", { sensitivity: "base" }) === 0)) {
+    Toast.error("Ya existe una categoría con ese nombre");
+    return;
+  }
   const icono = categoriaCampoIcono.value || "h-folder";
 
+  botonesEnviarCategoria.forEach((btn) => (btn.disabled = true));
   let datos;
   try {
     const res = await fetch("/api/categorias", {
@@ -570,6 +598,8 @@ formCategoria.addEventListener("submit", async (e) => {
     console.error("Error creando categoría:", error);
     Toast.error("No se pudo crear la categoría. Comprueba tu conexión e inténtalo de nuevo.");
     return;
+  } finally {
+    botonesEnviarCategoria.forEach((btn) => (btn.disabled = false));
   }
 
   categorias.push(datos);
@@ -1533,11 +1563,46 @@ if (modalConsumoFondo) habilitarBottomSheet(modalConsumoFondo, modalConsumoFondo
 
 /* --- Escaneo de tickets --- */
 
-function abrirModalTicket() {
-  ticketArchivo.value = "";
+function irAPasoFotoTicket() {
   ticketPasoFoto.hidden = false;
   ticketCargando.hidden = true;
   ticketPasoRevision.hidden = true;
+  btnVolverFotoTicket.hidden = true;
+  btnAnalizarTicket.hidden = false;
+  btnConfirmarTicket.hidden = true;
+  ticketDot1.classList.add("activo");
+  ticketDot2.classList.remove("activo");
+}
+
+function irAPasoRevisionTicket() {
+  ticketPasoFoto.hidden = true;
+  ticketCargando.hidden = true;
+  ticketPasoRevision.hidden = false;
+  btnVolverFotoTicket.hidden = false;
+  btnAnalizarTicket.hidden = true;
+  btnConfirmarTicket.hidden = false;
+  ticketDot1.classList.remove("activo");
+  ticketDot2.classList.add("activo");
+}
+
+function mostrarPreviewTicket(archivo) {
+  const lector = new FileReader();
+  lector.onload = () => {
+    ticketPreview.src = lector.result;
+    ticketDropzone.hidden = true;
+    ticketPreviewWrap.hidden = false;
+    btnAnalizarTicket.disabled = false;
+  };
+  lector.readAsDataURL(archivo);
+}
+
+function abrirModalTicket() {
+  ticketArchivo.value = "";
+  ticketPreview.src = "";
+  ticketDropzone.hidden = false;
+  ticketPreviewWrap.hidden = true;
+  btnAnalizarTicket.disabled = true;
+  irAPasoFotoTicket();
   ticketItemsEl.innerHTML = "";
   mostrarAdvertenciasTicket([]);
   modalTicketFondo.hidden = false;
@@ -1616,8 +1681,22 @@ function crearFilaTicket(item) {
 
 if (btnEscanearTicket) btnEscanearTicket.addEventListener("click", abrirModalTicket);
 if (btnCancelarTicket) btnCancelarTicket.addEventListener("click", cerrarModalTicket);
-if (btnCancelarRevisionTicket) btnCancelarRevisionTicket.addEventListener("click", cerrarModalTicket);
 if (modalTicketFondo) habilitarBottomSheet(modalTicketFondo, modalTicketFondo.querySelector(".modal"), cerrarModalTicket);
+
+ticketArchivo.addEventListener("change", () => {
+  const archivo = ticketArchivo.files[0];
+  if (archivo) mostrarPreviewTicket(archivo);
+});
+
+btnCambiarFotoTicket.addEventListener("click", () => {
+  ticketArchivo.value = "";
+  ticketDropzone.hidden = false;
+  ticketPreviewWrap.hidden = true;
+  btnAnalizarTicket.disabled = true;
+  ticketArchivo.click();
+});
+
+btnVolverFotoTicket.addEventListener("click", irAPasoFotoTicket);
 
 btnAnadirLineaTicket.addEventListener("click", () => {
   ticketItemsEl.appendChild(crearFilaTicket({ nombre: "", cantidad: 1, unidad: "ud" }));
@@ -1655,14 +1734,15 @@ btnAnalizarTicket.addEventListener("click", async () => {
         ticketItemsEl.appendChild(crearFilaTicket(item));
       }
     }
+    ticketResumenEl.textContent = items.length === 0
+      ? "No se detectó ningún artículo. Añádelos a mano."
+      : `${items.length} artículo${items.length === 1 ? "" : "s"} detectado${items.length === 1 ? "" : "s"}`;
     mostrarAdvertenciasTicket(datos.advertencias || []);
-    ticketCargando.hidden = true;
-    ticketPasoRevision.hidden = false;
+    irAPasoRevisionTicket();
   } catch (err) {
     console.error("Error analizando ticket:", err);
     Toast.error("No se pudo analizar el ticket. Comprueba tu conexión e inténtalo de nuevo.");
-    ticketPasoFoto.hidden = false;
-    ticketCargando.hidden = true;
+    irAPasoFotoTicket();
   }
 });
 

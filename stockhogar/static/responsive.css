@@ -118,7 +118,7 @@ body.keyboard-open .modal {
 
 .modal-ticket {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   height: 100%;
 }
 
@@ -281,6 +281,8 @@ body.keyboard-open .modal {
   white-space: normal;
   line-height: 1.2;
 }
+
+.modal-footer button[hidden] { display: none; }
 
 .modal button:active {
   transform: scale(0.98);

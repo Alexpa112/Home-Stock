@@ -51,9 +51,7 @@ def test_crear_lista_nueva():
     # Paso 1: Obtener usuario existente
     print("[PASO 1] Obtener usuario de prueba")
     users = query_db("SELECT id, nombre_usuario FROM usuarios LIMIT 1")
-    if not users:
-        print("ERROR: No hay usuarios")
-        return False
+    assert users, "No hay usuarios"
 
     user_id = users[0]['id']
     user_name = users[0]['nombre_usuario']
@@ -113,18 +111,15 @@ def test_crear_lista_nueva():
         print(f"  [ERROR] {e}")
         import traceback
         traceback.print_exc()
-        return False
+        raise
 
     # Paso 4: Verificar que se creó la lista
     print("\n[PASO 4] Verificar lista creada")
     new_lists = query_db("SELECT COUNT(*) as count FROM listas WHERE usuario_propietario_id = ?", (user_id,))
     new_list_count = new_lists[0]['count']
 
-    if new_list_count > old_list_count:
-        print(f"  [OK] Lista creada: {old_list_count} -> {new_list_count}")
-    else:
-        print(f"  [ERROR] Lista NO se creó")
-        return False
+    assert new_list_count > old_list_count, "Lista NO se creó"
+    print(f"  [OK] Lista creada: {old_list_count} -> {new_list_count}")
 
     # Paso 5: Verificar stock_lista poblada
     print("\n[PASO 5] Verificar que stock_lista se populo correctamente")
@@ -134,16 +129,11 @@ def test_crear_lista_nueva():
     )
     stock_count = stock_entries[0]['count']
 
-    if stock_count == prod_count:
-        print(f"  [OK] stock_lista poblada: {stock_count} entries para {prod_count} productos")
-    elif stock_count > 0:
-        print(f"  [WARNING] stock_lista tiene {stock_count} entries, pero hay {prod_count} productos")
-        print(f"           Falta de sincronización")
-        return False
-    else:
-        print(f"  [ERROR] stock_lista VACIA para lista {nueva_lista_id}")
-        print(f"         Se esperaban {prod_count} entries")
-        return False
+    assert stock_count > 0, f"stock_lista VACIA para lista {nueva_lista_id} (se esperaban {prod_count} entries)"
+    assert stock_count == prod_count, (
+        f"stock_lista tiene {stock_count} entries, pero hay {prod_count} productos (falta de sincronización)"
+    )
+    print(f"  [OK] stock_lista poblada: {stock_count} entries para {prod_count} productos")
 
     # Paso 6: Inspeccionar datos
     print("\n[PASO 6] Inspeccionar datos en stock_lista")
@@ -183,17 +173,10 @@ def test_crear_lista_nueva():
             )
             conn.commit()
             conn.close()
-            print(f"  [ERROR] UNIQUE constraint NO esta funcionando")
-            return False
+            assert False, "UNIQUE constraint NO esta funcionando"
     except sqlite3.IntegrityError as e:
-        if "UNIQUE constraint failed" in str(e):
-            print(f"  [OK] UNIQUE constraint esta funcionando")
-        else:
-            print(f"  [ERROR] Unexpected error: {e}")
-            return False
-    except Exception as e:
-        print(f"  [ERROR] Unexpected error: {e}")
-        return False
+        assert "UNIQUE constraint failed" in str(e), f"Unexpected error: {e}"
+        print(f"  [OK] UNIQUE constraint esta funcionando")
 
     print("\n" + "="*60)
     print("[RESULTADO] TEST EXITOSO")
@@ -202,12 +185,11 @@ def test_crear_lista_nueva():
     print("  - UNIQUE constraint funcionando")
     print("="*60 + "\n")
 
-    return True
 
 if __name__ == "__main__":
     try:
-        success = test_crear_lista_nueva()
-        exit(0 if success else 1)
+        test_crear_lista_nueva()
+        exit(0)
     except Exception as e:
         print(f"[ERROR FATAL] {e}")
         import traceback

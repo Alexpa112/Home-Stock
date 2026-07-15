@@ -257,6 +257,13 @@
         </div>
       </div>
 
+      <!-- Instalar app -->
+      <div id="bloqueInstalarApp" hidden style="margin-top: 20px; padding: 16px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--text);">📲 Instalar app</h3>
+        <p id="textoInstalarApp" style="font-size: 0.85rem; color: var(--text-soft); margin: 0 0 12px;">Instala Dreame! en tu dispositivo para acceder más rápido, incluso sin conexión.</p>
+        <button type="button" id="btnInstalarApp" class="secundario" style="width: 100%;">Instalar app</button>
+      </div>
+
       <!-- Mensajes de estado -->
       <p id="ajustesEstado" class="aviso" hidden style="margin-top: 16px;"></p>
     </div>
@@ -284,21 +291,38 @@
       <h2>Escanear ticket</h2>
     </div>
 
-    <div class="modal-content">
-      <p class="aviso">
-        Lectura local con OCR (sin conexión a internet). Es orientativa: revisa
-        y corrige los artículos detectados antes de añadirlos al stock.
-      </p>
+    <div class="ticket-pasos" aria-hidden="true">
+      <span class="ticket-paso-dot" id="ticketDot1"></span>
+      <span class="ticket-paso-linea"></span>
+      <span class="ticket-paso-dot" id="ticketDot2"></span>
+    </div>
 
+    <div class="modal-content">
       <div id="ticketPasoFoto">
-        <label>Foto del ticket
+        <p class="aviso">
+          Lectura local con OCR (sin conexión a internet). Es orientativa: revisa
+          y corrige los artículos detectados antes de añadirlos al stock.
+        </p>
+
+        <label id="ticketDropzone" for="ticketArchivo" class="ticket-dropzone">
+          <span class="ticket-dropzone-icono">📷</span>
+          <span class="ticket-dropzone-texto">Toca para hacer una foto o elegir una imagen</span>
           <input id="ticketArchivo" type="file" accept="image/*" capture="environment">
         </label>
+
+        <div id="ticketPreviewWrap" class="ticket-preview-wrap" hidden>
+          <img id="ticketPreview" class="ticket-preview" alt="Vista previa del ticket">
+          <button type="button" id="btnCambiarFotoTicket" class="secundario">Cambiar foto</button>
+        </div>
       </div>
 
-      <div id="ticketCargando" class="aviso" hidden>Leyendo el ticket, un momento...</div>
+      <div id="ticketCargando" class="ticket-cargando" hidden>
+        <span class="ticket-spinner" aria-hidden="true"></span>
+        <p>Leyendo el ticket, un momento...</p>
+      </div>
 
       <div id="ticketPasoRevision" hidden>
+        <p id="ticketResumen" class="ticket-resumen"></p>
         <div id="ticketAdvertencias" class="ticket-advertencias"></div>
         <ul id="ticketItems" class="ticket-items"></ul>
         <button type="button" id="btnAnadirLineaTicket" class="secundario">+ Añadir línea</button>
@@ -306,12 +330,9 @@
     </div>
 
     <div class="modal-footer">
-      <div id="ticketPasoFoto" style="display: contents;">
-        <button type="button" id="btnAnalizarTicket" class="primario">Analizar</button>
-      </div>
-      <div id="ticketPasoRevision" hidden style="display: contents;">
-        <button type="button" id="btnConfirmarTicket" class="primario">Añadir al stock</button>
-      </div>
+      <button type="button" id="btnVolverFotoTicket" class="secundario" hidden>← Volver</button>
+      <button type="button" id="btnAnalizarTicket" class="primario" disabled>Analizar</button>
+      <button type="button" id="btnConfirmarTicket" class="primario" hidden>Añadir al stock</button>
     </div>
   </div>
 </div>
@@ -323,10 +344,6 @@
       <h2>Categorías</h2>
     </div>
     <div class="modal-content">
-      <p class="aviso">Toca la ✕ de una categoría para borrarla (solo si no la usa ningún producto).</p>
-
-    <div id="categoriasLista" class="categorias-lista"></div>
-
     <form id="formCategoria">
       <div class="nueva-categoria-fila">
         <label class="crece">Nueva categoría
@@ -339,6 +356,10 @@
       </button>
       <input type="hidden" id="categoriaCampoIcono" value="🗂️">
     </form>
+
+      <p class="aviso">Toca la ✕ de una categoría para borrarla (solo si no la usa ningún producto).</p>
+
+    <div id="categoriasLista" class="categorias-lista"></div>
     </div>
     <div class="modal-footer">
       <button type="submit" form="formCategoria" class="primario">Listo</button>
@@ -735,6 +756,45 @@
       navigator.serviceWorker.register("{{ url_for('paginas.service_worker') }}");
     });
   }
+
+  (function () {
+    var bloque = document.getElementById('bloqueInstalarApp');
+    var texto = document.getElementById('textoInstalarApp');
+    var boton = document.getElementById('btnInstalarApp');
+    if (!bloque || !boton) return;
+
+    var esStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    if (esStandalone) return;
+
+    var esIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    var promptDiferido = null;
+
+    if (esIOS) {
+      texto.textContent = 'Para instalarla: pulsa el icono Compartir de Safari y elige "Añadir a pantalla de inicio".';
+      boton.hidden = true;
+      bloque.hidden = false;
+    } else {
+      window.addEventListener('beforeinstallprompt', function (evento) {
+        evento.preventDefault();
+        promptDiferido = evento;
+        bloque.hidden = false;
+      });
+
+      boton.addEventListener('click', function () {
+        if (!promptDiferido) return;
+        promptDiferido.prompt();
+        promptDiferido.userChoice.finally(function () {
+          promptDiferido = null;
+          bloque.hidden = true;
+        });
+      });
+
+      window.addEventListener('appinstalled', function () {
+        bloque.hidden = true;
+      });
+    }
+  })();
 </script>
 </body>
 </html>
