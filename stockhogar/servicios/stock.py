@@ -122,6 +122,21 @@ def revisar_stock_bajo(db, producto_id, lista_id=None):
         logger.error(f"[revisar_stock_bajo] Error: {type(e).__name__}: {e}", exc_info=True)
 
 
+def registrar_movimiento(db, producto_id, lista_id, delta, cantidad_resultante, origen="ajuste"):
+    """Audita un cambio de cantidad de stock para poder consultar el historial
+    de un producto y graficar consumo por periodo (ver rutas/historial.py)."""
+    if delta == 0:
+        return
+    from flask import session
+    usuario_id = session.get("usuario_id")
+    db.execute(
+        """INSERT INTO movimientos_stock
+           (producto_id, lista_id, usuario_id, delta, cantidad_resultante, origen, fecha)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (producto_id, lista_id, usuario_id, delta, cantidad_resultante, origen, ahora()),
+    )
+
+
 def sumar_stock(db, producto_id, cantidad_a_sumar, lista_id=None):
     """Suma unidades al stock de un producto DENTRO de una lista concreta."""
     from flask import session
@@ -146,6 +161,9 @@ def sumar_stock(db, producto_id, cantidad_a_sumar, lista_id=None):
            WHERE lista_id = ? AND producto_id = ?""",
         (cantidad_a_sumar, ahora(), lista_id, producto_id)
     )
+
+    nueva_cantidad = max(0, actual["cantidad"] + cantidad_a_sumar)
+    registrar_movimiento(db, producto_id, lista_id, nueva_cantidad - actual["cantidad"], nueva_cantidad)
 
     revisar_stock_bajo(db, producto_id, lista_id)
 

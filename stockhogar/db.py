@@ -643,6 +643,27 @@ def init_db():
     )
     asegurar_columna(db, "traducciones_productos", "fecha_creacion", "TEXT")
 
+    # Tabla movimientos_stock: auditoria de cambios de cantidad, para poder
+    # consultar el historial de un producto y graficar consumo por periodo.
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS movimientos_stock (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+            lista_id INTEGER REFERENCES listas(id) ON DELETE SET NULL,
+            usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+            delta INTEGER NOT NULL,
+            cantidad_resultante INTEGER NOT NULL,
+            origen TEXT NOT NULL DEFAULT 'ajuste',
+            fecha TEXT NOT NULL
+        )
+        """
+    )
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_movimientos_stock_producto_fecha "
+        "ON movimientos_stock(producto_id, fecha)"
+    )
+
     # Catalogo de productos habituales de supermercado (ver config.py): se
     # siembra una vez via INSERT OR IGNORE, asi que nunca pisa un articulo
     # que el usuario ya haya personalizado con el mismo nombre.

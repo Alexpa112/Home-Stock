@@ -11,6 +11,7 @@ from ..servicios.stock import (
     revisar_stock_bajo,
     sumar_stock,
     crear_producto_nuevo,
+    registrar_movimiento,
 )
 from .categorias import normalizar_categoria
 from .espacios import obtener_espacio_actual
@@ -230,6 +231,9 @@ def actualizar_producto(producto_id):
                WHERE lista_id=? AND producto_id=?""",
             (cantidad, stock_minimo, ahora(), lista_id, producto_id)
         )
+
+        if cantidad != actual["cantidad"]:
+            registrar_movimiento(db, producto_id, lista_id, cantidad - actual["cantidad"], cantidad, origen="edicion")
 
         if icono:
             recordar_articulo(db, actual["espacio_id"], nombre, icono, categoria, unidad, cantidad_defecto=cantidad)

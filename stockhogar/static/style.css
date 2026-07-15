@@ -1368,6 +1368,44 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .badge-confianza-media { background: var(--warn-soft); color: var(--warn); }
 .badge-confianza-baja { background: var(--danger-soft); color: var(--danger); }
 
+.consumo-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.consumo-fila {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  align-items: center;
+  gap: 8px;
+}
+.consumo-nombre {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.consumo-barra-fondo {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  height: 10px;
+  overflow: hidden;
+}
+.consumo-barra {
+  background: var(--accent);
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+.consumo-cantidad {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-align: right;
+}
+
 .ticket-advertencias .aviso-advertencia {
   background: var(--warn-soft);
   color: var(--warn);

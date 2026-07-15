@@ -31,6 +31,7 @@
       <button id="btnTema" class="icono-cabecera" title="Cambiar tema" style="display: none;">🌙</button>
       <button id="btnCategorias" class="icono-cabecera" title="Categorías">🏷️</button>
       <button id="btnEscanearTicket" class="icono-cabecera" title="Escanear ticket">📷</button>
+      <button id="btnConsumo" class="icono-cabecera" title="Consumo">📊</button>
       <button id="btnAjustes" class="icono-cabecera" title="Ajustes">⚙️</button>
     </div>
   </header>
@@ -258,6 +259,20 @@
 
       <!-- Mensajes de estado -->
       <p id="ajustesEstado" class="aviso" hidden style="margin-top: 16px;"></p>
+    </div>
+  </div>
+</div>
+
+<div id="modalConsumo" class="modal-fondo" hidden>
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <button id="btnCerrarConsumo" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
+      <h2>📊 Consumo</h2>
+    </div>
+    <div class="modal-content">
+      <p class="aviso">Consumo de los últimos 30 días en esta lista (bajadas de stock).</p>
+      <div id="consumoVacio" class="aviso" hidden>Todavía no hay movimientos de stock registrados en esta lista.</div>
+      <ul id="consumoPorProducto" class="consumo-lista"></ul>
     </div>
   </div>
 </div>

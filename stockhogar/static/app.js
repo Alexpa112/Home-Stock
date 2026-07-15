@@ -102,6 +102,12 @@ const modalAjustesFondo = document.getElementById("modalAjustes");
 
 const btnCerrarSesion = document.getElementById("btnCerrarSesion");
 
+const btnConsumo = document.getElementById("btnConsumo");
+const modalConsumoFondo = document.getElementById("modalConsumo");
+const btnCerrarConsumo = document.getElementById("btnCerrarConsumo");
+const consumoPorProductoEl = document.getElementById("consumoPorProducto");
+const consumoVacioEl = document.getElementById("consumoVacio");
+
 const btnEscanearTicket = document.getElementById("btnEscanearTicket");
 const modalTicketFondo = document.getElementById("modalTicket");
 const ticketPasoFoto = document.getElementById("ticketPasoFoto");
@@ -1476,6 +1482,54 @@ function cerrarModalAjustes() {
 }
 
 // Event listeners for settings modal are added during late initialization
+
+/* --- Consumo --- */
+
+async function abrirModalConsumo() {
+  modalConsumoFondo.hidden = false;
+  consumoPorProductoEl.innerHTML = "";
+  consumoVacioEl.hidden = true;
+
+  try {
+    const res = await fetch("/api/consumo/resumen?dias=30");
+    const datos = await res.json();
+    if (!res.ok) {
+      Toast.error(datos.error || "No se pudo cargar el consumo");
+      return;
+    }
+
+    const porProducto = datos.por_producto || [];
+    if (porProducto.length === 0) {
+      consumoVacioEl.hidden = false;
+      return;
+    }
+
+    const maximo = Math.max(...porProducto.map((p) => p.consumo));
+    consumoPorProductoEl.innerHTML = porProducto
+      .map((p) => {
+        const porcentaje = maximo > 0 ? Math.round((p.consumo / maximo) * 100) : 0;
+        return `
+          <li class="consumo-fila">
+            <span class="consumo-nombre">${escapeHtml(p.nombre)}</span>
+            <div class="consumo-barra-fondo"><div class="consumo-barra" style="width: ${porcentaje}%"></div></div>
+            <span class="consumo-cantidad">${p.consumo}</span>
+          </li>
+        `;
+      })
+      .join("");
+  } catch (err) {
+    console.error("Error cargando consumo:", err);
+    Toast.error("No se pudo cargar el consumo. Comprueba tu conexión.");
+  }
+}
+
+function cerrarModalConsumo() {
+  modalConsumoFondo.hidden = true;
+}
+
+if (btnConsumo) btnConsumo.addEventListener("click", abrirModalConsumo);
+if (btnCerrarConsumo) btnCerrarConsumo.addEventListener("click", cerrarModalConsumo);
+if (modalConsumoFondo) habilitarBottomSheet(modalConsumoFondo, modalConsumoFondo.querySelector(".modal"), cerrarModalConsumo);
 
 /* --- Escaneo de tickets --- */
 

@@ -9,7 +9,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 
 from . import db, seguridad
 from .config import DIAS_SESION, USAR_COOKIE_SEGURA
-from .rutas import auth, articulos_lista, categorias, espacios, historial, listas, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios
+from .rutas import auth, articulos_lista, categorias, consumo, espacios, historial, listas, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios
 from .rutas.auth import RUTAS_PUBLICAS
 
 csrf = CSRFProtect()
@@ -46,6 +46,7 @@ def create_app():
     app.register_blueprint(permisos.bp)
     app.register_blueprint(tickets.bp)
     app.register_blueprint(ocr_tickets.bp)
+    app.register_blueprint(consumo.bp)
 
     @app.before_request
     def exigir_sesion():
