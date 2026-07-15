@@ -48,7 +48,7 @@ class EmailService:
 
                     <p><strong>{nombre_remitente}</strong> te ha compartido la lista de la compra <strong>"{nombre_lista}"</strong>.</p>
 
-                    <p>Nivel de acceso: <strong>{self._traducir_nivel(nivel)}</strong></p>
+                    <p>Nivel de acceso: <strong>{EmailService._traducir_nivel(nivel)}</strong></p>
 
                     <p style="margin: 24px 0;">
                         <a href="{enlace_invitacion}"

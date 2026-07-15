@@ -1357,6 +1357,25 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .ticket-item .fila-superior button:hover { background: var(--surface); }
 .ticket-item select { width: 100%; }
 
+.badge-confianza {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.badge-confianza-alta { background: var(--success-soft); color: var(--success); }
+.badge-confianza-media { background: var(--warn-soft); color: var(--warn); }
+.badge-confianza-baja { background: var(--danger-soft); color: var(--danger); }
+
+.ticket-advertencias .aviso-advertencia {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin: 0 0 8px;
+}
+
 /* ---------- Gestion de categorias ---------- */
 
 .categorias-lista {

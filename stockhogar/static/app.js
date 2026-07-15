@@ -114,6 +114,7 @@ const btnCancelarRevisionTicket = document.getElementById("btnCancelarRevisionTi
 const btnAnadirLineaTicket = document.getElementById("btnAnadirLineaTicket");
 const btnConfirmarTicket = document.getElementById("btnConfirmarTicket");
 const ticketItemsEl = document.getElementById("ticketItems");
+const ticketAdvertenciasEl = document.getElementById("ticketAdvertencias");
 
 const btnTema = document.getElementById("btnTema");
 const btnCategorias = document.getElementById("btnCategorias");
@@ -1484,6 +1485,7 @@ function abrirModalTicket() {
   ticketCargando.hidden = true;
   ticketPasoRevision.hidden = true;
   ticketItemsEl.innerHTML = "";
+  mostrarAdvertenciasTicket([]);
   modalTicketFondo.hidden = false;
 }
 
@@ -1505,6 +1507,31 @@ function opcionesVincular(nombreDetectado) {
   return html;
 }
 
+function mostrarAdvertenciasTicket(advertencias) {
+  if (!ticketAdvertenciasEl) return;
+  if (!advertencias || advertencias.length === 0) {
+    ticketAdvertenciasEl.innerHTML = "";
+    ticketAdvertenciasEl.hidden = true;
+    return;
+  }
+  ticketAdvertenciasEl.hidden = false;
+  ticketAdvertenciasEl.innerHTML = advertencias
+    .map((a) => `<p class="aviso aviso-advertencia">⚠️ ${escapeHtml(a.mensaje || "")}</p>`)
+    .join("");
+}
+
+function badgeConfianzaMatch(confianza) {
+  if (confianza === undefined || confianza === null) return "";
+  let nivel = "baja";
+  if (confianza >= 0.7) nivel = "alta";
+  else if (confianza >= 0.4) nivel = "media";
+  const porcentaje = Math.round(confianza * 100);
+  const titulo = nivel === "alta"
+    ? "Coincidencia fiable con el catálogo"
+    : "Revisa el nombre y la vinculación: coincidencia poco fiable";
+  return `<span class="badge-confianza badge-confianza-${nivel}" title="${titulo}">${porcentaje}% match</span>`;
+}
+
 function crearFilaTicket(item) {
   const li = document.createElement("li");
   li.className = "ticket-item";
@@ -1515,6 +1542,7 @@ function crearFilaTicket(item) {
       <input type="text" name="unidad" value="${escapeHtml(item.unidad || "ud")}" maxlength="10">
       <button type="button" title="Quitar línea">🗑️</button>
     </div>
+    ${badgeConfianzaMatch(item.confianza_match)}
     <select name="vincular">${opcionesVincular(item.nombre)}</select>
     <select name="categoria"></select>
   `;
@@ -1564,14 +1592,16 @@ btnAnalizarTicket.addEventListener("click", async () => {
       return;
     }
 
+    const items = datos.items || [];
     ticketItemsEl.innerHTML = "";
-    if (datos.length === 0) {
+    if (items.length === 0) {
       ticketItemsEl.appendChild(crearFilaTicket({ nombre: "", cantidad: 1, unidad: "ud" }));
     } else {
-      for (const item of datos) {
+      for (const item of items) {
         ticketItemsEl.appendChild(crearFilaTicket(item));
       }
     }
+    mostrarAdvertenciasTicket(datos.advertencias || []);
     ticketCargando.hidden = true;
     ticketPasoRevision.hidden = false;
   } catch (err) {

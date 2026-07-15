@@ -747,7 +747,7 @@ class DrawerListasManager {
       }
 
       const data = await res.json();
-      const usuarios = data.data?.usuarios || [];
+      const usuarios = data.usuarios || [];
 
       if (usuarios.length === 0) {
         document.getElementById('resultadosBusqueda').innerHTML = '<p style="color: var(--text-soft); font-size: 0.9rem;">No se encontraron usuarios</p>';

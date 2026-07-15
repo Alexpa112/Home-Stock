@@ -631,7 +631,7 @@ describe('DrawerListasManager', () => {
 
     test('renderiza los usuarios encontrados', async () => {
       const manager = new DrawerListasManager();
-      mockFetchOnce(true, { data: { usuarios: [{ nombre_usuario: 'Ana', email: 'ana@test.com' }] } });
+      mockFetchOnce(true, { usuarios: [{ nombre_usuario: 'Ana', email: 'ana@test.com' }] });
 
       await manager.buscarUsuarios('an');
 
