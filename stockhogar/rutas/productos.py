@@ -1,229 +1,33 @@
 """Rutas del inventario de productos (stock)."""
 import logging
-from flask import Blueprint, request
+from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..utils import Validator, DataConverter, ValidationError
+from ..servicios.stock import (
+    lista_actual_con_permiso,
+    revisar_stock_bajo,
+    sumar_stock,
+    crear_producto_nuevo,
+)
 from .categorias import normalizar_categoria
 from .espacios import obtener_espacio_actual
-from .historial import buscar_historial, recordar_articulo
-from .listas import _usuario_tiene_permiso
+from .historial import recordar_articulo
 from ..servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 logger = logging.getLogger(__name__)
 
 
-def _lista_actual_con_permiso(db, session, nivel_requerido=None):
-    """Devuelve el lista_id activo del usuario si tiene permiso, o None."""
-    usuario_id = session.get("usuario_id")
-    lista_id = session.get("lista_actual_id")
-    if not lista_id:
-        if not usuario_id:
-            return None
-        lista = db.execute(
-            "SELECT id FROM listas WHERE usuario_propietario_id = ? "
-            "ORDER BY fecha_actualizacion DESC LIMIT 1",
-            (usuario_id,)
-        ).fetchone()
-        if not lista:
-            return None
-        lista_id = lista["id"]
-
-    if not _usuario_tiene_permiso(db, lista_id, usuario_id, nivel_requerido):
-        return None
-    return lista_id
-
-
-def revisar_stock_bajo(db, producto_id, lista_id=None):
-    """Mantiene la lista de la compra en sincronia con el stock del producto (por lista)."""
-    try:
-        from flask import session
-
-        # Si no se proporciona lista_id, obtenerla de la sesión
-        if lista_id is None:
-            lista_id = session.get("lista_actual_id")
-
-        # Si aún no hay lista_id, usar la primera lista del usuario
-        if lista_id is None:
-            usuario_id = session.get("usuario_id")
-            if usuario_id:
-                lista = db.execute(
-                    "SELECT id FROM listas WHERE usuario_propietario_id = ? "
-                    "ORDER BY fecha_actualizacion DESC LIMIT 1",
-                    (usuario_id,)
-                ).fetchone()
-                if lista:
-                    lista_id = lista["id"]
-
-        if lista_id is None:
-            return  # No hay lista, no se puede agregar artículos
-
-        fila = db.execute(
-            """SELECT p.nombre, p.unidad, p.categoria, p.icono, sl.cantidad, sl.stock_minimo
-               FROM productos p JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
-               WHERE p.id = ?""",
-            (lista_id, producto_id),
-        ).fetchone()
-        if fila is None:
-            return
-
-        cantidad = fila["cantidad"]
-        stock_minimo = fila["stock_minimo"]
-        nombre = fila["nombre"]
-        unidad = fila["unidad"]
-        categoria = fila["categoria"]
-        icono = fila["icono"]
-
-        pendiente = db.execute(
-            "SELECT id FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND activo = 1 AND lista_id = ?",
-            (producto_id, lista_id),
-        ).fetchone()
-
-        # CAMBIO CRÍTICO: Aviso cuando cantidad <= stock_minimo (igual O menor)
-        if cantidad <= stock_minimo:
-            if pendiente is None:
-                # Si ya existe una fila completada (comprada) para este producto, reactivarla
-                # en vez de crear una nueva: evita duplicados entre "pendientes" y "comprados".
-                completado = db.execute(
-                    "SELECT id FROM articulos_lista WHERE producto_id = ? AND activo = 0 AND lista_id = ?",
-                    (producto_id, lista_id),
-                ).fetchone()
-                if completado is not None:
-                    db.execute(
-                        "UPDATE articulos_lista SET activo = 1, origen = 'auto', nombre = ?, unidad = ?, "
-                        "categoria = ?, icono = ?, fecha_completado = NULL WHERE id = ?",
-                        (nombre, unidad, categoria, icono, completado["id"]),
-                    )
-                else:
-                    db.execute(
-                        "INSERT INTO articulos_lista "
-                        "(lista_id, producto_id, nombre, unidad, categoria, icono, origen, fecha_creacion) "
-                        "VALUES (?, ?, ?, ?, ?, ?, 'auto', ?)",
-                        (lista_id, producto_id, nombre, unidad, categoria, icono, ahora()),
-                    )
-        elif pendiente is not None:
-            # Se ha vuelto a subir el stock: lo damos por comprado en vez de borrarlo
-            db.execute(
-                "UPDATE articulos_lista SET activo = 0, fecha_completado = ? WHERE id = ?",
-                (ahora(), pendiente["id"]),
-            )
-    except Exception as e:
-        # Loguear el error pero no interrumpir el flujo
-        # (este es un proceso de sincronización que debe ser tolerante a fallos)
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"[revisar_stock_bajo] Error: {type(e).__name__}: {e}", exc_info=True)
-
-
-def sumar_stock(db, producto_id, cantidad_a_sumar, lista_id=None):
-    """Suma unidades al stock de un producto DENTRO de una lista concreta."""
-    from flask import session
-
-    # Actualizar stock_lista: si lista_id no se proporciona, resolver la de sesión/usuario
-    if lista_id is None:
-        # Obtener lista_id de sesión
-        lista_id = session.get("lista_actual_id")
-        if not lista_id:
-            usuario_id = session.get("usuario_id")
-            if usuario_id:
-                lista = db.execute(
-                    "SELECT id FROM listas WHERE usuario_propietario_id = ? "
-                    "ORDER BY fecha_actualizacion DESC LIMIT 1",
-                    (usuario_id,)
-                ).fetchone()
-                if lista:
-                    lista_id = lista["id"]
-
-    if not lista_id:
-        return
-
-    actual = db.execute(
-        "SELECT cantidad FROM stock_lista WHERE lista_id = ? AND producto_id = ?",
-        (lista_id, producto_id),
-    ).fetchone()
-    if actual is None:
-        return
-
-    # Suma atómica en SQL (no leer-calcular-escribir) para evitar perder
-    # incrementos si dos peticiones concurrentes tocan el mismo producto.
-    db.execute(
-        """UPDATE stock_lista SET cantidad = MAX(0, cantidad + ?), fecha_actualizacion = ?
-           WHERE lista_id = ? AND producto_id = ?""",
-        (cantidad_a_sumar, ahora(), lista_id, producto_id)
-    )
-
-    revisar_stock_bajo(db, producto_id, lista_id)
-
-
-def crear_producto_nuevo(
-    db, nombre, categoria, cantidad, unidad, stock_minimo=1, dias_aviso=DIAS_AVISO_DEFECTO,
-    icono=None, espacio_id=None, lista_id=None,
-):
-    """Crea producto en catálogo y registra stock en stock_lista."""
-    from flask import session
-
-    categoria = normalizar_categoria(db, categoria)
-    if espacio_id is None:
-        espacio_id = obtener_espacio_actual(db)
-    if not icono:
-        recuerdo = buscar_historial(db, nombre, espacio_id)
-        if recuerdo:
-            icono = recuerdo["icono"]
-
-    # Obtener lista_id si no se proporciona
-    if lista_id is None:
-        lista_id = session.get("lista_actual_id")
-        if not lista_id:
-            usuario_id = session.get("usuario_id")
-            if usuario_id:
-                lista = db.execute(
-                    "SELECT id FROM listas WHERE usuario_propietario_id = ? "
-                    "ORDER BY fecha_actualizacion DESC LIMIT 1",
-                    (usuario_id,)
-                ).fetchone()
-                if lista:
-                    lista_id = lista["id"]
-
-    cur = db.execute(
-        "INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo, "
-        "fecha_creacion, fecha_actualizacion, dias_aviso, icono, espacio_id) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono, espacio_id),
-    )
-    producto_id = cur.lastrowid
-
-    # El stock del producto solo pertenece a la lista en la que se crea, no a todas
-    if lista_id:
-        try:
-            db.execute(
-                """INSERT OR IGNORE INTO stock_lista
-                   (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (lista_id, producto_id, cantidad, stock_minimo, ahora(), ahora())
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.debug(f"[crear_producto_nuevo] Error en stock_lista: {e}")
-
-    # Guardar en el historial de ESTE espacio (nunca en el catálogo global)
-    recordar_articulo(db, espacio_id, nombre, icono or "h-archive-box", categoria, unidad, cantidad_defecto=cantidad)
-    revisar_stock_bajo(db, producto_id, lista_id)
-    return producto_id
-
-
 @bp.route("", methods=["GET"])
 @requerir_sesion
 @manejo_errores
 def listar_productos():
-    from flask import session
-
     db = get_db()
 
-    lista_id = _lista_actual_con_permiso(db, session)
+    lista_id = lista_actual_con_permiso(db, session)
     if not lista_id:
         # Sin lista activa o sin permiso: no se muestra stock de nadie más
         return APIResponse.success([])
@@ -249,7 +53,6 @@ def listar_productos():
 @requerir_sesion
 @manejo_errores
 def crear_producto():
-    from flask import session
     datos = request.get_json(force=True) or {}
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 80)
     categoria = Validator.string_opcional(datos.get("categoria"), "Otros", 50)
@@ -262,7 +65,7 @@ def crear_producto():
     db = get_db()
     espacio_id = obtener_espacio_actual(db)
 
-    lista_id = _lista_actual_con_permiso(db, session, nivel_requerido="editar")
+    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
     if not lista_id:
         return APIResponse.no_permitido()
 
@@ -375,10 +178,9 @@ def traducir_producto_auto():
 @requerir_sesion
 @manejo_errores
 def actualizar_producto(producto_id):
-    from flask import session
     db = get_db()
 
-    lista_id = _lista_actual_con_permiso(db, session, nivel_requerido="editar")
+    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
     if not lista_id:
         return APIResponse.no_permitido()
 
@@ -449,10 +251,9 @@ def actualizar_producto(producto_id):
 @requerir_sesion
 @manejo_errores
 def borrar_producto(producto_id):
-    from flask import session
     db = get_db()
 
-    lista_id = _lista_actual_con_permiso(db, session, nivel_requerido="editar")
+    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
     if not lista_id:
         return APIResponse.no_permitido()
 

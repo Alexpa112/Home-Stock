@@ -10,7 +10,7 @@ from ..db import get_db
 from ..integraciones import ticket_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..utils import Validator
-from .productos import crear_producto_nuevo, sumar_stock
+from ..servicios.stock import crear_producto_nuevo, sumar_stock
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
