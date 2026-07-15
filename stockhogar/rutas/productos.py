@@ -147,11 +147,12 @@ def sumar_stock(db, producto_id, cantidad_a_sumar, lista_id=None):
     if actual is None:
         return
 
-    nueva_cantidad = max(0, actual["cantidad"] + cantidad_a_sumar)
+    # Suma atómica en SQL (no leer-calcular-escribir) para evitar perder
+    # incrementos si dos peticiones concurrentes tocan el mismo producto.
     db.execute(
-        """UPDATE stock_lista SET cantidad = ?, fecha_actualizacion = ?
+        """UPDATE stock_lista SET cantidad = MAX(0, cantidad + ?), fecha_actualizacion = ?
            WHERE lista_id = ? AND producto_id = ?""",
-        (nueva_cantidad, ahora(), lista_id, producto_id)
+        (cantidad_a_sumar, ahora(), lista_id, producto_id)
     )
 
     revisar_stock_bajo(db, producto_id, lista_id)
@@ -396,7 +397,10 @@ def actualizar_producto(producto_id):
     actual = DataConverter.producto_to_dict(fila)
 
     if "delta" in datos:
-        delta = int(datos.get("delta", 0))
+        try:
+            delta = int(datos.get("delta", 0))
+        except (TypeError, ValueError) as e:
+            raise ValidationError("delta debe ser un número entero") from e
         sumar_stock(db, producto_id, delta, lista_id)
     else:
         nombre = Validator.string_opcional(datos.get("nombre"), actual["nombre"], 80)

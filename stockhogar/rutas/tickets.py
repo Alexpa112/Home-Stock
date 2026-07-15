@@ -14,6 +14,13 @@ from .productos import crear_producto_nuevo, sumar_stock
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
+EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp"}
+TAMANO_MAXIMO_MB = 10
+
+
+def _extension_permitida(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in EXTENSIONES_PERMITIDAS
+
 
 @bp.route("/analizar", methods=["POST"])
 @requerir_sesion
@@ -23,11 +30,20 @@ def analizar_ticket():
     if archivo is None or archivo.filename == "":
         return APIResponse.validacion("No se ha recibido ninguna imagen")
 
+    if not _extension_permitida(archivo.filename):
+        return APIResponse.validacion("Formato no permitido. Usa PNG, JPG, etc.")
+
+    archivo.seek(0, os.SEEK_END)
+    tamano_bytes = archivo.tell()
+    archivo.seek(0)
+    if tamano_bytes > TAMANO_MAXIMO_MB * 1024 * 1024:
+        return APIResponse.validacion(f"Archivo demasiado grande (máx {TAMANO_MAXIMO_MB}MB)")
+
     sufijo = Path(archivo.filename).suffix or ".jpg"
     tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
+    tmp.close()
     try:
         archivo.save(tmp.name)
-        tmp.close()
 
         # Extraer texto con OCR (Tesseract)
         texto_ocr = ticket_ocr.extraer_texto(tmp.name)

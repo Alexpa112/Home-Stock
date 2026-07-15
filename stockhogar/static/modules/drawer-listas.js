@@ -356,6 +356,13 @@ class DrawerListasManager {
         lista.color = color;
       }
 
+      // Si es la lista actualmente seleccionada, refrescar la cabecera
+      if (this.listaEditandoId === this.listaActualId) {
+        const listaActualEl = document.getElementById('listaActualNombre');
+        if (listaActualEl) listaActualEl.textContent = nombre;
+        localStorage.setItem('lista-actual-nombre', nombre);
+      }
+
       this.cerrarModalEditar();
       this.renderizarListas();
       Toast.success('Lista actualizada correctamente');
@@ -435,6 +442,14 @@ class DrawerListasManager {
       if (previewEl) {
         previewEl.style.backgroundColor = color;
         previewEl.innerHTML = `<h3>${this.escaparHTML(nombre)}</h3>`;
+      }
+
+      // Si es la lista actualmente seleccionada, refrescar la cabecera
+      if (this.listaEditandoId === this.listaActualId) {
+        const listaActualEl = document.getElementById('listaActualNombre');
+        if (listaActualEl) listaActualEl.textContent = nombre;
+        localStorage.setItem('lista-actual-nombre', nombre);
+        if (icono) localStorage.setItem('lista-actual-icono', icono);
       }
 
       // Cerrar modal

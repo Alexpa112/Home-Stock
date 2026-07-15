@@ -127,6 +127,10 @@ const selectorIconosEl = document.getElementById("selectorIconos");
 const btnCerrarCategorias = document.getElementById("btnCerrarCategorias");
 
 let productos = [];
+// Productos con un PATCH de cantidad en curso: evita que clics rápidos en +/-
+// disparen peticiones concurrentes para el mismo producto (que pueden llegar
+// desordenadas y dejar la cantidad mostrada desincronizada del backend).
+const productosEnProceso = new Set();
 let pendientesCompra = [];
 let completadosCompra = [];
 let categorias = [];
@@ -622,9 +626,9 @@ function crearTarjeta(p) {
       <div class="detalle" data-categoria-original="${escapeHtml(p.categoria)}">${escapeHtml(p.categoria)}${avisos.length ? " · " + avisos.join(" · ") : ""}</div>
     </div>
     <div class="contador">
-      <button data-accion="restar" title="Quitar uno">−</button>
+      <button data-accion="restar" title="Quitar uno" ${productosEnProceso.has(p.id) ? "disabled" : ""}>−</button>
       <span class="cantidad">${p.cantidad} ${escapeHtml(p.unidad)}</span>
-      <button data-accion="sumar" title="Añadir uno">+</button>
+      <button data-accion="sumar" title="Añadir uno" ${productosEnProceso.has(p.id) ? "disabled" : ""}>+</button>
     </div>
     <div class="acciones">
       <button data-accion="editar" title="Editar">✏️</button>
@@ -641,6 +645,9 @@ function crearTarjeta(p) {
 }
 
 async function cambiarCantidad(id, delta) {
+  if (productosEnProceso.has(id)) return;
+  productosEnProceso.add(id);
+
   let actualizado;
   try {
     const res = await fetch(`/api/productos/${id}`, {
@@ -664,6 +671,8 @@ async function cambiarCantidad(id, delta) {
     console.error("Error cambiando cantidad:", error);
     Toast.error("No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
     return;
+  } finally {
+    productosEnProceso.delete(id);
   }
 
   productos = productos.map((p) => (p.id === id ? actualizado : p));
@@ -807,6 +816,11 @@ form.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      Toast.error(error.error || "No se pudo guardar los cambios.");
+      return;
+    }
     const actualizado = await res.json();
     productos = productos.map((p) => (p.id === actualizado.id ? actualizado : p));
   } else {
@@ -815,6 +829,11 @@ form.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      Toast.error(error.error || "No se pudo crear el producto.");
+      return;
+    }
     const creado = await res.json();
     productos.push(creado);
 
@@ -968,12 +987,24 @@ async function completarItemCompra(id, elemento) {
   elemento.classList.add("completando");
   elemento.disabled = true;
   setTimeout(async () => {
-    await fetch(`/api/articulos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activo: false }),
-    });
-    cargarListaCompra();
+    try {
+      const res = await fetch(`/api/articulos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo: false }),
+      });
+      if (!res.ok) {
+        const datos = await res.json().catch(() => null);
+        Toast.error(datos?.error || "No se pudo marcar como comprado.");
+      }
+    } catch (error) {
+      console.error("Error completando artículo:", error);
+      Toast.error("No se pudo marcar como comprado. Comprueba tu conexión.");
+    } finally {
+      // Siempre recargar: si falló, esto también deshace el estado
+      // "completando"/disabled dejado por el bloque de arriba.
+      await cargarListaCompra();
+    }
   }, 280);
 }
 
@@ -1365,42 +1396,51 @@ async function anadirDesdeCatalogo(entry) {
 }
 
 async function toggleArticuloEnLista(entry, btn) {
+  // Evita que un doble-tap dispare dos peticiones antes de que la primera
+  // termine (ambas verían pendientesCompra desactualizado y duplicarían el alta).
+  if (btn.disabled) return;
+
   const listaId = localStorage.getItem('lista-actual');
   if (!listaId) {
     Toast.error("Selecciona una lista primero");
     return;
   }
 
-  const enLista = articuloEnLista(entry.nombre);
-  if (enLista) {
-    const articulo = pendientesCompra.find((a) => a.nombre === entry.nombre);
-    if (articulo) {
-      await fetch(`/api/articulos/${articulo.id}`, { method: "DELETE" });
+  btn.disabled = true;
+  try {
+    const enLista = articuloEnLista(entry.nombre);
+    if (enLista) {
+      const articulo = pendientesCompra.find((a) => a.nombre === entry.nombre);
+      if (articulo) {
+        await fetch(`/api/articulos/${articulo.id}`, { method: "DELETE" });
+      }
+    } else {
+      await fetch("/api/articulos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lista_id: parseInt(listaId),
+          nombre: entry.nombre,
+          categoria: entry.categoria,
+          icono: entry.icono,
+          unidad: entry.unidad,
+          sub_descripcion: entry.sub_descripcion,
+        }),
+      });
     }
-  } else {
-    await fetch("/api/articulos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lista_id: parseInt(listaId),
-        nombre: entry.nombre,
-        categoria: entry.categoria,
-        icono: entry.icono,
-        unidad: entry.unidad,
-        sub_descripcion: entry.sub_descripcion,
-      }),
-    });
-  }
-  await cargarListaCompra();
+    await cargarListaCompra();
 
-  // Solo actualizar el color del botón, sin regenerar todo el catálogo
-  const ahora_enLista = articuloEnLista(entry.nombre);
-  if (ahora_enLista) {
-    btn.classList.add("tile-en-lista");
-    btn.title = `Toca para quitar de la lista`;
-  } else {
-    btn.classList.remove("tile-en-lista");
-    btn.title = `Toca para añadir a la lista`;
+    // Solo actualizar el color del botón, sin regenerar todo el catálogo
+    const ahora_enLista = articuloEnLista(entry.nombre);
+    if (ahora_enLista) {
+      btn.classList.add("tile-en-lista");
+      btn.title = `Toca para quitar de la lista`;
+    } else {
+      btn.classList.remove("tile-en-lista");
+      btn.title = `Toca para añadir a la lista`;
+    }
+  } finally {
+    btn.disabled = false;
   }
 }
 

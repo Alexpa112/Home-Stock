@@ -123,7 +123,6 @@ def borrar_espacio(espacio_id):
     if total <= 1:
         return APIResponse.validacion("No puedes borrar el único stock que tienes")
 
-    db.execute("DELETE FROM lista_compra WHERE espacio_id = ?", (espacio_id,))
     db.execute("DELETE FROM productos WHERE espacio_id = ?", (espacio_id,))
     db.execute("DELETE FROM espacios WHERE id = ?", (espacio_id,))
     db.commit()

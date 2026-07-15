@@ -1,6 +1,7 @@
 """Rutas para gestionar permisos y compartir listas."""
+import secrets
+
 from flask import Blueprint, request, session
-from uuid import uuid4
 from datetime import datetime, timedelta
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
@@ -149,7 +150,9 @@ def compartir_lista(lista_id):
 
     # Si es por email, crear invitación
     elif email_destino:
-        codigo = str(uuid4())[:12]
+        # token_urlsafe(24) da ~32 caracteres / 192 bits de entropia: el codigo
+        # es un bearer token (quien lo tenga entra), no debe ser adivinable.
+        codigo = secrets.token_urlsafe(24)
         fecha_expiracion = (datetime.now() + timedelta(days=7)).isoformat(timespec="seconds")
 
         try:

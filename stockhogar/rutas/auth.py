@@ -214,6 +214,9 @@ def listar_usuarios():
 @requerir_sesion
 @manejo_errores
 def borrar_usuario(usuario_id):
+    if session.get("usuario_id") != usuario_id:
+        return APIResponse.no_permitido()
+
     db = get_db()
     total = db.execute("SELECT COUNT(*) AS n FROM usuarios").fetchone()["n"]
     if total <= 1:
@@ -221,6 +224,5 @@ def borrar_usuario(usuario_id):
 
     db.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
     db.commit()
-    if session.get("usuario_id") == usuario_id:
-        session.clear()
+    session.clear()
     return APIResponse.success()
