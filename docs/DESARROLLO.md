@@ -38,7 +38,7 @@ stockhogar/
 ├── rutas/
 │   ├── productos.py                # Usa @requerir_sesion, @manejo_errores, Validator
 │   ├── listas.py
-│   ├── lista_compra.py
+│   ├── articulos_lista.py          # antes lista_compra.py
 │   ├── categorias.py
 │   ├── espacios.py
 │   ├── historial.py
