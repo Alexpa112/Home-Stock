@@ -98,15 +98,11 @@ python run.py
 - [`FASE_2_COMPLETA.md`](FASE_2_COMPLETA.md) - Fase 2 backend completada
 - [`RESUMEN_OPTIMIZACION.md`](RESUMEN_OPTIMIZACION.md) - Todas las fases
 
-### ✅ Fase 3: Frontend OOP (100% Completa)
-- ✅ 6 managers (ProductosManager, CompraManager, CategoriasManager, EspaciosManager, TicketsManager, UIManager)
-- ✅ Refactorizar `app.js` como orquestador limpio (2050 → 300 líneas, -85%)
-- ✅ Singletons globales `window.DOM`, `window.API` con métodos centralizados
-- ✅ Render methods automáticos en cada manager
-- ✅ Manejo de formularios modales (create/edit/delete)
-- ✅ 71 tests con Jest (>85% coverage)
-- ✅ Eliminadas 1,477 líneas de código legacy
-- ✅ Documentación completa (FASE_3_FRONTEND.md, TESTING.md)
+### ⚠️ Fase 3: Frontend OOP (parcial - documentación desactualizada)
+- ✅ Singletons globales `window.DOM`, `window.API` con métodos centralizados (`static/core/`)
+- ✅ Algunos módulos extraídos como managers independientes (`static/modules/drawer-listas.js`, `form-builder.js`, `ui-components.js`)
+- ❌ `app.js` sigue siendo un orquestador monolítico (~2200 líneas, no las 300 líneas históricamente reportadas aquí); el resto de managers listados en versiones anteriores de este README (ProductosManager, CompraManager, CategoriasManager, EspaciosManager, TicketsManager) no existen como ficheros separados
+- ✅ Tests con Jest para los módulos ya extraídos
 
 ---
 
