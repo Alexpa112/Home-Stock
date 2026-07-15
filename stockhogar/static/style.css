@@ -366,7 +366,7 @@ body.keyboard-open:not(.modal-open) #appShell {
   padding: 11px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
-  font-size: 0.95rem;
+  font-size: 1rem;
   background: var(--surface);
   color: var(--text);
 }
@@ -896,7 +896,7 @@ body.keyboard-open .modal-superpuesta .modal {
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text);
   background: var(--surface-2);
   font-family: inherit;
@@ -1308,7 +1308,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  font-size: 0.95rem;
+  font-size: 1rem;
   background: var(--surface-2);
   color: var(--text);
   width: 100%;
@@ -1438,8 +1438,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   background: none;
   cursor: pointer;
   color: var(--text-soft);
-  width: 26px;
-  height: 26px;
+  width: var(--touch-height-small);
+  height: var(--touch-height-small);
   border-radius: 50%;
   font-size: 0.85rem;
   line-height: 1;
@@ -1457,7 +1457,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   margin-bottom: 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  font-size: 0.9rem;
+  font-size: 1rem;
   background: var(--surface-2);
   color: var(--text);
 }
@@ -1615,7 +1615,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .tarjeta { padding: 12px 10px; gap: 8px; }
   .icono { width: 34px; height: 34px; font-size: 1.4rem; }
   .contador { gap: 5px; }
-  .contador button { width: 32px; height: 32px; }
+  .contador button { width: 36px; height: 36px; }
   .acciones { gap: 4px; }
   .acciones button { width: var(--touch-height); height: var(--touch-height); }
 }

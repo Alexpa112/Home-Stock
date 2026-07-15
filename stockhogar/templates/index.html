@@ -207,19 +207,19 @@
         <!-- Nombre -->
         <div style="margin-bottom: 12px;">
           <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">Nombre</label>
-          <input type="text" id="ajustesNombreUsuario" placeholder="Tu nombre" maxlength="80" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface); color: var(--text); box-sizing: border-box;">
+          <input type="text" id="ajustesNombreUsuario" placeholder="Tu nombre" maxlength="80" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface); color: var(--text); box-sizing: border-box;">
         </div>
 
         <!-- Email (solo lectura) -->
         <div style="margin-bottom: 12px;">
           <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">Email</label>
-          <input type="email" id="ajustesEmailUsuario" readonly style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface); color: var(--text-soft); box-sizing: border-box;">
+          <input type="email" id="ajustesEmailUsuario" readonly style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface); color: var(--text-soft); box-sizing: border-box;">
         </div>
 
         <!-- Contraseña -->
         <div style="margin-bottom: 16px;">
           <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">Contraseña</label>
-          <input type="password" id="ajustesPasswordUsuario" placeholder="Nueva contraseña (dejar en blanco para no cambiar)" minlength="4" maxlength="100" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface); color: var(--text); box-sizing: border-box;">
+          <input type="password" id="ajustesPasswordUsuario" placeholder="Nueva contraseña (dejar en blanco para no cambiar)" minlength="4" maxlength="100" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface); color: var(--text); box-sizing: border-box;">
           <p style="font-size: 0.8rem; color: var(--text-soft); margin-top: 4px; margin-bottom: 0;">Mínimo 4 caracteres</p>
         </div>
 
@@ -235,7 +235,7 @@
         <!-- Selector de Tema -->
         <div style="margin-bottom: 12px;">
           <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">🌙 Tema</label>
-          <select id="selectTema" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text); box-sizing: border-box;">
+          <select id="selectTema" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text); box-sizing: border-box;">
             <option value="auto">📱 Como el dispositivo</option>
             <option value="light">☀️ Claro</option>
             <option value="dark">🌑 Oscuro</option>
@@ -245,7 +245,7 @@
         <!-- Selector de Idioma -->
         <div>
           <label for="selector-idioma" style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">🌐 Idioma</label>
-          <select id="selector-idioma" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text); box-sizing: border-box;">
+          <select id="selector-idioma" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text); box-sizing: border-box;">
             <option value="es">Español</option>
             <option value="gl">Galego</option>
             <option value="en">English</option>
@@ -477,14 +477,14 @@
                 id="buscarUsuario"
                 placeholder="Buscar por nombre de usuario"
                 maxlength="50"
-                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
               >
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
               <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso</label>
               <select
                 id="nivelPermisoUsuario"
-                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
               >
                 <option value="ver">👁️ Ver (solo lectura)</option>
                 <option value="editar">✏️ Editar (lectura y escritura)</option>
@@ -505,14 +505,14 @@
                 id="emailDestino"
                 placeholder="usuario@example.com"
                 maxlength="100"
-                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
               >
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
               <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso</label>
               <select
                 id="nivelPermisoEmail"
-                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+                style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
               >
                 <option value="ver">👁️ Ver (solo lectura)</option>
                 <option value="editar">✏️ Editar (lectura y escritura)</option>
@@ -528,7 +528,7 @@
             <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso del enlace</label>
             <select
               id="nivelPermisoEnlace"
-              style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text);"
+              style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
             >
               <option value="ver">👁️ Ver (solo lectura)</option>
               <option value="editar">✏️ Editar (lectura y escritura)</option>
@@ -555,7 +555,7 @@
               id="inputTelefonoWhatsApp"
               placeholder="Teléfono (opcional, ej: +34 123 45 67 89)"
               maxlength="20"
-              style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 0.9rem; background: var(--surface-2); color: var(--text); width: 100%;"
+              style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text); width: 100%;"
             >
             <p style="font-size: 0.8rem; color: var(--text-soft); margin: 0;">Sin teléfono: abre WhatsApp Web. Con teléfono: envía un mensaje directo.</p>
           </div>
@@ -644,7 +644,7 @@
     </div>
     <div class="modal-content">
       <label style="margin-bottom: 16px;">Idioma</label>
-      <select id="selectIdioma" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem;">
+      <select id="selectIdioma" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 1rem;">
         <option value="es">🇪🇸 Español</option>
         <option value="en">🇬🇧 English</option>
         <option value="fr">🇫🇷 Français</option>
@@ -653,7 +653,7 @@
       </select>
 
       <label style="margin-bottom: 16px;">Región</label>
-      <select id="selectRegion" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem;">
+      <select id="selectRegion" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 1rem;">
         <option value="es">España</option>
         <option value="mx">México</option>
         <option value="ar">Argentina</option>
@@ -681,7 +681,7 @@
       <form id="formNombreImagen" style="display: flex; flex-direction: column; gap: 16px;">
         <div>
           <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Nombre de la lista</label>
-          <input type="text" id="inputNombreLista" maxlength="50" placeholder="Mi lista de compra" style="width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.95rem;">
+          <input type="text" id="inputNombreLista" maxlength="50" placeholder="Mi lista de compra" style="width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem;">
         </div>
 
         <div>
