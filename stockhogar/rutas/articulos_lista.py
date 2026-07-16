@@ -4,6 +4,7 @@ from flask import Blueprint, request, session, jsonify
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
+from ..servicios.stock import lista_actual_con_permiso
 from ..utils import Validator, DataConverter
 from .categorias import normalizar_categoria
 from .historial import buscar_historial, recordar_articulo
@@ -16,18 +17,30 @@ LIMITE_COMPLETADOS = 12
 CAMPOS_EDITABLES = {"nombre", "cantidad", "unidad", "categoria", "icono", "sub_descripcion"}
 
 
+def _resolver_lista_id(db, session):
+    """Resuelve la lista a usar: SIEMPRE la lista activa de la sesión (la
+    misma que usa /api/productos para el stock), nunca el 'lista_id' que
+    manda el cliente (localStorage en el navegador). Ambos valores se
+    guardan por separado y pueden desincronizarse (p. ej. tras cambiar de
+    lista con una petición en segundo plano en curso); si se confiara en el
+    del cliente, el stock y la lista de la compra podrían mostrar listas
+    distintas y un artículo añadido automáticamente por bajada de stock
+    parecería no añadirse nunca."""
+    return lista_actual_con_permiso(db, session)
+
+
 @bp.route("", methods=["GET"])
 @requerir_sesion
 @manejo_errores
 def listar_articulos():
-    """Lista artículos de una lista (requiere query param lista_id)."""
+    """Lista artículos de la lista activa (o de lista_id si se indica y hay permiso)."""
     usuario_id = session.get("usuario_id")
-    lista_id = request.args.get("lista_id", type=int)
+    db = get_db()
+    lista_id = _resolver_lista_id(db, session)
 
     if not lista_id:
-        return APIResponse.error("Parámetro lista_id es obligatorio", 400)
+        return APIResponse.error("No hay una lista activa", 400)
 
-    db = get_db()
     permiso = _usuario_tiene_permiso(db, lista_id, usuario_id)
     if not permiso:
         return APIResponse.no_permitido()
@@ -56,19 +69,20 @@ def anadir_articulo():
     """Añade un artículo a una lista (requiere permiso 'editar')."""
     usuario_id = session.get("usuario_id")
     datos = request.get_json(force=True) or {}
-    try:
-        lista_id = int(datos.get("lista_id")) if datos.get("lista_id") is not None else None
-    except (TypeError, ValueError):
-        return APIResponse.error("lista_id debe ser un número", 400)
     nombre = (datos.get("nombre") or "").strip()
 
     if not nombre:
         return APIResponse.error("El nombre es obligatorio", 400)
 
-    if not lista_id:
-        return APIResponse.error("lista_id es obligatorio", 400)
-
     db = get_db()
+    # Igual que en listar_articulos: si el lista_id que manda el cliente
+    # (guardado en localStorage) no coincide con la lista activa real de la
+    # sesión, se ignora y se usa la de sesión, para que el artículo quede
+    # siempre en la misma lista que el stock que lo disparó.
+    lista_id = _resolver_lista_id(db, session)
+
+    if not lista_id:
+        return APIResponse.error("No hay una lista activa", 400)
 
     # Validar permisos
     permiso = _usuario_tiene_permiso(db, lista_id, usuario_id, nivel_requerido="editar")
