@@ -1,6 +1,6 @@
 """Rutas del inventario de productos (stock)."""
 import logging
-from flask import Blueprint, request, session
+from flask import Blueprint, g, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import DIAS_AVISO_DEFECTO
@@ -130,6 +130,16 @@ def traducir_producto_auto():
     Usado cuando se crea un nuevo producto/artículo.
     Almacena las traducciones en la BD para reutilización.
     """
+    # El frontend dispara esta petición en segundo plano sin esperarla
+    # (ver app.js). Si tarda (traducción neuronal offline, lenta en según
+    # qué hardware) y el usuario cambia de lista mientras tanto, la cookie
+    # de sesión que Flask reenvía por defecto en cada respuesta llegaría
+    # con el "lista_actual_id" desactualizado de cuando empezó esta
+    # petición, pisando la selección de lista más reciente. Esta ruta no
+    # necesita tocar la sesión, así que pedimos a SessionInterfaceOmitible
+    # que no la reenvíe (ver stockhogar/__init__.py).
+    g._omitir_refresco_sesion = True
+
     datos = request.get_json(force=True) or {}
     nombre = Validator.string_opcional(datos.get("nombre"), "", 80)
     descripcion = Validator.string_opcional(datos.get("descripcion"), "", 200)
