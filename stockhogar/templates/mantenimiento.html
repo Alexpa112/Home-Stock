@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#B5551A">
+<title>En mantenimiento - Dreame!</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  body { margin: 0; background: var(--bg); color: var(--text); }
+  .pantalla-mantenimiento {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .tarjeta-mantenimiento {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 32px;
+    max-width: 420px;
+    text-align: center;
+  }
+  .tarjeta-mantenimiento .icono { font-size: 2.5rem; }
+  .tarjeta-mantenimiento h1 { margin: 12px 0 8px; font-size: 1.3rem; }
+  .tarjeta-mantenimiento p { color: var(--text-soft); margin: 0; }
+  .tarjeta-mantenimiento .mensaje-extra {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="pantalla-mantenimiento">
+  <div class="tarjeta-mantenimiento">
+    <div class="icono">🛠️</div>
+    <h1>Estamos haciendo mantenimiento</h1>
+    <p>Dreame! está temporalmente fuera de servicio mientras se realizan cambios. Vuelve a intentarlo en unos minutos.</p>
+    {% if mensaje %}
+    <div class="mensaje-extra">{{ mensaje }}</div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

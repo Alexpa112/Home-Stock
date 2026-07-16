@@ -14,6 +14,13 @@ DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "stock.db"
 CLAVES_PATH = DATA_DIR / "secret.json"
 
+# Directorio de logs de la aplicacion (montado como volumen en docker-compose.yml
+# para que sobrevivan a la reconstruccion del contenedor). El Panel de Gestion
+# del Servidor (proyecto independiente) lee de aqui para mostrar los logs en vivo.
+LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+LOG_FILE_PATH = LOGS_DIR / "stockhogar.log"
+
 DIAS_AVISO_DEFECTO = 30
 
 # Duracion de la sesion iniciada: al ser un dispositivo domestico compartido,

@@ -19,6 +19,16 @@ pip install -r requirements.txt
 python run.py
 ```
 
+### Panel de gestión del servidor
+
+El panel (rendimiento, mantenimiento, reinicio, logs en vivo, backups,
+configuración y usuarios) es un **proyecto independiente**, fuera de este
+repositorio: [StockHogar-Panel](../StockHogar-Panel). Se instala y se
+ejecuta por separado (proceso y puerto propios), y solo necesita saber dónde
+está esta instalación de StockHogar para leer/escribir sus mismos ficheros
+(`.env`, base de datos, logs, backups). Consulta su propio README para
+instalarlo.
+
 ## 📚 Documentación
 
 | Para | Documento |

@@ -9,3 +9,4 @@ data/secret.json
 server.log
 server_dev.log
 coverage/
+logs/*.log*
