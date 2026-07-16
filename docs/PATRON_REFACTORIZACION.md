@@ -1,6 +1,10 @@
 # 🎨 Patrón de Refactorización - Todas las Rutas
 
-**Copia y pega este patrón para refactorizar las 5 rutas restantes en < 10 minutos.**
+**Nota (verificado en el código actual): la Fase 2 ya está completa — todas
+las rutas (incluidas `auth.py`, `historial.py`, `tickets.py`, `ocr_tickets.py`,
+`paginas.py`) usan ya `@requerir_sesion`/`@manejo_errores`. Esta guía se
+conserva como referencia del patrón a seguir para rutas nuevas, no como TODO
+pendiente.**
 
 ## Paso 1: Actualiza los Imports
 
@@ -197,17 +201,12 @@ def crear_categoria():
 
 ---
 
-## Rutas Aún sin Refactorizar
+## Rutas Refactorizadas
 
-| Ruta | Archivos | Estado | Tiempo Estimado |
-|------|----------|--------|-----------------|
-| auth.py | 1 | 🚧 TODO | 5 min |
-| historial.py | 1 | 🚧 TODO | 5 min |
-| tickets.py | 1 | 🚧 TODO | 5 min |
-| ocr_tickets.py | 1 | 🚧 TODO | 3 min |
-| paginas.py | 1 | 🚧 TODO | 2 min |
-
-**Total**: ~20 minutos para refactorizar todas
+Todas las rutas de `stockhogar/rutas/` siguen ya este patrón (`@requerir_sesion`,
+`@manejo_errores`, `Validator`, `DataConverter`/`APIResponse`), incluidas las
+que en su día quedaron pendientes: `auth.py`, `historial.py`, `tickets.py`,
+`ocr_tickets.py`, `paginas.py`.
 
 ---
 

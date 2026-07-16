@@ -29,7 +29,6 @@ python run.py
 | [**API.md**](API.md) | Endpoints - Referencia completa |
 | [**INSTALACION.md**](INSTALACION.md) | DevOps - Setup en Raspberry Pi |
 | [**DESARROLLO.md**](DESARROLLO.md) | Devs - Guía de desarrollo |
-| [**TESTING.md**](TESTING.md) | QA - Cómo probar |
 | [**TROUBLESHOOTING.md**](TROUBLESHOOTING.md) | Soporte - Problemas comunes |
 
 ## ✨ Stack Técnico
@@ -44,7 +43,7 @@ python run.py
 
 ## 🎯 Características
 
-✅ **Inventario inteligente** - Múltiples espacios independientes  
+✅ **Inventario inteligente** - Stock con avisos de mínimos y caducidad  
 ✅ **Lista de compra automática** - Se genera al bajar stock  
 ✅ **Escaneo de tickets** - OCR local sin conexión  
 ✅ **Multi-usuario** - Sesiones persistentes (365 días)  

@@ -33,7 +33,7 @@ python run.py
 
 ## ✨ Características
 
-✅ **Inventario inteligente** - Múltiples espacios independientes  
+✅ **Inventario inteligente** - Stock con avisos de mínimos y caducidad  
 ✅ **Lista automática** - Se genera al bajar stock  
 ✅ **Escaneo OCR** - Lee tickets localmente (sin internet)  
 ✅ **Multi-usuario** - Sesiones persistentes (365 días)  
@@ -60,7 +60,7 @@ python run.py
 | Frontend | JavaScript vanilla (sin frameworks) |
 | OCR | Tesseract |
 | Container | Docker + Docker Compose |
-| Testing | pytest (backend), vitest (frontend) |
+| Testing | pytest (backend), Jest (frontend) |
 
 ## 🔒 Seguridad
 
@@ -162,10 +162,10 @@ rm data/stock.db && docker compose restart
 |------|-----------|--------|----------|
 | **Fase 1** | Infraestructura OOP | ✅ 100% | Clases base, singletons, documentación |
 | **Fase 2** | Backend (Python) | ✅ 100% | 10/10 rutas refactorizadas, -35% líneas |
-| **Fase 3** | Frontend (JavaScript) | ✅ 100% | 6 managers, -85% app.js, 71 tests |
+| **Fase 3** | Frontend (JavaScript) | ⚠️ Parcial | Singletons `DOM`/`API` + 3 módulos extraídos (`drawer-listas.js`, `form-builder.js`, `ui-components.js`); `app.js` sigue siendo un orquestador monolítico (~2200 líneas) |
 | **Fase 4** | Tests Backend | ⏳ Pendiente | pytest coverage (bonus) |
 
-**Overall Progress**: 87% - Proyecto 87% optimizado, 3/4 fases completadas
+Ver detalle de por qué la Fase 3 está marcada como parcial en la sección "Fase 3: Frontend OOP" más arriba.
 
 ---
 
@@ -179,24 +179,20 @@ MIT - Libre para uso personal y comercial
 **¿Vas a desarrollar?** → Lee [`docs/DESARROLLO.md`](docs/DESARROLLO.md)  
 **¿Quieres entender la arquitectura?** → Lee [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
 
-## Varios stocks (casa, oficina, segunda vivienda...)
+## Varios stocks (espacios) — solo backend, sin UI actualmente
 
-Justo debajo de la cabecera hay una pastilla (p. ej. "🏠 Mi casa") que muestra
-el **stock activo**. Tócala para abrir el gestor de stocks:
+El backend conserva el concepto histórico de "espacios" (`rutas/espacios.py`,
+tabla `espacios`) como stocks independientes, con `productos` aislados por
+`espacio_id` a través de la sesión (`obtener_espacio_actual`). Sin embargo,
+**la interfaz actual no expone ningún selector ni gestor de stocks**: no hay
+pastilla bajo la cabecera, ni llamadas desde `app.js` a `/api/espacios`. El
+concepto de aislamiento que sí usa la UI de cara al usuario son las
+**listas** (ver "Lista de la compra" y "Compartir listas" más abajo), no los
+espacios.
 
-- Cada stock tiene su **propio inventario y su propia lista de la compra**,
-  completamente independientes entre sí (si consumes algo en "Oficina" no
-  afecta a "Mi casa", y viceversa).
-- Las **categorías** y el **catálogo/historial de artículos e iconos** sí son
-  compartidos entre todos los stocks, para no tener que redefinirlos en cada
-  uno.
-- Tocar un stock de la lista cambia a él al momento. El cambio se recuerda
-  por sesión (dispositivo), así que cada persona/dispositivo puede quedarse
-  viendo un stock distinto sin pisarse.
-- El botón **✕** borra un stock **junto con todo su contenido** (inventario y
-  lista de la compra); no se puede borrar si es el único que queda.
-- Instalaciones ya existentes migran solo: todo lo que ya tenías queda dentro
-  de un primer stock llamado "Mi casa".
+Si en el futuro se retoma esta funcionalidad, revisar primero si conviene
+reconstruir la UI sobre `espacios` o migrar del todo el aislamiento de
+`productos` a `lista_id`, ya que ambos modelos conviven hoy en el esquema.
 
 ## Uso
 
