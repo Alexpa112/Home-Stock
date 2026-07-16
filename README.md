@@ -29,7 +29,6 @@ python run.py
 | **Arquitectura** | [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) |
 | **API** | [`docs/API.md`](docs/API.md) |
 | **Problemas** | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) |
-| **Refactorización** | [`RESUMEN_OPTIMIZACION.md`](RESUMEN_OPTIMIZACION.md) |
 
 ## ✨ Características
 
@@ -93,10 +92,6 @@ python run.py
 - ✅ Validación centralizada (400 líneas de código duplicado eliminado)
 - ✅ Respuestas JSON estandarizadas via `APIResponse`
 - ✅ -35% líneas promedio por ruta
-
-**Ver detalles**: 
-- [`FASE_2_COMPLETA.md`](FASE_2_COMPLETA.md) - Fase 2 backend completada
-- [`RESUMEN_OPTIMIZACION.md`](RESUMEN_OPTIMIZACION.md) - Todas las fases
 
 ### ⚠️ Fase 3: Frontend OOP (parcial - documentación desactualizada)
 - ✅ Singletons globales `window.DOM`, `window.API` con métodos centralizados (`static/core/`)
