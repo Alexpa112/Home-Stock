@@ -549,6 +549,9 @@ function abrirModalCategorias() {
   categoriaCampoIcono.value = "h-folder";
   categoriaIconoElegido.innerHTML = renderIcono("h-folder");
   modalCategoriasFondo.hidden = false;
+  modalCategoriasFondo.scrollTop = 0;
+  const contenido = modalCategoriasFondo.querySelector(".modal-content");
+  if (contenido) contenido.scrollTop = 0;
 }
 
 function cerrarModalCategorias() {

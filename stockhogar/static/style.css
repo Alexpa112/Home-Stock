@@ -1595,14 +1595,31 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .selector-iconos button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .selector-iconos p.aviso { grid-column: 1 / -1; }
 
+#modalCategorias #formCategoria {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+#modalCategorias .aviso {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+}
+
 #modalCategorias .categorias-lista {
-  max-height: 300px;
+  max-height: min(300px, 30vh);
+  min-height: 110px;
   overflow-y: auto;
   margin-bottom: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 10px;
   background: var(--surface-2);
+  flex-shrink: 1;
+}
+
+body.keyboard-open #modalCategorias .categorias-lista {
+  max-height: min(160px, 20vh);
 }
 
 .nueva-categoria-fila {
