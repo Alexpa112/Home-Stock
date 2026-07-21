@@ -89,7 +89,7 @@ def anadir_articulo():
     if not permiso or (permiso != "propietario" and permiso != "editar"):
         return APIResponse.no_permitido()
 
-    cantidad_sumar = max(1, int(datos.get("cantidad") or 1))
+    cantidad_sumar = Validator.entero_minimo(datos.get("cantidad") or 1, "cantidad")
 
     # Si ya está en la lista activa, sumar cantidad
     existente = db.execute(
@@ -232,7 +232,7 @@ def actualizar_articulo(item_id):
     if CAMPOS_EDITABLES & datos.keys():
         actual = DataConverter.articulo_lista_to_dict(fila)
         nombre = (datos.get("nombre") or actual["nombre"]).strip() or actual["nombre"]
-        cantidad = max(1, int(datos.get("cantidad", actual["cantidad"]) or 1))
+        cantidad = Validator.entero_minimo(datos.get("cantidad", actual["cantidad"]) or 1, "cantidad")
         unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
         categoria = normalizar_categoria(db, datos.get("categoria", actual["categoria"]))
         icono = (datos.get("icono", actual["icono"]) or "").strip() or None
