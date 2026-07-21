@@ -20,11 +20,23 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_DIR"
 
+# Flag que activa/desactiva el Panel de Gestión (StockHogar-Panel) desde
+# /api/auto-actualizacion. Vive en data/ porque es la carpeta que ambos
+# proyectos comparten a nivel de disco (ver panel_servidor/config.py y
+# panel_servidor/auto_actualizacion.py del Panel).
+PAUSA_FLAG="$REPO_DIR/data/auto_actualizacion_pausada.flag"
+
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
 if [[ ! -d .git ]]; then
     echo "[$(ts)] [ERROR] No es un repositorio git; abortando."
     exit 1
+fi
+
+if [[ -f "$PAUSA_FLAG" ]]; then
+    # Silencioso: pausada es un estado normal (parada técnica en curso), no
+    # queremos ensuciar el log en cada ejecución del cron.
+    exit 0
 fi
 
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
