@@ -123,7 +123,6 @@ return APIResponse.success([DataConverter.producto_to_dict(f) for f in filas])
 ```python
 DataConverter.producto_to_dict(row)
 DataConverter.categoria_to_dict(row)
-DataConverter.espacio_to_dict(row)
 DataConverter.lista_to_dict(row, usuario_id, include_detalles)
 DataConverter.articulo_lista_to_dict(row)
 ```

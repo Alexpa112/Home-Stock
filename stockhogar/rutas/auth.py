@@ -20,6 +20,7 @@ RUTAS_PUBLICAS = {
     "oauth.oauth_apple",
     "oauth.oauth_apple_callback",
     "paginas.service_worker",
+    "idiomas.obtener_todas_traducciones",
     "static",
 }
 
@@ -60,13 +61,13 @@ def registrar():
     password = datos.get("password") or ""
 
     if len(password) < 8:
-        return APIResponse.validacion("La contraseña debe tener al menos 8 caracteres")
+        return APIResponse.validacion("err_password_min_8")
 
     existente = db.execute(
         "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
     ).fetchone()
     if existente:
-        return APIResponse.error("Ya existe un usuario con ese nombre", 400)
+        return APIResponse.error("err_usuario_duplicado", 400)
 
     db.execute(
         "INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion) VALUES (?, ?, ?)",
@@ -136,7 +137,7 @@ def actualizar_perfil():
     # Actualizar nombre si se proporciona
     if nombre:
         if len(nombre) > 80:
-            return APIResponse.validacion("El nombre no puede exceder 80 caracteres")
+            return APIResponse.validacion("err_nombre_max_80")
         db.execute(
             "UPDATE usuarios SET nombre_usuario = ? WHERE id = ?",
             (nombre, usuario_id)
@@ -146,7 +147,7 @@ def actualizar_perfil():
     # Actualizar contraseña si se proporciona
     if password:
         if len(password) < 4:
-            return APIResponse.validacion("La contraseña debe tener mínimo 4 caracteres")
+            return APIResponse.validacion("err_password_min_4")
         nuevo_hash = generate_password_hash(password)
         db.execute(
             "UPDATE usuarios SET password_hash = ? WHERE id = ?",
@@ -170,10 +171,10 @@ def cambiar_password():
 
     # Validar contraseña nueva
     if len(password_nueva) < 4:
-        return APIResponse.validacion("La nueva contraseña debe tener al menos 4 caracteres")
+        return APIResponse.validacion("err_nueva_password_min_4")
 
     if password_nueva != password_confirmacion:
-        return APIResponse.validacion("Las contraseñas no coinciden")
+        return APIResponse.validacion("error_contrasenas_no_coinciden")
 
     db = get_db()
     usuario = db.execute(
@@ -186,7 +187,7 @@ def cambiar_password():
 
     # Verificar contraseña actual
     if not check_password_hash(usuario["password_hash"], password_actual):
-        return APIResponse.error("La contraseña actual es incorrecta", 400)
+        return APIResponse.error("err_password_actual_incorrecta", 400)
 
     # Actualizar contraseña
     nuevo_hash = generate_password_hash(password_nueva)
@@ -203,9 +204,34 @@ def cambiar_password():
 @requerir_sesion
 @manejo_errores
 def listar_usuarios():
+    """Lista solo los usuarios con los que la sesión actual comparte al menos
+    una lista (propia o compartida), nunca todos los usuarios de la instalación."""
+    usuario_id = session.get("usuario_id")
     db = get_db()
     filas = db.execute(
-        "SELECT id, nombre_usuario, fecha_creacion FROM usuarios ORDER BY fecha_creacion"
+        """
+        SELECT DISTINCT u.id, u.nombre_usuario, u.fecha_creacion
+        FROM usuarios u
+        WHERE u.id = ?
+           OR u.id IN (
+                SELECT l.usuario_propietario_id FROM listas l
+                WHERE l.id IN (
+                    SELECT id FROM listas WHERE usuario_propietario_id = ?
+                    UNION
+                    SELECT lista_id FROM permisos_lista WHERE usuario_id = ?
+                )
+           )
+           OR u.id IN (
+                SELECT p.usuario_id FROM permisos_lista p
+                WHERE p.lista_id IN (
+                    SELECT id FROM listas WHERE usuario_propietario_id = ?
+                    UNION
+                    SELECT lista_id FROM permisos_lista WHERE usuario_id = ?
+                )
+           )
+        ORDER BY u.fecha_creacion
+        """,
+        (usuario_id, usuario_id, usuario_id, usuario_id, usuario_id),
     ).fetchall()
     return APIResponse.success([dict(f) for f in filas])
 
@@ -220,7 +246,7 @@ def borrar_usuario(usuario_id):
     db = get_db()
     total = db.execute("SELECT COUNT(*) AS n FROM usuarios").fetchone()["n"]
     if total <= 1:
-        return APIResponse.error("No puedes borrar el único usuario que queda", 400)
+        return APIResponse.error("err_ultimo_usuario", 400)
 
     db.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
     db.commit()

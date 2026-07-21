@@ -411,14 +411,15 @@ async function cargarCategorias() {
     poblarSelectCategoria(campoCategoria, campoCategoria.value);
   } catch (error) {
     console.error("Error cargando categorías:", error);
-    Toast.error("No se pudieron cargar las categorías. Comprueba tu conexión.");
+    Toast.error((window.i18n && window.i18n.t('error_cargar_categorias')) || "No se pudieron cargar las categorías. Comprueba tu conexión.");
     categorias = [];
   }
 }
 
 function renderFiltros() {
   const categoriaPrevia = categoriaActiva;
-  filtros.innerHTML = '<button class="chip activo" data-cat="todas">Todas</button>';
+  const textoTodas = (window.i18n && window.i18n.t('todas')) || "Todas";
+  filtros.innerHTML = `<button class="chip activo" data-cat="todas">${textoTodas}</button>`;
   for (const cat of categorias) {
     const btnCat = document.createElement("button");
     btnCat.className = "chip";
@@ -437,7 +438,10 @@ function renderFiltros() {
 
 function poblarSelectCategoria(select, seleccionada) {
   select.innerHTML = categorias
-    .map((c) => `<option value="${escapeHtml(c.nombre)}">${escapeHtml(c.nombre)}</option>`)
+    .map((c) => {
+      const nombreTrad = (window.i18n && window.i18n.t(window.i18n.claveCategoria(c.nombre))) || c.nombre;
+      return `<option value="${escapeHtml(c.nombre)}">${escapeHtml(nombreTrad)}</option>`;
+    })
     .join("");
   if (seleccionada) select.value = seleccionada;
 }
@@ -447,11 +451,12 @@ function renderCategoriasLista() {
   for (const cat of categorias) {
     const chip = document.createElement("div");
     chip.className = "categoria-chip";
-    chip.innerHTML = `<span>${renderIcono(cat.icono)} ${escapeHtml(cat.nombre)}</span>`;
+    const nombreCategoriaTrad = (window.i18n && window.i18n.t(window.i18n.claveCategoria(cat.nombre))) || cat.nombre;
+    chip.innerHTML = `<span>${renderIcono(cat.icono)} ${escapeHtml(nombreCategoriaTrad)}</span>`;
     if (cat.nombre !== "Otros") {
       const btnBorrar = document.createElement("button");
       btnBorrar.type = "button";
-      btnBorrar.title = "Borrar categoría";
+      btnBorrar.title = (window.i18n && window.i18n.t('borrar_categoria_titulo')) || "Borrar categoría";
       btnBorrar.textContent = "✕";
       btnBorrar.addEventListener("click", () => borrarCategoria(cat));
       chip.appendChild(btnBorrar);
@@ -461,7 +466,8 @@ function renderCategoriasLista() {
 }
 
 async function borrarCategoria(cat) {
-  if (!confirm(`¿Borrar la categoría "${cat.nombre}"?`)) return;
+  const msjBorrarCategoria = (window.i18n && window.i18n.t('confirmar_borrar_categoria')) || '¿Borrar la categoría "{nombre}"?';
+  if (!confirm(msjBorrarCategoria.replace('{nombre}', cat.nombre))) return;
 
   try {
     const res = await fetchConTimeout(`/api/categorias/${cat.id}`, { method: "DELETE" }, 8000);
@@ -472,7 +478,7 @@ async function borrarCategoria(cat) {
     render();
   } catch (error) {
     console.error("Error borrando categoría:", error);
-    Toast.error(error.message || "No se pudo borrar la categoría. Inténtalo de nuevo.");
+    Toast.error(error.message || (window.i18n && window.i18n.t('error_borrar_categoria')) || "No se pudo borrar la categoría. Inténtalo de nuevo.");
   }
 }
 
@@ -512,7 +518,7 @@ function renderizarIconosGrid(filtro = "") {
   if (items.length === 0) {
     const vacioAviso = document.createElement("p");
     vacioAviso.className = "aviso";
-    vacioAviso.textContent = "Ningún icono coincide con esa búsqueda.";
+    vacioAviso.textContent = (window.i18n && window.i18n.t('sin_iconos_coincidentes')) || "Ningún icono coincide con esa búsqueda.";
     contenedorIconos.appendChild(vacioAviso);
   }
 }
@@ -721,7 +727,7 @@ async function cambiarCantidad(id, delta) {
 }
 
 async function borrarProducto(id) {
-  if (!confirm("¿Eliminar este producto del stock?")) return;
+  if (!confirm((window.i18n && window.i18n.t('confirmar_eliminar_producto_stock')) || "¿Eliminar este producto del stock?")) return;
   try {
     const res = await fetch(`/api/productos/${id}`, { method: "DELETE" });
     if (!res.ok) {
@@ -762,7 +768,7 @@ function abrirModal(producto) {
 
   const esEdicion = Boolean(producto && producto.id !== undefined);
   if (esEdicion) {
-    modalTitulo.textContent = "Editar producto";
+    modalTitulo.textContent = (window.i18n && window.i18n.t('editar_producto')) || "Editar producto";
     document.getElementById("productoId").value = producto.id;
     document.getElementById("campoNombre").value = producto.nombre;
     campoCategoria.value = producto.categoria;
@@ -773,7 +779,8 @@ function abrirModal(producto) {
     campoIcono.value = producto.icono || "";
     iconoProductoTocado = true;
   } else if (producto) {
-    modalTitulo.textContent = `Añadir "${producto.nombre}" al stock`;
+    const plantillaAñadirStock = (window.i18n && window.i18n.t('añadir_x_al_stock')) || 'Añadir "{nombre}" al stock';
+    modalTitulo.textContent = plantillaAñadirStock.replace('{nombre}', producto.nombre);
     document.getElementById("campoNombre").value = producto.nombre || "";
     poblarSelectCategoria(campoCategoria, producto.categoria || null);
     document.getElementById("campoCantidad").value = producto.cantidad || 1;
@@ -781,7 +788,7 @@ function abrirModal(producto) {
     campoIcono.value = producto.icono || "";
     iconoProductoTocado = Boolean(producto.icono);
   } else {
-    modalTitulo.textContent = "Nuevo producto";
+    modalTitulo.textContent = (window.i18n && window.i18n.t('nuevo_producto')) || "Nuevo producto";
   }
 
   actualizarSelectorIconoProducto();
@@ -1080,12 +1087,13 @@ function abrirModalCompra(item) {
   const articuloPersonalizadoId = item && item.articulo_personalizado_id;
   document.getElementById("compraArticuloPersonalizadoId").value = articuloPersonalizadoId || "";
   
+  const t = (clave, fallback) => (window.i18n ? window.i18n.t(clave) : fallback);
   compraModalTitulo.textContent = esEdicion
-    ? "Editar artículo"
+    ? t("editar_articulo", "Editar artículo")
     : item
-    ? `Añadir "${item.nombre}"`
-    : "Añadir a la lista de la compra";
-  compraBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
+    ? t("añadir_x", 'Añadir "{nombre}"').replace("{nombre}", item.nombre)
+    : t("añadir_a_lista_compra", "Añadir a la lista de la compra");
+  compraBotonGuardar.textContent = esEdicion ? t("guardar", "Guardar") : t("añadir", "Añadir");
   document.getElementById("btnBorrarArticulo").hidden = !esEdicion;
   // Mostrar botón de edición avanzada solo si es artículo personalizado
   const btnEdicionAvanzada = document.getElementById("btnEdicionAvanzada");
@@ -1221,7 +1229,7 @@ const btnBorrarArticuloEl = document.getElementById("btnBorrarArticulo");
 if (btnBorrarArticuloEl) {
   btnBorrarArticuloEl.addEventListener("click", async () => {
     const id = compraEditIdEl.value;
-    if (!id || !confirm("¿Borrar este artículo de la lista?")) return;
+    if (!id || !confirm((window.i18n && window.i18n.t('confirmar_borrar_articulo_lista')) || "¿Borrar este artículo de la lista?")) return;
 
     try {
       await fetchConTimeout(`/api/articulos/${id}`, { method: "DELETE" }, 8000);
@@ -1246,7 +1254,8 @@ if (btnEdicionAvanzadaEl) {
       return;
     }
     // Abrir modal de edición avanzada (por ahora solo alerta)
-    alert(`Edición avanzada para artículo personalizado ID ${articuloPersonalizadoId}. Esta funcionalidad puede extenderse para gestionar traducciones, imágenes, etc.`);
+    const plantillaEdicionAvanzada = (window.i18n && window.i18n.t('edicion_avanzada_articulo')) || 'Edición avanzada para artículo personalizado ID {id}. Esta funcionalidad puede extenderse en el futuro.';
+    alert(plantillaEdicionAvanzada.replace('{id}', articuloPersonalizadoId));
     // En el futuro: abrir un modal específico para traducciones y detalles avanzados
   });
 }
@@ -1258,7 +1267,7 @@ if (btnEdicionAvanzadaEl) {
  */
 async function editarArticuloPersonalizado(articuloId, datos) {
   try {
-    const res = await fetch(`/api/articulos-personalizados/${articuloId}`, {
+    const res = await fetch(`/api/articulos/personalizados/${articuloId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(datos)
@@ -1281,7 +1290,7 @@ async function editarArticuloPersonalizado(articuloId, datos) {
  */
 async function eliminarArticuloPersonalizado(articuloId) {
   try {
-    const res = await fetch(`/api/articulos-personalizados/${articuloId}`, {
+    const res = await fetch(`/api/articulos/personalizados/${articuloId}`, {
       method: "DELETE"
     });
 
@@ -1302,7 +1311,7 @@ async function eliminarArticuloPersonalizado(articuloId) {
  */
 async function obtenerTraduccionesArticulo(articuloId, idioma) {
   try {
-    const res = await fetch(`/api/articulos-personalizados/${articuloId}/traducciones/${idioma}`);
+    const res = await fetch(`/api/articulos/personalizados/${articuloId}/traducciones/${idioma}`);
 
     if (!res.ok) {
       return null;
@@ -1324,13 +1333,13 @@ function abrirModalCatalogo(modo = "compra") {
   catalogoModo = modo;
   const botonesAccion = document.querySelector("#accionesModalCatalogo");
   if (modo === "stock") {
-    catalogoTitulo.textContent = "Añadir al stock";
-    catalogoAyuda.textContent = "Toca un producto para indicar su cantidad y añadirlo al stock.";
+    catalogoTitulo.textContent = (window.i18n && window.i18n.t('añadir_al_stock')) || "Añadir al stock";
+    catalogoAyuda.textContent = (window.i18n && window.i18n.t('ayuda_stock_catalogo')) || "Toca un producto para indicar su cantidad y añadirlo al stock.";
     if (btnCrearDesdeCatalogo) btnCrearDesdeCatalogo.textContent = "+";
     if (botonesAccion) botonesAccion.style.display = "flex";
   } else {
-    catalogoTitulo.textContent = "Añadir a la lista";
-    catalogoAyuda.textContent = "Toca un producto para añadirlo (el fondo se resaltará cuando esté en tu lista).";
+    catalogoTitulo.textContent = (window.i18n && window.i18n.t('añadir_a_la_lista')) || "Añadir a la lista";
+    catalogoAyuda.textContent = (window.i18n && window.i18n.t('ayuda_lista_catalogo')) || "Toca un producto para añadirlo (el fondo se resaltará cuando esté en tu lista).";
     if (botonesAccion) botonesAccion.style.display = "none";
   }
   catalogoBuscadorEl.value = "";
@@ -1642,8 +1651,10 @@ function mostrarAdvertenciasTicket(advertencias) {
     .join("");
 }
 
-function badgeConfianzaMatch(confianza) {
-  if (confianza === undefined || confianza === null) return "";
+function nivelConfianza(confianza) {
+  if (confianza === undefined || confianza === null) {
+    return { nivel: "nueva", porcentaje: null, titulo: "Línea añadida a mano: revísala" };
+  }
   let nivel = "baja";
   if (confianza >= 0.7) nivel = "alta";
   else if (confianza >= 0.4) nivel = "media";
@@ -1651,34 +1662,100 @@ function badgeConfianzaMatch(confianza) {
   const titulo = nivel === "alta"
     ? "Coincidencia fiable con el catálogo"
     : "Revisa el nombre y la vinculación: coincidencia poco fiable";
+  return { nivel, porcentaje, titulo };
+}
+
+function badgeConfianzaMatch(confianza) {
+  const { nivel, porcentaje, titulo } = nivelConfianza(confianza);
+  if (porcentaje === null) return "";
   return `<span class="badge-confianza badge-confianza-${nivel}" title="${titulo}">${porcentaje}% match</span>`;
 }
 
 function crearFilaTicket(item) {
+  const { nivel, porcentaje, titulo } = nivelConfianza(item.confianza_match);
+  const necesitaRevision = nivel !== "alta";
+  const textoConfianza = porcentaje === null ? "Nueva" : `${porcentaje}%`;
+
   const li = document.createElement("li");
   li.className = "ticket-item";
   li.innerHTML = `
-    <div class="fila-superior">
-      <input type="text" name="nombre" value="${escapeHtml(item.nombre || "")}" placeholder="Nombre">
-      <input type="number" name="cantidad" min="1" value="${item.cantidad || 1}">
-      <input type="text" name="unidad" value="${escapeHtml(item.unidad || "ud")}" maxlength="10">
-      <button type="button" title="Quitar línea">🗑️</button>
+    <button type="button" class="ticket-item-resumen" aria-expanded="${necesitaRevision ? "true" : "false"}">
+      <span class="ticket-item-dot ticket-item-dot-${nivel}" title="${titulo}">${necesitaRevision ? "" : "✓"}</span>
+      <span class="ticket-item-resumen-texto">
+        <span class="ticket-item-resumen-nombre">${escapeHtml(item.nombre || "Nueva línea")}</span>
+        <span class="ticket-item-resumen-meta">
+          <span class="ticket-item-resumen-cantidad">${item.cantidad || 1} ${escapeHtml(item.unidad || "ud")}</span>
+          <span class="ticket-item-resumen-confianza ticket-item-dot-${nivel}">${textoConfianza}</span>
+        </span>
+      </span>
+      <span class="ticket-item-chevron" aria-hidden="true">⌄</span>
+    </button>
+    <div class="ticket-item-detalle" ${necesitaRevision ? "" : "hidden"}>
+      <div class="ticket-item-cabecera">
+        <input type="text" name="nombre" class="ticket-item-nombre" value="${escapeHtml(item.nombre || "")}" placeholder="Nombre del artículo">
+        ${badgeConfianzaMatch(item.confianza_match)}
+        <button type="button" class="ticket-item-quitar" title="Quitar línea" aria-label="Quitar línea">🗑️</button>
+      </div>
+      <div class="ticket-item-fila">
+        <div class="ticket-stepper">
+          <button type="button" class="ticket-stepper-btn" data-accion="restar" aria-label="Menos cantidad">−</button>
+          <input type="number" name="cantidad" min="1" value="${item.cantidad || 1}" inputmode="numeric">
+          <button type="button" class="ticket-stepper-btn" data-accion="sumar" aria-label="Más cantidad">+</button>
+        </div>
+        <input type="text" name="unidad" class="ticket-item-unidad" value="${escapeHtml(item.unidad || "ud")}" maxlength="10" placeholder="ud" aria-label="Unidad">
+      </div>
+      <label class="ticket-item-label">Vincular con
+        <select name="vincular">${opcionesVincular(item.nombre)}</select>
+      </label>
+      <label class="ticket-item-label" data-campo-categoria>Categoría
+        <select name="categoria"></select>
+      </label>
     </div>
-    ${badgeConfianzaMatch(item.confianza_match)}
-    <select name="vincular">${opcionesVincular(item.nombre)}</select>
-    <select name="categoria"></select>
   `;
+
+  const botonResumen = li.querySelector(".ticket-item-resumen");
+  const detalle = li.querySelector(".ticket-item-detalle");
+  const nombreResumenEl = li.querySelector(".ticket-item-resumen-nombre");
+  const cantidadResumenEl = li.querySelector(".ticket-item-resumen-cantidad");
+  const inputNombre = li.querySelector('input[name="nombre"]');
+  const inputCantidad = li.querySelector('input[name="cantidad"]');
+  const inputUnidad = li.querySelector('input[name="unidad"]');
+
+  botonResumen.addEventListener("click", () => {
+    const abierto = botonResumen.getAttribute("aria-expanded") === "true";
+    botonResumen.setAttribute("aria-expanded", abierto ? "false" : "true");
+    detalle.hidden = abierto;
+    if (!abierto) inputNombre.focus();
+  });
+
+  const sincronizarResumen = () => {
+    nombreResumenEl.textContent = inputNombre.value.trim() || "Nueva línea";
+    cantidadResumenEl.textContent = `${Number(inputCantidad.value) || 1} ${inputUnidad.value.trim() || "ud"}`;
+  };
+  inputNombre.addEventListener("input", sincronizarResumen);
+  inputUnidad.addEventListener("input", sincronizarResumen);
+  inputCantidad.addEventListener("input", sincronizarResumen);
 
   const selectVincular = li.querySelector('select[name="vincular"]');
   const selectCategoria = li.querySelector('select[name="categoria"]');
+  const campoCategoria = li.querySelector('[data-campo-categoria]');
   poblarSelectCategoria(selectCategoria, "Otros");
   const actualizarVisibilidadCategoria = () => {
-    selectCategoria.hidden = selectVincular.value !== "nuevo";
+    campoCategoria.hidden = selectVincular.value !== "nuevo";
   };
   selectVincular.addEventListener("change", actualizarVisibilidadCategoria);
   actualizarVisibilidadCategoria();
 
-  li.querySelector("button").addEventListener("click", () => li.remove());
+  li.querySelectorAll(".ticket-stepper-btn").forEach((boton) => {
+    boton.addEventListener("click", () => {
+      const actual = Number(inputCantidad.value) || 1;
+      const siguiente = boton.dataset.accion === "sumar" ? actual + 1 : actual - 1;
+      inputCantidad.value = Math.max(1, siguiente);
+      sincronizarResumen();
+    });
+  });
+
+  li.querySelector(".ticket-item-quitar").addEventListener("click", () => li.remove());
   return li;
 }
 
@@ -1737,9 +1814,12 @@ btnAnalizarTicket.addEventListener("click", async () => {
         ticketItemsEl.appendChild(crearFilaTicket(item));
       }
     }
+    const paraRevisar = items.filter((it) => nivelConfianza(it.confianza_match).nivel !== "alta").length;
     ticketResumenEl.textContent = items.length === 0
       ? "No se detectó ningún artículo. Añádelos a mano."
-      : `${items.length} artículo${items.length === 1 ? "" : "s"} detectado${items.length === 1 ? "" : "s"}`;
+      : paraRevisar === 0
+      ? `${items.length} artículo${items.length === 1 ? "" : "s"} detectado${items.length === 1 ? "" : "s"} · todo con buena confianza`
+      : `${items.length} artículo${items.length === 1 ? "" : "s"} detectado${items.length === 1 ? "" : "s"} · ${paraRevisar} para revisar`;
     mostrarAdvertenciasTicket(datos.advertencias || []);
     irAPasoRevisionTicket();
   } catch (err) {
@@ -2295,7 +2375,7 @@ if (listaActualBtnEl) {
           const inputNombre = document.getElementById('formCrearLista')?.querySelector('input[name="nombre"]');
           if (inputNombre) {
             inputNombre.focus();
-            inputNombre.placeholder = 'Ej: Mi lista de compra...';
+            inputNombre.placeholder = (window.i18n && window.i18n.t('ej_mi_lista_compra')) || 'Ej: Mi lista de compra...';
           }
         }, 100);
 

@@ -10,7 +10,6 @@ import logging
 from ..db import ahora
 from ..config import DIAS_AVISO_DEFECTO
 from ..rutas.categorias import normalizar_categoria
-from ..rutas.espacios import obtener_espacio_actual
 from ..rutas.historial import buscar_historial, recordar_articulo
 from ..rutas.listas import _usuario_tiene_permiso
 
@@ -170,16 +169,14 @@ def sumar_stock(db, producto_id, cantidad_a_sumar, lista_id=None):
 
 def crear_producto_nuevo(
     db, nombre, categoria, cantidad, unidad, stock_minimo=1, dias_aviso=DIAS_AVISO_DEFECTO,
-    icono=None, espacio_id=None, lista_id=None,
+    icono=None, lista_id=None,
 ):
     """Crea producto en catálogo y registra stock en stock_lista."""
     from flask import session
 
     categoria = normalizar_categoria(db, categoria)
-    if espacio_id is None:
-        espacio_id = obtener_espacio_actual(db)
     if not icono:
-        recuerdo = buscar_historial(db, nombre, espacio_id)
+        recuerdo = buscar_historial(db, nombre)
         if recuerdo:
             icono = recuerdo["icono"]
 
@@ -188,9 +185,9 @@ def crear_producto_nuevo(
 
     cur = db.execute(
         "INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo, "
-        "fecha_creacion, fecha_actualizacion, dias_aviso, icono, espacio_id) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono, espacio_id),
+        "fecha_creacion, fecha_actualizacion, dias_aviso, icono) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono),
     )
     producto_id = cur.lastrowid
 
@@ -206,7 +203,7 @@ def crear_producto_nuevo(
         except Exception as e:
             logger.debug(f"[crear_producto_nuevo] Error en stock_lista: {e}")
 
-    # Guardar en el historial de ESTE espacio (nunca en el catálogo global)
-    recordar_articulo(db, espacio_id, nombre, icono or "h-archive-box", categoria, unidad, cantidad_defecto=cantidad)
+    # Guardar en el catálogo compartido de artículos
+    recordar_articulo(db, nombre, icono or "h-archive-box", categoria, unidad, cantidad_defecto=cantidad)
     revisar_stock_bajo(db, producto_id, lista_id)
     return producto_id

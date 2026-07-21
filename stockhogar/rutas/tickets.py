@@ -7,6 +7,7 @@ from flask import Blueprint, request
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import get_db
+from ..translator import traducir
 from ..integraciones import ticket_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..utils import Validator
@@ -28,16 +29,18 @@ def _extension_permitida(filename):
 def analizar_ticket():
     archivo = request.files.get("foto")
     if archivo is None or archivo.filename == "":
-        return APIResponse.validacion("No se ha recibido ninguna imagen")
+        return APIResponse.validacion("err_sin_imagen")
 
     if not _extension_permitida(archivo.filename):
-        return APIResponse.validacion("Formato no permitido. Usa PNG, JPG, etc.")
+        return APIResponse.validacion("err_formato_no_permitido")
 
     archivo.seek(0, os.SEEK_END)
     tamano_bytes = archivo.tell()
     archivo.seek(0)
     if tamano_bytes > TAMANO_MAXIMO_MB * 1024 * 1024:
-        return APIResponse.validacion(f"Archivo demasiado grande (máx {TAMANO_MAXIMO_MB}MB)")
+        return APIResponse.validacion(
+            traducir("err_archivo_muy_grande").replace("{mb}", str(TAMANO_MAXIMO_MB))
+        )
 
     sufijo = Path(archivo.filename).suffix or ".jpg"
     tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
@@ -58,7 +61,7 @@ def analizar_ticket():
 
     except Exception as e:
         return APIResponse.error(
-            f"No se pudo leer la imagen. Comprueba que Tesseract está instalado. Detalle: {str(e)}",
+            traducir("err_tesseract_no_disponible").replace("{detalle}", str(e)),
             500
         )
     finally:

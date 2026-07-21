@@ -52,9 +52,9 @@ def setup_test_data():
     print("\n[3] Crear Producto 1: 'Leche'")
     cur.execute(
         """INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo,
-                                   dias_aviso, icono, espacio_id, fecha_creacion, fecha_actualizacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("Leche", "Lácteos y Huevos", 5, "L", 2, 30, "🥛", 1, ahora(), ahora())
+                                   dias_aviso, icono, fecha_creacion, fecha_actualizacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        ("Leche", "Lácteos y Huevos", 5, "L", 2, 30, "🥛", ahora(), ahora())
     )
     prod1_id = cur.lastrowid
     print(f"    ID: {prod1_id}, cantidad=5, stock_minimo=2")
@@ -63,9 +63,9 @@ def setup_test_data():
     print("\n[4] Crear Producto 2: 'Pan'")
     cur.execute(
         """INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo,
-                                   dias_aviso, icono, espacio_id, fecha_creacion, fecha_actualizacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("Pan", "Panadería y Bollería", 3, "piezas", 1, 30, "🥖", 1, ahora(), ahora())
+                                   dias_aviso, icono, fecha_creacion, fecha_actualizacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        ("Pan", "Panadería y Bollería", 3, "piezas", 1, 30, "🥖", ahora(), ahora())
     )
     prod2_id = cur.lastrowid
     print(f"    ID: {prod2_id}, cantidad=3, stock_minimo=1")

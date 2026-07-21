@@ -184,21 +184,6 @@ MIT - Libre para uso personal y comercial
 **¿Vas a desarrollar?** → Lee [`docs/DESARROLLO.md`](docs/DESARROLLO.md)  
 **¿Quieres entender la arquitectura?** → Lee [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
 
-## Varios stocks (espacios) — solo backend, sin UI actualmente
-
-El backend conserva el concepto histórico de "espacios" (`rutas/espacios.py`,
-tabla `espacios`) como stocks independientes, con `productos` aislados por
-`espacio_id` a través de la sesión (`obtener_espacio_actual`). Sin embargo,
-**la interfaz actual no expone ningún selector ni gestor de stocks**: no hay
-pastilla bajo la cabecera, ni llamadas desde `app.js` a `/api/espacios`. El
-concepto de aislamiento que sí usa la UI de cara al usuario son las
-**listas** (ver "Lista de la compra" y "Compartir listas" más abajo), no los
-espacios.
-
-Si en el futuro se retoma esta funcionalidad, revisar primero si conviene
-reconstruir la UI sobre `espacios` o migrar del todo el aislamiento de
-`productos` a `lista_id`, ya que ambos modelos conviven hoy en el esquema.
-
 ## Uso
 
 - El botón **+** de la pestaña Stock abre el mismo catálogo navegable que la

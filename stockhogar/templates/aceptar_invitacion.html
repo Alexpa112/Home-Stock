@@ -83,7 +83,7 @@
 
     <div id="contenido">
       <div class="estado-cargando">⏳</div>
-      <p>Aceptando invitación...</p>
+      <p data-i18n="aceptando_invitacion">Aceptando invitación...</p>
     </div>
   </div>
 </div>
@@ -100,30 +100,33 @@
 
       const datos = await res.json();
 
+      const t = (clave, fallback) => (window.i18n ? window.i18n.t(clave) : fallback);
+
       if (res.ok) {
         // Éxito
         document.getElementById("contenido").innerHTML = `
           <div class="estado-exito">✅</div>
-          <h2>¡Invitación aceptada!</h2>
-          <p>Ya tienes acceso a la lista compartida.</p>
-          <a href="/" class="boton-volver">Ir a la app</a>
+          <h2>${t("invitacion_aceptada_titulo", "¡Invitación aceptada!")}</h2>
+          <p>${t("invitacion_aceptada_texto", "Ya tienes acceso a la lista compartida.")}</p>
+          <a href="/" class="boton-volver">${t("ir_a_la_app", "Ir a la app")}</a>
         `;
       } else {
         // Error
         document.getElementById("contenido").innerHTML = `
           <div class="estado-error">❌</div>
-          <h2>Algo salió mal</h2>
-          <div class="mensaje-error">${datos.error || "No se pudo aceptar la invitación"}</div>
-          <a href="/login" class="boton-volver">Volver a login</a>
+          <h2>${t("algo_salio_mal", "Algo salió mal")}</h2>
+          <div class="mensaje-error">${datos.error || t("error_no_se_pudo_aceptar_invitacion", "No se pudo aceptar la invitación")}</div>
+          <a href="/login" class="boton-volver">${t("volver_a_login", "Volver a login")}</a>
         `;
       }
     } catch (error) {
       console.error("Error:", error);
+      const t = (clave, fallback) => (window.i18n ? window.i18n.t(clave) : fallback);
       document.getElementById("contenido").innerHTML = `
         <div class="estado-error">❌</div>
-        <h2>Error de conexión</h2>
-        <div class="mensaje-error">No se pudo procesar la invitación</div>
-        <a href="/login" class="boton-volver">Volver a login</a>
+        <h2>${t("error_conexion_titulo", "Error de conexión")}</h2>
+        <div class="mensaje-error">${t("error_no_se_pudo_procesar_invitacion", "No se pudo procesar la invitación")}</div>
+        <a href="/login" class="boton-volver">${t("volver_a_login", "Volver a login")}</a>
       `;
     }
   }
@@ -131,5 +134,6 @@
   // Aceptar invitación inmediatamente
   aceptarInvitacion();
 </script>
+<script src="{{ url_for('static', filename='i18n.js') }}"></script>
 </body>
 </html>

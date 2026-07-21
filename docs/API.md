@@ -17,7 +17,7 @@ const productos = await window.API.obtenerProductos();  // ✓
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `GET` | `/api/productos` | Listar todos (del espacio actual, aislado por sesión) |
+| `GET` | `/api/productos` | Listar todos (de la lista activa, aislado por sesión) |
 | `POST` | `/api/productos` | Crear nuevo producto |
 | `PATCH` | `/api/productos/:id` | Actualizar producto (o `delta` para +/-) |
 | `DELETE` | `/api/productos/:id` | Eliminar producto |
@@ -220,22 +220,6 @@ const cats = await window.API.obtenerCategorias();
 //   ...
 // ]
 ```
-
----
-
-### Espacios (Múltiples Stocks) — backend legacy, sin UI actual
-
-Estos endpoints existen en `rutas/espacios.py` y siguen usándose internamente
-para aislar `productos` por sesión (`obtener_espacio_actual`), pero **no hay
-ninguna pantalla en la app que los llame** (`app.js` no invoca `/api/espacios`).
-Ver la nota en `README.md` ("Varios stocks (espacios)").
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/api/espacios` | Listar espacios del usuario |
-| `POST` | `/api/espacios` | Crear espacio |
-| `PATCH` | `/api/espacios/:id` | Actualizar |
-| `DELETE` | `/api/espacios/:id` | Eliminar |
 
 ---
 

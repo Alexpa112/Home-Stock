@@ -14,7 +14,6 @@ from ..servicios.stock import (
     registrar_movimiento,
 )
 from .categorias import normalizar_categoria
-from .espacios import obtener_espacio_actual
 from .historial import recordar_articulo
 from ..servicios.traductor_auto import TraductorAutomatico
 
@@ -37,7 +36,7 @@ def listar_productos():
     # sl.cantidad/sl.stock_minimo se seleccionan DESPUÉS que p.cantidad/p.stock_minimo
     # para que, con nombres de columna repetidos, prevalezcan los valores de la lista.
     filas = db.execute(
-        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad, p.espacio_id,
+        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
            FROM stock_lista sl
@@ -64,18 +63,17 @@ def crear_producto():
     icono = Validator.string_opcional(datos.get("icono"), None, 30)
 
     db = get_db()
-    espacio_id = obtener_espacio_actual(db)
 
     lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
     if not lista_id:
         return APIResponse.no_permitido()
 
     producto_id = crear_producto_nuevo(
-        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, espacio_id, lista_id
+        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, lista_id
     )
     db.commit()
     fila = db.execute(
-        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad, p.espacio_id,
+        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
            FROM productos p JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
@@ -95,16 +93,14 @@ def obtener_traducciones_producto(producto_id, idioma):
     Devuelve nombre, descripción y otros campos traducidos.
     """
     db = get_db()
-    espacio_id = obtener_espacio_actual(db)
 
-    # Verificar que el producto pertenece al usuario
     producto = db.execute(
-        "SELECT * FROM productos WHERE id = ? AND espacio_id = ?",
-        (producto_id, espacio_id)
+        "SELECT * FROM productos WHERE id = ?",
+        (producto_id,)
     ).fetchone()
 
     if not producto:
-        return APIResponse.no_encontrado("Producto")
+        return APIResponse.no_encontrado("recurso_producto")
 
     # Obtener traducciones
     traducciones = db.execute(
@@ -196,7 +192,7 @@ def actualizar_producto(producto_id):
         return APIResponse.no_permitido()
 
     fila = db.execute(
-        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad, p.espacio_id,
+        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
            FROM productos p JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
@@ -204,7 +200,7 @@ def actualizar_producto(producto_id):
         (lista_id, producto_id),
     ).fetchone()
     if not fila:
-        return APIResponse.no_encontrado("Producto")
+        return APIResponse.no_encontrado("recurso_producto")
 
     datos = request.get_json(force=True) or {}
     actual = DataConverter.producto_to_dict(fila)
@@ -246,12 +242,12 @@ def actualizar_producto(producto_id):
             registrar_movimiento(db, producto_id, lista_id, cantidad - actual["cantidad"], cantidad, origen="edicion")
 
         if icono:
-            recordar_articulo(db, actual["espacio_id"], nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
+            recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
         revisar_stock_bajo(db, producto_id, lista_id)
 
     db.commit()
     fila = db.execute(
-        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad, p.espacio_id,
+        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
            FROM productos p JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
@@ -276,7 +272,7 @@ def borrar_producto(producto_id):
         (lista_id, producto_id),
     ).fetchone()
     if not en_lista:
-        return APIResponse.no_encontrado("Producto")
+        return APIResponse.no_encontrado("recurso_producto")
 
     # Solo se quita de ESTA lista: el producto/catálogo puede seguir en otras listas
     db.execute(

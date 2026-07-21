@@ -59,20 +59,6 @@ CATEGORIAS_DEFECTO = [
 ]
 CATEGORIA_DEFECTO = "Otros"
 
-# Colores sugeridos para las tarjetas de "stock" (espacios). Cada uno nuevo
-# toma el siguiente color de la lista por turnos, para que se distingan a
-# simple vista sin que el usuario tenga que elegir uno la primera vez.
-PALETA_ESPACIOS = [
-    "#B5551A",  # terracota (color de acento por defecto de la app)
-    "#3E7C8C",  # azul petroleo
-    "#7B6B9E",  # morado
-    "#5B8C5A",  # verde
-    "#C77B9E",  # rosa
-    "#C9A227",  # mostaza
-    "#4A6FA5",  # azul
-    "#B5473F",  # rojo teja
-]
-
 # Catalogo de productos habituales de supermercado en España (investigado:
 # leche, huevos, pan, aceite, pasta, arroz, frutas y verduras son los
 # alimentos que compra la inmensa mayoria de hogares). Se siembra una vez en

@@ -154,14 +154,15 @@ const productos = await window.API.obtenerProductos();
 console.log(productos);
 
 // 4. Si está vacío, comprueba:
-// - ¿Estás en el espacio correcto?
-// - ¿Existe ese espacio?
+// - ¿Estás en la lista correcta?
+// - ¿Existe esa lista?
 
 // En backend (dev):
-from stockhogar.rutas.espacios import obtener_espacio_actual
+from stockhogar.servicios.stock import lista_actual_con_permiso
+from flask import session
 db = get_db()
-espacio = obtener_espacio_actual(db)
-print(f"Espacio actual: {espacio}")
+lista_id = lista_actual_con_permiso(db, session)
+print(f"Lista actual: {lista_id}")
 ```
 
 ---

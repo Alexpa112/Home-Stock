@@ -40,7 +40,6 @@ stockhogar/
 │   ├── listas.py
 │   ├── articulos_lista.py          # antes lista_compra.py
 │   ├── categorias.py
-│   ├── espacios.py
 │   ├── historial.py
 │   ├── auth.py
 │   ├── tickets.py

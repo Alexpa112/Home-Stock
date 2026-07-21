@@ -22,7 +22,6 @@ rutas/
 ├── listas.py         # Múltiples listas de compra
 ├── articulos_lista.py # Ítems de listas
 ├── categorias.py     # Gestión de categorías
-├── espacios.py       # Múltiples stocks
 ├── historial.py      # Catálogo + aprendizaje de iconos
 ├── tickets.py        # Gestión de tickets
 └── ocr_tickets.py    # Escaneo OCR
@@ -160,9 +159,11 @@ window.productosManager.cargar();
 
 ### Esquema Normalizado
 
-Esquema real definido en `stockhogar/db.py` (función `init_db()`). Nota: el
-aislamiento de cara al usuario se hace hoy vía `listas`/`stock_lista`, no vía
-`espacios` (que se mantiene en el backend sin UI — ver `README.md`).
+Esquema real definido en `stockhogar/db.py` (función `init_db()`). El
+aislamiento de cara al usuario se hace vía `listas`/`stock_lista`. La
+funcionalidad de "espacios" (stocks independientes tipo casa/oficina, que
+nunca tuvo UI) se eliminó por completo: cubría el mismo caso de uso que
+`listas`, sin aportar nada que estas no resolvieran ya.
 
 ```sql
 -- Usuarios
@@ -171,11 +172,8 @@ usuarios (id, nombre_usuario, password_hash, email, idioma_preferido)
 -- Login OAuth (Google / Apple)
 oauth_accounts (id, usuario_id, proveedor, id_proveedor)  -- UNIQUE(proveedor, id_proveedor)
 
--- Espacios (stocks independientes, legacy sin UI actual)
-espacios (id, nombre, icono, color)
-
--- Productos (aislados por espacio_id vía sesión)
-productos (id, espacio_id, nombre, categoria, cantidad, unidad,
+-- Productos (catálogo compartido; el stock por lista vive en stock_lista)
+productos (id, nombre, categoria, cantidad, unidad,
            stock_minimo, icono, dias_aviso, fecha_creacion, fecha_actualizacion)
 
 -- Listas de compra (Bring! style) — unidad compartible real
@@ -196,12 +194,11 @@ invitaciones_lista (lista_id, email_destino, codigo_invitacion, usado, fecha_exp
 -- Categorías (compartidas globalmente)
 categorias (nombre, icono)  -- UNIQUE(nombre)
 
--- Catálogo (historial de artículos + iconos aprendidos)
--- espacio_id NULL = catálogo global compartido; espacio_id concreto = aprendizaje aislado
-historial_articulos (id, espacio_id, nombre, icono, categoria, unidad, cantidad_defecto)
+-- Catálogo global (historial de artículos + iconos aprendidos)
+historial_articulos (id, nombre, icono, categoria, unidad, cantidad_defecto)  -- UNIQUE(nombre) COLLATE NOCASE
 
--- Artículos únicos por espacio (no compartidos entre espacios)
-articulos_personalizados (id, espacio_id, nombre)  -- UNIQUE(espacio_id, nombre) COLLATE NOCASE
+-- Artículos únicos del catálogo del usuario, disponibles en cualquier lista
+articulos_personalizados (id, nombre)  -- UNIQUE(nombre) COLLATE NOCASE
 
 -- Traducciones cacheadas por producto/artículo e idioma
 traducciones_productos (producto_id, articulo_lista_id, idioma, nombre, descripcion)
@@ -356,4 +353,4 @@ class FavoritosManager {
 - [x] Gráficos de consumo — `rutas/consumo.py`
 - [ ] Integración con APIs de supermercados
 - [ ] App móvil nativa (Flutter/React Native)
-- [ ] Decidir el futuro de `espacios`: reconstruir su UI o migrar del todo el aislamiento de `productos` a `lista_id` (hoy conviven ambos modelos, ver sección "Esquema Normalizado")
+- [x] Eliminar `espacios` del backend (nunca tuvo UI; su función de aislamiento ya la cubrían `listas`)

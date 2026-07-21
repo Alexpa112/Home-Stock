@@ -39,9 +39,8 @@ try:
                   COALESCE(sl.stock_minimo, p.stock_minimo) as stock_minimo_lista
            FROM productos p
            LEFT JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
-           WHERE p.espacio_id = ?
            ORDER BY p.categoria, p.nombre COLLATE NOCASE""",
-        (lista_id, 1)
+        (lista_id,)
     )
 
     print(f"  [OK] Query ejecutada exitosamente")

@@ -10,6 +10,7 @@ import logging
 
 from ..api import APIResponse, manejo_errores
 from ..db import ahora, get_db
+from ..translator import traducir
 from ..config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APPLE_CLIENT_ID, APPLE_CLIENT_SECRET, APPLE_TEAM_ID
 
 bp = Blueprint("oauth", __name__, url_prefix="/auth")
@@ -70,13 +71,13 @@ def oauth_google_callback():
     estado_esperado = session.pop("oauth_state", None)
 
     if error:
-        return APIResponse.error(f"Error de Google: {error}", 400)
+        return APIResponse.error(traducir("err_oauth_google_generico").replace("{error}", error), 400)
 
     if not estado_esperado or estado_recibido != estado_esperado:
-        return APIResponse.error("Solicitud de autenticación inválida o expirada", 400)
+        return APIResponse.error("err_oauth_solicitud_invalida", 400)
 
     if not codigo:
-        return APIResponse.error("No se recibió código de autorización", 400)
+        return APIResponse.error("err_oauth_sin_codigo", 400)
 
     # Intercambiar código por token
     datos_token = {
@@ -164,7 +165,7 @@ def oauth_google_callback():
 
     except requests.RequestException:
         logging.getLogger(__name__).exception("Error en autenticación Google")
-        return APIResponse.error("No se pudo completar el inicio de sesión con Google. Inténtalo de nuevo.", 500)
+        return APIResponse.error("err_oauth_google_fallo", 500)
 
 
 @bp.route("/apple", methods=["GET"])
@@ -195,13 +196,13 @@ def oauth_apple_callback():
     estado_esperado = session.pop("oauth_state", None)
 
     if error:
-        return APIResponse.error(f"Error de Apple: {error}", 400)
+        return APIResponse.error(traducir("err_oauth_apple_generico").replace("{error}", error), 400)
 
     if not estado_esperado or estado_recibido != estado_esperado:
-        return APIResponse.error("Solicitud de autenticación inválida o expirada", 400)
+        return APIResponse.error("err_oauth_solicitud_invalida", 400)
 
     if not codigo:
-        return APIResponse.error("No se recibió código de autorización", 400)
+        return APIResponse.error("err_oauth_sin_codigo", 400)
 
     # Intercambiar código por token
     datos_token = {
@@ -223,7 +224,7 @@ def oauth_apple_callback():
             info_usuario = _verificar_id_token_apple(id_token)
         except jwt.PyJWTError:
             logging.getLogger(__name__).exception("id_token de Apple inválido")
-            return APIResponse.error("No se pudo verificar la identidad de Apple.", 400)
+            return APIResponse.error("err_oauth_apple_identidad", 400)
 
         email = info_usuario.get("email")
         email_verificado = str(info_usuario.get("email_verified", "")).lower() == "true"
@@ -287,4 +288,4 @@ def oauth_apple_callback():
 
     except Exception:
         logging.getLogger(__name__).exception("Error en autenticación Apple")
-        return APIResponse.error("No se pudo completar el inicio de sesión con Apple. Inténtalo de nuevo.", 500)
+        return APIResponse.error("err_oauth_apple_fallo", 500)

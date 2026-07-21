@@ -40,12 +40,13 @@
 <div class="pantalla-mantenimiento">
   <div class="tarjeta-mantenimiento">
     <div class="icono">🛠️</div>
-    <h1>Estamos haciendo mantenimiento</h1>
-    <p>Dreame! está temporalmente fuera de servicio mientras se realizan cambios. Vuelve a intentarlo en unos minutos.</p>
+    <h1 data-i18n="mantenimiento_titulo">Estamos haciendo mantenimiento</h1>
+    <p data-i18n="mantenimiento_texto">Dreame! está temporalmente fuera de servicio mientras se realizan cambios. Vuelve a intentarlo en unos minutos.</p>
     {% if mensaje %}
     <div class="mensaje-extra">{{ mensaje }}</div>
     {% endif %}
   </div>
 </div>
+<script src="{{ url_for('static', filename='i18n.js') }}"></script>
 </body>
 </html>

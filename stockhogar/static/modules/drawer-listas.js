@@ -232,7 +232,7 @@ class DrawerListasManager {
       emptyMsg.style.textAlign = 'center';
       emptyMsg.style.padding = '40px 20px';
       emptyMsg.style.color = 'var(--text-soft)';
-      emptyMsg.textContent = 'Sin listas aún. Crea una nueva.';
+      emptyMsg.textContent = (window.i18n && window.i18n.t('sin_listas_crea_una_nueva')) || 'Sin listas aún. Crea una nueva.';
       this.listaListasEl.appendChild(emptyMsg);
       return;
     }
@@ -252,7 +252,7 @@ class DrawerListasManager {
     tarjeta.innerHTML = `
       <div class="tarjeta-header">
         <h3>${this.escaparHTML(lista.nombre)}</h3>
-        <button class="btn-editar-tarjeta" aria-label="Editar lista">⚙️</button>
+        <button class="btn-editar-tarjeta" aria-label="${(window.i18n && window.i18n.t('editar_lista')) || 'Editar lista'}">⚙️</button>
       </div>
       <div class="tarjeta-contenido"></div>
       <div class="tarjeta-avatares" id="avatares-${lista.id}"></div>
@@ -324,7 +324,7 @@ class DrawerListasManager {
     e.preventDefault();
 
     if (!this.listaEditandoId) {
-      Toast.error('Error: No hay lista seleccionada');
+      Toast.error((window.i18n && window.i18n.t('err_no_hay_lista_seleccionada')) || 'Error: No hay lista seleccionada');
       return;
     }
 
@@ -332,7 +332,7 @@ class DrawerListasManager {
     const color = this.inputEditarColor.value;
 
     if (!nombre) {
-      Toast.error('El nombre de la lista es requerido');
+      Toast.error((window.i18n && window.i18n.t('err_nombre_lista_requerido')) || 'El nombre de la lista es requerido');
       return;
     }
 
@@ -345,7 +345,7 @@ class DrawerListasManager {
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        Toast.error(error.error || 'Error al guardar cambios');
+        Toast.error(error.error || (window.i18n && window.i18n.t('err_guardar_cambios')) || 'Error al guardar cambios');
         return;
       }
 
@@ -365,10 +365,10 @@ class DrawerListasManager {
 
       this.cerrarModalEditar();
       this.renderizarListas();
-      Toast.success('Lista actualizada correctamente');
+      Toast.success((window.i18n && window.i18n.t('lista_actualizada_correctamente')) || 'Lista actualizada correctamente');
     } catch (error) {
       console.error('Error guardando cambios:', error);
-      Toast.error('No se pudo guardar los cambios. Comprueba tu conexión.');
+      Toast.error((window.i18n && window.i18n.t('err_no_se_pudo_guardar_cambios')) || 'No se pudo guardar los cambios. Comprueba tu conexión.');
     }
   }
 
@@ -412,7 +412,7 @@ class DrawerListasManager {
     const icono = document.getElementById('inputIconoLista')?.value;
 
     if (!nombre) {
-      Toast.error('El nombre no puede estar vacío');
+      Toast.error((window.i18n && window.i18n.t('err_nombre_vacio')) || 'El nombre no puede estar vacío');
       return;
     }
 
@@ -425,7 +425,7 @@ class DrawerListasManager {
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        Toast.error(error.error || 'Error al guardar');
+        Toast.error(error.error || (window.i18n && window.i18n.t('err_error_al_guardar')) || 'Error al guardar');
         return;
       }
 
@@ -454,11 +454,11 @@ class DrawerListasManager {
 
       // Cerrar modal
       document.getElementById('modalNombreImagen').hidden = true;
-      Toast.success('Cambios guardados correctamente');
+      Toast.success((window.i18n && window.i18n.t('cambios_guardados_correctamente')) || 'Cambios guardados correctamente');
       this.refrescar();
     } catch (error) {
       console.error('Error:', error);
-      Toast.error('No se pudo guardar los cambios. Comprueba tu conexión.');
+      Toast.error((window.i18n && window.i18n.t('err_no_se_pudo_guardar_cambios')) || 'No se pudo guardar los cambios. Comprueba tu conexión.');
     }
   }
 
@@ -535,7 +535,7 @@ class DrawerListasManager {
   async salirDeLista() {
     if (!this.listaEditandoId) return;
 
-    if (!confirm('¿Estás seguro de que deseas salir de esta lista?')) {
+    if (!confirm((window.i18n && window.i18n.t('confirmar_salir_lista')) || '¿Estás seguro de que deseas salir de esta lista?')) {
       return;
     }
 
@@ -546,7 +546,7 @@ class DrawerListasManager {
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        Toast.error(error.error || 'Error al salir de la lista');
+        Toast.error(error.error || (window.i18n && window.i18n.t('err_error_al_salir_lista')) || 'Error al salir de la lista');
         return;
       }
 
@@ -556,7 +556,7 @@ class DrawerListasManager {
 
       this.cerrarModalEditar();
       this.renderizarListas();
-      Toast.success('Has salido de la lista');
+      Toast.success((window.i18n && window.i18n.t('has_salido_de_la_lista')) || 'Has salido de la lista');
 
       // Si la lista era la actual, recargar
       if (eraLaActual) {
@@ -564,7 +564,7 @@ class DrawerListasManager {
       }
     } catch (error) {
       console.error('Error al salir:', error);
-      Toast.error('No se pudo salir de la lista. Comprueba tu conexión.');
+      Toast.error((window.i18n && window.i18n.t('err_no_se_pudo_salir_lista')) || 'No se pudo salir de la lista. Comprueba tu conexión.');
     }
   }
 
@@ -583,7 +583,7 @@ class DrawerListasManager {
       console.error('Error cargando miembros:', error);
       const listaMiembros = document.getElementById('listaMiembros');
       if (listaMiembros) {
-        listaMiembros.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-soft);">Error al cargar miembros</div>';
+        listaMiembros.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-soft);">${(window.i18n && window.i18n.t('err_error_al_cargar_miembros')) || 'Error al cargar miembros'}</div>`;
       }
     }
   }
@@ -596,21 +596,24 @@ class DrawerListasManager {
     const miembros = data.miembros || [];
 
     let html = '';
+    const textoPropietario = (window.i18n && window.i18n.t('propietario_rol')) || 'Propietario';
+    const textoVer = (window.i18n && window.i18n.t('ver')) || 'Ver';
+    const textoEditar = (window.i18n && window.i18n.t('editar')) || 'Editar';
 
     // Propietario
     html += `
       <div style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <div>
           <strong>${this.escaparHTML(propietario.nombre_usuario)}</strong>
-          <div style="font-size: 0.85rem; color: var(--text-soft);">Propietario</div>
+          <div style="font-size: 0.85rem; color: var(--text-soft);">${textoPropietario}</div>
         </div>
-        <span style="font-size: 0.85rem; color: var(--text-soft);">Propietario</span>
+        <span style="font-size: 0.85rem; color: var(--text-soft);">${textoPropietario}</span>
       </div>
     `;
 
     // Miembros compartidos
     if (miembros.length === 0) {
-      html += '<div style="padding: 12px; text-align: center; color: var(--text-soft);">No hay miembros compartidos</div>';
+      html += `<div style="padding: 12px; text-align: center; color: var(--text-soft);">${(window.i18n && window.i18n.t('no_hay_miembros_compartidos')) || 'No hay miembros compartidos'}</div>`;
     } else {
       miembros.forEach(m => {
         html += `
@@ -625,8 +628,8 @@ class DrawerListasManager {
                 class="selectNivelPermiso"
                 style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface-2); color: var(--text);"
               >
-                <option value="ver" ${m.nivel === 'ver' ? 'selected' : ''}>Ver</option>
-                <option value="editar" ${m.nivel === 'editar' ? 'selected' : ''}>Editar</option>
+                <option value="ver" ${m.nivel === 'ver' ? 'selected' : ''}>${textoVer}</option>
+                <option value="editar" ${m.nivel === 'editar' ? 'selected' : ''}>${textoEditar}</option>
               </select>
               <button
                 class="btnEliminarMiembro"
@@ -672,10 +675,10 @@ class DrawerListasManager {
         throw new Error('No se pudo actualizar el permiso');
       }
 
-      this.mostrarMensaje('Permiso actualizado', 'exito');
+      this.mostrarMensaje((window.i18n && window.i18n.t('permiso_actualizado')) || 'Permiso actualizado', 'exito');
     } catch (error) {
       console.error('Error actualizando permiso:', error);
-      this.mostrarMensaje('Error al actualizar el permiso', 'error');
+      this.mostrarMensaje((window.i18n && window.i18n.t('err_error_al_actualizar_permiso')) || 'Error al actualizar el permiso', 'error');
       this.cargarMiembros();
     }
   }
@@ -685,7 +688,7 @@ class DrawerListasManager {
 
     if (!this.listaEditandoId) return;
 
-    if (!confirm('¿Estás seguro de que deseas revocar el acceso?')) {
+    if (!confirm((window.i18n && window.i18n.t('confirmar_revocar_acceso')) || '¿Estás seguro de que deseas revocar el acceso?')) {
       return;
     }
 
@@ -698,11 +701,11 @@ class DrawerListasManager {
         throw new Error('No se pudo revocar el acceso');
       }
 
-      this.mostrarMensaje('Acceso revocado', 'exito');
+      this.mostrarMensaje((window.i18n && window.i18n.t('acceso_revocado')) || 'Acceso revocado', 'exito');
       this.cargarMiembros();
     } catch (error) {
       console.error('Error revocando acceso:', error);
-      this.mostrarMensaje('Error al revocar el acceso', 'error');
+      this.mostrarMensaje((window.i18n && window.i18n.t('err_error_al_revocar_acceso')) || 'Error al revocar el acceso', 'error');
     }
   }
 
@@ -742,7 +745,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/buscar-usuarios?q=${encodeURIComponent(query)}`);
       if (!res.ok) {
-        document.getElementById('resultadosBusqueda').innerHTML = '<p style="color: var(--text-soft); font-size: 0.9rem;">No se encontraron usuarios</p>';
+        document.getElementById('resultadosBusqueda').innerHTML = `<p style="color: var(--text-soft); font-size: 0.9rem;">${(window.i18n && window.i18n.t('no_se_encontraron_usuarios')) || 'No se encontraron usuarios'}</p>`;
         return;
       }
 
@@ -750,22 +753,29 @@ class DrawerListasManager {
       const usuarios = data.usuarios || [];
 
       if (usuarios.length === 0) {
-        document.getElementById('resultadosBusqueda').innerHTML = '<p style="color: var(--text-soft); font-size: 0.9rem;">No se encontraron usuarios</p>';
+        document.getElementById('resultadosBusqueda').innerHTML = `<p style="color: var(--text-soft); font-size: 0.9rem;">${(window.i18n && window.i18n.t('no_se_encontraron_usuarios')) || 'No se encontraron usuarios'}</p>`;
         return;
       }
 
-      let html = '<div style="display: flex; flex-direction: column; gap: 6px;">';
+      const contenedor = document.createElement('div');
+      contenedor.style.cssText = 'display: flex; flex-direction: column; gap: 6px;';
+
       usuarios.forEach(u => {
-        html += `
-          <button type="button" class="usuario-resultado" data-usuario="${u.nombre_usuario}" style="padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); text-align: left; cursor: pointer; transition: all 0.2s;">
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'usuario-resultado';
+        btn.dataset.usuario = u.nombre_usuario;
+        btn.style.cssText = 'padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); text-align: left; cursor: pointer; transition: all 0.2s;';
+        btn.innerHTML = `
             <div style="font-weight: 600; color: var(--text);">${this.escaparHTML(u.nombre_usuario)}</div>
             <div style="font-size: 0.8rem; color: var(--text-soft);">${this.escaparHTML(u.email || '-')}</div>
-          </button>
         `;
+        contenedor.appendChild(btn);
       });
-      html += '</div>';
 
-      document.getElementById('resultadosBusqueda').innerHTML = html;
+      const resultadosEl = document.getElementById('resultadosBusqueda');
+      resultadosEl.innerHTML = '';
+      resultadosEl.appendChild(contenedor);
 
       // Event listeners para seleccionar usuario
       document.querySelectorAll('.usuario-resultado').forEach(btn => {
@@ -777,7 +787,7 @@ class DrawerListasManager {
       });
     } catch (error) {
       console.error('Error buscando usuarios:', error);
-      document.getElementById('resultadosBusqueda').innerHTML = '<p style="color: var(--text-soft); font-size: 0.9rem;">Error al buscar</p>';
+      document.getElementById('resultadosBusqueda').innerHTML = `<p style="color: var(--text-soft); font-size: 0.9rem;">${(window.i18n && window.i18n.t('err_error_al_buscar')) || 'Error al buscar'}</p>`;
     }
   }
 
@@ -790,7 +800,7 @@ class DrawerListasManager {
     const nivel = document.getElementById('nivelPermisoUsuario')?.value || 'editar';
 
     if (!nombreUsuario) {
-      this.mostrarMensaje('Selecciona un usuario', 'error');
+      this.mostrarMensaje((window.i18n && window.i18n.t('selecciona_un_usuario')) || 'Selecciona un usuario', 'error');
       return;
     }
 
@@ -807,7 +817,7 @@ class DrawerListasManager {
         return;
       }
 
-      this.mostrarMensaje('Lista compartida correctamente!', 'exito');
+      this.mostrarMensaje((window.i18n && window.i18n.t('lista_compartida_correctamente')) || '¡Lista compartida correctamente!', 'exito');
       document.getElementById('buscarUsuario').value = '';
       document.getElementById('resultadosBusqueda').innerHTML = '';
       this.cargarMiembros();
@@ -826,7 +836,7 @@ class DrawerListasManager {
     const nivel = document.getElementById('nivelPermisoEmail')?.value || 'editar';
 
     if (!email) {
-      this.mostrarMensaje('Ingresa un email válido', 'error');
+      this.mostrarMensaje((window.i18n && window.i18n.t('ingresa_email_valido')) || 'Ingresa un email válido', 'error');
       return;
     }
 
@@ -846,7 +856,7 @@ class DrawerListasManager {
       const resultado = await res.json();
       if (resultado.codigo) {
         this.mostrarEnlaceInvitacion(resultado.codigo);
-        this.mostrarMensaje('Enlace de invitación generado!', 'exito');
+        this.mostrarMensaje((window.i18n && window.i18n.t('enlace_invitacion_generado')) || '¡Enlace de invitación generado!', 'exito');
       }
 
       document.getElementById('emailDestino').value = '';
@@ -881,7 +891,7 @@ class DrawerListasManager {
       const resultado = await res.json();
       if (resultado.codigo) {
         this.mostrarEnlaceInvitacion(resultado.codigo);
-        this.mostrarMensaje('Enlace generado - cópialo y comparte!', 'exito');
+        this.mostrarMensaje((window.i18n && window.i18n.t('enlace_generado_copia_comparte')) || 'Enlace generado - cópialo y comparte!', 'exito');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -912,7 +922,7 @@ class DrawerListasManager {
     input.select();
     document.execCommand('copy');
 
-    this.mostrarMensaje('Enlace copiado al portapapeles!', 'exito');
+    this.mostrarMensaje((window.i18n && window.i18n.t('enlace_copiado_portapapeles')) || '¡Enlace copiado al portapapeles!', 'exito');
   }
 
   mostrarMensaje(mensaje, tipo) {
@@ -975,12 +985,13 @@ class DrawerListasManager {
 
     // Obtener nombre de la lista
     const lista = this.listas.find(l => l.id === this.listaEditandoId);
-    const nombreLista = lista?.nombre || 'Mi lista';
+    const nombreLista = lista?.nombre || (window.i18n && window.i18n.t('mi_lista')) || 'Mi lista';
 
     // Mensaje para WhatsApp con el enlace de invitación real
+    const plantillaMensaje = (window.i18n && window.i18n.t('whatsapp_mensaje_compartir')) ||
+      'Hola! Te quiero compartir mi lista de compra "{nombre}" en Dreame! (aplicacion de listas compartidas).\n\nPuedes verla y actualizarla en tiempo real. Únete aquí:\n{enlace}';
     const mensaje = encodeURIComponent(
-      `Hola! Te quiero compartir mi lista de compra "${nombreLista}" en Dreame! (aplicacion de listas compartidas).\n\n` +
-      `Puedes verla y actualizarla en tiempo real. Únete aquí:\n${enlace}`
+      plantillaMensaje.replace('{nombre}', nombreLista).replace('{enlace}', enlace)
     );
 
     // URL de WhatsApp
@@ -997,7 +1008,9 @@ class DrawerListasManager {
     window.open(urlWhatsApp, '_blank');
 
     this.mostrarMensaje(
-      telefono ? 'Abriendo WhatsApp con el número...' : 'Abriendo WhatsApp...',
+      telefono
+        ? ((window.i18n && window.i18n.t('abriendo_whatsapp_numero')) || 'Abriendo WhatsApp con el número...')
+        : ((window.i18n && window.i18n.t('abriendo_whatsapp')) || 'Abriendo WhatsApp...'),
       'exito'
     );
   }
@@ -1021,7 +1034,7 @@ class DrawerListasManager {
       }
 
       // Cambiar botón de vuelta a "Editar"
-      this.btnEditarModal.textContent = 'Editar';
+      this.btnEditarModal.textContent = (window.i18n && window.i18n.t('editar')) || 'Editar';
       this.btnEditarModal.classList.remove('btn-editar-modo-check');
     }
   }
@@ -1147,7 +1160,7 @@ class CrearListaModal extends FormModal {
         required: true,
         minLength: 2,
         maxLength: 50,
-        errorMessage: 'Entre 2 y 50 caracteres'
+        errorMessage: (window.i18n && window.i18n.t('entre_2_y_50_caracteres')) || 'Entre 2 y 50 caracteres'
       });
     }
   }
@@ -1200,7 +1213,7 @@ class CrearListaModal extends FormModal {
     console.log('Form inputs:', this.form.querySelectorAll('input').length);
 
     if (!nombre) {
-      Toast.error('El nombre es requerido');
+      Toast.error((window.i18n && window.i18n.t('err_nombre_lista_requerido')) || 'El nombre es requerido');
       return;
     }
 
@@ -1210,7 +1223,7 @@ class CrearListaModal extends FormModal {
     console.log('Datos:', { nombre, icono, color });
 
     if (!nombre) {
-      Toast.error('El nombre es requerido');
+      Toast.error((window.i18n && window.i18n.t('err_nombre_lista_requerido')) || 'El nombre es requerido');
       return;
     }
 
@@ -1224,7 +1237,7 @@ class CrearListaModal extends FormModal {
       const datos = await res.json();
 
       if (!res.ok) {
-        Toast.error(datos.error || 'Error al crear lista');
+        Toast.error(datos.error || (window.i18n && window.i18n.t('err_error_al_crear_lista')) || 'Error al crear lista');
         return;
       }
 
@@ -1248,7 +1261,7 @@ class CrearListaModal extends FormModal {
       console.log('Lista creada:', datos.nombre);
     } catch (error) {
       console.error('Error creando lista:', error);
-      Toast.error('No se pudo crear la lista. Comprueba tu conexión.');
+      Toast.error((window.i18n && window.i18n.t('err_no_se_pudo_crear_lista')) || 'No se pudo crear la lista. Comprueba tu conexión.');
     }
   }
 }

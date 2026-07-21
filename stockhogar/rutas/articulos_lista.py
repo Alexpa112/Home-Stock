@@ -39,7 +39,7 @@ def listar_articulos():
     lista_id = _resolver_lista_id(db, session)
 
     if not lista_id:
-        return APIResponse.error("No hay una lista activa", 400)
+        return APIResponse.error("err_no_hay_lista_activa", 400)
 
     permiso = _usuario_tiene_permiso(db, lista_id, usuario_id)
     if not permiso:
@@ -72,7 +72,7 @@ def anadir_articulo():
     nombre = (datos.get("nombre") or "").strip()
 
     if not nombre:
-        return APIResponse.error("El nombre es obligatorio", 400)
+        return APIResponse.error("err_nombre_obligatorio", 400)
 
     db = get_db()
     # Igual que en listar_articulos: si el lista_id que manda el cliente
@@ -82,7 +82,7 @@ def anadir_articulo():
     lista_id = _resolver_lista_id(db, session)
 
     if not lista_id:
-        return APIResponse.error("No hay una lista activa", 400)
+        return APIResponse.error("err_no_hay_lista_activa", 400)
 
     # Validar permisos
     permiso = _usuario_tiene_permiso(db, lista_id, usuario_id, nivel_requerido="editar")
@@ -208,16 +208,16 @@ def actualizar_articulo(item_id):
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
 
     if fila is None:
-        return APIResponse.no_encontrado("Artículo")
+        return APIResponse.no_encontrado("recurso_articulo")
 
     # Validar permisos sobre la lista
     permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
     if not permiso or (permiso != "propietario" and permiso != "editar"):
-        return APIResponse.no_permitido("No tienes permisos para editar esta lista")
+        return APIResponse.no_permitido("err_sin_permiso_editar_lista")
 
     datos = request.get_json(force=True) or {}
     if not datos:
-        return APIResponse.validacion("No hay nada que actualizar")
+        return APIResponse.validacion("err_nada_que_actualizar")
 
     if "activo" in datos:
         if datos["activo"]:
@@ -264,7 +264,7 @@ def borrar_articulo(item_id):
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
 
     if fila is None:
-        return APIResponse.error("Artículo no encontrado", 404)
+        return APIResponse.no_encontrado("recurso_articulo")
 
     # Validar permisos sobre la lista
     permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
@@ -277,6 +277,21 @@ def borrar_articulo(item_id):
 
 
 # ===== ENDPOINTS PARA ARTÍCULOS PERSONALIZADOS =====
+
+def _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, nivel_requerido=None):
+    """Un artículo personalizado es un catálogo compartido (deduplicado por nombre),
+    sin propietario propio: su límite de acceso real son las listas que lo usan.
+    Solo se permite operar sobre él si el usuario tiene el nivel de permiso
+    requerido en al menos una de esas listas."""
+    listas_ids = db.execute(
+        "SELECT DISTINCT lista_id FROM articulos_lista WHERE articulo_personalizado_id = ?",
+        (articulo_id,)
+    ).fetchall()
+    return any(
+        _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido=nivel_requerido)
+        for fila in listas_ids
+    )
+
 
 @bp.route("/personalizados/<int:articulo_id>/traducciones/<idioma>", methods=["GET"])
 @requerir_sesion
@@ -292,7 +307,10 @@ def obtener_traducciones_articulo_personalizado(articulo_id, idioma):
     ).fetchone()
 
     if not articulo:
-        return APIResponse.no_encontrado("Artículo personalizado")
+        return APIResponse.no_encontrado("recurso_articulo_personalizado")
+
+    if not _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id):
+        return APIResponse.no_permitido()
 
     # Obtener traducciones
     traducciones = db.execute(
@@ -322,11 +340,14 @@ def actualizar_articulo_personalizado(articulo_id):
     ).fetchone()
 
     if not articulo:
-        return APIResponse.no_encontrado("Artículo personalizado")
+        return APIResponse.no_encontrado("recurso_articulo_personalizado")
+
+    if not _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, nivel_requerido="editar"):
+        return APIResponse.no_permitido()
 
     datos = request.get_json(force=True) or {}
     if not datos:
-        return APIResponse.error("No hay nada que actualizar", 400)
+        return APIResponse.error("err_nada_que_actualizar", 400)
 
     # Actualizar campos permitidos
     nombre = (datos.get("nombre") or articulo["nombre"]).strip()
@@ -414,7 +435,10 @@ def eliminar_articulo_personalizado(articulo_id):
     ).fetchone()
 
     if not articulo:
-        return APIResponse.no_encontrado("Artículo personalizado")
+        return APIResponse.no_encontrado("recurso_articulo_personalizado")
+
+    if not _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, nivel_requerido="editar"):
+        return APIResponse.no_permitido()
 
     # Verificar que no está en uso en artículos activos
     en_uso = db.execute(

@@ -103,7 +103,7 @@ def obtener_lista(lista_id):
     lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
 
     if not lista:
-        return APIResponse.no_encontrado("Lista")
+        return APIResponse.no_encontrado("recurso_lista")
 
     permiso = _usuario_tiene_permiso(db, lista_id, usuario_id)
     if not permiso:
@@ -125,7 +125,7 @@ def actualizar_lista(lista_id):
     lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
 
     if not lista:
-        return APIResponse.no_encontrado("Lista")
+        return APIResponse.no_encontrado("recurso_lista")
 
     if lista["usuario_propietario_id"] != usuario_id:
         return APIResponse.no_permitido()
@@ -159,7 +159,7 @@ def actualizar_lista(lista_id):
         parametros.append(int(datos.get("privada", True)))
 
     if not actualizaciones:
-        return APIResponse.error("No hay nada que actualizar", 400)
+        return APIResponse.error("err_nada_que_actualizar", 400)
 
     actualizaciones["fecha_actualizacion"] = "?"
     parametros.append(ahora())
@@ -183,7 +183,7 @@ def eliminar_lista(lista_id):
     lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
 
     if not lista:
-        return APIResponse.no_encontrado("Lista")
+        return APIResponse.no_encontrado("recurso_lista")
 
     if lista["usuario_propietario_id"] != usuario_id:
         return APIResponse.no_permitido()
@@ -203,7 +203,7 @@ def seleccionar_lista(lista_id):
     lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
 
     if not lista:
-        return APIResponse.no_encontrado("Lista")
+        return APIResponse.no_encontrado("recurso_lista")
 
     permiso = _usuario_tiene_permiso(db, lista_id, usuario_id)
     if not permiso:
@@ -224,10 +224,10 @@ def salir_lista(lista_id):
     lista = db.execute("SELECT * FROM listas WHERE id = ?", (lista_id,)).fetchone()
 
     if not lista:
-        return APIResponse.no_encontrado("Lista")
+        return APIResponse.no_encontrado("recurso_lista")
 
     if lista["usuario_propietario_id"] == usuario_id:
-        return APIResponse.error("No puedes salir de tu propia lista", 403)
+        return APIResponse.error("err_no_salir_propia_lista", 403)
 
     db.execute(
         "DELETE FROM permisos_lista WHERE lista_id = ? AND usuario_id = ?",

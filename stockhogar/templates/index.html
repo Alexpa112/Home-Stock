@@ -29,10 +29,10 @@
     <h1><svg class="logo-app" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13 12 3.5 22 13Z" fill="currentColor"/><rect x="4" y="10.5" width="16" height="10" rx="3" fill="currentColor"/><path d="M16.3 7.6a2.3 2.3 0 1 0 0 4.6 2.9 2.9 0 0 1 0-4.6Z" fill="var(--surface)"/><rect x="10.2" y="15" width="3.6" height="5.5" rx="1.2" fill="var(--surface)"/><path d="M19.2 2.2 19.8 3.7 21.3 4.3 19.8 4.9 19.2 6.4 18.6 4.9 17.1 4.3 18.6 3.7Z" fill="currentColor"/></svg> Dreame!</h1>
     <div class="acciones-cabecera">
       <button id="btnTema" class="icono-cabecera" title="Cambiar tema" style="display: none;">🌙</button>
-      <button id="btnCategorias" class="icono-cabecera" title="Categorías">🏷️</button>
-      <button id="btnEscanearTicket" class="icono-cabecera" title="Escanear ticket">📷</button>
-      <button id="btnConsumo" class="icono-cabecera" title="Consumo">📊</button>
-      <button id="btnAjustes" class="icono-cabecera" title="Ajustes">⚙️</button>
+      <button id="btnCategorias" class="icono-cabecera" data-i18n-title="categorias" title="Categorías">🏷️</button>
+      <button id="btnEscanearTicket" class="icono-cabecera" data-i18n-title="escanear_ticket_simple" title="Escanear ticket">📷</button>
+      <button id="btnConsumo" class="icono-cabecera" data-i18n-title="consumo" title="Consumo">📊</button>
+      <button id="btnAjustes" class="icono-cabecera" data-i18n-title="ajustes" title="Ajustes">⚙️</button>
     </div>
   </header>
 
@@ -44,7 +44,7 @@
         <span class="lista-actual-rol" id="listaActualRol">PROPIETARIO</span>
       </div>
     </div>
-    <button class="btn-cambiar-lista" id="btnCambiarLista" title="Cambiar lista" aria-label="Abrir selector de listas">▾</button>
+    <button class="btn-cambiar-lista" id="btnCambiarLista" data-i18n-title="cambiar_lista" title="Cambiar lista" aria-label="Abrir selector de listas">▾</button>
   </div>
 
   <nav class="tabs" id="tabs">
@@ -57,7 +57,7 @@
 
     <nav class="filtros" id="filtros"></nav>
 
-    <div id="bannerSinListas" class="banner-alerta" hidden>⚠️ Debes crear una lista para comenzar. <button id="btnBannerCrearLista" class="btn-banner" type="button">Crear lista ahora</button></div>
+    <div id="bannerSinListas" class="banner-alerta" hidden><span data-i18n="banner_crear_lista_texto">⚠️ Debes crear una lista para comenzar.</span> <button id="btnBannerCrearLista" class="btn-banner" type="button" data-i18n="crear_lista_ahora">Crear lista ahora</button></div>
 
     <main id="lista" class="lista"></main>
     <p id="vacio" class="vacio" hidden>No hay productos. Pulsa "+" para añadir el primero.</p>
@@ -196,13 +196,13 @@
   <div class="modal" style="max-width: 500px;">
     <div class="modal-header">
       <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalAjustes').hidden=true">✕</button>
-      <h2>⚙️ Ajustes</h2>
+      <h2>⚙️ <span data-i18n="ajustes">Ajustes</span></h2>
     </div>
 
     <div class="modal-content">
       <!-- Sección Perfil del Usuario -->
       <div style="margin-bottom: 24px; padding: 16px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
-        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 16px; color: var(--text);">👤 Mi Perfil</h3>
+        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 16px; color: var(--text);">👤 <span data-i18n="mi_perfil">Mi Perfil</span></h3>
 
         <!-- Nombre -->
         <div style="margin-bottom: 12px;">
@@ -218,33 +218,33 @@
 
         <!-- Contraseña -->
         <div style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">Contraseña</label>
-          <input type="password" id="ajustesPasswordUsuario" placeholder="Nueva contraseña (dejar en blanco para no cambiar)" minlength="4" maxlength="100" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface); color: var(--text); box-sizing: border-box;">
-          <p style="font-size: 0.8rem; color: var(--text-soft); margin-top: 4px; margin-bottom: 0;">Mínimo 4 caracteres</p>
+          <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;" data-i18n="contraseña">Contraseña</label>
+          <input type="password" id="ajustesPasswordUsuario" data-i18n-placeholder="nueva_contrasena_opcional" placeholder="Nueva contraseña (dejar en blanco para no cambiar)" minlength="4" maxlength="100" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface); color: var(--text); box-sizing: border-box;">
+          <p style="font-size: 0.8rem; color: var(--text-soft); margin-top: 4px; margin-bottom: 0;" data-i18n="minimo_4_caracteres">Mínimo 4 caracteres</p>
         </div>
 
         <!-- Botones -->
-        <button type="button" id="btnGuardarPerfil" class="primario" style="width: 100%; padding: 10px 16px; margin-bottom: 12px;">Guardar cambios</button>
-        <button type="button" id="btnCerrarSesion" class="secundario" style="width: 100%;">Cerrar sesión</button>
+        <button type="button" id="btnGuardarPerfil" class="primario" style="width: 100%; padding: 10px 16px; margin-bottom: 12px;" data-i18n="guardar_cambios">Guardar cambios</button>
+        <button type="button" id="btnCerrarSesion" class="secundario" style="width: 100%;" data-i18n="cerrar_sesion">Cerrar sesión</button>
       </div>
 
       <!-- Sección Ajustes -->
       <div style="margin-bottom: 0;">
-        <h3 style="font-size: 0.95rem; color: var(--text-soft); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">⚙️ Ajustes</h3>
+        <h3 style="font-size: 0.95rem; color: var(--text-soft); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">⚙️ <span data-i18n="ajustes">Ajustes</span></h3>
 
         <!-- Selector de Tema -->
         <div style="margin-bottom: 12px;">
-          <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">🌙 Tema</label>
+          <label style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">🌙 <span data-i18n="tema">Tema</span></label>
           <select id="selectTema" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text); box-sizing: border-box;">
-            <option value="auto">📱 Como el dispositivo</option>
-            <option value="light">☀️ Claro</option>
-            <option value="dark">🌑 Oscuro</option>
+            <option value="auto" data-i18n="tema_sistema">📱 Como el dispositivo</option>
+            <option value="light" data-i18n="tema_claro">☀️ Claro</option>
+            <option value="dark" data-i18n="tema_oscuro">🌑 Oscuro</option>
           </select>
         </div>
 
         <!-- Selector de Idioma -->
         <div>
-          <label for="selector-idioma" style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">🌐 Idioma</label>
+          <label for="selector-idioma" style="display: block; font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-bottom: 6px;">🌐 <span data-i18n="idioma">Idioma</span></label>
           <select id="selector-idioma" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text); box-sizing: border-box;">
             <option value="es">Español</option>
             <option value="gl">Galego</option>
@@ -259,9 +259,9 @@
 
       <!-- Instalar app -->
       <div id="bloqueInstalarApp" hidden style="margin-top: 20px; padding: 16px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
-        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--text);">📲 Instalar app</h3>
-        <p id="textoInstalarApp" style="font-size: 0.85rem; color: var(--text-soft); margin: 0 0 12px;">Instala Dreame! en tu dispositivo para acceder más rápido, incluso sin conexión.</p>
-        <button type="button" id="btnInstalarApp" class="secundario" style="width: 100%;">Instalar app</button>
+        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--text);">📲 <span data-i18n="instalar_app">Instalar app</span></h3>
+        <p id="textoInstalarApp" style="font-size: 0.85rem; color: var(--text-soft); margin: 0 0 12px;" data-i18n="instalar_app_texto">Instala Dreame! en tu dispositivo para acceder más rápido, incluso sin conexión.</p>
+        <button type="button" id="btnInstalarApp" class="secundario" style="width: 100%;" data-i18n="instalar_app">Instalar app</button>
       </div>
 
       <!-- Mensajes de estado -->
@@ -288,51 +288,64 @@
   <div class="modal modal-ticket">
     <div class="modal-header">
       <button id="btnCancelarTicket" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
-      <h2>Escanear ticket</h2>
+      <h2 data-i18n="escanear_ticket_simple">Escanear ticket</h2>
     </div>
 
     <div class="ticket-pasos" aria-hidden="true">
-      <span class="ticket-paso-dot" id="ticketDot1"></span>
-      <span class="ticket-paso-linea"></span>
-      <span class="ticket-paso-dot" id="ticketDot2"></span>
+      <span class="ticket-paso" id="ticketPaso1">
+        <span class="ticket-paso-dot activo" id="ticketDot1"></span>
+        <span class="ticket-paso-texto" data-i18n="ticket_paso_foto">Foto</span>
+      </span>
+      <span class="ticket-paso-linea" id="ticketLinea1"></span>
+      <span class="ticket-paso" id="ticketPaso2">
+        <span class="ticket-paso-dot" id="ticketDot2"></span>
+        <span class="ticket-paso-texto" data-i18n="ticket_paso_revision">Revisión</span>
+      </span>
     </div>
 
     <div class="modal-content">
       <div id="ticketPasoFoto">
         <p class="aviso">
-          Lectura local con OCR (sin conexión a internet). Es orientativa: revisa
-          y corrige los artículos detectados antes de añadirlos al stock.
+          <span class="aviso-icono" aria-hidden="true">🔒</span>
+          <span data-i18n="ocr_instrucciones">Lectura local con OCR (sin conexión a internet). Es orientativa: revisa
+          y corrige los artículos detectados antes de añadirlos al stock.</span>
         </p>
 
         <label id="ticketDropzone" for="ticketArchivo" class="ticket-dropzone">
           <span class="ticket-dropzone-icono">📷</span>
-          <span class="ticket-dropzone-texto">Toca para hacer una foto o elegir una imagen</span>
+          <span class="ticket-dropzone-texto" data-i18n="toca_para_foto">Toca para hacer una foto o elegir una imagen</span>
+          <span class="ticket-dropzone-sub" data-i18n="ticket_procesado_local">JPG, PNG · se procesa en tu dispositivo</span>
           <input id="ticketArchivo" type="file" accept="image/*" capture="environment">
         </label>
 
         <div id="ticketPreviewWrap" class="ticket-preview-wrap" hidden>
-          <img id="ticketPreview" class="ticket-preview" alt="Vista previa del ticket">
-          <button type="button" id="btnCambiarFotoTicket" class="secundario">Cambiar foto</button>
+          <div class="ticket-preview-marco">
+            <img id="ticketPreview" class="ticket-preview" alt="Vista previa del ticket">
+          </div>
+          <button type="button" id="btnCambiarFotoTicket" class="secundario">↺ <span data-i18n="cambiar_foto">Cambiar foto</span></button>
         </div>
       </div>
 
       <div id="ticketCargando" class="ticket-cargando" hidden>
         <span class="ticket-spinner" aria-hidden="true"></span>
-        <p>Leyendo el ticket, un momento...</p>
+        <p data-i18n="leyendo_ticket">Leyendo el ticket, un momento…</p>
+        <p class="ticket-cargando-sub" data-i18n="ticket_detectando">Detectando artículos y cantidades</p>
       </div>
 
       <div id="ticketPasoRevision" hidden>
-        <p id="ticketResumen" class="ticket-resumen"></p>
+        <div class="ticket-resumen-card">
+          <p id="ticketResumen" class="ticket-resumen"></p>
+        </div>
         <div id="ticketAdvertencias" class="ticket-advertencias"></div>
         <ul id="ticketItems" class="ticket-items"></ul>
-        <button type="button" id="btnAnadirLineaTicket" class="secundario">+ Añadir línea</button>
+        <button type="button" id="btnAnadirLineaTicket" class="ticket-anadir-linea" data-i18n="añadir_linea">+ Añadir línea</button>
       </div>
     </div>
 
     <div class="modal-footer">
-      <button type="button" id="btnVolverFotoTicket" class="secundario" hidden>← Volver</button>
-      <button type="button" id="btnAnalizarTicket" class="primario" disabled>Analizar</button>
-      <button type="button" id="btnConfirmarTicket" class="primario" hidden>Añadir al stock</button>
+      <button type="button" id="btnVolverFotoTicket" class="secundario" hidden data-i18n="volver">← Volver</button>
+      <button type="button" id="btnAnalizarTicket" class="primario" disabled data-i18n="analizar">Analizar</button>
+      <button type="button" id="btnConfirmarTicket" class="primario" hidden data-i18n="añadir_al_stock">Añadir al stock</button>
     </div>
   </div>
 </div>
@@ -341,28 +354,28 @@
   <div class="modal">
     <div class="modal-header">
       <button id="btnCerrarCategorias" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
-      <h2>Categorías</h2>
+      <h2 data-i18n="categorias">Categorías</h2>
     </div>
     <div class="modal-content">
     <form id="formCategoria">
       <div class="nueva-categoria-fila">
-        <label class="crece">Nueva categoría
+        <label class="crece"><span data-i18n="nueva_categoria">Nueva categoría</span>
           <input id="categoriaCampoNombre" type="text" maxlength="30" placeholder="Ej. Mascotas" required>
         </label>
-        <button type="submit" class="primario">Añadir</button>
+        <button type="submit" class="primario" data-i18n="añadir">Añadir</button>
       </div>
       <button type="button" id="btnSeleccionarIconoCategoria" class="secundario" style="width: 100%;">
-        Icono: <span id="categoriaIconoElegido">🗂️</span>
+        <span data-i18n="icono_dospuntos">Icono:</span> <span id="categoriaIconoElegido">🗂️</span>
       </button>
       <input type="hidden" id="categoriaCampoIcono" value="🗂️">
     </form>
 
-      <p class="aviso">Toca la ✕ de una categoría para borrarla (solo si no la usa ningún producto).</p>
+      <p class="aviso" data-i18n="ayuda_borrar_categoria">Toca la ✕ de una categoría para borrarla (solo si no la usa ningún producto).</p>
 
     <div id="categoriasLista" class="categorias-lista"></div>
     </div>
     <div class="modal-footer">
-      <button type="submit" form="formCategoria" class="primario">Listo</button>
+      <button type="submit" form="formCategoria" class="primario" data-i18n="listo">Listo</button>
     </div>
   </div>
 </div>
@@ -374,10 +387,10 @@
   <div class="modal modal-pequeño">
     <div class="modal-header">
       <button id="btnCerrarSelectorIconos" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
-      <h3>Seleccionar icono</h3>
+      <h3 data-i18n="seleccionar_icono">Seleccionar icono</h3>
     </div>
     <div class="modal-content">
-      <input type="text" id="buscadorIconos" class="buscador-iconos" placeholder="Buscar icono...">
+      <input type="text" id="buscadorIconos" class="buscador-iconos" data-i18n-placeholder="buscar_icono_simple" placeholder="Buscar icono...">
       <div id="contenedorIconos" class="selector-iconos"></div>
     </div>
   </div>
@@ -388,14 +401,14 @@
   <div class="modal">
     <div class="modal-header">
       <button id="btnCerrarMisListas" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
-      <h2>Mis Listas</h2>
-      <button id="btnEditarMisListas" class="btn-header-editar" type="button" aria-label="Editar listas">Editar</button>
+      <h2 data-i18n="mis_listas">Mis Listas</h2>
+      <button id="btnEditarMisListas" class="btn-header-editar" type="button" aria-label="Editar listas" data-i18n="editar">Editar</button>
     </div>
 
     <div class="modal-content">
       <div id="listaListas" class="lista-listas-container"></div>
       <button id="btnCrearNuevaLista" class="btn-crear-lista" type="button">
-        + Nueva lista
+        + <span data-i18n="nueva_lista">Nueva lista</span>
       </button>
     </div>
   </div>
@@ -406,13 +419,13 @@
   <div class="modal">
     <div class="modal-header">
       <button id="btnCerrarCrearLista" class="btn-cerrar-modal" type="button" aria-label="Cerrar">✕</button>
-      <h2>📋 Crear nueva lista</h2>
+      <h2>📋 <span data-i18n="crear_nueva_lista_titulo">Crear nueva lista</span></h2>
     </div>
     <div class="modal-content">
-      <form id="formCrearLista"><label>Nombre<input type="text" name="nombre" maxlength="50" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label>Icono<div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display"><svg class="icono-svg" width="20" height="20" aria-hidden="true"><use href="#icon-h-clipboard-document-list"></use></svg></span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono">Cambiar icono</button></div><input type="hidden" name="icono" value="h-clipboard-document-list"></label><label>Color de la lista<div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label></form>
+      <form id="formCrearLista"><label><span data-i18n="nombre_lista">Nombre</span><input type="text" name="nombre" maxlength="50" data-i18n-placeholder="ej_mi_inventario" placeholder="Ej. Mi inventario" required aria-label="Nombre de la lista"></label><label><span data-i18n="icono">Icono</span><div class="icono-selector-row"><span id="iconoSeleccionadoNuevaLista" class="icono-display"><svg class="icono-svg" width="20" height="20" aria-hidden="true"><use href="#icon-h-clipboard-document-list"></use></svg></span><button type="button" id="btnSeleccionarIconoNuevaLista" class="secundario" aria-label="Seleccionar icono" data-i18n="cambiar_icono">Cambiar icono</button></div><input type="hidden" name="icono" value="h-clipboard-document-list"></label><label><span data-i18n="color_lista">Color de la lista</span><div class="color-picker-row"><input type="color" id="crearListaColor" name="color" value="#B5551A"><span id="colorPreviewCrear" class="color-preview" style="background-color: #B5551A;"></span></div></label></form>
     </div>
     <div class="modal-footer">
-      <button type="button" id="btnCrearListaSubmit" class="primario">
+      <button type="button" id="btnCrearListaSubmit" class="primario" data-i18n="crear_lista">
         Crear lista
       </button>
     </div>
@@ -424,7 +437,7 @@
   <div class="modal">
     <div class="modal-header">
       <button class="btn-cerrar-modal" type="button" onclick="window.drawerListasManager?.cerrarModalEditar()">✕</button>
-      <h2>Ajustes de la lista</h2>
+      <h2 data-i18n="ajustes_lista">Ajustes de la lista</h2>
     </div>
     <div class="modal-content">
       <!-- Preview de la lista -->
@@ -434,32 +447,32 @@
       <div class="seccion-ajustes">
         <div class="seccion-header">
           <span class="icon">⚙️</span>
-          <h3>Personalizar lista</h3>
+          <h3 data-i18n="personalizar_lista">Personalizar lista</h3>
         </div>
 
         <div class="grid-opciones-ajustes">
           <button type="button" class="opcion-ajuste" id="btnOrdenando">
             <span class="icon-grande">↑↓</span>
-            <span>Ordenando</span>
+            <span data-i18n="ordenando">Ordenando</span>
           </button>
           <button type="button" class="opcion-ajuste" id="btnRegion">
             <span class="icon-grande">🌐</span>
-            <span>Región e idioma</span>
+            <span data-i18n="region_e_idioma">Región e idioma</span>
           </button>
           <button type="button" class="opcion-ajuste" id="btnGestionarMiembros">
             <span class="icon-grande">👥</span>
-            <span>Miembros de la lista</span>
+            <span data-i18n="miembros_lista">Miembros de la lista</span>
           </button>
           <button type="button" class="opcion-ajuste" id="btnEditarNombreImagen">
             <span class="icon-grande">✏️</span>
-            <span>Nombre e imagen</span>
+            <span data-i18n="nombre_e_imagen">Nombre e imagen</span>
           </button>
         </div>
       </div>
 
       <!-- Form oculto para editar nombre/color -->
       <form id="formEditarLista" style="display: none;">
-        <label>Nombre de la lista
+        <label><span data-i18n="nombre_lista">Nombre de la lista</span>
           <input
             type="text"
             id="editarListaNombre"
@@ -469,7 +482,7 @@
           >
         </label>
 
-        <label>Color
+        <label><span data-i18n="color">Color</span>
           <div class="color-picker-row">
             <input type="color" id="editarListaColor" name="color" value="#B5551A">
             <span id="colorPreview" class="color-preview"></span>
@@ -479,20 +492,20 @@
 
       <!-- Sección de gestión de miembros -->
       <div id="seccionMiembros" style="display: none;">
-        <h3 style="margin-top: 16px; margin-bottom: 12px;">Compartir lista</h3>
+        <h3 style="margin-top: 16px; margin-bottom: 12px;" data-i18n="compartir_lista">Compartir lista</h3>
 
         <!-- Tabs de opciones -->
         <div style="display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border);">
-          <button type="button" id="tabPorUsuario" style="flex: 1; padding: 10px; background: transparent; border: none; cursor: pointer; color: var(--text); font-weight: 600; border-bottom: 3px solid var(--accent);">👤 Usuario</button>
-          <button type="button" id="tabPorEmail" style="flex: 1; padding: 10px; background: transparent; border: none; cursor: pointer; color: var(--text-soft); font-weight: 600; border-bottom: 3px solid transparent;">📧 Email</button>
-          <button type="button" id="tabPorEnlace" style="flex: 1; padding: 10px; background: transparent; border: none; cursor: pointer; color: var(--text-soft); font-weight: 600; border-bottom: 3px solid transparent;">🔗 Enlace</button>
+          <button type="button" id="tabPorUsuario" style="flex: 1; padding: 10px; background: transparent; border: none; cursor: pointer; color: var(--text); font-weight: 600; border-bottom: 3px solid var(--accent);">👤 <span data-i18n="usuario">Usuario</span></button>
+          <button type="button" id="tabPorEmail" style="flex: 1; padding: 10px; background: transparent; border: none; cursor: pointer; color: var(--text-soft); font-weight: 600; border-bottom: 3px solid transparent;">📧 <span data-i18n="email">Email</span></button>
+          <button type="button" id="tabPorEnlace" style="flex: 1; padding: 10px; background: transparent; border: none; cursor: pointer; color: var(--text-soft); font-weight: 600; border-bottom: 3px solid transparent;">🔗 <span data-i18n="enlace">Enlace</span></button>
         </div>
 
         <!-- Tab 1: Compartir por Usuario -->
         <div id="panelUsuario">
           <form id="formCompartirPorUsuario" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;">
             <div style="display: flex; flex-direction: column; gap: 6px;">
-              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Usuario</label>
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;" data-i18n="usuario">Usuario</label>
               <input
                 type="text"
                 id="buscarUsuario"
@@ -502,17 +515,17 @@
               >
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
-              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso</label>
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;" data-i18n="permiso">Permiso</label>
               <select
                 id="nivelPermisoUsuario"
                 style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
               >
-                <option value="ver">👁️ Ver (solo lectura)</option>
-                <option value="editar">✏️ Editar (lectura y escritura)</option>
+                <option value="ver" data-i18n="permiso_ver_solo_lectura">👁️ Ver (solo lectura)</option>
+                <option value="editar" data-i18n="permiso_editar_lectura_escritura">✏️ Editar (lectura y escritura)</option>
               </select>
             </div>
             <div id="resultadosBusqueda" style="margin-bottom: 4px; max-height: 200px; overflow-y: auto;"></div>
-            <button type="submit" class="primario" style="width: 100%; margin-top: 8px; padding: 12px 16px;">Compartir con Usuario</button>
+            <button type="submit" class="primario" style="width: 100%; margin-top: 8px; padding: 12px 16px;" data-i18n="compartir_con_usuario">Compartir con Usuario</button>
           </form>
         </div>
 
@@ -520,47 +533,48 @@
         <div id="panelEmail" style="display: none;">
           <form id="formCompartirPorEmail" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;">
             <div style="display: flex; flex-direction: column; gap: 6px;">
-              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Email del destinatario</label>
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;" data-i18n="email_destinatario">Email del destinatario</label>
               <input
                 type="email"
                 id="emailDestino"
+                data-i18n-placeholder="placeholder_email_ejemplo"
                 placeholder="usuario@example.com"
                 maxlength="100"
                 style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
               >
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
-              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso</label>
+              <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;" data-i18n="permiso">Permiso</label>
               <select
                 id="nivelPermisoEmail"
                 style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
               >
-                <option value="ver">👁️ Ver (solo lectura)</option>
-                <option value="editar">✏️ Editar (lectura y escritura)</option>
+                <option value="ver" data-i18n="permiso_ver_solo_lectura">👁️ Ver (solo lectura)</option>
+                <option value="editar" data-i18n="permiso_editar_lectura_escritura">✏️ Editar (lectura y escritura)</option>
               </select>
             </div>
-            <button type="submit" class="primario" style="width: 100%; margin-top: 8px; padding: 12px 16px;">Generar Enlace de Invitación</button>
+            <button type="submit" class="primario" style="width: 100%; margin-top: 8px; padding: 12px 16px;" data-i18n="generar_enlace_invitacion">Generar Enlace de Invitación</button>
           </form>
         </div>
 
         <!-- Tab 3: Compartir por Enlace -->
         <div id="panelEnlace" style="display: none;">
           <div style="display: flex; flex-direction: column; gap: 6px;">
-            <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Permiso del enlace</label>
+            <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;" data-i18n="permiso">Permiso del enlace</label>
             <select
               id="nivelPermisoEnlace"
               style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text);"
             >
-              <option value="ver">👁️ Ver (solo lectura)</option>
-              <option value="editar">✏️ Editar (lectura y escritura)</option>
+              <option value="ver" data-i18n="permiso_ver_solo_lectura">👁️ Ver (solo lectura)</option>
+              <option value="editar" data-i18n="permiso_editar_lectura_escritura">✏️ Editar (lectura y escritura)</option>
             </select>
           </div>
 
-          <button type="button" id="btnGenerarEnlace" class="primario" style="width: 100%; padding: 12px 16px;">Generar Enlace Compartible</button>
+          <button type="button" id="btnGenerarEnlace" class="primario" style="width: 100%; padding: 12px 16px;" data-i18n="generar_enlace_compartible">Generar Enlace Compartible</button>
 
           <!-- Sección WhatsApp -->
           <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border);">
-            <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">Compartir por WhatsApp</label>
+            <label style="font-size: 0.85rem; color: var(--text-soft); font-weight: 500;" data-i18n="compartir_whatsapp">Compartir por WhatsApp</label>
             <div style="display: flex; gap: 8px;">
               <button
                 type="button"
@@ -568,17 +582,18 @@
                 style="flex: 1; padding: 10px 16px; background: #25D366; color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.95rem;"
               >
                 <svg width="18" height="18" viewBox="0 0 448 512" aria-hidden="true" fill="currentColor"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.2 10.5 78.1 30.4 111.9L1 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-68.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-70 18.4 18.7-68.3-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.7-186.5 184.7zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.9 5.7-9.2 16.3-30.6 1.8-3.7.9-6.9-.6-9.7-1.5-2.8-13.4-32.4-18.4-44.4-4.9-11.7-9.9-10.1-13.6-10.3-3.5-.2-7.5-.2-11.5-.2-4 0-10.5 1.5-16 7.4-5.5 5.9-21 20.5-21 50s21.5 58.1 24.4 62.1c2.9 3.9 40.5 61.8 98.1 84.2 48.9 19.1 58.9 15.8 69.6 14.8 10.7-1 34.6-14.1 39.5-27.7 4.9-13.6 4.9-25.3 3.4-27.7-1.4-2.5-5.5-3.9-11.5-6.8z"/></svg>
-                Abrir WhatsApp
+                <span data-i18n="abrir_whatsapp">Abrir WhatsApp</span>
               </button>
             </div>
             <input
               type="tel"
               id="inputTelefonoWhatsApp"
+              data-i18n-placeholder="placeholder_telefono"
               placeholder="Teléfono (opcional, ej: +34 123 45 67 89)"
               maxlength="20"
               style="padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 1rem; background: var(--surface-2); color: var(--text); width: 100%;"
             >
-            <p style="font-size: 0.8rem; color: var(--text-soft); margin: 0;">Sin teléfono: abre WhatsApp Web. Con teléfono: envía un mensaje directo.</p>
+            <p style="font-size: 0.8rem; color: var(--text-soft); margin: 0;" data-i18n="ayuda_whatsapp">Sin teléfono: abre WhatsApp Web. Con teléfono: envía un mensaje directo.</p>
           </div>
         </div>
 
@@ -587,7 +602,7 @@
 
         <!-- Modal para copiar enlace de invitación -->
         <div id="modalEnlaceInvitacion" style="display: none; margin: 16px 0; padding: 16px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
-          <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: var(--text-soft); font-weight: 500;">🔗 Enlace de invitación generado:</p>
+          <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: var(--text-soft); font-weight: 500;" data-i18n="enlace_generado_titulo">🔗 Enlace de invitación generado:</p>
           <div style="display: flex; gap: 8px; margin-bottom: 12px;">
             <input
               type="text"
@@ -599,23 +614,24 @@
               type="button"
               id="btnCopiarEnlace"
               style="padding: 10px 16px; background: var(--accent); color: var(--accent-contrast); border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 0.9rem; white-space: nowrap;"
+              data-i18n="copiar"
             >
               📋 Copiar
             </button>
           </div>
-          <p style="margin: 0; font-size: 0.8rem; color: var(--text-soft);">✓ Válido por 7 días. Comparte por WhatsApp, email, mensaje directo, etc.</p>
+          <p style="margin: 0; font-size: 0.8rem; color: var(--text-soft);" data-i18n="enlace_valido_7_dias">✓ Válido por 7 días. Comparte por WhatsApp, email, mensaje directo, etc.</p>
         </div>
 
         <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border);">
-          <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--text); font-weight: 600;">👥 Miembros con acceso</h4>
+          <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--text); font-weight: 600;" data-i18n="miembros_con_acceso">👥 Miembros con acceso</h4>
           <div id="listaMiembros" style="border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2);">
-            <div style="padding: 16px; text-align: center; color: var(--text-soft);">Cargando miembros...</div>
+            <div style="padding: 16px; text-align: center; color: var(--text-soft);" data-i18n="cargando_miembros">Cargando miembros...</div>
           </div>
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button type="button" class="peligro" id="btnSalirLista" style="width: 100%;">
+      <button type="button" class="peligro" id="btnSalirLista" style="width: 100%;" data-i18n="salir_lista">
         Salir de esta lista
       </button>
     </div>
@@ -627,31 +643,31 @@
   <div class="modal" style="max-width: 500px;">
     <div class="modal-header">
       <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalOrdenando').hidden=true">✕</button>
-      <h2>↑↓ Ordenando</h2>
+      <h2>↑↓ <span data-i18n="ordenando">Ordenando</span></h2>
     </div>
     <div class="modal-content">
-      <p style="color: var(--text-soft); margin-bottom: 16px;">Elige cómo deseas ordenar los artículos:</p>
+      <p style="color: var(--text-soft); margin-bottom: 16px;" data-i18n="elegir_orden_articulos">Elige cómo deseas ordenar los artículos:</p>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
           <input type="radio" name="ordenar" value="manual" checked>
-          <span><strong>Manual</strong> (arrastra para reordenar)</span>
+          <span data-i18n="orden_manual"><strong>Manual</strong> (arrastra para reordenar)</span>
         </label>
         <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
           <input type="radio" name="ordenar" value="alfabetico">
-          <span><strong>Alfabético</strong> (A → Z)</span>
+          <span data-i18n="orden_alfabetico"><strong>Alfabético</strong> (A → Z)</span>
         </label>
         <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
           <input type="radio" name="ordenar" value="categoria">
-          <span><strong>Por categoría</strong> (agrupado)</span>
+          <span data-i18n="orden_categoria"><strong>Por categoría</strong> (agrupado)</span>
         </label>
         <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
           <input type="radio" name="ordenar" value="pendientes">
-          <span><strong>Pendientes primero</strong> (sin tachar)</span>
+          <span data-i18n="orden_pendientes_primero"><strong>Pendientes primero</strong> (sin tachar)</span>
         </label>
       </div>
     </div>
     <div class="modal-footer">
-      <button type="button" class="primario" style="width: 100%;" onclick="document.getElementById('modalOrdenando').hidden=true">Guardar</button>
+      <button type="button" class="primario" style="width: 100%;" onclick="document.getElementById('modalOrdenando').hidden=true" data-i18n="guardar">Guardar</button>
     </div>
   </div>
 </div>
@@ -661,10 +677,10 @@
   <div class="modal" style="max-width: 500px;">
     <div class="modal-header">
       <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalRegion').hidden=true">✕</button>
-      <h2>🌐 Región e idioma</h2>
+      <h2>🌐 <span data-i18n="region_e_idioma">Región e idioma</span></h2>
     </div>
     <div class="modal-content">
-      <label style="margin-bottom: 16px;">Idioma</label>
+      <label style="margin-bottom: 16px;" data-i18n="idioma">Idioma</label>
       <select id="selectIdioma" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 1rem;">
         <option value="es">🇪🇸 Español</option>
         <option value="en">🇬🇧 English</option>
@@ -673,20 +689,18 @@
         <option value="de">🇩🇪 Deutsch</option>
       </select>
 
-      <label style="margin-bottom: 16px;">Región</label>
+      <label style="margin-bottom: 16px;" data-i18n="region">Región</label>
       <select id="selectRegion" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 1rem;">
-        <option value="es">España</option>
-        <option value="mx">México</option>
-        <option value="ar">Argentina</option>
-        <option value="cl">Chile</option>
-        <option value="co">Colombia</option>
-        <option value="pe">Perú</option>
+        <option value="es" data-i18n="pais_espana">España</option>
+        <option value="mx" data-i18n="pais_mexico">México</option>
+        <option value="ar" data-i18n="pais_argentina">Argentina</option>
+        <option value="cl" data-i18n="pais_chile">Chile</option>
+        <option value="co" data-i18n="pais_colombia">Colombia</option>
+        <option value="pe" data-i18n="pais_peru">Perú</option>
       </select>
-
-      <p style="font-size: 0.85rem; color: var(--text-soft);">⚠️ La traducción completa está en desarrollo. Actualmente disponible en Español e Inglés.</p>
     </div>
     <div class="modal-footer">
-      <button type="button" class="primario" style="width: 100%;" onclick="document.getElementById('modalRegion').hidden=true">Guardar</button>
+      <button type="button" class="primario" style="width: 100%;" onclick="document.getElementById('modalRegion').hidden=true" data-i18n="guardar">Guardar</button>
     </div>
   </div>
 </div>
@@ -696,17 +710,17 @@
   <div class="modal" style="max-width: 500px;">
     <div class="modal-header">
       <button class="btn-cerrar-modal" type="button" onclick="document.getElementById('modalNombreImagen').hidden=true">✕</button>
-      <h2>✏️ Nombre e imagen</h2>
+      <h2>✏️ <span data-i18n="nombre_e_imagen">Nombre e imagen</span></h2>
     </div>
     <div class="modal-content">
       <form id="formNombreImagen" style="display: flex; flex-direction: column; gap: 16px;">
         <div>
-          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Nombre de la lista</label>
-          <input type="text" id="inputNombreLista" maxlength="50" placeholder="Mi lista de compra" style="width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem;">
+          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;" data-i18n="nombre_lista">Nombre de la lista</label>
+          <input type="text" id="inputNombreLista" maxlength="50" data-i18n-placeholder="ej_mi_lista_compra" placeholder="Mi lista de compra" style="width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem;">
         </div>
 
         <div>
-          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Color</label>
+          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;" data-i18n="color">Color</label>
           <div style="display: flex; gap: 10px; margin-top: 6px; align-items: center;">
             <input type="color" id="inputColorLista" value="#B5551A" style="width: 50px; height: 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
             <span id="previewColorLista" style="width: 80px; height: 40px; border-radius: var(--radius-sm); background: #B5551A; border: 1px solid var(--border);"></span>
@@ -714,18 +728,18 @@
         </div>
 
         <div>
-          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;">Icono</label>
+          <label style="font-weight: 600; color: var(--text-soft); font-size: 0.85rem;" data-i18n="icono">Icono</label>
           <div style="margin-top: 6px;">
             <input type="hidden" id="inputIconoLista" value="h-clipboard-document-list">
             <button type="button" id="btnSeleccionarIconoLista" class="secundario" aria-label="Seleccionar icono">
-              Icono: <span id="iconoSeleccionadoLista"></span>
+              <span data-i18n="icono_dospuntos">Icono:</span> <span id="iconoSeleccionadoLista"></span>
             </button>
           </div>
         </div>
       </form>
     </div>
     <div class="modal-footer">
-      <button type="button" class="primario" style="width: 100%;" onclick="window.drawerListasManager?.guardarNombreImagen()">Guardar cambios</button>
+      <button type="button" class="primario" style="width: 100%;" onclick="window.drawerListasManager?.guardarNombreImagen()" data-i18n="guardar_cambios">Guardar cambios</button>
     </div>
   </div>
 </div>
