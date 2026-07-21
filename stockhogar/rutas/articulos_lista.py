@@ -119,11 +119,8 @@ def anadir_articulo():
         fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (completado["id"],)).fetchone()
         return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
-    from .espacios import obtener_espacio_actual
-    espacio_id = obtener_espacio_actual(db)
-
     # Buscar en historial estándar
-    recuerdo = buscar_historial(db, nombre, espacio_id)
+    recuerdo = buscar_historial(db, nombre)
     categoria = normalizar_categoria(db, datos.get("categoria") or (recuerdo["categoria"] if recuerdo else None))
     icono = (datos.get("icono") or "").strip() or (recuerdo["icono"] if recuerdo else None)
     unidad = (datos.get("unidad") or "").strip() or (recuerdo["unidad"] if recuerdo else "ud")
@@ -137,8 +134,8 @@ def anadir_articulo():
     if not recuerdo:
         # Buscar/crear en articulos_personalizados
         articulo_personal = db.execute(
-            "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE AND espacio_id = ?",
-            (nombre, espacio_id)
+            "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE",
+            (nombre,)
         ).fetchone()
 
         if articulo_personal:
@@ -147,9 +144,9 @@ def anadir_articulo():
             # Crear nuevo artículo personalizado
             cur = db.execute(
                 """INSERT INTO articulos_personalizados
-                   (espacio_id, nombre, categoria, icono, unidad, sub_descripcion, fecha_creacion, fecha_actualizacion)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (espacio_id, nombre, categoria, icono, unidad, sub_descripcion, ahora(), ahora())
+                   (nombre, categoria, icono, unidad, sub_descripcion, fecha_creacion, fecha_actualizacion)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (nombre, categoria, icono, unidad, sub_descripcion, ahora(), ahora())
             )
             articulo_personalizado_id = cur.lastrowid
 
@@ -169,8 +166,13 @@ def anadir_articulo():
                             original = nombre if tipo == 'nombre' else sub_descripcion
                             try:
                                 db.execute(
-                                    """INSERT OR REPLACE INTO traducciones_productos
-                                       (articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                                    """DELETE FROM traducciones_productos
+                                       WHERE articulo_personalizado_id = ? AND tipo = ? AND idioma = ?""",
+                                    (articulo_personalizado_id, tipo, idioma)
+                                )
+                                db.execute(
+                                    """INSERT INTO traducciones_productos
+                                       (articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
                                        VALUES (?, ?, ?, ?, ?, ?)""",
                                     (articulo_personalizado_id, tipo, idioma, original, texto, ahora())
                                 )
@@ -189,7 +191,7 @@ def anadir_articulo():
 
     # Recordar para historial si tiene icono
     if icono and recuerdo:
-        recordar_articulo(db, espacio_id, nombre, icono, categoria, unidad, sub_descripcion)
+        recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -244,8 +246,7 @@ def actualizar_articulo(item_id):
             (nombre, cantidad, unidad, categoria, icono, sub_descripcion, item_id),
         )
         if icono:
-            from .espacios import obtener_espacio_actual
-            recordar_articulo(db, obtener_espacio_actual(db), nombre, icono, categoria, unidad, sub_descripcion)
+            recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
@@ -285,13 +286,9 @@ def obtener_traducciones_articulo_personalizado(articulo_id, idioma):
     usuario_id = session.get("usuario_id")
     db = get_db()
 
-    from .espacios import obtener_espacio_actual
-    espacio_id = obtener_espacio_actual(db)
-
-    # Verificar que el artículo pertenece al usuario
     articulo = db.execute(
-        "SELECT * FROM articulos_personalizados WHERE id = ? AND espacio_id = ?",
-        (articulo_id, espacio_id)
+        "SELECT * FROM articulos_personalizados WHERE id = ?",
+        (articulo_id,)
     ).fetchone()
 
     if not articulo:
@@ -300,7 +297,7 @@ def obtener_traducciones_articulo_personalizado(articulo_id, idioma):
     # Obtener traducciones
     traducciones = db.execute(
         """SELECT tipo, texto_traducido FROM traducciones_productos
-           WHERE articulo_id = ? AND idioma = ?""",
+           WHERE articulo_personalizado_id = ? AND idioma = ?""",
         (articulo_id, idioma)
     ).fetchall()
 
@@ -319,13 +316,9 @@ def actualizar_articulo_personalizado(articulo_id):
     usuario_id = session.get("usuario_id")
     db = get_db()
 
-    from .espacios import obtener_espacio_actual
-    espacio_id = obtener_espacio_actual(db)
-
-    # Verificar que el artículo pertenece al usuario
     articulo = db.execute(
-        "SELECT * FROM articulos_personalizados WHERE id = ? AND espacio_id = ?",
-        (articulo_id, espacio_id)
+        "SELECT * FROM articulos_personalizados WHERE id = ?",
+        (articulo_id,)
     ).fetchone()
 
     if not articulo:
@@ -360,8 +353,13 @@ def actualizar_articulo_personalizado(articulo_id):
                 for idioma, texto in traducciones.items():
                     if idioma != "es" and texto:
                         db.execute(
-                            """INSERT OR REPLACE INTO traducciones_productos
-                               (articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                            """DELETE FROM traducciones_productos
+                               WHERE articulo_personalizado_id = ? AND tipo = ? AND idioma = ?""",
+                            (articulo_id, "nombre", idioma)
+                        )
+                        db.execute(
+                            """INSERT INTO traducciones_productos
+                               (articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
                                VALUES (?, ?, ?, ?, ?, ?)""",
                             (articulo_id, "nombre", idioma, nombre, texto, ahora())
                         )
@@ -372,8 +370,13 @@ def actualizar_articulo_personalizado(articulo_id):
                 for idioma, texto in traducciones.items():
                     if idioma != "es" and texto:
                         db.execute(
-                            """INSERT OR REPLACE INTO traducciones_productos
-                               (articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                            """DELETE FROM traducciones_productos
+                               WHERE articulo_personalizado_id = ? AND tipo = ? AND idioma = ?""",
+                            (articulo_id, "descripcion", idioma)
+                        )
+                        db.execute(
+                            """INSERT INTO traducciones_productos
+                               (articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
                                VALUES (?, ?, ?, ?, ?, ?)""",
                             (articulo_id, "descripcion", idioma, sub_descripcion, texto, ahora())
                         )
@@ -405,13 +408,9 @@ def eliminar_articulo_personalizado(articulo_id):
     usuario_id = session.get("usuario_id")
     db = get_db()
 
-    from .espacios import obtener_espacio_actual
-    espacio_id = obtener_espacio_actual(db)
-
-    # Verificar que el artículo pertenece al usuario
     articulo = db.execute(
-        "SELECT * FROM articulos_personalizados WHERE id = ? AND espacio_id = ?",
-        (articulo_id, espacio_id)
+        "SELECT * FROM articulos_personalizados WHERE id = ?",
+        (articulo_id,)
     ).fetchone()
 
     if not articulo:
@@ -430,7 +429,7 @@ def eliminar_articulo_personalizado(articulo_id):
         )
 
     # Eliminar traducciones asociadas
-    db.execute("DELETE FROM traducciones_productos WHERE articulo_id = ?", (articulo_id,))
+    db.execute("DELETE FROM traducciones_productos WHERE articulo_personalizado_id = ?", (articulo_id,))
 
     # Eliminar artículos completados de listas
     db.execute("DELETE FROM articulos_lista WHERE articulo_personalizado_id = ?", (articulo_id,))
