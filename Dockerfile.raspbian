@@ -27,8 +27,19 @@ RUN apt-get update && \
         curl \
         build-essential \
         pkg-config \
+        libffi-dev \
+        libssl-dev \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# cryptography (ver requirements.txt) trae extensiones en Rust y no hay wheel
+# precompilada para armv7l en PyPI, así que se compila desde fuente en el build.
+# Se instala Rust vía rustup en vez del rustc/cargo de apt porque la versión de
+# Debian puede quedarse corta para el MSRV de crates recientes.
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
 
 WORKDIR /app
 
