@@ -106,16 +106,21 @@ class VirtualKeyboardController {
     this._observer = null;
     this._sincronizarMarcadoDiferido = this._sincronizarMarcadoDiferido.bind(this);
     this._onDocFocusIn = this._onDocFocusIn.bind(this);
-    this._onDocFocusOut = this._onDocFocusOut.bind(this);
     this._onDocKeyDown = this._onDocKeyDown.bind(this);
+    this._onVentanaPierdeFoco = this._onVentanaPierdeFoco.bind(this);
+    this._onCambioVisibilidad = this._onCambioVisibilidad.bind(this);
   }
 
   init(preferenciaInicial) {
     this.enabled = preferenciaInicial !== false;
     this._crearDom();
     document.addEventListener('focusin', this._onDocFocusIn, true);
-    document.addEventListener('focusout', this._onDocFocusOut, true);
     document.addEventListener('keydown', this._onDocKeyDown, true);
+    // Red de seguridad para cuando la pestaña/app pierde la atención por
+    // completo (cambio de app, bloqueo de pantalla...): ahí sí cerramos,
+    // porque no habrá ningún focusin posterior que lo haga por nosotros.
+    window.addEventListener('blur', this._onVentanaPierdeFoco);
+    document.addEventListener('visibilitychange', this._onCambioVisibilidad);
 
     this._sincronizarMarcado();
 
@@ -339,13 +344,12 @@ class VirtualKeyboardController {
     el.appendChild(this.panelNumerico);
     el.appendChild(this.panelAlfa);
 
-    // En iOS Safari, preventDefault() en 'pointerdown' no siempre basta para
-    // impedir que el input pierda el foco al tocar una tecla del panel (bug
-    // real detectado en un iPhone: el teclado se cerraba al pulsar una
-    // tecla). El evento cuyo preventDefault() SÍ bloquea de forma fiable el
-    // cambio de foco en WebKit es 'touchstart', así que se añade aquí como
-    // defensa principal; 'pointerdown' se mantiene para procesar la pulsación
-    // en sí (funciona igual con touch, mouse y trackpad).
+    // preventDefault() en 'touchstart'/'pointerdown' evita que tocar una
+    // tecla dispare el comportamiento por defecto del navegador sobre ella
+    // (incluido el intento de robar el foco a un <button>, aunque tenga
+    // tabIndex=-1). No es la defensa principal contra la pérdida de foco
+    // -esa vive ahora en _onDocFocusIn(), ver más abajo-, pero evita
+    // parpadeos visuales y el resaltado de "tap" nativo del navegador.
     el.addEventListener('touchstart', (e) => {
       if (e.target.closest('button[data-tecla]')) e.preventDefault();
     }, { passive: false });
@@ -354,42 +358,47 @@ class VirtualKeyboardController {
       const btn = e.target.closest('button[data-tecla]');
       if (!btn) return;
       e.preventDefault();
-      // Segunda defensa: mientras se procesa el toque, ignorar cualquier
-      // blur del input activo (ver _onDocFocusOut) aunque el navegador
-      // mueva el foco pese al preventDefault de arriba.
-      this._interactuandoConPanel = true;
       this._manejarTecla(btn.dataset.tecla);
-      window.setTimeout(() => { this._interactuandoConPanel = false; }, 50);
     });
 
     document.body.appendChild(el);
     this.element = el;
   }
 
+  /* Única fuente de verdad de cuándo abrir/cerrar el panel: se basa solo en
+     hacia DÓNDE se mueve el foco real, nunca en un evento de blur aislado.
+     Diseño anterior (fase 2 inicial): cerrábamos en focusout con un
+     setTimeout(0) que comprobaba si el foco se había ido; en un iPhone
+     real esto cerraba el teclado en mitad de la escritura, porque WebKit
+     puede disparar blur/focus de forma transitoria (p.ej. al reflowar el
+     layout tras cada pulsación) sin que el usuario haya tocado nada fuera
+     del campo. Ahora solo cerramos cuando el foco aterriza de verdad en
+     OTRO elemento distinto del campo activo y fuera del propio panel; si
+     el foco no aterriza en ningún sitio reconocible (p. ej. un blur
+     transitorio de WebKit), el panel simplemente se queda como estaba. */
   _onDocFocusIn(event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    // Solo actuamos sobre inputs que YA estaban marcados de antemano
-    // (ver _sincronizarMarcado); si no lo estaba, es que el teclado nativo
-    // ya se está mostrando y no hay nada que hacer en este foco.
-    if (!this.marcados.has(target)) return;
-    if (target.disabled) return;
-    this.attach(target);
+    // Foco dentro del propio panel (no debería ocurrir con tabIndex=-1,
+    // pero por si acaso): no hacer nada.
+    if (this.element && this.element.contains(target)) return;
+    if (this.marcados.has(target) && !target.disabled) {
+      this.attach(target);
+      return;
+    }
+    // El foco ha ido a un elemento real que no gestiona este teclado
+    // (otro campo, un botón...): eso sí es un cierre legítimo.
+    if (this.activeInput && target !== this.activeInput) {
+      this._ocultarPanel();
+    }
   }
 
-  _onDocFocusOut(event) {
-    const target = event.target;
-    if (target !== this.activeInput) return;
-    // Si el blur lo ha provocado tocar una tecla del panel, no cerramos:
-    // preventDefault() en touchstart/pointerdown ya debería evitarlo, pero
-    // esta bandera es la red de seguridad para WebKit (ver _crearDom).
-    if (this._interactuandoConPanel) return;
-    window.setTimeout(() => {
-      if (this._interactuandoConPanel) return;
-      if (document.activeElement !== this.activeInput) {
-        this._ocultarPanel();
-      }
-    }, 0);
+  _onVentanaPierdeFoco() {
+    if (this.activeInput) this._ocultarPanel();
+  }
+
+  _onCambioVisibilidad() {
+    if (document.hidden && this.activeInput) this._ocultarPanel();
   }
 
   _onDocKeyDown(event) {

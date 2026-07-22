@@ -313,6 +313,72 @@ describe('VirtualKeyboardController.commitEnter()', () => {
   });
 });
 
+describe('VirtualKeyboardController: el panel no se cierra por blur transitorio al escribir', () => {
+  // Bug real reportado en un iPhone (fase 2, primera versión): el teclado se
+  // cerraba en mitad de la escritura. Causa: se cerraba en 'focusout' con un
+  // setTimeout comprobando si el foco se había ido, y WebKit puede disparar
+  // blur/focus de forma transitoria al reflowar el layout tras cada
+  // pulsación, sin que el usuario haya tocado nada fuera del campo. Ahora
+  // solo se cierra cuando el foco aterriza de verdad en OTRO elemento.
+  beforeEach(() => {
+    mockMatchMedia({
+      '(pointer: coarse)': true,
+      '(hover: none)': true,
+      '(any-pointer: fine)': false,
+    });
+  });
+
+  test('un focusout aislado (sin que el foco aterrice en otro sitio) no cierra el panel', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    const input = document.getElementById('nombre');
+    controller.attach(input);
+
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+
+    expect(controller.activeInput).toBe(input);
+    expect(controller.element.hidden).toBe(false);
+  });
+
+  test('escribir varias letras seguidas mantiene el panel abierto', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    const input = document.getElementById('nombre');
+    controller.attach(input);
+
+    ['h', 'o', 'l', 'a'].forEach((letra) => controller._manejarTecla(letra));
+
+    expect(input.value).toBe('hola');
+    expect(controller.activeInput).toBe(input);
+    expect(controller.element.hidden).toBe(false);
+  });
+
+  test('el panel SÍ se cierra cuando el foco aterriza de verdad en otro input no gestionado', () => {
+    document.body.innerHTML = '<input id="nombre" type="text"><input id="otro" type="checkbox">';
+    const controller = new VirtualKeyboardController();
+    controller.init(true); // necesario: el listener de focusin vive en document, no en el input
+    const input = document.getElementById('nombre');
+    const otro = document.getElementById('otro');
+    controller.attach(input);
+
+    otro.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+
+    expect(controller.activeInput).toBeNull();
+    expect(controller.element.hidden).toBe(true);
+  });
+
+  test('perder la atención de la pestaña (window blur) cierra el panel', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+    controller.attach(document.getElementById('nombre'));
+
+    window.dispatchEvent(new Event('blur'));
+
+    expect(controller.activeInput).toBeNull();
+  });
+});
+
 describe('VirtualKeyboardController fase 2: panel alfanumérico', () => {
   function tecla(controller, valor) {
     return controller.element.querySelector(`button[data-tecla="${valor}"]`);
