@@ -103,12 +103,13 @@
       const t = (clave, fallback) => (window.i18n ? window.i18n.t(clave) : fallback);
 
       if (res.ok) {
-        // Éxito
+        // Éxito: enlazamos directo a la lista recién compartida (no a la app en general).
+        const urlLista = datos.lista_id ? `/?lista=${encodeURIComponent(datos.lista_id)}` : "/";
         document.getElementById("contenido").innerHTML = `
           <div class="estado-exito">✅</div>
           <h2>${t("invitacion_aceptada_titulo", "¡Invitación aceptada!")}</h2>
           <p>${t("invitacion_aceptada_texto", "Ya tienes acceso a la lista compartida.")}</p>
-          <a href="/" class="boton-volver">${t("ir_a_la_app", "Ir a la app")}</a>
+          <a href="${urlLista}" class="boton-volver">${t("ir_a_la_lista", "Ir a la lista")}</a>
         `;
       } else {
         // Error

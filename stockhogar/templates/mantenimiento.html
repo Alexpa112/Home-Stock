@@ -71,5 +71,19 @@
   </div>
 </div>
 <script src="{{ url_for('static', filename='i18n.js') }}"></script>
+<script>
+  // Comprueba periodicamente si el mantenimiento ha terminado y recarga
+  // la pagina en automatico para que el usuario no tenga que hacerlo a mano.
+  setInterval(async () => {
+    try {
+      const res = await fetch(window.location.href, { cache: "no-store" });
+      if (res.status !== 503) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Error comprobando el estado de mantenimiento:", error);
+    }
+  }, 10000);
+</script>
 </body>
 </html>

@@ -35,7 +35,11 @@ def usuario_actual():
 
 @bp.route("/login")
 def pagina_login():
-    return render_template("login.html", modo_setup=not hay_usuarios(get_db()))
+    next_url = request.args.get("next", "")
+    # Solo permitir rutas internas relativas para evitar open-redirect.
+    if not next_url.startswith("/") or next_url.startswith("//"):
+        next_url = ""
+    return render_template("login.html", modo_setup=not hay_usuarios(get_db()), next_url=next_url)
 
 
 @bp.route("/api/auth/estado")
