@@ -14,7 +14,7 @@ class TranslationManager {
    * Obtiene idioma guardado o el actual de la sesión
    */
   obtenerIdiomaGuardado() {
-    return localStorage.getItem('idioma') || 'es';
+    return window.__IDIOMA_INICIAL__ || localStorage.getItem('idioma') || 'es';
   }
 
   /**

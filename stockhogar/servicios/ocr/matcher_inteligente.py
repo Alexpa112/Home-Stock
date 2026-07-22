@@ -100,6 +100,11 @@ class MatcherInteligente:
             "Bebé y Niños": (1.0, 20.0),
         }
 
+        # Catálogo cacheado por instancia: el mismo MatcherInteligente
+        # procesa todas las líneas de un ticket, así que sin esta caché se
+        # repetía el mismo SELECT completo de productos por cada línea.
+        self._cache_catalogo = None
+
     def buscar_en_catalogo(
         self,
         nombre_ocr: str,
@@ -122,10 +127,12 @@ class MatcherInteligente:
         if not nombre_ocr or len(nombre_ocr.strip()) < 2:
             return None
 
-        # 1. Obtener catálogo
-        productos = db.execute(
-            "SELECT id, nombre, categoria, icono FROM productos ORDER BY nombre"
-        ).fetchall()
+        # 1. Obtener catálogo (cacheado para todo el ticket)
+        if self._cache_catalogo is None:
+            self._cache_catalogo = db.execute(
+                "SELECT id, nombre, categoria, icono FROM productos ORDER BY nombre"
+            ).fetchall()
+        productos = self._cache_catalogo
 
         if not productos:
             return None

@@ -47,12 +47,26 @@ def pagina_login():
 def estado():
     db = get_db()
     email = None
+    tema_preferido = "auto"
+    idioma_preferido = "es"
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
-        fila = db.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
-        email = fila["email"] if fila else None
+        fila = db.execute(
+            "SELECT email, tema_preferido, idioma_preferido FROM usuarios WHERE id = ?",
+            (usuario_id,)
+        ).fetchone()
+        if fila:
+            email = fila["email"]
+            tema_preferido = fila["tema_preferido"]
+            idioma_preferido = fila["idioma_preferido"]
     return APIResponse.success(
-        {"necesita_setup": not hay_usuarios(db), "usuario": usuario_actual(), "email": email}
+        {
+            "necesita_setup": not hay_usuarios(db),
+            "usuario": usuario_actual(),
+            "email": email,
+            "tema_preferido": tema_preferido,
+            "idioma_preferido": idioma_preferido,
+        }
     )
 
 
@@ -160,6 +174,25 @@ def actualizar_perfil():
 
     db.commit()
     return APIResponse.success({"usuario": session.get("usuario")})
+
+
+@bp.route("/api/auth/tema", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def cambiar_tema():
+    """Guarda la preferencia de tema (light/dark/auto) del usuario."""
+    usuario_id = session.get("usuario_id")
+    datos = request.get_json(force=True) or {}
+    tema = (datos.get("tema") or "auto").strip().lower()
+
+    if tema not in ("light", "dark", "auto"):
+        return APIResponse.validacion("Tema no válido. Debe ser 'light', 'dark' o 'auto'")
+
+    db = get_db()
+    db.execute("UPDATE usuarios SET tema_preferido = ? WHERE id = ?", (tema, usuario_id))
+    db.commit()
+
+    return APIResponse.success({"tema": tema})
 
 
 @bp.route("/api/auth/cambiar-password", methods=["POST"])

@@ -328,10 +328,28 @@ function actualizarBotonTema() {
   btnTema.textContent = temaActual() === "dark" ? "☀️" : "🌙";
 }
 
-function aplicarTema(tema) {
-  document.documentElement.dataset.theme = tema;
-  localStorage.setItem("stockhogar-tema", tema);
+/* Guarda la preferencia de tema ('light' | 'dark' | 'auto'), la aplica
+   visualmente y la persiste tanto en localStorage (efecto inmediato en
+   este navegador) como en BD (para que se recuerde en cualquier otro
+   dispositivo donde el usuario inicie sesión). */
+function guardarTemaPreferido(preferencia) {
+  localStorage.setItem("stockhogar-tema", preferencia);
+  const aplicado = preferencia === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preferencia;
+  document.documentElement.dataset.theme = aplicado;
   actualizarBotonTema();
+
+  fetch("/api/auth/tema", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tema: preferencia })
+  }).catch((error) => console.error("Error guardando tema:", error));
+}
+
+/* Alias usado por el toggle rápido de la cabecera: fuerza un tema explícito. */
+function aplicarTema(tema) {
+  guardarTemaPreferido(tema);
 }
 
 btnTema.addEventListener("click", () => {
@@ -339,6 +357,16 @@ btnTema.addEventListener("click", () => {
 });
 
 actualizarBotonTema();
+
+/* Escucha cambios del tema del sistema mientras la preferencia sea "auto",
+   para que la app reaccione en caliente si el usuario cambia el tema del
+   móvil sin necesidad de recargar la página. */
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+  const preferencia = localStorage.getItem("stockhogar-tema") || "auto";
+  if (preferencia !== "auto") return;
+  document.documentElement.dataset.theme = e.matches ? "dark" : "light";
+  actualizarBotonTema();
+});
 
 /* --- Categorias --- */
 
@@ -2223,23 +2251,7 @@ if (listaActualBtnEl) {
 
     // Cambiar tema al seleccionar
     selectTema.addEventListener('change', (e) => {
-      const tema = e.target.value;
-      if (tema === 'light') {
-        aplicarTema('light');
-      } else if (tema === 'dark') {
-        aplicarTema('dark');
-      } else if (tema === 'auto') {
-        localStorage.removeItem('stockhogar-tema');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
-        actualizarBotonTema();
-
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', (e) => {
-          document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
-          actualizarBotonTema();
-        });
-      }
+      guardarTemaPreferido(e.target.value);
     });
 
     // Guardar perfil

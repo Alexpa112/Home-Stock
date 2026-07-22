@@ -844,6 +844,13 @@ form button.secundario:hover {
   border-color: var(--text-soft) !important;
 }
 
+/* Con el teclado abierto, subir la modal pegándola arriba: el hueco de
+   5vh de .modal-fondo no aporta nada y le quita espacio útil a los
+   recuadros de selección justo cuando menos alto hay disponible. */
+body.keyboard-open .modal-fondo {
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+}
+
 body.keyboard-open .modal {
   /* En iOS, usar 100vh (fijo) en lugar de dvh que se reduce con el teclado */
   max-height: calc(100vh - var(--keyboard-offset) - 16px);

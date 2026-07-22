@@ -3,6 +3,7 @@ import logging
 from flask import Blueprint, render_template, session, redirect, url_for, request, current_app, send_from_directory
 
 from ..api import manejo_errores, APIResponse
+from ..db import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,30 @@ bp = Blueprint("paginas", __name__)
 @bp.route("/")
 @manejo_errores
 def index():
-    return render_template("index.html")
+    tema_preferido = "auto"
+    idioma_preferido = "es"
+    usuario_id = session.get("usuario_id")
+    if usuario_id is not None:
+        fila = get_db().execute(
+            "SELECT tema_preferido, idioma_preferido FROM usuarios WHERE id = ?",
+            (usuario_id,)
+        ).fetchone()
+        if fila:
+            tema_preferido = fila["tema_preferido"]
+            idioma_preferido = fila["idioma_preferido"]
+    return render_template(
+        "index.html", tema_preferido=tema_preferido, idioma_preferido=idioma_preferido
+    )
+
+
+@bp.route("/sw.js")
+@manejo_errores
+def service_worker():
+    """Sirve el Service Worker desde la raíz para que su scope cubra toda la app."""
+    respuesta = send_from_directory(current_app.static_folder, "sw.js", mimetype="application/javascript")
+    respuesta.headers["Service-Worker-Allowed"] = "/"
+    respuesta.headers["Cache-Control"] = "no-cache"
+    return respuesta
 
 
 @bp.route("/sw.js")
