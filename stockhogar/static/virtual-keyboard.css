@@ -1,21 +1,63 @@
 /* Teclado virtual propio (fase 1: numérico; fase 2: alfanumérico QWERTY).
-   Reutiliza las variables de tema definidas en style.css:1-76 para heredar
-   claro/oscuro sin lógica propia. */
+   Estética inspirada en el teclado nativo de iOS: fondo gris neutro propio
+   (no el color de acento cálido de la app) + teclas tipo "keycap" con
+   sombra suave. Solo la tecla Intro/Return usa el color de acento de la
+   app, igual que iOS resalta su tecla de acción con el color de énfasis
+   del sistema. Claro/oscuro vía las mismas señales que style.css:1-76
+   (prefers-color-scheme y data-theme), pero con su propia paleta gris. */
 
 .teclado-virtual {
+  --tv-fondo: #D2D5DB;
+  --tv-tecla-bg: #FFFFFF;
+  --tv-tecla-especial-bg: #ADB1BC;
+  --tv-tecla-color: #1C1C1E;
+  --tv-tecla-sombra: rgba(0, 0, 0, .28);
+  --tv-tecla-activa-bg: #F2F2F2;
+  --tv-tecla-especial-activa-bg: #C6C9D1;
+
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 10050;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
-  padding: 8px calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+  background: var(--tv-fondo);
+  box-shadow: 0 -1px 6px rgba(0, 0, 0, .18);
+  padding: 6px calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   gap: 6px;
   touch-action: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .teclado-virtual {
+    --tv-fondo: #2B2B2D;
+    --tv-tecla-bg: #6E6E73;
+    --tv-tecla-especial-bg: #444448;
+    --tv-tecla-color: #FFFFFF;
+    --tv-tecla-sombra: rgba(0, 0, 0, .55);
+    --tv-tecla-activa-bg: #909095;
+    --tv-tecla-especial-activa-bg: #59595D;
+  }
+}
+:root[data-theme="dark"] .teclado-virtual {
+  --tv-fondo: #2B2B2D;
+  --tv-tecla-bg: #6E6E73;
+  --tv-tecla-especial-bg: #444448;
+  --tv-tecla-color: #FFFFFF;
+  --tv-tecla-sombra: rgba(0, 0, 0, .55);
+  --tv-tecla-activa-bg: #909095;
+  --tv-tecla-especial-activa-bg: #59595D;
+}
+:root[data-theme="light"] .teclado-virtual {
+  --tv-fondo: #D2D5DB;
+  --tv-tecla-bg: #FFFFFF;
+  --tv-tecla-especial-bg: #ADB1BC;
+  --tv-tecla-color: #1C1C1E;
+  --tv-tecla-sombra: rgba(0, 0, 0, .28);
+  --tv-tecla-activa-bg: #F2F2F2;
+  --tv-tecla-especial-activa-bg: #C6C9D1;
 }
 
 .teclado-virtual[hidden] {
@@ -31,7 +73,7 @@
 .teclado-virtual-grupo {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .teclado-virtual-panel[hidden],
@@ -44,53 +86,64 @@
   gap: 6px;
 }
 
+/* Teclas tipo "keycap": fondo claro con una sombra corta hacia abajo (como
+   una tecla física con relieve), igual que iOS. Al pulsarla, la sombra
+   desaparece y sube ligeramente el fondo de "presionada" — simula que la
+   tecla se hunde. */
 .teclado-virtual-tecla {
   flex: 1;
-  min-height: 44px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 1.1rem;
-  font-weight: 500;
+  min-height: 42px;
+  border-radius: 6px;
+  border: none;
+  background: var(--tv-tecla-bg);
+  color: var(--tv-tecla-color);
+  font-size: 1.15rem;
+  font-weight: 400;
   -webkit-appearance: none;
   touch-action: manipulation;
+  box-shadow: 0 1px 0 var(--tv-tecla-sombra);
 }
 
 .teclado-virtual-tecla:active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--tv-tecla-activa-bg);
+  box-shadow: none;
 }
 
-.teclado-virtual-tecla--borrar {
-  color: var(--danger);
+/* Teclas "especiales" (mayúsculas, borrar, 123/ABC): fondo más oscuro que
+   las teclas de letra, igual que en el teclado de iOS. */
+.teclado-virtual-tecla--borrar,
+.teclado-virtual-tecla--mayus,
+.teclado-virtual-tecla--alterna {
+  background: var(--tv-tecla-especial-bg);
+  font-size: 1rem;
+}
+
+.teclado-virtual-tecla--borrar:active,
+.teclado-virtual-tecla--mayus:active,
+.teclado-virtual-tecla--alterna:active {
+  background: var(--tv-tecla-especial-activa-bg);
 }
 
 .teclado-virtual-tecla--intro {
+  flex: 1.4;
   background: var(--accent);
-  border-color: var(--accent);
   color: var(--accent-contrast);
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .teclado-virtual-tecla--intro:active {
-  opacity: .85;
+  opacity: .8;
 }
 
 /* Mayúsculas (⇧): resaltada mientras está activa, como feedback de que la
-   siguiente letra saldrá en mayúscula. */
+   siguiente letra saldrá en mayúscula (igual que iOS ilumina la flecha). */
 .teclado-virtual-tecla--mayus.teclado-virtual-tecla--activa {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Toggle 123/ABC de la capa de símbolos/acentos. */
-.teclado-virtual-tecla--alterna {
-  flex: 1.3;
-  font-size: .95rem;
+  background: var(--tv-tecla-bg);
+  color: var(--tv-tecla-color);
 }
 
 /* Barra espaciadora: mucho más ancha que una tecla normal. */
 .teclado-virtual-tecla--espacio {
-  flex: 4;
+  flex: 5;
 }
