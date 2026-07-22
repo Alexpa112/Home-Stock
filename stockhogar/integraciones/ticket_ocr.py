@@ -31,7 +31,7 @@ def extraer_texto(ruta_imagen):
         imagen_bytes = f.read()
 
     # Reescalado a ancho óptimo (2000px) + corrección de orientación +
-    # escala de grises + binarizado: sin esto Tesseract corría sobre la foto
+    # escala de grises + CLAHE: sin esto Tesseract corría sobre la foto
     # completa del móvil (varios MP) en color, con "spa+eng" (doble modelo de
     # idioma), lo que disparaba el tiempo de lectura del ticket muy por
     # encima de los 20s objetivo.
@@ -43,7 +43,7 @@ def extraer_texto(ruta_imagen):
         # proceso al superar el límite (a diferencia del SIGKILL de gunicorn
         # por --timeout, que deja el tesseract original huérfano consumiendo
         # CPU indefinidamente).
-        return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6", timeout=15)
+        return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6", timeout=25)
     except RuntimeError:
         raise RuntimeError(
             "La foto tardó demasiado en procesarse. Prueba con más luz, "

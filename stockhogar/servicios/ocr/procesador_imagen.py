@@ -46,14 +46,13 @@ class ProcesadorImagen:
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         gray = clahe.apply(gray)
 
-        # Reducir ruido
-        gray = cv2.bilateralFilter(gray, 9, 75, 75)
-
-        # Binarización adaptativa
-        gray = cv2.adaptiveThreshold(
-            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
-
+        # Nota: aquí había bilateralFilter + adaptiveThreshold (binarización).
+        # Con tickets reales de impresora térmica (fuente de matriz de puntos)
+        # la binarización rompe los trazos en fragmentos y dispara el tiempo
+        # de Tesseract de segundos a varios minutos (o lo cuelga sin
+        # terminar nunca), además de degradar la precisión del texto
+        # reconocido. El gris con CLAHE, sin binarizar, es lo que Tesseract
+        # procesa realmente rápido y bien en este tipo de tickets.
         return gray
 
     def _corregir_orientacion(self, img):
