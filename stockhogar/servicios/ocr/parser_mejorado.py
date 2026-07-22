@@ -98,7 +98,7 @@ class ParserMejorado:
             re.IGNORECASE | re.UNICODE
         )
         self.regex_precio = re.compile(
-            r'(\d+[.,]\d{2})\s*(€|\$)?',
+            r'(?<![A-Za-záéíóúñ])(\d*[.,]\d{2})\s*(€|\$)?',
             re.IGNORECASE
         )
         self.regex_precio_unitario = re.compile(
@@ -295,11 +295,18 @@ class ParserMejorado:
     def _limpiar_nombre(self, linea: str, cantidad_texto: str, precio_total: float) -> str:
         """Limpia nombre del producto removiendo cantidad y precio."""
 
-        # Quitar cantidad con unidad
-        nombre = re.sub(r'\d+[.,]?\d*\s*[a-záéíóúñ]+\.?', '', linea, flags=re.UNICODE | re.IGNORECASE)
+        # Quitar precios primero: si no, un precio sin el "0" inicial
+        # (p.ej. ",70") deja sueltos sus dígitos y la regex de cantidad
+        # los confunde con una cantidad+unidad (p.ej. "70 C").
+        nombre = re.sub(self.regex_precio, '', linea)
 
-        # Quitar precios
-        nombre = re.sub(self.regex_precio, '', nombre)
+        # Quitar cantidad con unidad
+        nombre = re.sub(r'\d+[.,]?\d*\s*[a-záéíóúñ]+\.?', '', nombre, flags=re.UNICODE | re.IGNORECASE)
+
+        # Quitar letra suelta de tipo de IVA al final (p.ej. "... A", "... B")
+        # que queda huérfana tras quitar el precio cuando este no tenía
+        # dígitos que la regex de cantidad pudiera arrastrar consigo.
+        nombre = re.sub(r'\s+[a-záéíóúñ]\s*$', '', nombre, flags=re.UNICODE | re.IGNORECASE)
 
         # Quitar símbolos tabulares
         nombre = re.sub(r'\.{2,}|-{2,}', ' ', nombre)
