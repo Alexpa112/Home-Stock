@@ -33,6 +33,10 @@ class ProcesadorImagen:
         if img is None:
             raise ValueError("No se pudo decodificar la imagen")
 
+        # Detectar y recortar solo la zona del ticket (elimina fondo: mesa,
+        # mano, etc.) antes de seguir procesando.
+        img = self._detectar_y_recortar_ticket(img)
+
         # Detectar y corregir orientación
         img = self._corregir_orientacion(img)
 
@@ -54,6 +58,86 @@ class ProcesadorImagen:
         # reconocido. El gris con CLAHE, sin binarizar, es lo que Tesseract
         # procesa realmente rápido y bien en este tipo de tickets.
         return gray
+
+    def _detectar_y_recortar_ticket(self, img):
+        """Detecta el papel del ticket en la foto y recorta/endereza esa
+        zona por perspectiva, descartando el fondo (mesa, mano, teclado...).
+
+        Se busca sobre una copia reducida (máx. 800px) por rendimiento en
+        Raspberry Pi. Si no se encuentra un contorno de papel claro (ticket
+        pequeño, fondo muy parecido en brillo, etc.) se devuelve la imagen
+        original sin recortar para no arriesgar perder contenido real.
+        """
+        h, w = img.shape[:2]
+        escala = 800 / w if w > 800 else 1.0
+        muestra = cv2.resize(img, (int(w * escala), int(h * escala))) if escala != 1.0 else img
+
+        gray = cv2.cvtColor(muestra, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        _, umbral = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # Cierre morfológico: rellena huecos del QR/texto para que el papel
+        # se detecte como un único contorno sólido.
+        kernel = np.ones((25, 25), np.uint8)
+        cerrado = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)
+
+        contornos, _ = cv2.findContours(cerrado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contornos:
+            return img
+
+        contorno = max(contornos, key=cv2.contourArea)
+        area_muestra = muestra.shape[0] * muestra.shape[1]
+        if cv2.contourArea(contorno) < 0.15 * area_muestra:
+            # Contorno demasiado pequeño: no es fiable, no recortamos.
+            return img
+
+        hull = cv2.convexHull(contorno)
+        perimetro = cv2.arcLength(hull, True)
+        cuadrilatero = None
+        for factor in (0.01, 0.02, 0.03, 0.05, 0.08):
+            aprox = cv2.approxPolyDP(hull, factor * perimetro, True)
+            if len(aprox) == 4:
+                cuadrilatero = aprox
+                break
+
+        if cuadrilatero is None:
+            # Fallback: rectángulo mínimo (menos preciso con papel inclinado,
+            # pero mejor que no recortar nada).
+            rect = cv2.minAreaRect(contorno)
+            cuadrilatero = cv2.boxPoints(rect).reshape(-1, 1, 2).astype(int)
+
+        puntos = cuadrilatero.reshape(4, 2).astype("float32") / escala
+        origen = self._ordenar_puntos(puntos)
+        (sup_izq, sup_der, inf_der, inf_izq) = origen
+
+        ancho_final = int(max(
+            np.linalg.norm(inf_der - inf_izq), np.linalg.norm(sup_der - sup_izq)
+        ))
+        alto_final = int(max(
+            np.linalg.norm(sup_der - inf_der), np.linalg.norm(sup_izq - inf_izq)
+        ))
+        if ancho_final < 50 or alto_final < 50:
+            return img
+
+        destino = np.array([
+            [0, 0], [ancho_final - 1, 0],
+            [ancho_final - 1, alto_final - 1], [0, alto_final - 1],
+        ], dtype="float32")
+        matriz = cv2.getPerspectiveTransform(origen, destino)
+        return cv2.warpPerspective(img, matriz, (ancho_final, alto_final))
+
+    @staticmethod
+    def _ordenar_puntos(puntos):
+        """Ordena 4 puntos como (superior-izq, superior-der, inferior-der,
+        inferior-izq) para usarlos como origen de una transformación de
+        perspectiva."""
+        rect = np.zeros((4, 2), dtype="float32")
+        suma = puntos.sum(axis=1)
+        rect[0] = puntos[np.argmin(suma)]
+        rect[2] = puntos[np.argmax(suma)]
+        diferencia = np.diff(puntos, axis=1)
+        rect[1] = puntos[np.argmin(diferencia)]
+        rect[3] = puntos[np.argmax(diferencia)]
+        return rect
 
     def _corregir_orientacion(self, img):
         """Detecta y corrige la orientación de la imagen."""
