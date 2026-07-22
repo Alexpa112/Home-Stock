@@ -56,7 +56,9 @@
 
 body.keyboard-open .modal-fondo,
 body.is-keyboard-open .modal-fondo {
-  padding-bottom: 0;
+  /* Reservar el hueco del teclado: si no, el flex-end ancla el modal al borde
+     fisico de la pantalla (bajo el teclado) en vez de justo encima de el. */
+  padding-bottom: var(--keyboard-offset, 0px);
   justify-content: flex-end;
 }
 
