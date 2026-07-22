@@ -46,8 +46,11 @@ WORKDIR /app
 # Se copian primero solo las dependencias para aprovechar la cache de capas
 # de Docker: si el código cambia pero requirements.txt no, no se reinstala nada.
 COPY requirements.txt .
+# piwheels.org publica wheels precompiladas para Raspberry Pi (armv7l/aarch64);
+# se usa como índice extra (no sustituye a PyPI) para que opencv-python-headless
+# no se compile desde fuente en la Pi, que es lo que más tarda del build entero.
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --extra-index-url https://www.piwheels.org/simple -r requirements.txt
 
 COPY . /app/
 
