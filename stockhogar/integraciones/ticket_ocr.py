@@ -43,7 +43,7 @@ def extraer_texto(ruta_imagen):
         # proceso al superar el límite (a diferencia del SIGKILL de gunicorn
         # por --timeout, que deja el tesseract original huérfano consumiendo
         # CPU indefinidamente).
-        return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6", timeout=25)
+        return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6", timeout=45)
     except RuntimeError:
         raise RuntimeError(
             "La foto tardó demasiado en procesarse. Prueba con más luz, "
