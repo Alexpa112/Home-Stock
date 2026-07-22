@@ -1,9 +1,12 @@
 """Gestor OCR - orquestador del flujo completo."""
+import logging
 from typing import List, Dict
 from .procesador_imagen import ProcesadorImagen
 from .extractor_texto import ExtractorTexto
 from .parseador_ticket import ParseadorTicket, LineaTicket
 from .matcher_productos import MatcherProductos
+
+logger = logging.getLogger(__name__)
 
 
 class GestorOCR:
@@ -72,6 +75,7 @@ class GestorOCR:
             return resultado
 
         except Exception as e:
+            logger.exception("Error procesando ticket OCR")
             resultado["error"] = f"Error procesando ticket: {str(e)}"
             return resultado
 

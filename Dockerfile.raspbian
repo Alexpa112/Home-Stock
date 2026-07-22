@@ -111,4 +111,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 # gunicorn en vez del servidor de desarrollo de Flask: soporta varios workers
 # y no muestra el aviso de "esto no es apto para producción" en los logs.
-CMD ["sh", "-c", "gunicorn --workers 2 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - run:app"]
+# --timeout 120 (por encima de los 30s por defecto): el preprocesado OpenCV
+# + Tesseract de un ticket puede tardar bastante en hardware limitado como
+# una Raspberry Pi, y con el timeout por defecto gunicorn mataba el worker
+# a mitad de petición.
+CMD ["sh", "-c", "gunicorn --workers 2 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - run:app"]
