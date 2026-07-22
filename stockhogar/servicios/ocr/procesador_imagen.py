@@ -58,44 +58,64 @@ class ProcesadorImagen:
 
     def _corregir_orientacion(self, img):
         """Detecta y corrige la orientación de la imagen."""
-        # Usar ángulos comunes (0, 90, 180, 270)
-        mejores_angulos = self._detectar_mejor_angulo(img)
-        if mejores_angulos:
-            angulo = mejores_angulos[0]
-            if angulo != 0:
-                h, w = img.shape[:2]
-                center = (w // 2, h // 2)
-                M = cv2.getRotationMatrix2D(center, angulo, 1.0)
-                img = cv2.warpAffine(
-                    img, M, (w, h), borderMode=cv2.BORDER_REPLICATE
-                )
+        angulo = self._detectar_angulo_rotacion(img)
+        if angulo != 0:
+            h, w = img.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angulo, 1.0)
+            img = cv2.warpAffine(
+                img, M, (w, h), borderMode=cv2.BORDER_REPLICATE
+            )
         return img
 
-    def _detectar_mejor_angulo(self, img):
-        """Detecta si la imagen está rotada y devuelve ángulo de corrección."""
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    def _detectar_angulo_rotacion(self, img):
+        """Detecta si la imagen está rotada y devuelve el ángulo de corrección.
+
+        Canny+HoughLines se ejecutan sobre una copia reducida (máx. 800px de
+        ancho) en vez de la foto original: en fotos de móvil de varios
+        megapíxeles esto era el cuello de botella de rendimiento en hardware
+        limitado (Raspberry Pi), sin aportar precisión extra a la detección
+        de ángulo.
+        """
+        h, w = img.shape[:2]
+        if w > 800:
+            escala = 800 / w
+            muestra = cv2.resize(img, (800, int(h * escala)))
+        else:
+            muestra = img
+
+        gray = cv2.cvtColor(muestra, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 50, 150)
 
-        # Detectar líneas (tickets suelen tener líneas horizontales)
+        # Detectar líneas (tickets suelen tener líneas de texto horizontales)
         lines = cv2.HoughLines(edges, 1, np.pi / 180, 100)
 
-        if lines is not None:
-            angulos = []
-            for line in lines:
-                rho, theta = line[0]
-                angulo = np.degrees(theta)
-                # Normalizar a -45 a 45 grados
-                if angulo > 90:
-                    angulo -= 180
-                angulos.append(angulo)
+        if lines is None:
+            return 0
 
-            if angulos:
-                angulo_promedio = np.median(angulos)
-                # Si está rotado más de 5 grados, corregir
-                if abs(angulo_promedio) > 5:
-                    return [angulo_promedio]
+        angulos = []
+        for line in lines:
+            rho, theta = line[0]
+            # theta es el ángulo de la NORMAL a la línea: para una línea ya
+            # horizontal theta ≈ 90°, así que hay que restar 90 para obtener
+            # el ángulo de desviación real (0 = ya recta). Sin esta resta,
+            # un ticket bien orientado se detectaba como rotado ~90° y se
+            # giraba de lado, dejando el texto en vertical e inutilizable
+            # para Tesseract.
+            angulo = np.degrees(theta) - 90
+            # Normalizar a (-45, 45]
+            if angulo > 45:
+                angulo -= 90
+            elif angulo < -45:
+                angulo += 90
+            angulos.append(angulo)
 
-        return [0]
+        angulo_promedio = np.median(angulos)
+        # Si está rotado más de 5 grados, corregir
+        if abs(angulo_promedio) > 5:
+            return float(angulo_promedio)
+
+        return 0
 
     def _redimensionar_optimo(self, img):
         """Redimensiona imagen para OCR óptimo (ancho ~2000px)."""
