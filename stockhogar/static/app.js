@@ -25,6 +25,11 @@ window.fetch = async (input, init = {}) => {
   const res = await fetchOriginal(input, init);
   if (res.status === 401) {
     window.location.href = "/login";
+  } else if (res.status === 503) {
+    const cuerpo = await res.clone().json().catch(() => null);
+    if (cuerpo?.mantenimiento) {
+      window.location.reload();
+    }
   }
   return res;
 };
@@ -2141,13 +2146,27 @@ window.cambiarLista = cambiarLista;
 // Se espera a cargarMisListas() antes de cargar productos/compra porque esa
 // función valida y limpia 'lista-actual' en localStorage; si no, otras
 // llamadas pueden usar un lista_id obsoleto y recibir 403 en cascada.
-cargarMisListas().then(() => {
+const misListasPromise = cargarMisListas();
+misListasPromise.then(() => {
   cargarCategorias().then(() => {
     cargarProductos();
     cargarListaCompra();
   });
 });
 cargarHistorial();
+
+// Si venimos de aceptar una invitación de lista compartida (?lista=<id>),
+// seleccionarla automáticamente en vez de dejar la lista propia activa.
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const listaId = params.get('lista');
+  if (listaId) {
+    misListasPromise.then(() => {
+      window.cambiarLista(listaId);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    });
+  }
+})();
 
 // ============ EVENTOS DE UI ============
 

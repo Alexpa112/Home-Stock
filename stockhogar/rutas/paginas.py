@@ -32,6 +32,9 @@ def aceptar_invitacion_pagina(codigo):
     usuario_id = session.get("usuario_id")
 
     # Si no está logueado, redirigir a login
+    # (nota: el guardián global en __init__.py:exigir_sesion ya intercepta
+    # esta ruta antes de llegar aquí y preserva el "next"; este chequeo queda
+    # como defensa adicional).
     if not usuario_id:
         return redirect(url_for("auth.pagina_login"))
 

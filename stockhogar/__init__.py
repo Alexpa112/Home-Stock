@@ -118,7 +118,11 @@ def create_app():
         if not session.get("usuario"):
             if request.path.startswith("/api/"):
                 return jsonify({"error": "No has iniciado sesión"}), 401
-            return redirect(url_for("auth.pagina_login"))
+            # Preservar la página solicitada (p.ej. un enlace de invitación a
+            # una lista compartida) para retomarla justo después de iniciar
+            # sesión, en vez de perderla y acabar en la home genérica.
+            next_url = request.full_path.rstrip("?")
+            return redirect(url_for("auth.pagina_login", next=next_url))
         return None
 
     db.init_db()

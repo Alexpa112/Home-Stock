@@ -424,6 +424,7 @@
 
 <script>
   const modoSetup = {{ "true" if modo_setup else "false" }};
+  const nextUrl = {{ next_url|tojson }};
   function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]').content;
   }
@@ -592,8 +593,10 @@
         return;
       }
 
-      // Backend ya inicia sesión automáticamente - redirigir directo
-      window.location.href = "/?crear_primera_lista=true";
+      // Backend ya inicia sesión automáticamente - redirigir directo.
+      // Si venimos de un enlace de invitación (next), retomar ese flujo en
+      // vez del modal de "crea tu primera lista".
+      window.location.href = nextUrl || "/?crear_primera_lista=true";
     } else {
       // Flujo de login
       const usuario = document.getElementById("campoUsuario").value.trim();
@@ -610,7 +613,7 @@
         error.hidden = false;
         return;
       }
-      window.location.href = "/";
+      window.location.href = nextUrl || "/";
     }
   });
 </script>
