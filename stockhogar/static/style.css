@@ -161,7 +161,7 @@ body.keyboard-open:not(.modal-open) #appShell {
   top: 0;
   z-index: 5;
   background: var(--surface);
-  padding: 14px 16px;
+  padding: max(14px, env(safe-area-inset-top)) 16px 14px;
   box-shadow: 0 1px 0 var(--border), var(--shadow-sm);
   display: flex;
   align-items: center;
