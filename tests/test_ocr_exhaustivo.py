@@ -14,7 +14,7 @@ from stockhogar.servicios.ocr import (
 )
 
 
-class TestingOCR:
+class SuiteOCR:
     """Suite exhaustiva de testing para OCR."""
 
     def __init__(self):
@@ -315,7 +315,7 @@ def main():
     print("Intentando romper el sistema desde todos los angulos...")
     print("="*70)
 
-    testing = TestingOCR()
+    testing = SuiteOCR()
 
     # Ejecutar tests
     tests = [

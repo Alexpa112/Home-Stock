@@ -11,17 +11,30 @@ class APIClient {
   }
 
   /**
+   * Token CSRF publicado por el backend en <meta name="csrf-token">
+   */
+  _csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+  }
+
+  /**
    * Método privado: realiza fetch con manejo de errores
    */
   async _fetch(url, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    const metodo = (options.method || 'GET').toUpperCase();
+    const headers = { ...this.headers, ...options.headers };
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(metodo)) {
+      headers['X-CSRFToken'] = this._csrfToken();
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
-        headers: { ...this.headers, ...options.headers },
+        headers,
       });
 
       clearTimeout(timeoutId);
@@ -157,75 +170,6 @@ class APIClient {
     });
   }
 
-  // ===== ESPACIOS =====
-  async obtenerEspacios() {
-    return this._fetch(`${this.baseUrl}/espacios`);
-  }
-
-  async crearEspacio(datos) {
-    return this._fetch(`${this.baseUrl}/espacios`, {
-      method: 'POST',
-      body: JSON.stringify(datos),
-    });
-  }
-
-  async actualizarEspacio(id, datos) {
-    return this._fetch(`${this.baseUrl}/espacios/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(datos),
-    });
-  }
-
-  async borrarEspacio(id) {
-    return this._fetch(`${this.baseUrl}/espacios/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // ===== HISTORIAL =====
-  async obtenerHistorial() {
-    return this._fetch(`${this.baseUrl}/historial`);
-  }
-
-  async buscarHistorial(nombre) {
-    return this._fetch(`${this.baseUrl}/historial?nombre=${encodeURIComponent(nombre)}`);
-  }
-
-  // ===== USUARIOS =====
-  async obtenerUsuarios() {
-    return this._fetch(`${this.baseUrl}/usuarios`);
-  }
-
-  async crearUsuario(datos) {
-    return this._fetch(`${this.baseUrl}/usuarios`, {
-      method: 'POST',
-      body: JSON.stringify(datos),
-    });
-  }
-
-  async borrarUsuario(id) {
-    return this._fetch(`${this.baseUrl}/usuarios/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // ===== TICKETS OCR =====
-  async procesarTicket(formData) {
-    return fetch(`${this.baseUrl}/tickets/procesar`, {
-      method: 'POST',
-      body: formData,
-    }).then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Sesión expirada');
-      }
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: res.statusText }));
-        throw new APIError(error.error || 'Error', res.status);
-      }
-      return res.json();
-    });
-  }
 }
 
 /**
@@ -260,5 +204,11 @@ class APIError extends Error {
   }
 }
 
-// Instancia global singleton
-window.API = new APIClient();
+// Instancia global singleton (solo en navegador: en tests se usa require())
+if (typeof window !== 'undefined') {
+  window.API = new APIClient();
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { APIClient, APIError };
+}

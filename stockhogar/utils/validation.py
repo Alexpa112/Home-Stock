@@ -22,6 +22,15 @@ class Validator:
         return numero
 
     @staticmethod
+    def entero_minimo(valor: Any, nombre_campo: str, minimo: int = 1) -> int:
+        """Valida que sea entero y lo fuerza al mínimo indicado si es menor."""
+        try:
+            numero = int(valor)
+        except (TypeError, ValueError) as e:
+            raise ValidationError(f"La {nombre_campo} debe ser un número entero") from e
+        return max(minimo, numero)
+
+    @staticmethod
     def string_requerido(valor: Any, nombre_campo: str, max_len: int = 255) -> str:
         """Valida string no vacío."""
         if not isinstance(valor, str):

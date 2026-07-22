@@ -1,9 +1,28 @@
+console.log(
+  "%c" +
+    " _____                              _ \n" +
+    "|  __ \\                            | |\n" +
+    "| |  | |_ __ ___  __ _ _ __ ___   __| |\n" +
+    "| |  | | '__/ _ \\/ _` | '_ ` _ \\ / _` |\n" +
+    "| |__| | | |  __/ (_| | | | | | | (_| |\n" +
+    "|_____/|_|  \\___|\\__,_|_| |_| |_|\\__,_|\n" +
+    "                                     ! ",
+  "color:#2e8b57;font-weight:bold;font-family:monospace"
+);
+
 // Si la sesion caduca o se borra el usuario conectado, cualquier llamada a la
 // API devolvera 401: mandamos a la pantalla de login en vez de dejar la app
 // a medio cargar con errores silenciosos.
 const fetchOriginal = window.fetch.bind(window);
-window.fetch = async (...args) => {
-  const res = await fetchOriginal(...args);
+window.fetch = async (input, init = {}) => {
+  const metodo = (init.method || "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(metodo)) {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (token) {
+      init = { ...init, headers: { ...(init.headers || {}), "X-CSRFToken": token } };
+    }
+  }
+  const res = await fetchOriginal(input, init);
   if (res.status === 401) {
     window.location.href = "/login";
   }
@@ -93,13 +112,13 @@ const btnCerrarCatalogo = document.getElementById("btnCerrarCatalogo");
 const btnAjustes = document.getElementById("btnAjustes");
 const modalAjustesFondo = document.getElementById("modalAjustes");
 
-const ajustesUsuarioActual = document.getElementById("ajustesUsuarioActual");
 const btnCerrarSesion = document.getElementById("btnCerrarSesion");
-const usuariosListaEl = document.getElementById("usuariosLista");
-const usuarioCampoNombre = document.getElementById("usuarioCampoNombre");
-const usuarioCampoPassword = document.getElementById("usuarioCampoPassword");
-const btnAnadirUsuario = document.getElementById("btnAnadirUsuario");
-const usuariosEstado = document.getElementById("usuariosEstado");
+
+const btnConsumo = document.getElementById("btnConsumo");
+const modalConsumoFondo = document.getElementById("modalConsumo");
+const btnCerrarConsumo = document.getElementById("btnCerrarConsumo");
+const consumoPorProductoEl = document.getElementById("consumoPorProducto");
+const consumoVacioEl = document.getElementById("consumoVacio");
 
 const btnEscanearTicket = document.getElementById("btnEscanearTicket");
 const modalTicketFondo = document.getElementById("modalTicket");
@@ -107,12 +126,20 @@ const ticketPasoFoto = document.getElementById("ticketPasoFoto");
 const ticketCargando = document.getElementById("ticketCargando");
 const ticketPasoRevision = document.getElementById("ticketPasoRevision");
 const ticketArchivo = document.getElementById("ticketArchivo");
+const ticketDropzone = document.getElementById("ticketDropzone");
+const ticketPreviewWrap = document.getElementById("ticketPreviewWrap");
+const ticketPreview = document.getElementById("ticketPreview");
+const btnCambiarFotoTicket = document.getElementById("btnCambiarFotoTicket");
+const btnVolverFotoTicket = document.getElementById("btnVolverFotoTicket");
+const ticketDot1 = document.getElementById("ticketDot1");
+const ticketDot2 = document.getElementById("ticketDot2");
+const ticketResumenEl = document.getElementById("ticketResumen");
 const btnAnalizarTicket = document.getElementById("btnAnalizarTicket");
 const btnCancelarTicket = document.getElementById("btnCancelarTicket");
-const btnCancelarRevisionTicket = document.getElementById("btnCancelarRevisionTicket");
 const btnAnadirLineaTicket = document.getElementById("btnAnadirLineaTicket");
 const btnConfirmarTicket = document.getElementById("btnConfirmarTicket");
 const ticketItemsEl = document.getElementById("ticketItems");
+const ticketAdvertenciasEl = document.getElementById("ticketAdvertencias");
 
 const btnTema = document.getElementById("btnTema");
 const btnCategorias = document.getElementById("btnCategorias");
@@ -124,36 +151,19 @@ const categoriaCampoIcono = document.getElementById("categoriaCampoIcono");
 const categoriaIconoElegido = document.getElementById("categoriaIconoElegido");
 const selectorIconosEl = document.getElementById("selectorIconos");
 const btnCerrarCategorias = document.getElementById("btnCerrarCategorias");
-
-const barraEspacio = document.getElementById("barraEspacio");
-const btnEspacios = document.getElementById("btnEspacios");
-const espacioActualIconoEl = document.getElementById("espacioActualIcono");
-const espacioActualNombreEl = document.getElementById("espacioActualNombre");
-const vistaEspacios = document.getElementById("vistaEspacios");
-const btnCerrarEspacios = document.getElementById("btnCerrarEspacios");
-const btnEditarEspacios = document.getElementById("btnEditarEspacios");
-const espaciosTarjetasEl = document.getElementById("espaciosTarjetas");
-
-const modalEspacioFormFondo = document.getElementById("modalEspacioForm");
-const formEspacio = document.getElementById("formEspacio");
-const espacioFormTitulo = document.getElementById("espacioFormTitulo");
-const espacioEditId = document.getElementById("espacioEditId");
-const espacioBotonGuardar = document.getElementById("espacioBotonGuardar");
-const espacioCampoNombre = document.getElementById("espacioCampoNombre");
-const espacioCampoIcono = document.getElementById("espacioCampoIcono");
-const espacioIconoElegido = document.getElementById("espacioIconoElegido");
-const btnSeleccionarIconoEspacio = document.getElementById("btnSeleccionarIconoEspacio");
-const paletaColorEspacioEl = document.getElementById("paletaColorEspacio");
-const espacioCampoColor = document.getElementById("espacioCampoColor");
-const espacioCampoColorPicker = document.getElementById("espacioCampoColorPicker");
-const btnCancelarEspacio = document.getElementById("btnCancelarEspacio");
+const botonesEnviarCategoria = [
+  ...formCategoria.querySelectorAll('button[type="submit"]'),
+  ...document.querySelectorAll(`button[form="${formCategoria.id}"]`),
+];
 
 let productos = [];
+// Productos con un PATCH de cantidad en curso: evita que clics rápidos en +/-
+// disparen peticiones concurrentes para el mismo producto (que pueden llegar
+// desordenadas y dejar la cantidad mostrada desincronizada del backend).
+const productosEnProceso = new Set();
 let pendientesCompra = [];
 let completadosCompra = [];
 let categorias = [];
-let espacios = [];
-let espacioActualId = null;
 let categoriaActiva = "todas";
 let textoBusqueda = "";
 let vistaActiva = "stock";
@@ -240,14 +250,24 @@ function habilitarCierreSeguro(fondo, alCerrar) {
   });
 }
 
-/* --- Cierre de modales por drag-down --- */
+/* --- Cierre de modales por drag-down (solo móvil, sin interferir con el scroll interno) --- */
 function habilitarDragDown(modal, alCerrar) {
+  const ZONA_ARRASTRE_PX = 32;
   let startY = 0;
   let currentY = 0;
   let isDragging = false;
 
+  function scrollTopContenido() {
+    const scrollable = modal.querySelector("form, .modal-content") || modal;
+    return scrollable.scrollTop || 0;
+  }
+
   modal.addEventListener("touchstart", (e) => {
-    startY = e.touches[0].clientY;
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    const toqueY = e.touches[0].clientY;
+    const zonaSuperior = modal.getBoundingClientRect().top + ZONA_ARRASTRE_PX;
+    if (toqueY > zonaSuperior && scrollTopContenido() > 0) return;
+    startY = toqueY;
     currentY = startY;
     isDragging = true;
   });
@@ -274,6 +294,15 @@ function habilitarDragDown(modal, alCerrar) {
     }
   });
 }
+
+/* --- Bottom sheet completo: cierre por fondo + arrastre seguro --- */
+function habilitarBottomSheet(fondo, contenedor, alCerrar) {
+  habilitarCierreSeguro(fondo, alCerrar);
+  if (contenedor) habilitarDragDown(contenedor, alCerrar);
+}
+window.habilitarCierreSeguro = habilitarCierreSeguro;
+window.habilitarDragDown = habilitarDragDown;
+window.habilitarBottomSheet = habilitarBottomSheet;
 
 function escapeHtml(texto) {
   const div = document.createElement("div");
@@ -382,14 +411,15 @@ async function cargarCategorias() {
     poblarSelectCategoria(campoCategoria, campoCategoria.value);
   } catch (error) {
     console.error("Error cargando categorías:", error);
-    Toast.error("No se pudieron cargar las categorías. Comprueba tu conexión.");
+    Toast.error((window.i18n && window.i18n.t('error_cargar_categorias')) || "No se pudieron cargar las categorías. Comprueba tu conexión.");
     categorias = [];
   }
 }
 
 function renderFiltros() {
   const categoriaPrevia = categoriaActiva;
-  filtros.innerHTML = '<button class="chip activo" data-cat="todas">Todas</button>';
+  const textoTodas = (window.i18n && window.i18n.t('todas')) || "Todas";
+  filtros.innerHTML = `<button class="chip activo" data-cat="todas">${textoTodas}</button>`;
   for (const cat of categorias) {
     const btnCat = document.createElement("button");
     btnCat.className = "chip";
@@ -408,7 +438,10 @@ function renderFiltros() {
 
 function poblarSelectCategoria(select, seleccionada) {
   select.innerHTML = categorias
-    .map((c) => `<option value="${escapeHtml(c.nombre)}">${escapeHtml(c.nombre)}</option>`)
+    .map((c) => {
+      const nombreTrad = (window.i18n && window.i18n.t(window.i18n.claveCategoria(c.nombre))) || c.nombre;
+      return `<option value="${escapeHtml(c.nombre)}">${escapeHtml(nombreTrad)}</option>`;
+    })
     .join("");
   if (seleccionada) select.value = seleccionada;
 }
@@ -418,11 +451,12 @@ function renderCategoriasLista() {
   for (const cat of categorias) {
     const chip = document.createElement("div");
     chip.className = "categoria-chip";
-    chip.innerHTML = `<span>${renderIcono(cat.icono)} ${escapeHtml(cat.nombre)}</span>`;
+    const nombreCategoriaTrad = (window.i18n && window.i18n.t(window.i18n.claveCategoria(cat.nombre))) || cat.nombre;
+    chip.innerHTML = `<span>${renderIcono(cat.icono)} ${escapeHtml(nombreCategoriaTrad)}</span>`;
     if (cat.nombre !== "Otros") {
       const btnBorrar = document.createElement("button");
       btnBorrar.type = "button";
-      btnBorrar.title = "Borrar categoría";
+      btnBorrar.title = (window.i18n && window.i18n.t('borrar_categoria_titulo')) || "Borrar categoría";
       btnBorrar.textContent = "✕";
       btnBorrar.addEventListener("click", () => borrarCategoria(cat));
       chip.appendChild(btnBorrar);
@@ -432,7 +466,8 @@ function renderCategoriasLista() {
 }
 
 async function borrarCategoria(cat) {
-  if (!confirm(`¿Borrar la categoría "${cat.nombre}"?`)) return;
+  const msjBorrarCategoria = (window.i18n && window.i18n.t('confirmar_borrar_categoria')) || '¿Borrar la categoría "{nombre}"?';
+  if (!confirm(msjBorrarCategoria.replace('{nombre}', cat.nombre))) return;
 
   try {
     const res = await fetchConTimeout(`/api/categorias/${cat.id}`, { method: "DELETE" }, 8000);
@@ -443,7 +478,7 @@ async function borrarCategoria(cat) {
     render();
   } catch (error) {
     console.error("Error borrando categoría:", error);
-    Toast.error(error.message || "No se pudo borrar la categoría. Inténtalo de nuevo.");
+    Toast.error(error.message || (window.i18n && window.i18n.t('error_borrar_categoria')) || "No se pudo borrar la categoría. Inténtalo de nuevo.");
   }
 }
 
@@ -483,7 +518,7 @@ function renderizarIconosGrid(filtro = "") {
   if (items.length === 0) {
     const vacioAviso = document.createElement("p");
     vacioAviso.className = "aviso";
-    vacioAviso.textContent = "Ningún icono coincide con esa búsqueda.";
+    vacioAviso.textContent = (window.i18n && window.i18n.t('sin_iconos_coincidentes')) || "Ningún icono coincide con esa búsqueda.";
     contenedorIconos.appendChild(vacioAviso);
   }
 }
@@ -512,12 +547,7 @@ buscadorIconos.addEventListener("input", () => {
 
 btnCerrarSelectorIconos.addEventListener("click", cerrarModalSelectorIconos);
 
-// Cerrar modal al hacer click en el fondo
-modalSelectorIconos.addEventListener("click", (e) => {
-  if (e.target === modalSelectorIconos) {
-    cerrarModalSelectorIconos();
-  }
-});
+habilitarBottomSheet(modalSelectorIconos, modalSelectorIconos.querySelector(".modal"), cerrarModalSelectorIconos);
 
 function abrirModalCategorias() {
   renderCategoriasLista();
@@ -525,6 +555,9 @@ function abrirModalCategorias() {
   categoriaCampoIcono.value = "h-folder";
   categoriaIconoElegido.innerHTML = renderIcono("h-folder");
   modalCategoriasFondo.hidden = false;
+  modalCategoriasFondo.scrollTop = 0;
+  const contenido = modalCategoriasFondo.querySelector(".modal-content");
+  if (contenido) contenido.scrollTop = 0;
 }
 
 function cerrarModalCategorias() {
@@ -533,7 +566,7 @@ function cerrarModalCategorias() {
 
 btnCategorias.addEventListener("click", abrirModalCategorias);
 btnCerrarCategorias.addEventListener("click", cerrarModalCategorias);
-habilitarCierreSeguro(modalCategoriasFondo, cerrarModalCategorias);
+habilitarBottomSheet(modalCategoriasFondo, modalCategoriasFondo.querySelector(".modal"), cerrarModalCategorias);
 
 // Botón para seleccionar icono en categorías
 const btnSeleccionarIconoCategoria = document.getElementById("btnSeleccionarIconoCategoria");
@@ -551,8 +584,13 @@ formCategoria.addEventListener("submit", async (e) => {
   e.preventDefault();
   const nombre = categoriaCampoNombre.value.trim();
   if (!nombre) return;
+  if (categorias.some((c) => c.nombre.localeCompare(nombre, "es", { sensitivity: "base" }) === 0)) {
+    Toast.error("Ya existe una categoría con ese nombre");
+    return;
+  }
   const icono = categoriaCampoIcono.value || "h-folder";
 
+  botonesEnviarCategoria.forEach((btn) => (btn.disabled = true));
   let datos;
   try {
     const res = await fetch("/api/categorias", {
@@ -569,6 +607,8 @@ formCategoria.addEventListener("submit", async (e) => {
     console.error("Error creando categoría:", error);
     Toast.error("No se pudo crear la categoría. Comprueba tu conexión e inténtalo de nuevo.");
     return;
+  } finally {
+    botonesEnviarCategoria.forEach((btn) => (btn.disabled = false));
   }
 
   categorias.push(datos);
@@ -582,261 +622,6 @@ formCategoria.addEventListener("submit", async (e) => {
   categoriaCampoIcono.value = "h-folder";
   categoriaIconoElegido.innerHTML = renderIcono("h-folder");
   categoriaCampoNombre.focus();
-});
-
-/* --- Espacios (varios stocks independientes: casa, oficina, etc.) --- */
-
-const PALETA_COLOR_ESPACIOS = [
-  "#B5551A", "#3E7C8C", "#7B6B9E", "#5B8C5A",
-  "#C77B9E", "#C9A227", "#4A6FA5", "#B5473F",
-];
-
-let editandoEspacios = false;
-
-function ajustarColor(hex, delta) {
-  const num = parseInt(hex.slice(1), 16);
-  const canal = (despl) => Math.max(0, Math.min(255, ((num >> despl) & 0xff) + delta));
-  const r = canal(16), g = canal(8), b = canal(0);
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
-}
-
-function colorEsClaro(hex) {
-  const num = parseInt(hex.slice(1), 16);
-  const r = (num >> 16) & 0xff, g = (num >> 8) & 0xff, b = num & 0xff;
-  return (0.299 * r + 0.587 * g + 0.114 * b) > 170;
-}
-
-function aplicarColorEspacio(color) {
-  const raiz = document.documentElement.style;
-  raiz.setProperty("--accent", color);
-  raiz.setProperty("--accent-soft", ajustarColor(color, 95));
-  raiz.setProperty("--accent-contrast", colorEsClaro(color) ? "#26211C" : "#FFFFFF");
-}
-
-async function cargarEspacios() {
-  const [listaRes, actualRes] = await Promise.all([
-    fetch("/api/espacios"),
-    fetch("/api/espacios/actual"),
-  ]);
-  espacios = await listaRes.json();
-  const actual = await actualRes.json();
-  espacioActualId = actual.id;
-  renderEspacioActual(actual);
-}
-
-function renderEspacioActual(actual) {
-  if (espacioActualIconoEl) espacioActualIconoEl.innerHTML = renderIcono(actual.icono);
-  if (espacioActualNombreEl) espacioActualNombreEl.textContent = actual.nombre;
-  aplicarColorEspacio(actual.color);
-}
-
-function mostrarVistaEspacios() {
-  editandoEspacios = false;
-  renderTarjetasEspacios();
-  barraEspacio.hidden = true;
-  vistaEspacios.hidden = false;
-  tabs.hidden = true;
-  vistaStock.hidden = true;
-  vistaCompra.hidden = true;
-  fab.hidden = true;
-}
-
-function ocultarVistaEspacios() {
-  barraEspacio.hidden = false;
-  vistaEspacios.hidden = true;
-  tabs.hidden = false;
-  vistaStock.hidden = vistaActiva !== "stock";
-  vistaCompra.hidden = vistaActiva !== "compra";
-  fab.hidden = false;
-}
-
-function renderTarjetasEspacios() {
-  btnEditarEspacios.textContent = editandoEspacios ? "Listo" : "Editar";
-  espaciosTarjetasEl.innerHTML = "";
-
-  for (const esp of espacios) {
-    const tarjeta = document.createElement("button");
-    tarjeta.type = "button";
-    tarjeta.className = "tarjeta-espacio";
-    tarjeta.style.background = `linear-gradient(135deg, ${ajustarColor(esp.color, 25)}, ${ajustarColor(esp.color, -25)})`;
-    tarjeta.innerHTML = `
-      <span class="tarjeta-espacio-icono">${renderIcono(esp.icono, { tamano: 24 })}</span>
-      <p class="tarjeta-espacio-nombre">${escapeHtml(esp.nombre)}</p>
-      ${esp.productos_count ? `<span class="tarjeta-espacio-contador">${esp.productos_count} producto${esp.productos_count === 1 ? "" : "s"}</span>` : ""}
-      <span class="tarjeta-espacio-flecha">${editandoEspacios ? "✏️" : "›"}</span>
-    `;
-    tarjeta.addEventListener("click", () => {
-      if (editandoEspacios) abrirFormEspacio(esp);
-      else seleccionarEspacio(esp.id);
-    });
-
-    if (editandoEspacios && espacios.length > 1) {
-      const btnBorrar = document.createElement("button");
-      btnBorrar.type = "button";
-      btnBorrar.className = "tarjeta-espacio-borrar";
-      btnBorrar.title = "Borrar stock";
-      btnBorrar.textContent = "✕";
-      btnBorrar.addEventListener("click", (e) => {
-        e.stopPropagation();
-        borrarEspacio(esp);
-      });
-      tarjeta.appendChild(btnBorrar);
-    }
-    espaciosTarjetasEl.appendChild(tarjeta);
-  }
-
-  const btnNueva = document.createElement("button");
-  btnNueva.type = "button";
-  btnNueva.className = "tarjeta-espacio tarjeta-espacio-nueva";
-  btnNueva.textContent = "+ Nuevo stock";
-  btnNueva.addEventListener("click", () => abrirFormEspacio(null));
-  espaciosTarjetasEl.appendChild(btnNueva);
-}
-
-async function seleccionarEspacio(id) {
-  if (id !== espacioActualId) {
-    const res = await fetch("/api/espacios/actual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ espacio_id: id }),
-    });
-    const actual = await res.json();
-    espacioActualId = actual.id;
-    renderEspacioActual(actual);
-    await Promise.all([cargarProductos(), cargarListaCompra()]);
-  }
-  ocultarVistaEspacios();
-}
-
-async function borrarEspacio(esp) {
-  if (!confirm(`¿Borrar el stock "${esp.nombre}"? Se borrará también todo su inventario y su lista de la compra.`)) return;
-
-  try {
-    await fetchConTimeout(`/api/espacios/${esp.id}`, { method: "DELETE" }, 8000);
-    const eraElActual = esp.id === espacioActualId;
-    espacios = espacios.filter((e) => e.id !== esp.id);
-    renderTarjetasEspacios();
-    if (eraElActual) {
-      const resActual = await fetchConTimeout("/api/espacios/actual", {}, 8000);
-      const actual = await resActual.json();
-      espacioActualId = actual.id;
-      renderEspacioActual(actual);
-      await Promise.all([cargarProductos(), cargarListaCompra()]);
-    }
-  } catch (error) {
-    console.error("Error borrando espacio:", error);
-    Toast.error(error.message || "No se pudo borrar el stock. Inténtalo de nuevo.");
-  }
-}
-
-if (btnEspacios) btnEspacios.addEventListener("click", mostrarVistaEspacios);
-if (btnCerrarEspacios) btnCerrarEspacios.addEventListener("click", ocultarVistaEspacios);
-if (btnEditarEspacios) btnEditarEspacios.addEventListener("click", () => {
-  editandoEspacios = !editandoEspacios;
-  renderTarjetasEspacios();
-});
-
-/* --- Formulario de alta/edición de un stock (nombre, icono, color) --- */
-
-function renderPaletaColorEspacio(seleccionado) {
-  paletaColorEspacioEl.innerHTML = "";
-  for (const color of PALETA_COLOR_ESPACIOS) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.style.background = color;
-    btn.className = color.toLowerCase() === seleccionado.toLowerCase() ? "seleccionado" : "";
-    btn.title = color;
-    btn.addEventListener("click", () => {
-      espacioCampoColor.value = color;
-      espacioCampoColorPicker.value = color;
-      renderPaletaColorEspacio(color);
-    });
-    paletaColorEspacioEl.appendChild(btn);
-  }
-}
-
-espacioCampoColorPicker.addEventListener("input", (e) => {
-  espacioCampoColor.value = e.target.value;
-  renderPaletaColorEspacio(e.target.value);
-});
-
-function abrirFormEspacio(esp) {
-  formEspacio.reset();
-  const esEdicion = Boolean(esp);
-  espacioEditId.value = esEdicion ? esp.id : "";
-  espacioFormTitulo.textContent = esEdicion ? "Editar stock" : "Nuevo stock";
-  espacioBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
-
-  espacioCampoNombre.value = esEdicion ? esp.nombre : "";
-  const icono = esEdicion ? esp.icono : "h-home";
-  const color = esEdicion ? esp.color : PALETA_COLOR_ESPACIOS[espacios.length % PALETA_COLOR_ESPACIOS.length];
-
-  espacioCampoIcono.value = icono;
-  espacioIconoElegido.innerHTML = renderIcono(icono);
-
-  espacioCampoColor.value = color;
-  espacioCampoColorPicker.value = color;
-  renderPaletaColorEspacio(color);
-
-  modalEspacioFormFondo.hidden = false;
-  espacioCampoNombre.focus();
-}
-
-function cerrarFormEspacio() {
-  modalEspacioFormFondo.hidden = true;
-}
-
-btnCancelarEspacio.addEventListener("click", cerrarFormEspacio);
-habilitarCierreSeguro(modalEspacioFormFondo, cerrarFormEspacio);
-
-if (btnSeleccionarIconoEspacio) {
-  btnSeleccionarIconoEspacio.addEventListener("click", (e) => {
-    e.preventDefault();
-    abrirModalSelectorIconos(espacioCampoIcono.value, (icono) => {
-      espacioCampoIcono.value = icono;
-      espacioIconoElegido.innerHTML = renderIcono(icono);
-    });
-  });
-}
-
-formEspacio.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const id = espacioEditId.value;
-  const payload = {
-    nombre: espacioCampoNombre.value.trim(),
-    icono: espacioCampoIcono.value || "h-home",
-    color: espacioCampoColor.value,
-  };
-  if (!payload.nombre) return;
-
-  let datos;
-  try {
-    const res = await fetch(id ? `/api/espacios/${id}` : "/api/espacios", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    datos = await res.json();
-    if (!res.ok) {
-      Toast.error(datos.error || "No se pudo guardar el stock");
-      return;
-    }
-  } catch (error) {
-    console.error("Error guardando espacio:", error);
-    Toast.error("No se pudo guardar el stock. Comprueba tu conexión e inténtalo de nuevo.");
-    return;
-  }
-
-  if (id) {
-    espacios = espacios.map((esp) => (esp.id === datos.id ? { ...esp, ...datos } : esp));
-    if (Number(id) === espacioActualId) renderEspacioActual(datos);
-  } else {
-    espacios.push(datos);
-  }
-  espacios.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-
-  cerrarFormEspacio();
-  renderTarjetasEspacios();
 });
 
 /* --- Stock --- */
@@ -887,9 +672,9 @@ function crearTarjeta(p) {
       <div class="detalle" data-categoria-original="${escapeHtml(p.categoria)}">${escapeHtml(p.categoria)}${avisos.length ? " · " + avisos.join(" · ") : ""}</div>
     </div>
     <div class="contador">
-      <button data-accion="restar" title="Quitar uno">−</button>
+      <button data-accion="restar" title="Quitar uno" ${productosEnProceso.has(p.id) ? "disabled" : ""}>−</button>
       <span class="cantidad">${p.cantidad} ${escapeHtml(p.unidad)}</span>
-      <button data-accion="sumar" title="Añadir uno">+</button>
+      <button data-accion="sumar" title="Añadir uno" ${productosEnProceso.has(p.id) ? "disabled" : ""}>+</button>
     </div>
     <div class="acciones">
       <button data-accion="editar" title="Editar">✏️</button>
@@ -906,6 +691,9 @@ function crearTarjeta(p) {
 }
 
 async function cambiarCantidad(id, delta) {
+  if (productosEnProceso.has(id)) return;
+  productosEnProceso.add(id);
+
   let actualizado;
   try {
     const res = await fetch(`/api/productos/${id}`, {
@@ -929,6 +717,8 @@ async function cambiarCantidad(id, delta) {
     console.error("Error cambiando cantidad:", error);
     Toast.error("No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
     return;
+  } finally {
+    productosEnProceso.delete(id);
   }
 
   productos = productos.map((p) => (p.id === id ? actualizado : p));
@@ -937,7 +727,7 @@ async function cambiarCantidad(id, delta) {
 }
 
 async function borrarProducto(id) {
-  if (!confirm("¿Eliminar este producto del stock?")) return;
+  if (!confirm((window.i18n && window.i18n.t('confirmar_eliminar_producto_stock')) || "¿Eliminar este producto del stock?")) return;
   try {
     const res = await fetch(`/api/productos/${id}`, { method: "DELETE" });
     if (!res.ok) {
@@ -978,7 +768,7 @@ function abrirModal(producto) {
 
   const esEdicion = Boolean(producto && producto.id !== undefined);
   if (esEdicion) {
-    modalTitulo.textContent = "Editar producto";
+    modalTitulo.textContent = (window.i18n && window.i18n.t('editar_producto')) || "Editar producto";
     document.getElementById("productoId").value = producto.id;
     document.getElementById("campoNombre").value = producto.nombre;
     campoCategoria.value = producto.categoria;
@@ -989,7 +779,8 @@ function abrirModal(producto) {
     campoIcono.value = producto.icono || "";
     iconoProductoTocado = true;
   } else if (producto) {
-    modalTitulo.textContent = `Añadir "${producto.nombre}" al stock`;
+    const plantillaAñadirStock = (window.i18n && window.i18n.t('añadir_x_al_stock')) || 'Añadir "{nombre}" al stock';
+    modalTitulo.textContent = plantillaAñadirStock.replace('{nombre}', producto.nombre);
     document.getElementById("campoNombre").value = producto.nombre || "";
     poblarSelectCategoria(campoCategoria, producto.categoria || null);
     document.getElementById("campoCantidad").value = producto.cantidad || 1;
@@ -997,7 +788,7 @@ function abrirModal(producto) {
     campoIcono.value = producto.icono || "";
     iconoProductoTocado = Boolean(producto.icono);
   } else {
-    modalTitulo.textContent = "Nuevo producto";
+    modalTitulo.textContent = (window.i18n && window.i18n.t('nuevo_producto')) || "Nuevo producto";
   }
 
   actualizarSelectorIconoProducto();
@@ -1072,6 +863,11 @@ form.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      Toast.error(error.error || "No se pudo guardar los cambios.");
+      return;
+    }
     const actualizado = await res.json();
     productos = productos.map((p) => (p.id === actualizado.id ? actualizado : p));
   } else {
@@ -1080,6 +876,11 @@ form.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      Toast.error(error.error || "No se pudo crear el producto.");
+      return;
+    }
     const creado = await res.json();
     productos.push(creado);
 
@@ -1102,7 +903,7 @@ form.addEventListener("submit", async (e) => {
 });
 
 btnCancelar.addEventListener("click", cerrarModal);
-habilitarCierreSeguro(modalFondo, cerrarModal);
+habilitarBottomSheet(modalFondo, modalFondo.querySelector(".modal"), cerrarModal);
 
 buscador.addEventListener("input", (e) => {
   textoBusqueda = e.target.value;
@@ -1233,12 +1034,24 @@ async function completarItemCompra(id, elemento) {
   elemento.classList.add("completando");
   elemento.disabled = true;
   setTimeout(async () => {
-    await fetch(`/api/articulos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activo: false }),
-    });
-    cargarListaCompra();
+    try {
+      const res = await fetch(`/api/articulos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo: false }),
+      });
+      if (!res.ok) {
+        const datos = await res.json().catch(() => null);
+        Toast.error(datos?.error || "No se pudo marcar como comprado.");
+      }
+    } catch (error) {
+      console.error("Error completando artículo:", error);
+      Toast.error("No se pudo marcar como comprado. Comprueba tu conexión.");
+    } finally {
+      // Siempre recargar: si falló, esto también deshace el estado
+      // "completando"/disabled dejado por el bloque de arriba.
+      await cargarListaCompra();
+    }
   }, 280);
 }
 
@@ -1274,12 +1087,13 @@ function abrirModalCompra(item) {
   const articuloPersonalizadoId = item && item.articulo_personalizado_id;
   document.getElementById("compraArticuloPersonalizadoId").value = articuloPersonalizadoId || "";
   
+  const t = (clave, fallback) => (window.i18n ? window.i18n.t(clave) : fallback);
   compraModalTitulo.textContent = esEdicion
-    ? "Editar artículo"
+    ? t("editar_articulo", "Editar artículo")
     : item
-    ? `Añadir "${item.nombre}"`
-    : "Añadir a la lista de la compra";
-  compraBotonGuardar.textContent = esEdicion ? "Guardar" : "Añadir";
+    ? t("añadir_x", 'Añadir "{nombre}"').replace("{nombre}", item.nombre)
+    : t("añadir_a_lista_compra", "Añadir a la lista de la compra");
+  compraBotonGuardar.textContent = esEdicion ? t("guardar", "Guardar") : t("añadir", "Añadir");
   document.getElementById("btnBorrarArticulo").hidden = !esEdicion;
   // Mostrar botón de edición avanzada solo si es artículo personalizado
   const btnEdicionAvanzada = document.getElementById("btnEdicionAvanzada");
@@ -1415,7 +1229,7 @@ const btnBorrarArticuloEl = document.getElementById("btnBorrarArticulo");
 if (btnBorrarArticuloEl) {
   btnBorrarArticuloEl.addEventListener("click", async () => {
     const id = compraEditIdEl.value;
-    if (!id || !confirm("¿Borrar este artículo de la lista?")) return;
+    if (!id || !confirm((window.i18n && window.i18n.t('confirmar_borrar_articulo_lista')) || "¿Borrar este artículo de la lista?")) return;
 
     try {
       await fetchConTimeout(`/api/articulos/${id}`, { method: "DELETE" }, 8000);
@@ -1428,7 +1242,7 @@ if (btnBorrarArticuloEl) {
   });
 }
 
-habilitarCierreSeguro(modalCompraFondo, cerrarModalCompra);
+habilitarBottomSheet(modalCompraFondo, modalCompraFondo.querySelector(".modal"), cerrarModalCompra);
 
 // Botón de edición avanzada para artículos personalizados
 const btnEdicionAvanzadaEl = document.getElementById("btnEdicionAvanzada");
@@ -1440,7 +1254,8 @@ if (btnEdicionAvanzadaEl) {
       return;
     }
     // Abrir modal de edición avanzada (por ahora solo alerta)
-    alert(`Edición avanzada para artículo personalizado ID ${articuloPersonalizadoId}. Esta funcionalidad puede extenderse para gestionar traducciones, imágenes, etc.`);
+    const plantillaEdicionAvanzada = (window.i18n && window.i18n.t('edicion_avanzada_articulo')) || 'Edición avanzada para artículo personalizado ID {id}. Esta funcionalidad puede extenderse en el futuro.';
+    alert(plantillaEdicionAvanzada.replace('{id}', articuloPersonalizadoId));
     // En el futuro: abrir un modal específico para traducciones y detalles avanzados
   });
 }
@@ -1452,7 +1267,7 @@ if (btnEdicionAvanzadaEl) {
  */
 async function editarArticuloPersonalizado(articuloId, datos) {
   try {
-    const res = await fetch(`/api/articulos-personalizados/${articuloId}`, {
+    const res = await fetch(`/api/articulos/personalizados/${articuloId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(datos)
@@ -1475,7 +1290,7 @@ async function editarArticuloPersonalizado(articuloId, datos) {
  */
 async function eliminarArticuloPersonalizado(articuloId) {
   try {
-    const res = await fetch(`/api/articulos-personalizados/${articuloId}`, {
+    const res = await fetch(`/api/articulos/personalizados/${articuloId}`, {
       method: "DELETE"
     });
 
@@ -1496,7 +1311,7 @@ async function eliminarArticuloPersonalizado(articuloId) {
  */
 async function obtenerTraduccionesArticulo(articuloId, idioma) {
   try {
-    const res = await fetch(`/api/articulos-personalizados/${articuloId}/traducciones/${idioma}`);
+    const res = await fetch(`/api/articulos/personalizados/${articuloId}/traducciones/${idioma}`);
 
     if (!res.ok) {
       return null;
@@ -1518,13 +1333,13 @@ function abrirModalCatalogo(modo = "compra") {
   catalogoModo = modo;
   const botonesAccion = document.querySelector("#accionesModalCatalogo");
   if (modo === "stock") {
-    catalogoTitulo.textContent = "Añadir al stock";
-    catalogoAyuda.textContent = "Toca un producto para indicar su cantidad y añadirlo al stock.";
+    catalogoTitulo.textContent = (window.i18n && window.i18n.t('añadir_al_stock')) || "Añadir al stock";
+    catalogoAyuda.textContent = (window.i18n && window.i18n.t('ayuda_stock_catalogo')) || "Toca un producto para indicar su cantidad y añadirlo al stock.";
     if (btnCrearDesdeCatalogo) btnCrearDesdeCatalogo.textContent = "+";
     if (botonesAccion) botonesAccion.style.display = "flex";
   } else {
-    catalogoTitulo.textContent = "Añadir a la lista";
-    catalogoAyuda.textContent = "Toca un producto para añadirlo (el fondo se resaltará cuando esté en tu lista).";
+    catalogoTitulo.textContent = (window.i18n && window.i18n.t('añadir_a_la_lista')) || "Añadir a la lista";
+    catalogoAyuda.textContent = (window.i18n && window.i18n.t('ayuda_lista_catalogo')) || "Toca un producto para añadirlo (el fondo se resaltará cuando esté en tu lista).";
     if (botonesAccion) botonesAccion.style.display = "none";
   }
   catalogoBuscadorEl.value = "";
@@ -1630,42 +1445,51 @@ async function anadirDesdeCatalogo(entry) {
 }
 
 async function toggleArticuloEnLista(entry, btn) {
+  // Evita que un doble-tap dispare dos peticiones antes de que la primera
+  // termine (ambas verían pendientesCompra desactualizado y duplicarían el alta).
+  if (btn.disabled) return;
+
   const listaId = localStorage.getItem('lista-actual');
   if (!listaId) {
     Toast.error("Selecciona una lista primero");
     return;
   }
 
-  const enLista = articuloEnLista(entry.nombre);
-  if (enLista) {
-    const articulo = pendientesCompra.find((a) => a.nombre === entry.nombre);
-    if (articulo) {
-      await fetch(`/api/articulos/${articulo.id}`, { method: "DELETE" });
+  btn.disabled = true;
+  try {
+    const enLista = articuloEnLista(entry.nombre);
+    if (enLista) {
+      const articulo = pendientesCompra.find((a) => a.nombre === entry.nombre);
+      if (articulo) {
+        await fetch(`/api/articulos/${articulo.id}`, { method: "DELETE" });
+      }
+    } else {
+      await fetch("/api/articulos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lista_id: parseInt(listaId),
+          nombre: entry.nombre,
+          categoria: entry.categoria,
+          icono: entry.icono,
+          unidad: entry.unidad,
+          sub_descripcion: entry.sub_descripcion,
+        }),
+      });
     }
-  } else {
-    await fetch("/api/articulos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lista_id: parseInt(listaId),
-        nombre: entry.nombre,
-        categoria: entry.categoria,
-        icono: entry.icono,
-        unidad: entry.unidad,
-        sub_descripcion: entry.sub_descripcion,
-      }),
-    });
-  }
-  await cargarListaCompra();
+    await cargarListaCompra();
 
-  // Solo actualizar el color del botón, sin regenerar todo el catálogo
-  const ahora_enLista = articuloEnLista(entry.nombre);
-  if (ahora_enLista) {
-    btn.classList.add("tile-en-lista");
-    btn.title = `Toca para quitar de la lista`;
-  } else {
-    btn.classList.remove("tile-en-lista");
-    btn.title = `Toca para añadir a la lista`;
+    // Solo actualizar el color del botón, sin regenerar todo el catálogo
+    const ahora_enLista = articuloEnLista(entry.nombre);
+    if (ahora_enLista) {
+      btn.classList.add("tile-en-lista");
+      btn.title = `Toca para quitar de la lista`;
+    } else {
+      btn.classList.remove("tile-en-lista");
+      btn.title = `Toca para añadir a la lista`;
+    }
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -1687,12 +1511,11 @@ if (btnCrearDesdeCatalogo) {
 if (btnCerrarCatalogo) {
   btnCerrarCatalogo.addEventListener("click", cerrarModalCatalogo);
 }
-habilitarCierreSeguro(modalCatalogoFondo, cerrarModalCatalogo);
+habilitarBottomSheet(modalCatalogoFondo, modalCatalogoFondo.querySelector(".modal"), cerrarModalCatalogo);
 
 /* --- Ajustes --- */
 
 function abrirModalAjustes() {
-  cargarUsuarios();
   modalAjustesFondo.hidden = false;
 }
 
@@ -1702,74 +1525,98 @@ function cerrarModalAjustes() {
 
 // Event listeners for settings modal are added during late initialization
 
-/* --- Sesion y usuarios --- */
+/* --- Consumo --- */
 
-async function cargarEstadoAuth() {
-  if (!ajustesUsuarioActual) return;
-  const res = await fetch("/api/auth/estado");
-  const datos = await res.json();
-  ajustesUsuarioActual.textContent = datos.usuario || "-";
-}
+async function abrirModalConsumo() {
+  modalConsumoFondo.hidden = false;
+  consumoPorProductoEl.innerHTML = "";
+  consumoVacioEl.hidden = true;
 
-async function cargarUsuarios() {
-  if (!usuariosListaEl) return;
-  let usuarios;
   try {
-    const res = await fetch("/api/usuarios");
-    usuarios = await res.json();
+    const res = await fetch("/api/consumo/resumen?dias=30");
+    const datos = await res.json();
     if (!res.ok) {
-      Toast.error(usuarios?.error || "No se pudo cargar la lista de usuarios");
+      Toast.error(datos.error || "No se pudo cargar el consumo");
       return;
     }
-  } catch (error) {
-    console.error("Error cargando usuarios:", error);
-    Toast.error("No se pudo cargar la lista de usuarios. Comprueba tu conexión.");
-    return;
-  }
-  usuariosListaEl.innerHTML = "";
-  for (const u of usuarios) {
-    const chip = document.createElement("div");
-    chip.className = "categoria-chip";
-    chip.innerHTML = `<span>👤 ${escapeHtml(u.nombre_usuario)}</span>`;
-    if (usuarios.length > 1) {
-      const btnBorrar = document.createElement("button");
-      btnBorrar.type = "button";
-      btnBorrar.title = "Borrar usuario";
-      btnBorrar.textContent = "✕";
-      btnBorrar.addEventListener("click", () => borrarUsuario(u));
-      chip.appendChild(btnBorrar);
-    }
-    usuariosListaEl.appendChild(chip);
-  }
-}
 
-async function borrarUsuario(u) {
-  if (!confirm(`¿Borrar el usuario "${u.nombre_usuario}"?`)) return;
-  try {
-    const res = await fetch(`/api/usuarios/${u.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const datos = await res.json().catch(() => ({}));
-      Toast.error(datos.error || "No se pudo borrar el usuario");
+    const porProducto = datos.por_producto || [];
+    if (porProducto.length === 0) {
+      consumoVacioEl.hidden = false;
       return;
     }
-  } catch (error) {
-    console.error("Error borrando usuario:", error);
-    Toast.error("No se pudo borrar el usuario. Comprueba tu conexión e inténtalo de nuevo.");
-    return;
+
+    const maximo = Math.max(...porProducto.map((p) => p.consumo));
+    consumoPorProductoEl.innerHTML = porProducto
+      .map((p) => {
+        const porcentaje = maximo > 0 ? Math.round((p.consumo / maximo) * 100) : 0;
+        return `
+          <li class="consumo-fila">
+            <span class="consumo-nombre">${escapeHtml(p.nombre)}</span>
+            <div class="consumo-barra-fondo"><div class="consumo-barra" style="width: ${porcentaje}%"></div></div>
+            <span class="consumo-cantidad">${p.consumo}</span>
+          </li>
+        `;
+      })
+      .join("");
+  } catch (err) {
+    console.error("Error cargando consumo:", err);
+    Toast.error("No se pudo cargar el consumo. Comprueba tu conexión.");
   }
-  cargarUsuarios();
 }
 
-// Event listeners for user management buttons are added during late initialization
+function cerrarModalConsumo() {
+  modalConsumoFondo.hidden = true;
+}
+
+if (btnConsumo) btnConsumo.addEventListener("click", abrirModalConsumo);
+if (btnCerrarConsumo) btnCerrarConsumo.addEventListener("click", cerrarModalConsumo);
+if (modalConsumoFondo) habilitarBottomSheet(modalConsumoFondo, modalConsumoFondo.querySelector(".modal"), cerrarModalConsumo);
 
 /* --- Escaneo de tickets --- */
 
-function abrirModalTicket() {
-  ticketArchivo.value = "";
+function irAPasoFotoTicket() {
   ticketPasoFoto.hidden = false;
   ticketCargando.hidden = true;
   ticketPasoRevision.hidden = true;
+  btnVolverFotoTicket.hidden = true;
+  btnAnalizarTicket.hidden = false;
+  btnConfirmarTicket.hidden = true;
+  ticketDot1.classList.add("activo");
+  ticketDot2.classList.remove("activo");
+}
+
+function irAPasoRevisionTicket() {
+  ticketPasoFoto.hidden = true;
+  ticketCargando.hidden = true;
+  ticketPasoRevision.hidden = false;
+  btnVolverFotoTicket.hidden = false;
+  btnAnalizarTicket.hidden = true;
+  btnConfirmarTicket.hidden = false;
+  ticketDot1.classList.remove("activo");
+  ticketDot2.classList.add("activo");
+}
+
+function mostrarPreviewTicket(archivo) {
+  const lector = new FileReader();
+  lector.onload = () => {
+    ticketPreview.src = lector.result;
+    ticketDropzone.hidden = true;
+    ticketPreviewWrap.hidden = false;
+    btnAnalizarTicket.disabled = false;
+  };
+  lector.readAsDataURL(archivo);
+}
+
+function abrirModalTicket() {
+  ticketArchivo.value = "";
+  ticketPreview.src = "";
+  ticketDropzone.hidden = false;
+  ticketPreviewWrap.hidden = true;
+  btnAnalizarTicket.disabled = true;
+  irAPasoFotoTicket();
   ticketItemsEl.innerHTML = "";
+  mostrarAdvertenciasTicket([]);
   modalTicketFondo.hidden = false;
 }
 
@@ -1791,41 +1638,145 @@ function opcionesVincular(nombreDetectado) {
   return html;
 }
 
+function mostrarAdvertenciasTicket(advertencias) {
+  if (!ticketAdvertenciasEl) return;
+  if (!advertencias || advertencias.length === 0) {
+    ticketAdvertenciasEl.innerHTML = "";
+    ticketAdvertenciasEl.hidden = true;
+    return;
+  }
+  ticketAdvertenciasEl.hidden = false;
+  ticketAdvertenciasEl.innerHTML = advertencias
+    .map((a) => `<p class="aviso aviso-advertencia">⚠️ ${escapeHtml(a.mensaje || "")}</p>`)
+    .join("");
+}
+
+function nivelConfianza(confianza) {
+  if (confianza === undefined || confianza === null) {
+    return { nivel: "nueva", porcentaje: null, titulo: "Línea añadida a mano: revísala" };
+  }
+  let nivel = "baja";
+  if (confianza >= 0.7) nivel = "alta";
+  else if (confianza >= 0.4) nivel = "media";
+  const porcentaje = Math.round(confianza * 100);
+  const titulo = nivel === "alta"
+    ? "Coincidencia fiable con el catálogo"
+    : "Revisa el nombre y la vinculación: coincidencia poco fiable";
+  return { nivel, porcentaje, titulo };
+}
+
+function badgeConfianzaMatch(confianza) {
+  const { nivel, porcentaje, titulo } = nivelConfianza(confianza);
+  if (porcentaje === null) return "";
+  return `<span class="badge-confianza badge-confianza-${nivel}" title="${titulo}">${porcentaje}% match</span>`;
+}
+
 function crearFilaTicket(item) {
+  const { nivel, porcentaje, titulo } = nivelConfianza(item.confianza_match);
+  const necesitaRevision = nivel !== "alta";
+  const textoConfianza = porcentaje === null ? "Nueva" : `${porcentaje}%`;
+
   const li = document.createElement("li");
   li.className = "ticket-item";
   li.innerHTML = `
-    <div class="fila-superior">
-      <input type="text" name="nombre" value="${escapeHtml(item.nombre || "")}" placeholder="Nombre">
-      <input type="number" name="cantidad" min="1" value="${item.cantidad || 1}">
-      <input type="text" name="unidad" value="${escapeHtml(item.unidad || "ud")}" maxlength="10">
-      <button type="button" title="Quitar línea">🗑️</button>
+    <button type="button" class="ticket-item-resumen" aria-expanded="${necesitaRevision ? "true" : "false"}">
+      <span class="ticket-item-dot ticket-item-dot-${nivel}" title="${titulo}">${necesitaRevision ? "" : "✓"}</span>
+      <span class="ticket-item-resumen-texto">
+        <span class="ticket-item-resumen-nombre">${escapeHtml(item.nombre || "Nueva línea")}</span>
+        <span class="ticket-item-resumen-meta">
+          <span class="ticket-item-resumen-cantidad">${item.cantidad || 1} ${escapeHtml(item.unidad || "ud")}</span>
+          <span class="ticket-item-resumen-confianza ticket-item-dot-${nivel}">${textoConfianza}</span>
+        </span>
+      </span>
+      <span class="ticket-item-chevron" aria-hidden="true">⌄</span>
+    </button>
+    <div class="ticket-item-detalle" ${necesitaRevision ? "" : "hidden"}>
+      <div class="ticket-item-cabecera">
+        <input type="text" name="nombre" class="ticket-item-nombre" value="${escapeHtml(item.nombre || "")}" placeholder="Nombre del artículo">
+        ${badgeConfianzaMatch(item.confianza_match)}
+        <button type="button" class="ticket-item-quitar" title="Quitar línea" aria-label="Quitar línea">🗑️</button>
+      </div>
+      <div class="ticket-item-fila">
+        <div class="ticket-stepper">
+          <button type="button" class="ticket-stepper-btn" data-accion="restar" aria-label="Menos cantidad">−</button>
+          <input type="number" name="cantidad" min="1" value="${item.cantidad || 1}" inputmode="numeric">
+          <button type="button" class="ticket-stepper-btn" data-accion="sumar" aria-label="Más cantidad">+</button>
+        </div>
+        <input type="text" name="unidad" class="ticket-item-unidad" value="${escapeHtml(item.unidad || "ud")}" maxlength="10" placeholder="ud" aria-label="Unidad">
+      </div>
+      <label class="ticket-item-label">Vincular con
+        <select name="vincular">${opcionesVincular(item.nombre)}</select>
+      </label>
+      <label class="ticket-item-label" data-campo-categoria>Categoría
+        <select name="categoria"></select>
+      </label>
     </div>
-    <select name="vincular">${opcionesVincular(item.nombre)}</select>
-    <select name="categoria"></select>
   `;
+
+  const botonResumen = li.querySelector(".ticket-item-resumen");
+  const detalle = li.querySelector(".ticket-item-detalle");
+  const nombreResumenEl = li.querySelector(".ticket-item-resumen-nombre");
+  const cantidadResumenEl = li.querySelector(".ticket-item-resumen-cantidad");
+  const inputNombre = li.querySelector('input[name="nombre"]');
+  const inputCantidad = li.querySelector('input[name="cantidad"]');
+  const inputUnidad = li.querySelector('input[name="unidad"]');
+
+  botonResumen.addEventListener("click", () => {
+    const abierto = botonResumen.getAttribute("aria-expanded") === "true";
+    botonResumen.setAttribute("aria-expanded", abierto ? "false" : "true");
+    detalle.hidden = abierto;
+    if (!abierto) inputNombre.focus();
+  });
+
+  const sincronizarResumen = () => {
+    nombreResumenEl.textContent = inputNombre.value.trim() || "Nueva línea";
+    cantidadResumenEl.textContent = `${Number(inputCantidad.value) || 1} ${inputUnidad.value.trim() || "ud"}`;
+  };
+  inputNombre.addEventListener("input", sincronizarResumen);
+  inputUnidad.addEventListener("input", sincronizarResumen);
+  inputCantidad.addEventListener("input", sincronizarResumen);
 
   const selectVincular = li.querySelector('select[name="vincular"]');
   const selectCategoria = li.querySelector('select[name="categoria"]');
+  const campoCategoria = li.querySelector('[data-campo-categoria]');
   poblarSelectCategoria(selectCategoria, "Otros");
   const actualizarVisibilidadCategoria = () => {
-    selectCategoria.hidden = selectVincular.value !== "nuevo";
+    campoCategoria.hidden = selectVincular.value !== "nuevo";
   };
   selectVincular.addEventListener("change", actualizarVisibilidadCategoria);
   actualizarVisibilidadCategoria();
 
-  li.querySelector("button").addEventListener("click", () => li.remove());
+  li.querySelectorAll(".ticket-stepper-btn").forEach((boton) => {
+    boton.addEventListener("click", () => {
+      const actual = Number(inputCantidad.value) || 1;
+      const siguiente = boton.dataset.accion === "sumar" ? actual + 1 : actual - 1;
+      inputCantidad.value = Math.max(1, siguiente);
+      sincronizarResumen();
+    });
+  });
+
+  li.querySelector(".ticket-item-quitar").addEventListener("click", () => li.remove());
   return li;
 }
 
 if (btnEscanearTicket) btnEscanearTicket.addEventListener("click", abrirModalTicket);
 if (btnCancelarTicket) btnCancelarTicket.addEventListener("click", cerrarModalTicket);
-if (btnCancelarRevisionTicket) btnCancelarRevisionTicket.addEventListener("click", cerrarModalTicket);
-if (modalTicketFondo) habilitarCierreSeguro(modalTicketFondo, cerrarModalTicket);
-const modalTicketContenedor = modalTicketFondo.querySelector(".modal");
-if (modalTicketContenedor) {
-  habilitarDragDown(modalTicketContenedor, cerrarModalTicket);
-}
+if (modalTicketFondo) habilitarBottomSheet(modalTicketFondo, modalTicketFondo.querySelector(".modal"), cerrarModalTicket);
+
+ticketArchivo.addEventListener("change", () => {
+  const archivo = ticketArchivo.files[0];
+  if (archivo) mostrarPreviewTicket(archivo);
+});
+
+btnCambiarFotoTicket.addEventListener("click", () => {
+  ticketArchivo.value = "";
+  ticketDropzone.hidden = false;
+  ticketPreviewWrap.hidden = true;
+  btnAnalizarTicket.disabled = true;
+  ticketArchivo.click();
+});
+
+btnVolverFotoTicket.addEventListener("click", irAPasoFotoTicket);
 
 btnAnadirLineaTicket.addEventListener("click", () => {
   ticketItemsEl.appendChild(crearFilaTicket({ nombre: "", cantidad: 1, unidad: "ud" }));
@@ -1854,21 +1805,27 @@ btnAnalizarTicket.addEventListener("click", async () => {
       return;
     }
 
+    const items = datos.items || [];
     ticketItemsEl.innerHTML = "";
-    if (datos.length === 0) {
+    if (items.length === 0) {
       ticketItemsEl.appendChild(crearFilaTicket({ nombre: "", cantidad: 1, unidad: "ud" }));
     } else {
-      for (const item of datos) {
+      for (const item of items) {
         ticketItemsEl.appendChild(crearFilaTicket(item));
       }
     }
-    ticketCargando.hidden = true;
-    ticketPasoRevision.hidden = false;
+    const paraRevisar = items.filter((it) => nivelConfianza(it.confianza_match).nivel !== "alta").length;
+    ticketResumenEl.textContent = items.length === 0
+      ? "No se detectó ningún artículo. Añádelos a mano."
+      : paraRevisar === 0
+      ? `${items.length} artículo${items.length === 1 ? "" : "s"} detectado${items.length === 1 ? "" : "s"} · todo con buena confianza`
+      : `${items.length} artículo${items.length === 1 ? "" : "s"} detectado${items.length === 1 ? "" : "s"} · ${paraRevisar} para revisar`;
+    mostrarAdvertenciasTicket(datos.advertencias || []);
+    irAPasoRevisionTicket();
   } catch (err) {
     console.error("Error analizando ticket:", err);
     Toast.error("No se pudo analizar el ticket. Comprueba tu conexión e inténtalo de nuevo.");
-    ticketPasoFoto.hidden = false;
-    ticketCargando.hidden = true;
+    irAPasoFotoTicket();
   }
 });
 
@@ -2181,7 +2138,6 @@ window.cambiarLista = cambiarLista;
 
 // ============ INICIALIZACIONES ============
 
-// cargarEspacios(); // Obsoleto: usar listas en su lugar
 // Se espera a cargarMisListas() antes de cargar productos/compra porque esa
 // función valida y limpia 'lista-actual' en localStorage; si no, otras
 // llamadas pueden usar un lista_id obsoleto y recibir 403 en cascada.
@@ -2192,7 +2148,6 @@ cargarMisListas().then(() => {
   });
 });
 cargarHistorial();
-cargarEstadoAuth();
 
 // ============ EVENTOS DE UI ============
 
@@ -2222,19 +2177,28 @@ if (listaActualBtnEl) {
     const selectTema = document.getElementById('selectTema');
     const btnGuardarPerfil = document.getElementById('btnGuardarPerfil');
     const inputNombre = document.getElementById('ajustesNombreUsuario');
+    const inputEmail = document.getElementById('ajustesEmailUsuario');
     const inputPassword = document.getElementById('ajustesPasswordUsuario');
     const spanEstado = document.getElementById('ajustesEstado');
 
     if (!modalAjustes || !selectTema || !btnGuardarPerfil) return;
 
-    // Cargar datos del usuario cuando se abre el modal
-    modalAjustes.addEventListener('focusin', () => {
+    // Cargar datos del usuario cuando se abre el modal. Se comprueba
+    // "!inputNombre.value" para no pisar lo que el usuario esté editando
+    // si el foco cambia entre campos del propio modal (focusin reentra).
+    modalAjustes.addEventListener('focusin', async () => {
       const temaGuardado = localStorage.getItem('stockhogar-tema') || 'auto';
       selectTema.value = temaGuardado;
 
-      const nombreActual = document.getElementById('ajustesUsuarioActual')?.textContent || '-';
-      if (inputNombre && nombreActual !== '-') {
-        inputNombre.value = nombreActual;
+      if ((inputNombre && !inputNombre.value) || (inputEmail && !inputEmail.value)) {
+        try {
+          const res = await fetch('/api/auth/estado');
+          const datos = await res.json();
+          if (inputNombre && !inputNombre.value) inputNombre.value = datos.usuario || '';
+          if (inputEmail && !inputEmail.value) inputEmail.value = datos.email || '';
+        } catch (error) {
+          console.error('Error cargando datos del perfil:', error);
+        }
       }
     });
 
@@ -2293,11 +2257,6 @@ if (listaActualBtnEl) {
           const error = await res.json();
           mostrarEstado(error.error || 'Error al guardar', 'error');
           return;
-        }
-
-        const usuarioActualEl = document.getElementById('ajustesUsuarioActual');
-        if (usuarioActualEl) {
-          usuarioActualEl.textContent = nombre;
         }
 
         if (inputPassword) {
@@ -2367,20 +2326,15 @@ if (listaActualBtnEl) {
   }
 
   // Cerrar modal
+  function cerrarModalCrearLista() {
+    modalCrearLista.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
   if (btnCerrarCrearLista) {
-    btnCerrarCrearLista.addEventListener('click', () => {
-      modalCrearLista.hidden = true;
-      document.body.classList.remove('modal-open');
-    });
+    btnCerrarCrearLista.addEventListener('click', cerrarModalCrearLista);
   }
 
-  // Cerrar modal al hacer click en el fondo
-  modalCrearLista.addEventListener('click', (e) => {
-    if (e.target === modalCrearLista) {
-      modalCrearLista.hidden = true;
-      document.body.classList.remove('modal-open');
-    }
-  });
+  window.habilitarBottomSheet(modalCrearLista, modalCrearLista.querySelector('.modal'), cerrarModalCrearLista);
 
   // NOTA: El botón "Cambiar icono" NO se enlaza aquí: FormBuilder.inyectarFormularioEnModal
   // recrea ese botón cada vez que se abre el modal (ver CrearListaModal.onOpen en
@@ -2421,7 +2375,7 @@ if (listaActualBtnEl) {
           const inputNombre = document.getElementById('formCrearLista')?.querySelector('input[name="nombre"]');
           if (inputNombre) {
             inputNombre.focus();
-            inputNombre.placeholder = 'Ej: Mi lista de compra...';
+            inputNombre.placeholder = (window.i18n && window.i18n.t('ej_mi_lista_compra')) || 'Ej: Mi lista de compra...';
           }
         }, 100);
 
@@ -2440,11 +2394,7 @@ if (listaActualBtnEl) {
     const modalAjustesFondoInit = document.getElementById('modalAjustes');
     if (btnAjustesInit && modalAjustesFondoInit) {
       btnAjustesInit.addEventListener("click", abrirModalAjustes);
-      habilitarCierreSeguro(modalAjustesFondoInit, cerrarModalAjustes);
-      const modalAjustesContenedor = modalAjustesFondoInit.querySelector(".modal");
-      if (modalAjustesContenedor) {
-        habilitarDragDown(modalAjustesContenedor, cerrarModalAjustes);
-      }
+      habilitarBottomSheet(modalAjustesFondoInit, modalAjustesFondoInit.querySelector(".modal"), cerrarModalAjustes);
     }
 
     // Close session button
@@ -2456,40 +2406,6 @@ if (listaActualBtnEl) {
       });
     }
 
-    // Add user button
-    const btnAnadirUsuarioInit = document.getElementById('btnAnadirUsuario');
-    if (btnAnadirUsuarioInit) {
-      btnAnadirUsuarioInit.addEventListener("click", async () => {
-        const usuariosEstadoEl = document.getElementById('usuariosEstado');
-        const usuarioCampoNombreEl = document.getElementById('usuarioCampoNombre');
-        const usuarioCampoPasswordEl = document.getElementById('usuarioCampoPassword');
-
-        if (!usuariosEstadoEl || !usuarioCampoNombreEl || !usuarioCampoPasswordEl) return;
-
-        usuariosEstadoEl.hidden = true;
-        const usuario = usuarioCampoNombreEl.value.trim();
-        const password = usuarioCampoPasswordEl.value;
-        if (!usuario || password.length < 4) {
-          usuariosEstadoEl.textContent = "Pon un nombre y una contraseña de al menos 4 caracteres";
-          usuariosEstadoEl.hidden = false;
-          return;
-        }
-        const res = await fetch("/api/auth/registrar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ usuario, password }),
-        });
-        const datos = await res.json();
-        if (!res.ok) {
-          usuariosEstadoEl.textContent = datos.error || "No se pudo crear el usuario";
-          usuariosEstadoEl.hidden = false;
-          return;
-        }
-        usuarioCampoNombreEl.value = "";
-        usuarioCampoPasswordEl.value = "";
-        cargarUsuarios();
-      });
-    }
   }
 
   if (document.readyState === 'loading') {

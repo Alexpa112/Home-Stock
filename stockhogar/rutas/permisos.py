@@ -1,10 +1,12 @@
 """Rutas para gestionar permisos y compartir listas."""
+import secrets
+
 from flask import Blueprint, request, session
-from uuid import uuid4
 from datetime import datetime, timedelta
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
+from ..translator import traducir
 from ..utils import Validator
 from ..servicios.email_service import EmailService
 
@@ -20,7 +22,7 @@ def buscar_usuarios():
     query = request.args.get("q", "").strip()
 
     if not query or len(query) < 2:
-        return APIResponse.error("Ingresa al menos 2 caracteres", 400)
+        return APIResponse.error("err_min_2_caracteres", 400)
 
     db = get_db()
 
@@ -122,7 +124,7 @@ def compartir_lista(lista_id):
     nivel = Validator.string_opcional(datos.get("nivel"), "editar", 10)
 
     if nivel not in ["ver", "editar"]:
-        return APIResponse.error("Nivel debe ser 'ver' o 'editar'", 400)
+        return APIResponse.error("err_nivel_invalido", 400)
 
     # Si es por nombre de usuario
     if nombre_usuario_destino:
@@ -132,7 +134,7 @@ def compartir_lista(lista_id):
         ).fetchone()
 
         if not usuario_destino:
-            return APIResponse.error("Usuario no encontrado", 404)
+            return APIResponse.error("err_usuario_no_encontrado", 404)
 
         # Agregar permiso
         try:
@@ -149,7 +151,9 @@ def compartir_lista(lista_id):
 
     # Si es por email, crear invitación
     elif email_destino:
-        codigo = str(uuid4())[:12]
+        # token_urlsafe(24) da ~32 caracteres / 192 bits de entropia: el codigo
+        # es un bearer token (quien lo tenga entra), no debe ser adivinable.
+        codigo = secrets.token_urlsafe(24)
         fecha_expiracion = (datetime.now() + timedelta(days=7)).isoformat(timespec="seconds")
 
         try:
@@ -193,7 +197,7 @@ def compartir_lista(lista_id):
         except Exception as e:
             return APIResponse.error(str(e), 400)
 
-    return APIResponse.error("Debe proporcionar email o nombre de usuario", 400)
+    return APIResponse.error("err_falta_email_o_usuario", 400)
 
 
 @bp.route("/<int:lista_id>/permisos/<int:usuario_id>", methods=["PATCH"])
@@ -216,7 +220,7 @@ def actualizar_permiso(lista_id, usuario_id):
 
     nivel = Validator.string_opcional(datos.get("nivel"), "editar", 10)
     if nivel not in ["ver", "editar"]:
-        return APIResponse.error("Nivel debe ser 'ver' o 'editar'", 400)
+        return APIResponse.error("err_nivel_invalido", 400)
 
     db.execute(
         "UPDATE permisos_lista SET nivel = ? WHERE lista_id = ? AND usuario_id = ?",
@@ -268,16 +272,16 @@ def aceptar_invitacion(codigo):
     ).fetchone()
 
     if not invitacion:
-        return APIResponse.error("Invitación no encontrada o expirada", 404)
+        return APIResponse.error("err_invitacion_no_encontrada", 404)
 
     # Verificar que no ha sido usada
     if invitacion["usado"]:
-        return APIResponse.error("Esta invitación ya ha sido usada", 400)
+        return APIResponse.error("err_invitacion_usada", 400)
 
     # Verificar que no ha expirado
     fecha_expiracion = datetime.fromisoformat(invitacion["fecha_expiracion"])
     if datetime.now() > fecha_expiracion:
-        return APIResponse.error("La invitación ha expirado", 400)
+        return APIResponse.error("err_invitacion_expirada", 400)
 
     try:
         # Agregar permiso
@@ -300,4 +304,4 @@ def aceptar_invitacion(codigo):
 
         return APIResponse.success({"mensaje": "¡Invitación aceptada!", "lista_id": invitacion["lista_id"]})
     except Exception as e:
-        return APIResponse.error(f"Error al aceptar invitación: {str(e)}", 400)
+        return APIResponse.error(traducir("err_aceptar_invitacion_generico").replace("{error}", str(e)), 400)

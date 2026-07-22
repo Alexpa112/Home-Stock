@@ -241,8 +241,12 @@ class MatcherInteligente:
 
         return None
 
-    def sugerir_cantidad_estandar(self, nombre: str) -> float:
-        """Sugiere cantidad estándar basada en nombre."""
+    def sugerir_cantidad_estandar(self, nombre: str, db=None) -> float:
+        """Sugiere cantidad estándar basada en nombre.
+
+        Prioridad: indicador de tamaño en el nombre > cantidad_defecto
+        aprendida en historial_articulos > 1.0 por defecto.
+        """
 
         nombre_lower = nombre.lower()
 
@@ -250,6 +254,11 @@ class MatcherInteligente:
         for indicador, multiplicador in self.indicadores_cantidad.items():
             if indicador in nombre_lower:
                 return multiplicador
+
+        if db is not None:
+            historico = self.obtener_historico_compras(db, nombre, limite=1)
+            if historico:
+                return historico[0]["cantidad_defecto"]
 
         return 1.0
 
@@ -270,8 +279,9 @@ class MatcherInteligente:
         if precio_total > 0 and cantidad > 0:
             return precio_total / cantidad
 
-        # TODO: En futuro, buscar histórico en DB
-        # Por ahora devolver 0 para que lo sugiera el usuario
+        # No hay ningún campo de precio en el esquema (productos, articulos_lista,
+        # historial_articulos): sin esa columna no hay histórico de precios que
+        # consultar. Requeriría una migración de BD antes de poder estimarlo aquí.
         return 0
 
     def validar_precio(
@@ -296,13 +306,13 @@ class MatcherInteligente:
     def obtener_historico_compras(self, db, nombre: str, limite: int = 10) -> List[Dict]:
         """Obtiene histórico de compras para este producto."""
 
-        # Buscar en historial
+        # Buscar en historial_articulos (aprendizaje de nombre/icono/categoria/cantidad)
         historico = db.execute(
             """
-            SELECT nombre, cantidad, unidad, categoria, icono
-            FROM historial
+            SELECT nombre, cantidad_defecto, unidad, categoria, icono
+            FROM historial_articulos
             WHERE nombre LIKE ?
-            ORDER BY fecha_creacion DESC
+            ORDER BY fecha_actualizacion DESC
             LIMIT ?
             """,
             (f"%{nombre}%", limite)

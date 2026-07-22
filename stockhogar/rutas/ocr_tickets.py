@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import get_db
+from ..translator import traducir
 from ..servicios.ocr import GestorOCR
 
 bp = Blueprint("ocr", __name__, url_prefix="/api/ocr")
@@ -38,22 +39,24 @@ def procesar_ticket():
     }
     """
     if "archivo" not in request.files:
-        return APIResponse.validacion("No se envió archivo")
+        return APIResponse.validacion("err_sin_archivo")
 
     archivo = request.files["archivo"]
 
     if archivo.filename == "":
-        return APIResponse.validacion("Archivo vacío")
+        return APIResponse.validacion("err_archivo_vacio")
 
     if not archivo_permitido(archivo.filename):
-        return APIResponse.validacion("Formato no permitido. Usa PNG, JPG, etc.")
+        return APIResponse.validacion("err_formato_no_permitido")
 
     archivo.seek(0, os.SEEK_END)
     tamaño_bytes = archivo.tell()
     archivo.seek(0)
 
     if tamaño_bytes > TAMAÑO_MAXIMO_MB * 1024 * 1024:
-        return APIResponse.validacion(f"Archivo demasiado grande (máx {TAMAÑO_MAXIMO_MB}MB)")
+        return APIResponse.validacion(
+            traducir("err_archivo_muy_grande").replace("{mb}", str(TAMAÑO_MAXIMO_MB))
+        )
 
     imagen_bytes = archivo.read()
     db = get_db()
@@ -62,7 +65,7 @@ def procesar_ticket():
     if resultado["exito"]:
         return APIResponse.success(resultado, 200)
     else:
-        return APIResponse.error(resultado.get("error", "Error procesando ticket"), 400)
+        return APIResponse.error(resultado.get("error", traducir("err_procesando_ticket")), 400)
 
 
 @bp.route("/validar-instalacion", methods=["GET"])

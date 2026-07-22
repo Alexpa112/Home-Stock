@@ -40,7 +40,6 @@ class DataConverter:
             "cantidad": row["cantidad"],
             "unidad": row["unidad"],
             "stock_minimo": row["stock_minimo"],
-            "espacio_id": DataConverter.safe_field(row, "espacio_id"),
             "fecha_creacion": DataConverter.safe_field(row, "fecha_creacion"),
             "fecha_actualizacion": fecha_actualizacion,
             "dias_aviso": dias_aviso,
@@ -99,12 +98,3 @@ class DataConverter:
             "icono": row["icono"],
         }
 
-    @staticmethod
-    def espacio_to_dict(row: Dict) -> Dict:
-        """Convierte fila de espacio a dict JSON."""
-        return {
-            "id": row["id"],
-            "nombre": row["nombre"],
-            "color": DataConverter.safe_field(row, "color", "#B5551A"),
-            "fecha_creacion": DataConverter.safe_field(row, "fecha_creacion"),
-        }

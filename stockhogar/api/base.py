@@ -2,6 +2,7 @@
 from functools import wraps
 from flask import jsonify, session
 from ..utils.validation import ValidationError
+from ..translator import traducir
 
 
 class APIResponse:
@@ -16,8 +17,8 @@ class APIResponse:
 
     @staticmethod
     def error(mensaje: str, status_code: int = 400, detalles: dict = None):
-        """Respuesta con error."""
-        response = {"error": mensaje}
+        """Respuesta con error. `mensaje` es una clave de traducción."""
+        response = {"error": traducir(mensaje)}
         if detalles:
             response.update(detalles)
         return jsonify(response), status_code
@@ -30,16 +31,20 @@ class APIResponse:
     @staticmethod
     def no_autorizado():
         """Error 401."""
-        return APIResponse.error("No has iniciado sesión", 401)
+        return APIResponse.error("err_no_autenticado", 401)
 
     @staticmethod
     def no_encontrado(recurso: str = "Recurso"):
-        """Error 404."""
-        return APIResponse.error(f"{recurso} no encontrado", 404)
+        """Error 404. `recurso` es una clave de traducción del nombre del recurso."""
+        recurso_traducido = traducir(recurso)
+        mensaje = traducir("err_recurso_no_encontrado").replace("{recurso}", recurso_traducido)
+        return jsonify({"error": mensaje}), 404
 
     @staticmethod
-    def no_permitido(mensaje: str = "No tienes permiso para esta acción"):
+    def no_permitido(mensaje: str = None):
         """Error 403."""
+        if mensaje is None:
+            mensaje = "err_no_permitido"
         return APIResponse.error(mensaje, 403)
 
 
@@ -66,8 +71,5 @@ def manejo_errores(f):
             logging.getLogger(__name__).exception(
                 "Error no controlado en %s", f.__name__
             )
-            return APIResponse.error(
-                "Ha ocurrido un error interno. Inténtalo de nuevo o contacta con soporte.",
-                500,
-            )
+            return APIResponse.error("err_interno_generico", 500)
     return decorated

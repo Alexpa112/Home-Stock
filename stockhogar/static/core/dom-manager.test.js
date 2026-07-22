@@ -2,24 +2,23 @@
  * Tests para DOMManager (Singleton)
  * Cubre: selectores, caching, manipulación DOM
  */
+const DOMManager = require('./dom-manager.js');
 
 describe('DOMManager', () => {
   let dom;
 
   beforeEach(() => {
-    // Crear nuevo DOMManager para cada test
     dom = new DOMManager();
 
-    // Mock document.getElementById
     document.getElementById = jest.fn((id) => {
       const mockElements = {
         lista: { id: 'lista', innerHTML: '', hidden: false },
         vacio: { id: 'vacio', hidden: true },
         modal: { id: 'modal', hidden: true },
         campoNombre: { id: 'campoNombre', value: '' },
-        btnGuardar: { id: 'btnGuardar', addEventListener: jest.fn() }
+        btnGuardar: { id: 'btnGuardar', addEventListener: jest.fn() },
       };
-      return mockElements[id];
+      return mockElements[id] || null;
     });
   });
 
@@ -31,17 +30,22 @@ describe('DOMManager', () => {
       expect(document.getElementById).toHaveBeenCalledWith('lista');
     });
 
-    test('get() cachea elemento', () => {
+    test('get() cachea elemento por defecto', () => {
       const el1 = dom.get('lista');
       const el2 = dom.get('lista');
 
-      expect(el1).toBe(el2); // Misma instancia
-      expect(document.getElementById).toHaveBeenCalledTimes(1); // Solo una llamada
+      expect(el1).toBe(el2);
+      expect(document.getElementById).toHaveBeenCalledTimes(1);
     });
 
-    test('get() retorna null si elemento no existe', () => {
-      document.getElementById = jest.fn(() => null);
+    test('get() con cacheado=false no usa ni alimenta la caché', () => {
+      dom.get('lista', false);
+      dom.get('lista', false);
 
+      expect(document.getElementById).toHaveBeenCalledTimes(2);
+    });
+
+    test('get() retorna null si el elemento no existe', () => {
       const elemento = dom.get('noexiste');
 
       expect(elemento).toBeNull();
@@ -49,72 +53,72 @@ describe('DOMManager', () => {
   });
 
   describe('Manipulación CSS', () => {
-    test('toggleClass() añade clase si no existe', () => {
+    test('toggleClass() alterna la clase en el elemento dado', () => {
       const mockEl = { classList: { toggle: jest.fn() } };
-      document.getElementById = jest.fn(() => mockEl);
 
-      dom.toggleClass('elemento', 'active');
+      dom.toggleClass(mockEl, 'active');
 
       expect(mockEl.classList.toggle).toHaveBeenCalledWith('active');
     });
 
-    test('toggle() cambia propiedad hidden', () => {
-      const mockEl = { hidden: false };
-      document.getElementById = jest.fn(() => mockEl);
+    test('toggleClass() con force explícito', () => {
+      const mockEl = { classList: { toggle: jest.fn() } };
 
-      dom.toggle('elemento');
+      dom.toggleClass(mockEl, 'active', true);
+
+      expect(mockEl.classList.toggle).toHaveBeenCalledWith('active', true);
+    });
+
+    test('toggleClass() no falla si el elemento es null', () => {
+      expect(() => dom.toggleClass(null, 'active')).not.toThrow();
+    });
+
+    test('toggle() invierte la propiedad hidden por defecto', () => {
+      const mockEl = { hidden: false };
+
+      dom.toggle(mockEl);
 
       expect(mockEl.hidden).toBe(true);
     });
 
-    test('toggle() con estado explícito', () => {
+    test('toggle() con visible=true fuerza hidden=false', () => {
       const mockEl = { hidden: true };
-      document.getElementById = jest.fn(() => mockEl);
 
-      dom.toggle('elemento', false);
+      dom.toggle(mockEl, true);
 
       expect(mockEl.hidden).toBe(false);
     });
-  });
 
-  describe('Validación', () => {
-    test('existe() retorna true si elemento existe', () => {
-      document.getElementById = jest.fn(() => ({ id: 'test' }));
+    test('toggle() con visible=false fuerza hidden=true', () => {
+      const mockEl = { hidden: false };
 
-      const existe = dom.existe('test');
+      dom.toggle(mockEl, false);
 
-      expect(existe).toBe(true);
+      expect(mockEl.hidden).toBe(true);
     });
 
-    test('existe() retorna false si elemento no existe', () => {
-      document.getElementById = jest.fn(() => null);
-
-      const existe = dom.existe('noexiste');
-
-      expect(existe).toBe(false);
+    test('toggle() no falla si el elemento es null', () => {
+      expect(() => dom.toggle(null)).not.toThrow();
     });
   });
 
-  describe('Performance', () => {
-    test('clear() limpia cache', () => {
-      const el1 = dom.get('lista');
-      dom.clear('lista');
-
-      // Después de limpiar, la siguiente llamada debería ir a DOM
-      document.getElementById = jest.fn(() => ({ id: 'lista' }));
-      const el2 = dom.get('lista');
-
-      // Se llamó a getElementById la segunda vez
-      expect(document.getElementById).toHaveBeenCalled();
-    });
-
-    test('clearAll() limpia todo el cache', () => {
+  describe('Caché', () => {
+    test('clearCache() vacía la caché por completo', () => {
       dom.get('lista');
       dom.get('modal');
-      dom.clearAll();
+      expect(dom.cache.size).toBe(2);
 
-      // Cache debe estar vacío
+      dom.clearCache();
+
       expect(dom.cache.size).toBe(0);
+    });
+
+    test('tras clearCache(), get() vuelve a consultar el DOM', () => {
+      dom.get('lista');
+      dom.clearCache();
+      dom.get('lista');
+
+      expect(document.getElementById).toHaveBeenCalledTimes(2);
     });
   });
 });

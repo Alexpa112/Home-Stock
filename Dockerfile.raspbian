@@ -1,5 +1,8 @@
 # Dockerfile para StockHogar en Raspberry Pi / Debian (ARM o x86)
-FROM python:3.11-slim-bullseye
+# Bookworm (no Bullseye): los wheels de piwheels.org para numpy/opencv en armv7l
+# están compilados contra glibc >= 2.34, que Bullseye (2.31) no tiene; Bookworm
+# trae glibc 2.36 y evita el "GLIBC_2.34 not found" en tiempo de ejecución.
+FROM python:3.11-slim-bookworm
 
 LABEL maintainer="StockHogar Dev Team"
 LABEL version="1.1"
@@ -11,14 +14,24 @@ ENV PYTHONUNBUFFERED=1 \
     TZ=Europe/Madrid \
     PORT=5000
 
-# Paquetes de sistema: solo lo que hace falta para compilar/ejecutar las
-# dependencias Python de requirements.txt (Tesseract para OCR, tesseract-ocr-spa
-# para el idioma, y toolchain mínimo para compilar python-Levenshtein en ARM
-# si no hay wheel prebuilt). Se evita instalar dependencias de OpenCV a nivel
-# de sistema (libjasper1, libwebp6, libtiff5, python3-pyqt5, libqt4-test...):
-# son paquetes de la era Debian Buster que YA NO EXISTEN en Bullseye/Bookworm
-# y rompían el build; opencv-python-headless (ver requirements.txt) trae sus
-# propios binarios y no necesita ninguno de ellos.
+# Paquetes de sistema: lo que hace falta para compilar/ejecutar las dependencias
+# Python de requirements.txt (Tesseract para OCR, tesseract-ocr-spa para el
+# idioma, toolchain para compilar en ARM lo que no tenga wheel prebuilt).
+#
+# A diferencia de los wheels oficiales de PyPI (que empaquetan sus propias
+# librerías nativas), los wheels de piwheels.org (ver índice extra más abajo,
+# necesarios porque PyPI no publica wheels para armv7l) enlazan dinámicamente
+# contra librerías de sistema. Sin ellas, `import numpy`/`cv2` falla en
+# tiempo de ejecución con "cannot open shared object file", no en el build.
+# Confirmado con `ldd` sobre cv2.abi3.so + import real en un contenedor de
+# prueba; lista completa de lo que requieren numpy y opencv-python-headless:
+#   - libopenblas0: numpy (BLAS)
+#   - libjpeg62-turbo, libwebp7, libwebpmux3, libwebpdemux2, libpng16-16,
+#     libtiff6, libopenjp2-7: códecs de imagen de OpenCV
+#   - libavcodec59, libavformat59, libavutil57, libswscale6: soporte de vídeo
+#     de OpenCV (ffmpeg)
+#   - liblapack3, libatlas3-base: LAPACK/CBLAS de OpenCV (libatlas3-base
+#     provee libcblas.so.3 vía el sistema de alternativas de Debian)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         tesseract-ocr \
@@ -27,16 +40,44 @@ RUN apt-get update && \
         curl \
         build-essential \
         pkg-config \
+        libffi-dev \
+        libssl-dev \
+        libopenblas0 \
+        libjpeg62-turbo \
+        libwebp7 \
+        libwebpmux3 \
+        libwebpdemux2 \
+        libpng16-16 \
+        libtiff6 \
+        libopenjp2-7 \
+        libavcodec59 \
+        libavformat59 \
+        libavutil57 \
+        libswscale6 \
+        liblapack3 \
+        libatlas3-base \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# cryptography (ver requirements.txt) trae extensiones en Rust y no hay wheel
+# precompilada para armv7l en PyPI, así que se compila desde fuente en el build.
+# Se instala Rust vía rustup en vez del rustc/cargo de apt porque la versión de
+# Debian puede quedarse corta para el MSRV de crates recientes.
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
 
 WORKDIR /app
 
 # Se copian primero solo las dependencias para aprovechar la cache de capas
 # de Docker: si el código cambia pero requirements.txt no, no se reinstala nada.
 COPY requirements.txt .
+# piwheels.org publica wheels precompiladas para Raspberry Pi (armv7l/aarch64);
+# se usa como índice extra (no sustituye a PyPI) para que opencv-python-headless
+# no se compile desde fuente en la Pi, que es lo que más tarda del build entero.
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --extra-index-url https://www.piwheels.org/simple -r requirements.txt
 
 COPY . /app/
 
@@ -49,12 +90,19 @@ RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr
 # (es-en, en-es, en-fr, en-it, en-de, es-pt): requiere red durante el build,
 # pero así el contenedor queda funcional sin conexión desde el primer arranque
 # (importante en Raspberry Pi, donde la red puede ser lenta o intermitente).
-RUN python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"
+# ctranslate2 (dependencia de argostranslate) no publica binarios para armv7l
+# (ver requirements.txt), así que en esa arquitectura no está instalado y se
+# omite: traductor_auto.py ya cae automáticamente al diccionario propio.
+RUN if [ "$(uname -m)" = "armv7l" ]; then \
+        echo "[INFO] armv7l: Argos Translate no soportado (sin ctranslate2), se omite. Traduccion automatica usara el diccionario de fallback."; \
+    else \
+        python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"; \
+    fi
 
 # Verificación en build-time: si falta algún paquete crítico, el build falla
 # aquí en vez de fallar en producción al primer request.
-RUN python3 -c "import flask, cv2, pytesseract, fuzzywuzzy, gunicorn, argostranslate; print('[OK] Paquetes Python verificados')" && \
-    tesseract --version | head -1 && echo "[OK] Tesseract instalado"
+RUN python3 -c "import flask, flask_wtf, cv2, pytesseract, fuzzywuzzy, gunicorn, platform, importlib; (importlib.import_module('argostranslate') if platform.machine() != 'armv7l' else None); print('[OK] Paquetes Python verificados')" \
+    && tesseract --version | head -1 && echo "[OK] Tesseract instalado"
 
 EXPOSE 5000
 

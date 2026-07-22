@@ -247,25 +247,27 @@ class ValidatedInput {
     this.isValid = true;
 
     if (this.rules.required && !this.input.value.trim()) {
-      this.setError('Este campo es requerido');
+      this.setError((window.i18n && window.i18n.t('este_campo_es_requerido')) || 'Este campo es requerido');
       this.isValid = false;
       return;
     }
 
     if (this.rules.minLength && this.input.value.length < this.rules.minLength) {
-      this.setError(`Mínimo ${this.rules.minLength} caracteres`);
+      const plantillaMin = (window.i18n && window.i18n.t('minimo_n_caracteres')) || 'Mínimo {n} caracteres';
+      this.setError(plantillaMin.replace('{n}', this.rules.minLength));
       this.isValid = false;
       return;
     }
 
     if (this.rules.maxLength && this.input.value.length > this.rules.maxLength) {
-      this.setError(`Máximo ${this.rules.maxLength} caracteres`);
+      const plantillaMax = (window.i18n && window.i18n.t('maximo_n_caracteres')) || 'Máximo {n} caracteres';
+      this.setError(plantillaMax.replace('{n}', this.rules.maxLength));
       this.isValid = false;
       return;
     }
 
     if (this.rules.pattern && !this.rules.pattern.test(this.input.value)) {
-      this.setError(this.rules.errorMessage || 'Formato inválido');
+      this.setError(this.rules.errorMessage || (window.i18n && window.i18n.t('formato_invalido')) || 'Formato inválido');
       this.isValid = false;
       return;
     }
@@ -414,7 +416,7 @@ class ToastManager {
     const cerrar = document.createElement('button');
     cerrar.type = 'button';
     cerrar.className = 'toast__cerrar';
-    cerrar.setAttribute('aria-label', 'Cerrar notificación');
+    cerrar.setAttribute('aria-label', (window.i18n && window.i18n.t('cerrar_notificacion')) || 'Cerrar notificación');
     cerrar.textContent = '×';
     const quitar = () => {
       toast.classList.add('toast--saliendo');
@@ -445,22 +447,39 @@ class ToastManager {
   }
 }
 
-// Inicializar managers globales
-const keyboardManager = new KeyboardManager();
-const themeManager = new ThemeManager();
-const toastManager = new ToastManager();
+// Inicializar managers globales (solo en navegador: en tests se usa require(),
+// que envuelve el fichero como módulo CommonJS y por tanto define `module`).
+if (typeof module === 'undefined') {
+  const keyboardManager = new KeyboardManager();
+  const themeManager = new ThemeManager();
+  const toastManager = new ToastManager();
 
-// Exponer globalmente
-window.UIComponents = {
-  ModalBase,
-  FormModal,
-  TicketModal,
-  CatalogModal,
-  ResponsiveList,
-  ValidatedInput,
-  KeyboardManager,
-  ThemeManager,
-  ScreenUtils,
-  ToastManager
-};
-window.Toast = toastManager;
+  window.UIComponents = {
+    ModalBase,
+    FormModal,
+    TicketModal,
+    CatalogModal,
+    ResponsiveList,
+    ValidatedInput,
+    KeyboardManager,
+    ThemeManager,
+    ScreenUtils,
+    ToastManager
+  };
+  window.Toast = toastManager;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    ModalBase,
+    FormModal,
+    TicketModal,
+    CatalogModal,
+    ResponsiveList,
+    ValidatedInput,
+    KeyboardManager,
+    ThemeManager,
+    ScreenUtils,
+    ToastManager
+  };
+}

@@ -154,14 +154,15 @@ const productos = await window.API.obtenerProductos();
 console.log(productos);
 
 // 4. Si está vacío, comprueba:
-// - ¿Estás en el espacio correcto?
-// - ¿Existe ese espacio?
+// - ¿Estás en la lista correcta?
+// - ¿Existe esa lista?
 
 // En backend (dev):
-from stockhogar.rutas.espacios import obtener_espacio_actual
+from stockhogar.servicios.stock import lista_actual_con_permiso
+from flask import session
 db = get_db()
-espacio = obtener_espacio_actual(db)
-print(f"Espacio actual: {espacio}")
+lista_id = lista_actual_con_permiso(db, session)
+print(f"Lista actual: {lista_id}")
 ```
 
 ---
@@ -252,9 +253,10 @@ producto = db.execute(
 ).fetchone()
 print(f"Cantidad: {producto['cantidad']}, Mínimo: {producto['stock_minimo']}")
 
-# Verificar lista de compra
+# Verificar lista de compra (tabla actual: articulos_lista; "lista_compra" es
+# la tabla antigua ya migrada, ver _migrar_lista_compra_a_articulos en db.py)
 item = db.execute(
-    "SELECT * FROM lista_compra WHERE producto_id = ? AND origen = 'auto'",
+    "SELECT * FROM articulos_lista WHERE producto_id = ? AND origen = 'auto'",
     (producto_id,)
 ).fetchone()
 print(f"En lista: {item}")
@@ -323,7 +325,7 @@ from werkzeug.security import generate_password_hash
 db = get_db()
 nueva_contraseña = generate_password_hash("nueva123")
 db.execute(
-    "UPDATE usuarios SET contraseña_hash = ? WHERE nombre_usuario = ?",
+    "UPDATE usuarios SET password_hash = ? WHERE nombre_usuario = ?",
     (nueva_contraseña, "tu_usuario")
 )
 db.commit()

@@ -17,7 +17,7 @@ const productos = await window.API.obtenerProductos();  // ✓
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `GET` | `/api/productos` | Listar todos (del espacio actual) |
+| `GET` | `/api/productos` | Listar todos (de la lista activa, aislado por sesión) |
 | `POST` | `/api/productos` | Crear nuevo producto |
 | `PATCH` | `/api/productos/:id` | Actualizar producto (o `delta` para +/-) |
 | `DELETE` | `/api/productos/:id` | Eliminar producto |
@@ -93,9 +93,12 @@ await window.API.borrarProducto(1);  // Devuelve void
 | `PATCH` | `/api/listas/:id` | Actualizar lista |
 | `DELETE` | `/api/listas/:id` | Eliminar lista |
 | `POST` | `/api/listas/:id/seleccionar` | Seleccionar como activa |
+| `GET` | `/api/listas/buscar-usuarios` | Buscar usuarios para compartir (`rutas/permisos.py`) |
+| `GET` | `/api/listas/:id/miembros` | Ver miembros/permisos de la lista |
 | `POST` | `/api/listas/:id/compartir` | Compartir con otro usuario |
-| `GET` | `/api/listas/:id/permisos` | Ver permisos |
+| `PATCH` | `/api/listas/:id/permisos/:usuario_id` | Cambiar nivel de permiso |
 | `DELETE` | `/api/listas/:id/permisos/:usuario_id` | Revocar acceso |
+| `POST` | `/api/listas/aceptar-invitacion/:codigo` | Aceptar invitación por email |
 
 #### GET /api/listas
 ```javascript
@@ -217,17 +220,6 @@ const cats = await window.API.obtenerCategorias();
 //   ...
 // ]
 ```
-
----
-
-### Espacios (Múltiples Stocks)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/api/espacios` | Listar espacios del usuario |
-| `POST` | `/api/espacios` | Crear espacio |
-| `PATCH` | `/api/espacios/:id` | Actualizar |
-| `DELETE` | `/api/espacios/:id` | Eliminar |
 
 ---
 
