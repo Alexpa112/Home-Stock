@@ -14,17 +14,24 @@ ENV PYTHONUNBUFFERED=1 \
     TZ=Europe/Madrid \
     PORT=5000
 
-# Paquetes de sistema: solo lo que hace falta para compilar/ejecutar las
-# dependencias Python de requirements.txt (Tesseract para OCR, tesseract-ocr-spa
-# para el idioma, y toolchain mínimo para compilar python-Levenshtein en ARM
-# si no hay wheel prebuilt). Se evita instalar dependencias de OpenCV a nivel
-# de sistema (libjasper1, libwebp6, libtiff5, python3-pyqt5, libqt4-test...):
-# son paquetes de la era Debian Buster que YA NO EXISTEN en Bullseye/Bookworm
-# y rompían el build; opencv-python-headless (ver requirements.txt) trae sus
-# propios binarios y no necesita ninguno de ellos.
-# libopenblas0: el wheel de numpy de piwheels.org (ver índice extra más abajo)
-# enlaza dinámicamente contra libopenblas.so.0 en vez de traerlo embebido como
-# los wheels oficiales de PyPI; sin este paquete, `import numpy`/`cv2` falla.
+# Paquetes de sistema: lo que hace falta para compilar/ejecutar las dependencias
+# Python de requirements.txt (Tesseract para OCR, tesseract-ocr-spa para el
+# idioma, toolchain para compilar en ARM lo que no tenga wheel prebuilt).
+#
+# A diferencia de los wheels oficiales de PyPI (que empaquetan sus propias
+# librerías nativas), los wheels de piwheels.org (ver índice extra más abajo,
+# necesarios porque PyPI no publica wheels para armv7l) enlazan dinámicamente
+# contra librerías de sistema. Sin ellas, `import numpy`/`cv2` falla en
+# tiempo de ejecución con "cannot open shared object file", no en el build.
+# Confirmado con `ldd` sobre cv2.abi3.so + import real en un contenedor de
+# prueba; lista completa de lo que requieren numpy y opencv-python-headless:
+#   - libopenblas0: numpy (BLAS)
+#   - libjpeg62-turbo, libwebp7, libwebpmux3, libwebpdemux2, libpng16-16,
+#     libtiff6, libopenjp2-7: códecs de imagen de OpenCV
+#   - libavcodec59, libavformat59, libavutil57, libswscale6: soporte de vídeo
+#     de OpenCV (ffmpeg)
+#   - liblapack3, libatlas3-base: LAPACK/CBLAS de OpenCV (libatlas3-base
+#     provee libcblas.so.3 vía el sistema de alternativas de Debian)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         tesseract-ocr \
@@ -36,6 +43,19 @@ RUN apt-get update && \
         libffi-dev \
         libssl-dev \
         libopenblas0 \
+        libjpeg62-turbo \
+        libwebp7 \
+        libwebpmux3 \
+        libwebpdemux2 \
+        libpng16-16 \
+        libtiff6 \
+        libopenjp2-7 \
+        libavcodec59 \
+        libavformat59 \
+        libavutil57 \
+        libswscale6 \
+        liblapack3 \
+        libatlas3-base \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
