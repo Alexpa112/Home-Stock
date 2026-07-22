@@ -118,40 +118,8 @@ body.keyboard-open .modal {
 /* MODAL ESPECIFICO DE TICKETS */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
-.modal-ticket {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  height: 100%;
-}
-
-.modal-ticket > h2 {
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--border);
-  margin: 0;
-  font-size: var(--font-lg);
-  flex-shrink: 0;
-}
-
-.modal-ticket > .aviso,
-.modal-ticket > div:nth-child(2),
-.modal-ticket > div:nth-child(3) {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: var(--spacing-md);
-}
-
-.modal-ticket > .acciones-modal {
-  display: flex;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.modal-ticket > .acciones-modal button {
-  flex: 1;
-  min-height: var(--touch-height);
-}
+/* .modal-ticket usa el layout flex estandar de .modal / .modal-content
+   (header y footer fijos, .modal-content hace scroll interno) */
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* CAMPOS DE FORMULARIO - CONSISTENTES Y ADAPTABLES */
@@ -206,13 +174,9 @@ body.keyboard-open .modal {
 }
 
 .ticket-item {
-  padding: var(--spacing-md);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
 }
 
 .ticket-item-quitar,
