@@ -19,6 +19,9 @@ ENV PYTHONUNBUFFERED=1 \
 # son paquetes de la era Debian Buster que YA NO EXISTEN en Bullseye/Bookworm
 # y rompían el build; opencv-python-headless (ver requirements.txt) trae sus
 # propios binarios y no necesita ninguno de ellos.
+# libopenblas0: el wheel de numpy de piwheels.org (ver índice extra más abajo)
+# enlaza dinámicamente contra libopenblas.so.0 en vez de traerlo embebido como
+# los wheels oficiales de PyPI; sin este paquete, `import numpy`/`cv2` falla.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         tesseract-ocr \
@@ -29,6 +32,7 @@ RUN apt-get update && \
         pkg-config \
         libffi-dev \
         libssl-dev \
+        libopenblas0 \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
