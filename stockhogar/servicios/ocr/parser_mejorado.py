@@ -117,8 +117,14 @@ class ParserMejorado:
         # Detectar estructura (tabla vs lista)
         es_tabla = self._detectar_tabla(lineas_limpias)
 
+        # Detectar dónde termina la sección de productos (tras TOTAL/CAMBIO/
+        # TARJETA suele venir el pie del ticket: fidelización, marketing, etc.)
+        fin_productos = self._detectar_fin_productos(lineas_limpias)
+
         productos = []
         for idx, linea in enumerate(lineas_limpias):
+            if idx >= fin_productos:
+                break
             if self._es_linea_valida(linea):
                 # Pasar contexto (línea anterior/siguiente)
                 contexto_anterior = lineas_limpias[idx - 1] if idx > 0 else ""
@@ -145,6 +151,28 @@ class ParserMejorado:
         )
         return lineas_tabulares > len(lineas) * 0.3
 
+    def _detectar_fin_productos(self, lineas: List[str]) -> int:
+        """Detecta el índice a partir del cual el ticket ya no contiene
+        productos, sino el cierre de la compra (total, forma de pago, cambio)
+        y el pie de página (fidelización, marketing, publicidad).
+
+        Todo lo que aparece después de la última mención a total/pago/cambio
+        se considera pie de ticket y se descarta del parseo de productos.
+        """
+        palabras_cierre = {
+            "total", "subtotal", "cambio", "tarjeta", "efectivo", "pago",
+            "importe", "visa", "mastercard",
+        }
+        ultimo_idx = -1
+        for idx, linea in enumerate(lineas):
+            linea_lower = linea.lower()
+            if any(p in linea_lower for p in palabras_cierre):
+                ultimo_idx = idx
+
+        if ultimo_idx == -1:
+            return len(lineas)
+        return ultimo_idx + 1
+
     def _es_linea_valida(self, linea: str) -> bool:
         """Valida si la línea contiene un producto potencial."""
         if len(linea) < 3:
@@ -157,7 +185,7 @@ class ParserMejorado:
             return False
 
         # Debe tener al menos 3 letras consecutivas
-        if not re.search(r'[a-záéíóúñ]{3,}', linea, re.UNICODE):
+        if not re.search(r'[a-záéíóúñ]{3,}', linea, re.UNICODE | re.IGNORECASE):
             return False
 
         return True
