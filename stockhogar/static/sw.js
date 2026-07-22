@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stockhogar-v6';
+const CACHE_NAME = 'stockhogar-v7';
 const OFFLINE_URL = '/static/offline.html';
 
 const SHELL_ASSETS = [
