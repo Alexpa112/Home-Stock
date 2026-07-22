@@ -39,16 +39,6 @@ def service_worker():
     return respuesta
 
 
-@bp.route("/sw.js")
-@manejo_errores
-def service_worker():
-    """Sirve el Service Worker desde la raíz para que su scope cubra toda la app."""
-    respuesta = send_from_directory(current_app.static_folder, "sw.js", mimetype="application/javascript")
-    respuesta.headers["Service-Worker-Allowed"] = "/"
-    respuesta.headers["Cache-Control"] = "no-cache"
-    return respuesta
-
-
 @bp.route("/aceptar-invitacion/<codigo>")
 @manejo_errores
 def aceptar_invitacion_pagina(codigo):
