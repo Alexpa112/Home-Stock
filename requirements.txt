@@ -8,6 +8,6 @@ fuzzywuzzy>=0.18.0
 python-Levenshtein>=0.21.0
 opencv-python-headless>=4.9,<5
 gunicorn>=21.2,<22
-argostranslate>=1.9,<2
+argostranslate>=1.9,<2; platform_machine != "armv7l"
 PyJWT>=2.8,<3
 cryptography>=42,<43
