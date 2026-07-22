@@ -766,8 +766,28 @@
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 <script>
   if ('serviceWorker' in navigator) {
+    // Cuando un SW nuevo (desplegado en el servidor) toma el control de la
+    // pagina, recargar para que cargue ya con los assets frescos que sirve
+    // ese SW. Sin esto, una PWA instalada puede quedarse viendo CSS/JS
+    // viejo indefinidamente aunque el servidor ya tenga el cambio.
+    let refrescandoPorSW = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (refrescandoPorSW) return;
+      refrescandoPorSW = true;
+      window.location.reload();
+    });
+
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register("{{ url_for('paginas.service_worker') }}");
+      navigator.serviceWorker.register("{{ url_for('paginas.service_worker') }}").then(function (registro) {
+        // iOS no siempre comprueba actualizaciones del SW por su cuenta en
+        // una PWA instalada; forzarlo cada vez que la app vuelve a primer
+        // plano cubre el caso tipico de "cerrar y volver a abrir".
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') {
+            registro.update().catch(function () {});
+          }
+        });
+      });
     });
   }
 
