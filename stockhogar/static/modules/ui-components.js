@@ -317,7 +317,13 @@ class KeyboardManager {
   }
 }
 
-/** Gestor de tema (claro/oscuro) */
+/** Gestor de tema (claro/oscuro). No se instancia globalmente: app.js
+ * (guardarTemaPreferido/temaActual) es la única fuente de verdad para el
+ * tema, ya que resuelve "auto" contra prefers-color-scheme y lo persiste
+ * en BD por usuario. Instanciar este manager en paralelo pisaba
+ * document.documentElement.dataset.theme con el valor crudo de
+ * localStorage (p.ej. "auto" sin resolver), rompiendo el tema del sistema.
+ * Se mantiene la clase exportada solo por compatibilidad con sus tests. */
 class ThemeManager {
   constructor(buttonId = 'btnTema') {
     this.button = document.getElementById(buttonId);
@@ -451,7 +457,6 @@ class ToastManager {
 // que envuelve el fichero como módulo CommonJS y por tanto define `module`).
 if (typeof module === 'undefined') {
   const keyboardManager = new KeyboardManager();
-  const themeManager = new ThemeManager();
   const toastManager = new ToastManager();
 
   window.UIComponents = {

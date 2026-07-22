@@ -15,6 +15,7 @@
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='virtual-keyboard.css') }}">
 <script>
   (function () {
     var servidor = {{ tema_preferido|tojson }};
@@ -25,6 +26,11 @@
       : pref;
     document.documentElement.dataset.theme = aplicado;
     window.__IDIOMA_INICIAL__ = {{ idioma_preferido|tojson }};
+
+    var tecladoServidor = {{ teclado_virtual_activo|tojson }};
+    var tecladoPref = tecladoServidor || localStorage.getItem("stockhogar-teclado-virtual") || "on";
+    localStorage.setItem("stockhogar-teclado-virtual", tecladoPref);
+    window.__TECLADO_VIRTUAL_INICIAL__ = tecladoPref;
   })();
 </script>
 </head>
@@ -246,6 +252,15 @@
             <option value="light" data-i18n="tema_claro">☀️ Claro</option>
             <option value="dark" data-i18n="tema_oscuro">🌑 Oscuro</option>
           </select>
+        </div>
+
+        <!-- Teclado virtual propio -->
+        <div style="margin-bottom: 12px;">
+          <label style="display:flex; align-items:center; justify-content:space-between; font-size: 0.85rem; color: var(--text-soft); font-weight: 500;">
+            <span>⌨️ <span data-i18n="teclado_virtual">Teclado virtual propio</span></span>
+            <input type="checkbox" id="checkTecladoVirtual" role="switch" checked>
+          </label>
+          <p style="font-size: 0.75rem; color: var(--text-soft); margin: 4px 0 0;" data-i18n="teclado_virtual_ayuda">Si usas un lector de pantalla, desactiva esta opción.</p>
         </div>
 
         <!-- Selector de Idioma -->
@@ -768,6 +783,9 @@
 
 <!-- Manager de listas (requerido por app.js) -->
 <script src="{{ url_for('static', filename='modules/drawer-listas.js') }}"></script>
+
+<!-- Teclado virtual propio (requerido por app.js) -->
+<script src="{{ url_for('static', filename='modules/virtual-keyboard.js') }}"></script>
 
 <!-- App principal: lógica completa original restaurada -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>

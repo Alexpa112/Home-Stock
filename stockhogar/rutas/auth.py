@@ -49,16 +49,18 @@ def estado():
     email = None
     tema_preferido = "auto"
     idioma_preferido = "es"
+    teclado_virtual_activo = "on"
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
         fila = db.execute(
-            "SELECT email, tema_preferido, idioma_preferido FROM usuarios WHERE id = ?",
+            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         if fila:
             email = fila["email"]
             tema_preferido = fila["tema_preferido"]
             idioma_preferido = fila["idioma_preferido"]
+            teclado_virtual_activo = fila["teclado_virtual_activo"]
     return APIResponse.success(
         {
             "necesita_setup": not hay_usuarios(db),
@@ -66,6 +68,7 @@ def estado():
             "email": email,
             "tema_preferido": tema_preferido,
             "idioma_preferido": idioma_preferido,
+            "teclado_virtual_activo": teclado_virtual_activo,
         }
     )
 
@@ -193,6 +196,25 @@ def cambiar_tema():
     db.commit()
 
     return APIResponse.success({"tema": tema})
+
+
+@bp.route("/api/auth/teclado-virtual", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def cambiar_teclado_virtual():
+    """Guarda si el usuario quiere el teclado virtual propio (on/off)."""
+    usuario_id = session.get("usuario_id")
+    datos = request.get_json(force=True) or {}
+    valor = (datos.get("teclado_virtual_activo") or "on").strip().lower()
+
+    if valor not in ("on", "off"):
+        return APIResponse.validacion("Valor no válido. Debe ser 'on' u 'off'")
+
+    db = get_db()
+    db.execute("UPDATE usuarios SET teclado_virtual_activo = ? WHERE id = ?", (valor, usuario_id))
+    db.commit()
+
+    return APIResponse.success({"teclado_virtual_activo": valor})
 
 
 @bp.route("/api/auth/cambiar-password", methods=["POST"])

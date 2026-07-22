@@ -15,17 +15,22 @@ bp = Blueprint("paginas", __name__)
 def index():
     tema_preferido = "auto"
     idioma_preferido = "es"
+    teclado_virtual_activo = "on"
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
         fila = get_db().execute(
-            "SELECT tema_preferido, idioma_preferido FROM usuarios WHERE id = ?",
+            "SELECT tema_preferido, idioma_preferido, teclado_virtual_activo FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         if fila:
             tema_preferido = fila["tema_preferido"]
             idioma_preferido = fila["idioma_preferido"]
+            teclado_virtual_activo = fila["teclado_virtual_activo"]
     return render_template(
-        "index.html", tema_preferido=tema_preferido, idioma_preferido=idioma_preferido
+        "index.html",
+        tema_preferido=tema_preferido,
+        idioma_preferido=idioma_preferido,
+        teclado_virtual_activo=teclado_virtual_activo,
     )
 
 
