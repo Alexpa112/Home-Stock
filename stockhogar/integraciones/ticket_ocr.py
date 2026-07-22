@@ -37,7 +37,18 @@ def extraer_texto(ruta_imagen):
     # encima de los 20s objetivo.
     imagen_procesada = _procesador_imagen.procesar(imagen_bytes)
     imagen = Image.fromarray(imagen_procesada)
-    return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6")
+    try:
+        # timeout: fotos con mucho ruido de fondo pueden disparar el tiempo
+        # de segmentación de Tesseract a varios minutos; pytesseract mata el
+        # proceso al superar el límite (a diferencia del SIGKILL de gunicorn
+        # por --timeout, que deja el tesseract original huérfano consumiendo
+        # CPU indefinidamente).
+        return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6", timeout=15)
+    except RuntimeError:
+        raise RuntimeError(
+            "La foto tardó demasiado en procesarse. Prueba con más luz, "
+            "menos reflejos o recortando la imagen para que solo salga el ticket."
+        )
 
 
 def _limpiar_precio(linea):
