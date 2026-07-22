@@ -109,6 +109,35 @@ describe('VirtualKeyboardLayout.esInputNumerico()', () => {
   });
 });
 
+describe('VirtualKeyboardLayout.esInputTexto()/tipoLayout() (fase 2)', () => {
+  test.each(['text', 'email', 'password', 'tel', 'search'])('type="%s" es texto', (type) => {
+    document.body.innerHTML = `<input type="${type}">`;
+    const el = document.querySelector('input');
+    expect(VirtualKeyboardLayout.esInputTexto(el)).toBe(true);
+    expect(VirtualKeyboardLayout.tipoLayout(el)).toBe('texto');
+  });
+
+  test.each(['color', 'file', 'hidden', 'date'])('type="%s" no es texto ni numérico (tipoLayout null)', (type) => {
+    document.body.innerHTML = `<input type="${type}">`;
+    const el = document.querySelector('input');
+    expect(VirtualKeyboardLayout.esInputTexto(el)).toBe(false);
+    expect(VirtualKeyboardLayout.tipoLayout(el)).toBeNull();
+  });
+
+  test('type="number" es numérico, no texto', () => {
+    document.body.innerHTML = '<input type="number">';
+    const el = document.querySelector('input');
+    expect(VirtualKeyboardLayout.esInputTexto(el)).toBe(false);
+    expect(VirtualKeyboardLayout.tipoLayout(el)).toBe('numerico');
+  });
+
+  test('un <select> nunca es candidato', () => {
+    document.body.innerHTML = '<select><option>a</option></select>';
+    const el = document.querySelector('select');
+    expect(VirtualKeyboardLayout.tipoLayout(el)).toBeNull();
+  });
+});
+
 describe('VirtualKeyboardController.attach()/detach() (panel)', () => {
   let controller;
 
@@ -166,17 +195,22 @@ describe('VirtualKeyboardController: marcado proactivo (_sincronizarMarcado)', (
     });
   });
 
-  test('init() marca de antemano los inputs numéricos ya presentes en el DOM (antes de cualquier foco)', () => {
-    document.body.innerHTML = '<input id="cantidad" type="number" value="1"><input id="nombre" type="text">';
+  test('init() marca de antemano los inputs numéricos y de texto ya presentes en el DOM (antes de cualquier foco)', () => {
+    document.body.innerHTML = '<input id="cantidad" type="number" value="1"><input id="nombre" type="text"><input id="color" type="color">';
     const controller = new VirtualKeyboardController();
 
     controller.init(true);
 
     const cantidad = document.getElementById('cantidad');
     const nombre = document.getElementById('nombre');
+    const color = document.getElementById('color');
     expect(cantidad.getAttribute('inputmode')).toBe('none');
     expect(cantidad.hasAttribute('readonly')).toBe(true);
-    expect(nombre.hasAttribute('readonly')).toBe(false);
+    // Fase 2: los inputs de texto también se gestionan (antes se excluían).
+    expect(nombre.getAttribute('inputmode')).toBe('none');
+    expect(nombre.hasAttribute('readonly')).toBe(true);
+    // type="color" nunca es candidato.
+    expect(color.hasAttribute('readonly')).toBe(false);
   });
 
   test('setEnabled(false) retira inputmode/readonly de todos los inputs marcados', () => {
@@ -276,5 +310,149 @@ describe('VirtualKeyboardController.commitEnter()', () => {
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(controller.activeInput).toBeNull();
+  });
+});
+
+describe('VirtualKeyboardController fase 2: panel alfanumérico', () => {
+  function tecla(controller, valor) {
+    return controller.element.querySelector(`button[data-tecla="${valor}"]`);
+  }
+
+  test('attach() con input de texto muestra el sub-panel alfa y oculta el numérico', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.attach(document.getElementById('nombre'));
+
+    expect(controller.panelAlfa.hidden).toBe(false);
+    expect(controller.panelNumerico.hidden).toBe(true);
+    expect(controller.element.getAttribute('aria-label')).toBe('Teclado alfanumérico');
+  });
+
+  test('attach() con input numérico muestra el sub-panel numérico y oculta el alfa', () => {
+    document.body.innerHTML = '<input id="cantidad" type="number">';
+    const controller = new VirtualKeyboardController();
+    controller.attach(document.getElementById('cantidad'));
+
+    expect(controller.panelNumerico.hidden).toBe(false);
+    expect(controller.panelAlfa.hidden).toBe(true);
+    expect(controller.element.getAttribute('aria-label')).toBe('Teclado numérico');
+  });
+
+  test('la tecla ⇧ alterna mayúsculas sin recrear el DOM (mismo nodo antes/después)', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    const input = document.getElementById('nombre');
+    controller.attach(input);
+
+    const botonQ = tecla(controller, 'q');
+    expect(botonQ.textContent).toBe('q');
+
+    controller._manejarTecla('⇧');
+
+    const botonMayus = tecla(controller, 'Q');
+    expect(botonMayus).toBe(botonQ); // mismo nodo, solo cambió textContent/dataset
+
+    controller._manejarTecla('Q'); // pulsar la Q ya en mayúscula inserta 'Q' y autodesactiva shift
+    expect(input.value).toBe('Q');
+
+    controller._manejarTecla('a');
+    expect(input.value).toBe('Qa');
+    expect(tecla(controller, 'q')).not.toBeNull(); // el shift ya se autodesactivó: volvió a minúscula
+  });
+
+  test('la tecla 123/ABC alterna la capa de letras y la de símbolos/acentos', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.attach(document.getElementById('nombre'));
+
+    expect(controller._grupoLetras.hidden).toBe(false);
+    expect(controller._grupoSimbolos.hidden).toBe(true);
+
+    controller._manejarTecla('123');
+
+    expect(controller._grupoLetras.hidden).toBe(true);
+    expect(controller._grupoSimbolos.hidden).toBe(false);
+    expect(tecla(controller, 'ABC')).not.toBeNull();
+
+    controller._manejarTecla('ABC');
+
+    expect(controller._grupoLetras.hidden).toBe(false);
+    expect(controller._grupoSimbolos.hidden).toBe(true);
+  });
+
+  test('la tecla 👁 solo aparece para type="password" y alterna la visibilidad', () => {
+    document.body.innerHTML = '<input id="pass" type="password"><input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+
+    controller.attach(document.getElementById('nombre'));
+    expect(controller._btnPassword.hidden).toBe(true);
+
+    const passwordInput = document.getElementById('pass');
+    controller.attach(passwordInput);
+    expect(controller._btnPassword.hidden).toBe(false);
+    expect(passwordInput.type).toBe('password');
+
+    controller._manejarTecla('👁');
+    expect(passwordInput.type).toBe('text');
+
+    controller._manejarTecla('🙈');
+    expect(passwordInput.type).toBe('password');
+  });
+
+  test('insertChar() en type="text" respeta selectionStart/selectionEnd reales', () => {
+    document.body.innerHTML = '<input id="nombre" type="text" value="ab">';
+    const controller = new VirtualKeyboardController();
+    const input = document.getElementById('nombre');
+    controller.attach(input);
+    input.setSelectionRange(1, 1); // cursor entre 'a' y 'b'
+
+    controller.insertChar('X');
+
+    expect(input.value).toBe('aXb');
+    expect(input.selectionStart).toBe(2);
+  });
+
+  test('irAlSiguienteCampo(): con varios inputs en el mismo form, Intro avanza al siguiente', () => {
+    document.body.innerHTML = `
+      <form>
+        <input id="uno" type="text">
+        <input id="dos" type="text">
+      </form>`;
+    const controller = new VirtualKeyboardController();
+    const uno = document.getElementById('uno');
+    const dos = document.getElementById('dos');
+    controller.attach(uno);
+    controller._marcar(dos, 'texto');
+
+    controller.irAlSiguienteCampo();
+
+    expect(document.activeElement).toBe(dos);
+  });
+
+  test('irAlSiguienteCampo(): en el último campo, dispara change y cierra el panel sin validar', () => {
+    document.body.innerHTML = '<input id="unico" type="text" required>';
+    const controller = new VirtualKeyboardController();
+    const input = document.getElementById('unico');
+    controller.attach(input);
+    const onChange = jest.fn();
+    input.addEventListener('change', onChange);
+
+    controller.irAlSiguienteCampo();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(controller.activeInput).toBeNull();
+  });
+
+  test('Intro en un input de texto llama a irAlSiguienteCampo(), no a commitEnter()', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.attach(document.getElementById('nombre'));
+    const spyIr = jest.spyOn(controller, 'irAlSiguienteCampo');
+    const spyCommit = jest.spyOn(controller, 'commitEnter');
+
+    controller._manejarTecla('Intro');
+
+    expect(spyIr).toHaveBeenCalledTimes(1);
+    expect(spyCommit).not.toHaveBeenCalled();
   });
 });

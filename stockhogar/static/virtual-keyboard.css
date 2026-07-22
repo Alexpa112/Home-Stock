@@ -1,6 +1,6 @@
-/* Teclado virtual propio (fase 1: numérico). Reutiliza las variables de
-   tema definidas en style.css:1-76 para heredar claro/oscuro sin lógica
-   propia. */
+/* Teclado virtual propio (fase 1: numérico; fase 2: alfanumérico QWERTY).
+   Reutiliza las variables de tema definidas en style.css:1-76 para heredar
+   claro/oscuro sin lógica propia. */
 
 .teclado-virtual {
   position: fixed;
@@ -19,6 +19,23 @@
 }
 
 .teclado-virtual[hidden] {
+  display: none;
+}
+
+/* Cada sub-panel (numérico / alfanumérico) y cada grupo de filas
+   intercambiable (letras / símbolos) es un simple contenedor de filas; se
+   declara [hidden] explícitamente para no depender de que ninguna regla
+   posterior con la misma especificidad que el estilo [hidden] del user
+   agent lo pise. */
+.teclado-virtual-panel,
+.teclado-virtual-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.teclado-virtual-panel[hidden],
+.teclado-virtual-grupo[hidden] {
   display: none;
 }
 
@@ -57,4 +74,23 @@
 
 .teclado-virtual-tecla--intro:active {
   opacity: .85;
+}
+
+/* Mayúsculas (⇧): resaltada mientras está activa, como feedback de que la
+   siguiente letra saldrá en mayúscula. */
+.teclado-virtual-tecla--mayus.teclado-virtual-tecla--activa {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Toggle 123/ABC de la capa de símbolos/acentos. */
+.teclado-virtual-tecla--alterna {
+  flex: 1.3;
+  font-size: .95rem;
+}
+
+/* Barra espaciadora: mucho más ancha que una tecla normal. */
+.teclado-virtual-tecla--espacio {
+  flex: 4;
 }
