@@ -1,0 +1,60 @@
+/* Teclado virtual propio (fase 1: numérico). Reutiliza las variables de
+   tema definidas en style.css:1-76 para heredar claro/oscuro sin lógica
+   propia. */
+
+.teclado-virtual {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10050;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  padding: 8px calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  touch-action: none;
+}
+
+.teclado-virtual[hidden] {
+  display: none;
+}
+
+.teclado-virtual-fila {
+  display: flex;
+  gap: 6px;
+}
+
+.teclado-virtual-tecla {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 500;
+  -webkit-appearance: none;
+  touch-action: manipulation;
+}
+
+.teclado-virtual-tecla:active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.teclado-virtual-tecla--borrar {
+  color: var(--danger);
+}
+
+.teclado-virtual-tecla--intro {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.teclado-virtual-tecla--intro:active {
+  opacity: .85;
+}

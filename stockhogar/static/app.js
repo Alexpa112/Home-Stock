@@ -190,6 +190,10 @@ observerModales.observe(document.documentElement, {
 });
 
 function ajustarViewportMovil() {
+  // Mientras el teclado virtual propio está abierto, es él quien fija
+  // --keyboard-height/--keyboard-offset (su altura es conocida, no
+  // estimada) - no dejar que este tracker del teclado nativo la pise.
+  if (document.body.dataset.tecladoVirtualActivo === '1') return;
   if (!window.visualViewport) {
     document.documentElement.style.setProperty("--keyboard-offset", "0px");
     document.body.classList.remove("keyboard-open");
@@ -243,6 +247,12 @@ window.addEventListener("load", () => {
   ajustarViewportMovil();
   sincronizarEstadoModal();
 });
+
+if (window.VirtualKeyboard) {
+  const preferenciaInicial = (window.__TECLADO_VIRTUAL_INICIAL__ ?? localStorage.getItem('stockhogar-teclado-virtual') ?? 'on') === 'on';
+  window.tecladoVirtualController = new window.VirtualKeyboard.VirtualKeyboardController();
+  window.tecladoVirtualController.init(preferenciaInicial);
+}
 
 /* --- Cierre seguro de modales: solo si el clic empieza y termina en el fondo --- */
 function habilitarCierreSeguro(fondo, alCerrar) {
@@ -350,6 +360,21 @@ function guardarTemaPreferido(preferencia) {
 /* Alias usado por el toggle rápido de la cabecera: fuerza un tema explícito. */
 function aplicarTema(tema) {
   guardarTemaPreferido(tema);
+}
+
+/* Guarda la preferencia de teclado virtual propio ('on'/'off'), igual patrón
+   que guardarTemaPreferido(): localStorage para efecto inmediato + BD para
+   que se recuerde en otros dispositivos. */
+function guardarPreferenciaTecladoVirtual(activo) {
+  const valor = activo ? 'on' : 'off';
+  localStorage.setItem('stockhogar-teclado-virtual', valor);
+  window.tecladoVirtualController?.setEnabled(activo);
+
+  fetch('/api/auth/teclado-virtual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teclado_virtual_activo: valor })
+  }).catch((error) => console.error('Error guardando preferencia de teclado virtual:', error));
 }
 
 btnTema.addEventListener("click", () => {
@@ -2222,6 +2247,7 @@ if (listaActualBtnEl) {
   function setupAjustesModal() {
     const modalAjustes = document.getElementById('modalAjustes');
     const selectTema = document.getElementById('selectTema');
+    const checkTecladoVirtual = document.getElementById('checkTecladoVirtual');
     const btnGuardarPerfil = document.getElementById('btnGuardarPerfil');
     const inputNombre = document.getElementById('ajustesNombreUsuario');
     const inputEmail = document.getElementById('ajustesEmailUsuario');
@@ -2236,6 +2262,10 @@ if (listaActualBtnEl) {
     modalAjustes.addEventListener('focusin', async () => {
       const temaGuardado = localStorage.getItem('stockhogar-tema') || 'auto';
       selectTema.value = temaGuardado;
+
+      if (checkTecladoVirtual) {
+        checkTecladoVirtual.checked = (localStorage.getItem('stockhogar-teclado-virtual') || 'on') === 'on';
+      }
 
       if ((inputNombre && !inputNombre.value) || (inputEmail && !inputEmail.value)) {
         try {
@@ -2253,6 +2283,12 @@ if (listaActualBtnEl) {
     selectTema.addEventListener('change', (e) => {
       guardarTemaPreferido(e.target.value);
     });
+
+    if (checkTecladoVirtual) {
+      checkTecladoVirtual.addEventListener('change', (e) => {
+        guardarPreferenciaTecladoVirtual(e.target.checked);
+      });
+    }
 
     // Guardar perfil
     btnGuardarPerfil.addEventListener('click', async () => {
