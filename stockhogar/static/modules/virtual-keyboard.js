@@ -179,6 +179,7 @@ class VirtualKeyboardController {
       fila.forEach((tecla) => {
         const btn = document.createElement('button');
         btn.type = 'button';
+        btn.tabIndex = -1;
         btn.className = 'teclado-virtual-tecla';
         if (tecla === '⌫') btn.classList.add('teclado-virtual-tecla--borrar');
         btn.textContent = tecla;
@@ -198,11 +199,27 @@ class VirtualKeyboardController {
     filaAcciones.appendChild(btnIntro);
     el.appendChild(filaAcciones);
 
+    // En iOS Safari, preventDefault() en 'pointerdown' no siempre basta para
+    // impedir que el input pierda el foco al tocar una tecla del panel (bug
+    // real detectado en un iPhone: el teclado se cerraba al pulsar una
+    // tecla). El evento cuyo preventDefault() SÍ bloquea de forma fiable el
+    // cambio de foco en WebKit es 'touchstart', así que se añade aquí como
+    // defensa principal; 'pointerdown' se mantiene para procesar la pulsación
+    // en sí (funciona igual con touch, mouse y trackpad).
+    el.addEventListener('touchstart', (e) => {
+      if (e.target.closest('button[data-tecla]')) e.preventDefault();
+    }, { passive: false });
+
     el.addEventListener('pointerdown', (e) => {
       const btn = e.target.closest('button[data-tecla]');
       if (!btn) return;
       e.preventDefault();
+      // Segunda defensa: mientras se procesa el toque, ignorar cualquier
+      // blur del input activo (ver _onDocFocusOut) aunque el navegador
+      // mueva el foco pese al preventDefault de arriba.
+      this._interactuandoConPanel = true;
       this._manejarTecla(btn.dataset.tecla);
+      window.setTimeout(() => { this._interactuandoConPanel = false; }, 50);
     });
 
     document.body.appendChild(el);
@@ -223,10 +240,12 @@ class VirtualKeyboardController {
   _onDocFocusOut(event) {
     const target = event.target;
     if (target !== this.activeInput) return;
-    // Si el nuevo foco es una tecla del teclado virtual, no lo cerramos:
-    // el pointerdown de la tecla ya llama a preventDefault(), así que en
-    // la práctica esto solo dispara al perder el foco de verdad.
+    // Si el blur lo ha provocado tocar una tecla del panel, no cerramos:
+    // preventDefault() en touchstart/pointerdown ya debería evitarlo, pero
+    // esta bandera es la red de seguridad para WebKit (ver _crearDom).
+    if (this._interactuandoConPanel) return;
     window.setTimeout(() => {
+      if (this._interactuandoConPanel) return;
       if (document.activeElement !== this.activeInput) {
         this._ocultarPanel();
       }
@@ -259,6 +278,18 @@ class VirtualKeyboardController {
 
     this._reportarAltura();
     document.body.dataset.tecladoVirtualActivo = '1';
+
+    // El panel puede encoger el modal/contenedor que se esté mostrando
+    // (ver responsive.css, --keyboard-offset); si el input estaba cerca
+    // del final de un formulario largo con scroll (p.ej. revisión de
+    // ticket), puede quedar oculto bajo el nuevo borde inferior. Se
+    // difiere al siguiente frame para que el reflow del max-height ya
+    // se haya aplicado antes de calcular qué hace falta desplazar.
+    window.requestAnimationFrame(() => {
+      if (this.activeInput === inputEl) {
+        inputEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
   }
 
   /* Oculta el panel y limpia el estado de "teclado abierto", pero NO
