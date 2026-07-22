@@ -109,7 +109,7 @@ describe('VirtualKeyboardLayout.esInputNumerico()', () => {
   });
 });
 
-describe('VirtualKeyboardController.attach()/detach()', () => {
+describe('VirtualKeyboardController.attach()/detach() (panel)', () => {
   let controller;
 
   beforeEach(() => {
@@ -117,13 +117,12 @@ describe('VirtualKeyboardController.attach()/detach()', () => {
     controller = new VirtualKeyboardController();
   });
 
-  test('attach() marca inputmode="none", readonly y data-teclado-gestionado', () => {
+  test('attach() marca inputmode="none" y readonly (red de seguridad si no se pasó por _sincronizarMarcado)', () => {
     const input = document.getElementById('cantidad');
     controller.attach(input);
 
     expect(input.getAttribute('inputmode')).toBe('none');
     expect(input.hasAttribute('readonly')).toBe(true);
-    expect(input.dataset.tecladoGestionado).toBe('1');
   });
 
   test('attach() fija --keyboard-height/--keyboard-offset y body.keyboard-open', () => {
@@ -137,29 +136,75 @@ describe('VirtualKeyboardController.attach()/detach()', () => {
     expect(document.documentElement.style.getPropertyValue('--keyboard-offset')).toBe(alto);
   });
 
-  test('detach() restaura el input y limpia las variables/clases', () => {
+  // Importante: detach() (invocado también al perder el foco) SOLO oculta
+  // el panel, no retira inputmode="none"/readonly. Si lo hiciera en cada
+  // cambio de foco, iOS volvería a mostrar su teclado nativo brevemente en
+  // el siguiente toque, porque decide si mostrarlo en el instante en que
+  // arranca el foco, antes de que un handler de focus pueda reaccionar.
+  test('detach() oculta el panel y limpia clases/variables, pero NO retira inputmode/readonly', () => {
     const input = document.getElementById('cantidad');
     controller.attach(input);
 
     controller.detach();
 
-    expect(input.hasAttribute('inputmode')).toBe(false);
-    expect(input.hasAttribute('readonly')).toBe(false);
-    expect(input.dataset.tecladoGestionado).toBeUndefined();
+    expect(input.getAttribute('inputmode')).toBe('none');
+    expect(input.hasAttribute('readonly')).toBe(true);
+    expect(controller.activeInput).toBeNull();
     expect(document.body.classList.contains('keyboard-open')).toBe(false);
     expect(document.body.classList.contains('is-keyboard-open')).toBe(false);
     expect(document.body.dataset.tecladoVirtualActivo).toBeUndefined();
     expect(document.documentElement.style.getPropertyValue('--keyboard-height')).toBe('0px');
   });
+});
 
-  test('detach() restaura el inputmode original si el input ya tenía uno', () => {
+describe('VirtualKeyboardController: marcado proactivo (_sincronizarMarcado)', () => {
+  beforeEach(() => {
+    mockMatchMedia({
+      '(pointer: coarse)': true,
+      '(hover: none)': true,
+      '(any-pointer: fine)': false,
+    });
+  });
+
+  test('init() marca de antemano los inputs numéricos ya presentes en el DOM (antes de cualquier foco)', () => {
+    document.body.innerHTML = '<input id="cantidad" type="number" value="1"><input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+
+    controller.init(true);
+
+    const cantidad = document.getElementById('cantidad');
+    const nombre = document.getElementById('nombre');
+    expect(cantidad.getAttribute('inputmode')).toBe('none');
+    expect(cantidad.hasAttribute('readonly')).toBe(true);
+    expect(nombre.hasAttribute('readonly')).toBe(false);
+  });
+
+  test('setEnabled(false) retira inputmode/readonly de todos los inputs marcados', () => {
     document.body.innerHTML = '<input id="cantidad" type="number" inputmode="decimal" value="1">';
-    const input = document.getElementById('cantidad');
-    controller.attach(input);
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
 
-    controller.detach();
+    controller.setEnabled(false);
 
-    expect(input.getAttribute('inputmode')).toBe('decimal');
+    const cantidad = document.getElementById('cantidad');
+    expect(cantidad.getAttribute('inputmode')).toBe('decimal');
+    expect(cantidad.hasAttribute('readonly')).toBe(false);
+  });
+
+  test('un input añadido dinámicamente se marca tras el siguiente microtask (MutationObserver)', async () => {
+    document.body.innerHTML = '';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+
+    const nuevo = document.createElement('input');
+    nuevo.type = 'number';
+    document.body.appendChild(nuevo);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(nuevo.getAttribute('inputmode')).toBe('none');
+    expect(nuevo.hasAttribute('readonly')).toBe(true);
   });
 });
 

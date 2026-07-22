@@ -54,7 +54,7 @@ class VirtualKeyboardDetector {
 /** Decide qué layout mostrar según el input enfocado. */
 class VirtualKeyboardLayout {
   static esInputNumerico(el) {
-    if (!(el instanceof HTMLElement)) return false;
+    if (!(el instanceof HTMLElement) || el.tagName !== 'INPUT') return false;
     const inputmode = (el.getAttribute('inputmode') || '').toLowerCase();
     const type = (el.getAttribute('type') || el.type || 'text').toLowerCase();
     if (inputmode === 'numeric' || inputmode === 'decimal') return true;
@@ -68,10 +68,20 @@ class VirtualKeyboardController {
     this.enabled = false;
     this.activeInput = null;
     this.element = null;
+    // Inputs a los que ya se les ha puesto inputmode="none"/readonly. La
+    // marca se aplica de forma PROACTIVA (ver _sincronizarMarcado), no en
+    // el propio focusin: iOS decide si mostrar su teclado nativo en el
+    // instante en que empieza el foco, usando el inputmode/readonly que el
+    // campo YA tenía en ese momento. Cambiar esos atributos dentro del
+    // propio handler de focus llega demasiado tarde y Safari llega a
+    // mostrar el teclado nativo de todos modos (bug real detectado en un
+    // iPhone real, no solo un matiz teórico).
+    this.marcados = new Set();
+    this._observer = null;
+    this._sincronizarMarcadoDiferido = this._sincronizarMarcadoDiferido.bind(this);
     this._onDocFocusIn = this._onDocFocusIn.bind(this);
     this._onDocFocusOut = this._onDocFocusOut.bind(this);
     this._onDocKeyDown = this._onDocKeyDown.bind(this);
-    this._onDocTouchStart = this._onDocTouchStart.bind(this);
   }
 
   init(preferenciaInicial) {
@@ -80,14 +90,71 @@ class VirtualKeyboardController {
     document.addEventListener('focusin', this._onDocFocusIn, true);
     document.addEventListener('focusout', this._onDocFocusOut, true);
     document.addEventListener('keydown', this._onDocKeyDown, true);
-    document.addEventListener('touchstart', this._onDocTouchStart, { capture: true, once: true });
+
+    this._sincronizarMarcado();
+
+    // Los formularios de ticket/lista generan filas de <input> nuevas en
+    // caliente (app.js, form-builder.js); hay que marcarlas también en
+    // cuanto aparecen, antes de que el usuario pueda tocarlas.
+    this._observer = new MutationObserver(this._sincronizarMarcadoDiferido);
+    this._observer.observe(document.body, { childList: true, subtree: true });
   }
 
   setEnabled(activo) {
     this.enabled = !!activo;
-    if (!this.enabled && this.activeInput) {
-      this.detach();
+    if (this.activeInput) this._ocultarPanel();
+    this._sincronizarMarcado();
+  }
+
+  _sincronizarMarcadoDiferido() {
+    // Varias mutaciones del DOM pueden llegar en el mismo tick; una sola
+    // pasada basta.
+    if (this._sincPendiente) return;
+    this._sincPendiente = true;
+    Promise.resolve().then(() => {
+      this._sincPendiente = false;
+      this._sincronizarMarcado();
+    });
+  }
+
+  /* Aplica o retira inputmode="none"/readonly según corresponda AHORA
+     (preferencia + tipo de dispositivo + heurísticas de accesibilidad),
+     de forma proactiva y no solo en el momento del foco. */
+  _sincronizarMarcado() {
+    const activar = VirtualKeyboardDetector.shouldUseCustomKeyboard(this.enabled);
+    if (activar) {
+      document.querySelectorAll('input').forEach((el) => {
+        if (this.marcados.has(el)) return;
+        if (VirtualKeyboardLayout.esInputNumerico(el)) this._marcar(el);
+      });
+    } else {
+      Array.from(this.marcados).forEach((el) => this._desmarcar(el));
     }
+  }
+
+  _marcar(el) {
+    if (this.marcados.has(el)) return;
+    el.dataset.tecladoInputmodeOriginal = el.getAttribute('inputmode') || '';
+    el.dataset.tecladoReadonlyOriginal = el.hasAttribute('readonly') ? '1' : '0';
+    el.setAttribute('inputmode', 'none');
+    el.setAttribute('readonly', 'readonly');
+    this.marcados.add(el);
+  }
+
+  _desmarcar(el) {
+    if (!this.marcados.has(el)) return;
+    if (el.dataset.tecladoInputmodeOriginal) {
+      el.setAttribute('inputmode', el.dataset.tecladoInputmodeOriginal);
+    } else {
+      el.removeAttribute('inputmode');
+    }
+    if (el.dataset.tecladoReadonlyOriginal !== '1') {
+      el.removeAttribute('readonly');
+    }
+    delete el.dataset.tecladoInputmodeOriginal;
+    delete el.dataset.tecladoReadonlyOriginal;
+    this.marcados.delete(el);
+    if (this.activeInput === el) this._ocultarPanel();
   }
 
   _crearDom() {
@@ -145,11 +212,11 @@ class VirtualKeyboardController {
   _onDocFocusIn(event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    if (!this.enabled) return;
-    if (!VirtualKeyboardLayout.esInputNumerico(target)) return;
+    // Solo actuamos sobre inputs que YA estaban marcados de antemano
+    // (ver _sincronizarMarcado); si no lo estaba, es que el teclado nativo
+    // ya se está mostrando y no hay nada que hacer en este foco.
+    if (!this.marcados.has(target)) return;
     if (target.disabled) return;
-    if (!VirtualKeyboardDetector.shouldUseCustomKeyboard(this.enabled)) return;
-    if (target.dataset.tecladoGestionado === '1') return;
     this.attach(target);
   }
 
@@ -161,7 +228,7 @@ class VirtualKeyboardController {
     // la práctica esto solo dispara al perder el foco de verdad.
     window.setTimeout(() => {
       if (document.activeElement !== this.activeInput) {
-        this.detach();
+        this._ocultarPanel();
       }
     }, 0);
   }
@@ -174,25 +241,18 @@ class VirtualKeyboardController {
     } catch (error) {
       // sessionStorage no disponible (modo privado); no es bloqueante.
     }
-    if (this.activeInput) this.detach();
+    // Teclado físico real detectado: dejar de suprimir el teclado nativo
+    // en todos los inputs y ocultar el panel si estaba abierto.
+    this._sincronizarMarcado();
   }
 
-  _onDocTouchStart() {
-    // Primer toque sin Tab previo: no era navegación por teclado físico.
-    // No hace falta hacer nada; la señal de hasScreenReader() solo se activa
-    // si Tab llega ANTES que este touchstart (ver listener de Tab abajo).
-  }
-
+  /* Muestra el panel del teclado para un input ya marcado (inputmode="none"
+     + readonly ya aplicados de antemano por _sincronizarMarcado). */
   attach(inputEl) {
     if (this.activeInput === inputEl) return;
-    if (this.activeInput) this.detach();
+    if (this.activeInput) this._ocultarPanel();
     if (!this.element) this._crearDom();
-
-    inputEl.dataset.tecladoGestionado = '1';
-    inputEl.dataset.tecladoInputmodeOriginal = inputEl.getAttribute('inputmode') || '';
-    inputEl.dataset.tecladoReadonlyOriginal = inputEl.hasAttribute('readonly') ? '1' : '0';
-    inputEl.setAttribute('inputmode', 'none');
-    inputEl.setAttribute('readonly', 'readonly');
+    this._marcar(inputEl); // red de seguridad si se llama sin pasar por _sincronizarMarcado (tests, uso directo)
 
     this.activeInput = inputEl;
     this.element.hidden = false;
@@ -201,24 +261,16 @@ class VirtualKeyboardController {
     document.body.dataset.tecladoVirtualActivo = '1';
   }
 
-  detach() {
+  /* Oculta el panel y limpia el estado de "teclado abierto", pero NO
+     restaura inputmode/readonly del input: mientras la función siga
+     activada para este dispositivo, el campo debe seguir suprimiendo el
+     teclado nativo aunque se cambie de campo o se cierre el modal. Esos
+     atributos solo se retiran en _desmarcar() (toggle de Ajustes, o
+     detección de teclado físico/lector de pantalla). */
+  _ocultarPanel() {
     if (!this.activeInput) return;
-    const inputEl = this.activeInput;
-
-    if (inputEl.dataset.tecladoInputmodeOriginal) {
-      inputEl.setAttribute('inputmode', inputEl.dataset.tecladoInputmodeOriginal);
-    } else {
-      inputEl.removeAttribute('inputmode');
-    }
-    if (inputEl.dataset.tecladoReadonlyOriginal !== '1') {
-      inputEl.removeAttribute('readonly');
-    }
-    delete inputEl.dataset.tecladoGestionado;
-    delete inputEl.dataset.tecladoInputmodeOriginal;
-    delete inputEl.dataset.tecladoReadonlyOriginal;
-
     this.activeInput = null;
-    this.element.hidden = true;
+    if (this.element) this.element.hidden = true;
 
     document.body.classList.remove('keyboard-open', 'is-keyboard-open');
     document.documentElement.style.setProperty('--keyboard-offset', '0px');
@@ -228,6 +280,12 @@ class VirtualKeyboardController {
     if (typeof window.ajustarViewportMovil === 'function') {
       window.ajustarViewportMovil();
     }
+  }
+
+  /* Alias público: mismo comportamiento que _ocultarPanel(), usado por
+     código externo (p.ej. al desactivar la preferencia desde Ajustes). */
+  detach() {
+    this._ocultarPanel();
   }
 
   _reportarAltura() {
@@ -304,7 +362,8 @@ class VirtualKeyboardController {
     if (!el) return;
     // Un input readonly queda "barred from constraint validation" según el
     // spec HTML: checkValidity() devolvería siempre true si no se quita
-    // temporalmente el readonly que le pusimos nosotros en attach().
+    // temporalmente el readonly (permanece marcado como gestionado; solo
+    // se retira el atributo un instante para poder validar).
     const teniaReadonlyPropio = el.hasAttribute('readonly');
     if (teniaReadonlyPropio) el.removeAttribute('readonly');
     const esValido = typeof el.checkValidity !== 'function' || el.checkValidity();
@@ -313,8 +372,9 @@ class VirtualKeyboardController {
       if (teniaReadonlyPropio) el.setAttribute('readonly', 'readonly');
       return;
     }
+    if (teniaReadonlyPropio) el.setAttribute('readonly', 'readonly');
     el.dispatchEvent(new Event('change', { bubbles: true }));
-    this.detach();
+    this._ocultarPanel();
     el.blur();
   }
 }
