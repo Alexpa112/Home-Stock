@@ -156,22 +156,23 @@ class ParserMejorado:
         productos, sino el cierre de la compra (total, forma de pago, cambio)
         y el pie de página (fidelización, marketing, publicidad).
 
-        Todo lo que aparece después de la última mención a total/pago/cambio
-        se considera pie de ticket y se descarta del parseo de productos.
+        Se usa la PRIMERA línea que marca el cierre de la compra (total,
+        forma de pago, cambio): a partir de ahí ya no hay más productos.
+        Usar la última ocurrencia es incorrecto porque el pie de ticket
+        (fidelización/marketing) suele repetir esas mismas palabras
+        ("Solicita tu tarjeta física", "NUM. TOTAL ART. VENDIDOS"), lo que
+        desplazaría el corte hasta el final y dejaría pasar todo el pie.
         """
-        palabras_cierre = {
-            "total", "subtotal", "cambio", "tarjeta", "efectivo", "pago",
-            "importe", "visa", "mastercard",
-        }
-        ultimo_idx = -1
+        regex_cierre = re.compile(
+            r'\b(total|subtotal|tot|cambio|tarjeta|efectivo|pago|importe|'
+            r'visa|mastercard)\b',
+            re.IGNORECASE | re.UNICODE
+        )
         for idx, linea in enumerate(lineas):
-            linea_lower = linea.lower()
-            if any(p in linea_lower for p in palabras_cierre):
-                ultimo_idx = idx
+            if regex_cierre.search(linea):
+                return idx
 
-        if ultimo_idx == -1:
-            return len(lineas)
-        return ultimo_idx + 1
+        return len(lineas)
 
     def _es_linea_valida(self, linea: str) -> bool:
         """Valida si la línea contiene un producto potencial."""
