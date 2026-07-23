@@ -641,6 +641,14 @@
               📋 Copiar
             </button>
           </div>
+          <button
+            type="button"
+            id="btnCompartirNativo"
+            style="width: 100%; padding: 10px 16px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 0.9rem; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;"
+            data-i18n="compartir_con"
+          >
+            📤 Compartir con...
+          </button>
           <p style="margin: 0; font-size: 0.8rem; color: var(--text-soft);" data-i18n="enlace_valido_7_dias">✓ Válido por 7 días. Comparte por WhatsApp, email, mensaje directo, etc.</p>
         </div>
 
@@ -783,6 +791,9 @@
 
 <!-- Manager de listas (requerido por app.js) -->
 <script src="{{ url_for('static', filename='modules/drawer-listas.js') }}"></script>
+
+<!-- Motor de renderizado del teclado virtual (vendorizado, sin CDN; ver modules/virtual-keyboard.js) -->
+<script src="{{ url_for('static', filename='vendor/simple-keyboard/simple-keyboard.js') }}"></script>
 
 <!-- Teclado virtual propio (requerido por app.js) -->
 <script src="{{ url_for('static', filename='modules/virtual-keyboard.js') }}"></script>

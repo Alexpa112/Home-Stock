@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stockhogar-v9';
+const CACHE_NAME = 'stockhogar-v10';
 const OFFLINE_URL = '/static/offline.html';
 
 const SHELL_ASSETS = [
@@ -15,6 +15,7 @@ const SHELL_ASSETS = [
   '/static/modules/form-builder.js',
   '/static/modules/drawer-listas.js',
   '/static/modules/virtual-keyboard.js',
+  '/static/vendor/simple-keyboard/simple-keyboard.js',
   OFFLINE_URL,
 ];
 
