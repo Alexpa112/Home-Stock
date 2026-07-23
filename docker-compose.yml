@@ -25,6 +25,23 @@ services:
     networks:
       - stockhogar-network
 
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        # "stockhogar" es el nombre del servicio de arriba: Docker lo resuelve
+        # por DNS interno dentro de la red del compose, no localhost.
+        NEXT_PUBLIC_API_URL: http://stockhogar:5000
+    container_name: stockhogar-frontend
+    ports:
+      - "${STOCKHOGAR_FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - stockhogar
+    restart: unless-stopped
+    networks:
+      - stockhogar-network
+
 networks:
   stockhogar-network:
     driver: bridge

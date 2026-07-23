@@ -21,6 +21,7 @@ RUTAS_PUBLICAS = {
     "oauth.oauth_apple_callback",
     "paginas.service_worker",
     "paginas.log_client_error",
+    "paginas.csrf_token",
     "idiomas.obtener_todas_traducciones",
     "static",
 }
