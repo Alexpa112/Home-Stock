@@ -649,7 +649,7 @@ body.modal-open .fab {
 .modal-header {
   position: relative;
   flex-shrink: 0;
-  padding: 20px 56px;
+  padding: 20px 64px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -660,8 +660,12 @@ body.modal-open .fab {
 .modal-header h2,
 .modal-header h3 {
   margin: 0;
-  flex: none;
+  flex: 1;
+  min-width: 0;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .btn-cerrar-modal {
