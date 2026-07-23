@@ -48,6 +48,20 @@ function iniciarComprobacionMantenimiento() {
 }
 iniciarComprobacionMantenimiento();
 
+// Si otro usuario de la casa añade o marca algo en stock/lista de la compra,
+// refrescamos en segundo plano para que se vea sin tener que recargar a mano.
+// Evitamos hacerlo con un modal abierto o mientras se escribe en el buscador,
+// para no interrumpir una edición en curso.
+function iniciarAutoRefresco() {
+  setInterval(() => {
+    const hayModalAbierto = Array.from(document.querySelectorAll('.modal-fondo')).some((modal) => !modal.hidden);
+    const escribiendoEnBuscador = document.activeElement === buscador;
+    if (document.visibilityState === "hidden" || hayModalAbierto || escribiendoEnBuscador) return;
+    cargarProductos();
+    cargarListaCompra();
+  }, 25000);
+}
+
 // Función auxiliar para fetch con timeout y manejo de errores
 async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -2239,6 +2253,7 @@ misListasPromise.then(() => {
   cargarCategorias().then(() => {
     cargarProductos();
     cargarListaCompra();
+    iniciarAutoRefresco();
   });
 });
 cargarHistorial();
