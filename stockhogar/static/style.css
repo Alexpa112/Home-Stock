@@ -647,22 +647,28 @@ body.modal-open .fab {
 }
 
 .modal-header {
+  position: relative;
   flex-shrink: 0;
-  padding: 20px;
+  padding: 20px 56px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
 }
 
-.modal-header h2 {
+.modal-header h2,
+.modal-header h3 {
   margin: 0;
-  flex: 1;
+  flex: none;
   text-align: center;
 }
 
 .btn-cerrar-modal {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   font-size: 1.5rem;
@@ -673,6 +679,10 @@ body.modal-open .fab {
 }
 
 .btn-header-editar {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   font-size: 1.5rem;
@@ -684,6 +694,10 @@ body.modal-open .fab {
 }
 
 .btn-header-icono {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
