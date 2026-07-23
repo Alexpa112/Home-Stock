@@ -158,6 +158,11 @@ def oauth_google_callback():
         db.commit()
 
         # Crear sesión
+        fila_usuario = db.execute(
+            "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+            (usuario_id,)
+        ).fetchone()
+        session["usuario"] = fila_usuario["nombre_usuario"]
         session["usuario_id"] = usuario_id
         session.permanent = True
 
@@ -281,6 +286,11 @@ def oauth_apple_callback():
         db.commit()
 
         # Crear sesión
+        fila_usuario = db.execute(
+            "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+            (usuario_id,)
+        ).fetchone()
+        session["usuario"] = fila_usuario["nombre_usuario"]
         session["usuario_id"] = usuario_id
         session.permanent = True
 
