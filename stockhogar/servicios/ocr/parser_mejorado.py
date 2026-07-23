@@ -131,6 +131,14 @@ class ParserMejorado:
             "teléfono", "fax", "www", "http", ".com", ".es",
         }
 
+        # Cantidad "suelta" al principio de la línea (p.ej. "2 COCA COLA 1,80"):
+        # un entero corto seguido de espacio y letra, típico de tickets donde
+        # la cantidad va delante del nombre del artículo sin unidad explícita.
+        self.regex_cantidad_inicial = re.compile(
+            r'^(\d{1,3})\s+(?=[a-záéíóúñ])',
+            re.IGNORECASE | re.UNICODE
+        )
+
     def parsear(self, texto: str) -> List[LineaTicketMejorada]:
         """Parsea ticket complejo y extrae líneas con contexto."""
         if not texto or not texto.strip():
@@ -305,11 +313,19 @@ class ParserMejorado:
         contexto_anterior: str,
         contexto_siguiente: str
     ) -> Tuple[float, TipoUnidad, str]:
-        """Extrae cantidad y unidad con contexto."""
+        """Extrae cantidad y unidad con contexto.
 
-        # Patrón: número + unidad
+        Solo se reconoce como cantidad+unidad un número seguido de una
+        unidad real (kg, l, ud...), nunca de una palabra cualquiera:
+        si no, un formato tipo "2 COCA COLA" confundiría "COCA" con la
+        unidad y se comería la primera palabra del nombre del artículo.
+        """
+
+        # Patrón: número + unidad real (kg, l, ud, paq...)
         match = re.search(
-            r'(\d+[.,]?\d*)\s*([a-záéíóúñ\.]+)',
+            r'(\d+[.,]?\d*)\s*(' + '|'.join(
+                sorted(self.unidades_map.keys(), key=len, reverse=True)
+            ) + r')\b\.?',
             linea,
             re.UNICODE | re.IGNORECASE
         )
@@ -323,6 +339,17 @@ class ParserMejorado:
                 unidad = self.unidades_map.get(unidad_str, TipoUnidad.UNIDAD)
                 cantidad_texto = f"{cantidad} {unidad.value}"
                 return cantidad, unidad, cantidad_texto
+            except ValueError:
+                pass
+
+        # Sin unidad explícita: mirar si hay una cantidad suelta al
+        # principio de la línea (p.ej. "2 COCA COLA 1,80" -> cantidad 2)
+        match_inicial = self.regex_cantidad_inicial.match(linea)
+        if match_inicial:
+            try:
+                cantidad = float(match_inicial.group(1))
+                if cantidad > 0:
+                    return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
             except ValueError:
                 pass
 
@@ -361,13 +388,28 @@ class ParserMejorado:
             return 0
 
     def _limpiar_nombre(self, linea: str, cantidad_texto: str, precio_total: float) -> str:
-        """Limpia nombre del producto removiendo cantidad y precio."""
+        """Limpia nombre del producto removiendo cantidad y precio.
 
-        # Quitar cantidad con unidad
-        nombre = re.sub(r'\d+[.,]?\d*\s*[a-záéíóúñ]+\.?', '', linea, flags=re.UNICODE | re.IGNORECASE)
+        Solo se elimina cantidad+unidad cuando la unidad es real (kg, l,
+        ud...), o la cantidad suelta al principio de la línea. Nunca se
+        elimina un número seguido de una palabra cualquiera, porque eso
+        rompería el nombre del artículo (p.ej. "2 COCA COLA" -> "Cola").
+        """
+
+        # Quitar precio unitario (@1.20€/kg)
+        nombre = re.sub(self.regex_precio_unitario, '', linea)
+
+        # Quitar cantidad con unidad real
+        nombre = re.sub(self.regex_cantidad_unidad, '', nombre)
+
+        # Quitar cantidad suelta al principio de la línea (p.ej. "2 Coca Cola")
+        nombre = self.regex_cantidad_inicial.sub('', nombre)
 
         # Quitar precios
         nombre = re.sub(self.regex_precio, '', nombre)
+
+        # Quitar códigos numéricos sueltos al final (referencias, códigos de barras)
+        nombre = re.sub(r'\s+\d+\s*$', '', nombre)
 
         # Quitar símbolos tabulares
         nombre = re.sub(r'\.{2,}|-{2,}', ' ', nombre)
