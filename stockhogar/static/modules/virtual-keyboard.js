@@ -112,6 +112,7 @@ class VirtualKeyboardController {
     this._onDocKeyDown = this._onDocKeyDown.bind(this);
     this._onVentanaPierdeFoco = this._onVentanaPierdeFoco.bind(this);
     this._onCambioVisibilidad = this._onCambioVisibilidad.bind(this);
+    this._onDocPointerDownFuera = this._onDocPointerDownFuera.bind(this);
   }
 
   init(preferenciaInicial) {
@@ -119,6 +120,14 @@ class VirtualKeyboardController {
     this._crearDom();
     document.addEventListener('focusin', this._onDocFocusIn, true);
     document.addEventListener('keydown', this._onDocKeyDown, true);
+    // Tocar fuera del panel y fuera del input activo cierra el teclado, aun
+    // cuando lo tocado no sea un elemento enfocable (una tarjeta, el fondo
+    // de un modal...): en ese caso no llega ningún focusin que lo cierre por
+    // la vía normal (_onDocFocusIn), así que hace falta esta señal aparte.
+    // Se usa pointerdown (antes de que el navegador mueva el foco) y no
+    // click, para blurrar el input ya en el mismo gesto en vez de un tick
+    // después.
+    document.addEventListener('pointerdown', this._onDocPointerDownFuera, true);
     // Red de seguridad para cuando la pestaña/app pierde la atención por
     // completo (cambio de app, bloqueo de pantalla...): ahí sí cerramos,
     // porque no habrá ningún focusin posterior que lo haga por nosotros.
@@ -399,6 +408,20 @@ class VirtualKeyboardController {
 
   _onVentanaPierdeFoco() {
     if (this.activeInput) this._ocultarPanel();
+  }
+
+  /* Cierra el teclado al tocar fuera de él y fuera del input activo, aunque
+     lo tocado no sea focuseable (una tarjeta, el fondo de un modal...). El
+     teclado solo debe estar visible mientras el usuario está realmente
+     posicionado en un input gestionado por él. */
+  _onDocPointerDownFuera(event) {
+    if (!this.activeInput) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (this.element && this.element.contains(target)) return;
+    if (target === this.activeInput) return;
+    this.activeInput.blur();
+    this._ocultarPanel();
   }
 
   _onCambioVisibilidad() {

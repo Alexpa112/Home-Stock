@@ -382,6 +382,34 @@ describe('VirtualKeyboardController: el panel no se cierra por blur transitorio 
     expect(controller.element.hidden).toBe(true);
   });
 
+  test('tocar fuera del teclado y del input activo lo cierra, aunque lo tocado no sea enfocable', () => {
+    document.body.innerHTML = '<input id="nombre" type="text"><div id="tarjeta">una tarjeta cualquiera</div>';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+    const input = document.getElementById('nombre');
+    input.focus();
+    controller.attach(input);
+
+    document.getElementById('tarjeta').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+    expect(controller.activeInput).toBeNull();
+    expect(controller.element.hidden).toBe(true);
+    expect(document.activeElement).not.toBe(input);
+  });
+
+  test('tocar una tecla del propio panel NO cierra el teclado (pointerdown dentro del panel)', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+    controller.attach(document.getElementById('nombre'));
+
+    const botonQ = controller.element.querySelector('button[data-tecla="q"]');
+    botonQ.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+    expect(controller.activeInput).not.toBeNull();
+    expect(controller.element.hidden).toBe(false);
+  });
+
   test('perder la atención de la pestaña (window blur) cierra el panel', () => {
     document.body.innerHTML = '<input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();
