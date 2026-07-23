@@ -1,36 +1,46 @@
 @import 'tailwindcss';
 
 @theme inline {
-  --color-primary: #0f172a;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #64748b;
-  --color-secondary-foreground: #ffffff;
-  --color-accent: #3b82f6;
-  --color-accent-foreground: #ffffff;
-  --color-background: #ffffff;
-  --color-foreground: #0f172a;
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-border: #e2e8f0;
-  --color-card: #ffffff;
-  --color-card-foreground: #0f172a;
-  --font-sans: system-ui, -apple-system, sans-serif;
+  /* Light Mode - Warm, Modern, Friendly (Bring! Inspired) */
+  --color-primary: #1F2937;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #6B7280;
+  --color-secondary-foreground: #FFFFFF;
+  --color-accent: #FF7A59;
+  --color-accent-foreground: #FFFFFF;
+  --color-background: #FAFAFA;
+  --color-foreground: #1F2937;
+  --color-muted: #F3F4F6;
+  --color-muted-foreground: #6B7280;
+  --color-border: #E5E7EB;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #1F2937;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
 
 .dark {
-  --color-primary: #f1f5f9;
-  --color-primary-foreground: #0f172a;
-  --color-secondary: #94a3b8;
-  --color-secondary-foreground: #0f172a;
-  --color-accent: #60a5fa;
-  --color-accent-foreground: #0f172a;
-  --color-background: #0f172a;
-  --color-foreground: #f1f5f9;
-  --color-muted: #1e293b;
-  --color-muted-foreground: #94a3b8;
-  --color-border: #1e293b;
-  --color-card: #1e293b;
-  --color-card-foreground: #f1f5f9;
+  /* Dark Mode - Warm, Sophisticated */
+  --color-primary: #F9FAFB;
+  --color-primary-foreground: #1F2937;
+  --color-secondary: #D1D5DB;
+  --color-secondary-foreground: #1F2937;
+  --color-accent: #FF8A69;
+  --color-accent-foreground: #FFFFFF;
+  --color-background: #111827;
+  --color-foreground: #F9FAFB;
+  --color-muted: #1F2937;
+  --color-muted-foreground: #D1D5DB;
+  --color-border: #374151;
+  --color-card: #1F2937;
+  --color-card-foreground: #F9FAFB;
+  --color-success: #34D399;
+  --color-warning: #FBBF24;
+  --color-error: #F87171;
+  --color-info: #60A5FA;
 }
 
 @layer base {
@@ -40,49 +50,160 @@
 
   html {
     @apply scroll-smooth;
+    color-scheme: light dark;
   }
 
   body {
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-family: var(--font-sans);
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+
+  h1 { @apply text-4xl lg:text-5xl; }
+  h2 { @apply text-3xl lg:text-4xl; }
+  h3 { @apply text-2xl lg:text-3xl; }
 
   input[type="text"],
   input[type="number"],
   input[type="email"],
   input[type="password"],
   input[type="search"],
-  textarea {
-    @apply min-h-[44px] text-base;
+  input[type="date"],
+  textarea,
+  select {
+    @apply min-h-[48px] text-base rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
     font-size: 16px;
+    transition: all 0.2s ease;
+    padding: 12px 16px;
   }
 
   button,
   [role="button"],
   a {
-    @apply min-h-[44px];
+    @apply min-h-[48px];
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-lg border bg-card p-4 shadow-sm;
+    @apply rounded-2xl border bg-card p-6 shadow-sm transition-all duration-200 hover:shadow-md;
+  }
+
+  .card-compact {
+    @apply rounded-xl border bg-card p-4 shadow-sm transition-all duration-200;
   }
 
   .btn-primary {
-    @apply inline-flex h-10 items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 active:scale-95 transition-all;
-    min-height: 44px;
+    @apply inline-flex h-12 items-center justify-center rounded-xl bg-accent px-6 py-3 text-base font-semibold text-accent-foreground hover:opacity-90 active:scale-95 transition-all duration-200 shadow-sm;
+    min-height: 48px;
     font-size: 16px;
+  }
+
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply inline-flex h-10 items-center justify-center rounded-lg border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted active:scale-95 transition-all;
-    min-height: 44px;
+    @apply inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card px-6 py-3 text-base font-semibold text-foreground hover:bg-muted active:scale-95 transition-all duration-200;
+    min-height: 48px;
     font-size: 16px;
   }
 
-  .input-field {
-    @apply w-full rounded-lg border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
-    min-height: 44px;
+  .btn-secondary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex h-12 items-center justify-center rounded-xl px-6 py-3 text-base font-semibold text-foreground hover:bg-muted active:scale-95 transition-all duration-200;
+    min-height: 48px;
     font-size: 16px;
+  }
+
+  .btn-sm {
+    @apply px-4 py-2 text-sm h-10 min-h-[40px];
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
+    min-height: 48px;
+    font-size: 16px;
+    transition: all 0.2s ease;
+  }
+
+  .input-field:focus {
+    @apply border-accent shadow-sm;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold;
+  }
+
+  .badge-primary {
+    @apply bg-accent/10 text-accent;
+  }
+
+  .badge-success {
+    @apply bg-success/10 text-success;
+  }
+
+  .badge-warning {
+    @apply bg-warning/10 text-warning;
+  }
+
+  .badge-error {
+    @apply bg-error/10 text-error;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .glass {
+    @apply bg-card/80 backdrop-blur-md border border-border/50;
+  }
+
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .shadow-card {
+    @apply shadow-md;
+  }
+
+  .shadow-card-lg {
+    @apply shadow-lg;
   }
 }
