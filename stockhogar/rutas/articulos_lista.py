@@ -132,10 +132,17 @@ def anadir_articulo():
     # Si el artículo NO está en historial estándar → crearlo en articulos_personalizados
     articulo_personalizado_id = None
     if not recuerdo:
-        # Buscar/crear en articulos_personalizados
+        # Buscar/crear en articulos_personalizados, aislado por el propietario
+        # de la lista (cada hogar tiene su propio catálogo personalizado, ver
+        # migración en db.py sobre usuario_propietario_id).
+        propietario = db.execute(
+            "SELECT usuario_propietario_id FROM listas WHERE id = ?", (lista_id,)
+        ).fetchone()
+        propietario_id = propietario["usuario_propietario_id"]
+
         articulo_personal = db.execute(
-            "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE",
-            (nombre,)
+            "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE AND usuario_propietario_id = ?",
+            (nombre, propietario_id)
         ).fetchone()
 
         if articulo_personal:
@@ -144,9 +151,9 @@ def anadir_articulo():
             # Crear nuevo artículo personalizado
             cur = db.execute(
                 """INSERT INTO articulos_personalizados
-                   (nombre, categoria, icono, unidad, sub_descripcion, fecha_creacion, fecha_actualizacion)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (nombre, categoria, icono, unidad, sub_descripcion, ahora(), ahora())
+                   (nombre, categoria, icono, unidad, sub_descripcion, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (nombre, categoria, icono, unidad, sub_descripcion, ahora(), ahora(), propietario_id)
             )
             articulo_personalizado_id = cur.lastrowid
 
@@ -279,10 +286,11 @@ def borrar_articulo(item_id):
 # ===== ENDPOINTS PARA ARTÍCULOS PERSONALIZADOS =====
 
 def _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, nivel_requerido=None):
-    """Un artículo personalizado es un catálogo compartido (deduplicado por nombre),
-    sin propietario propio: su límite de acceso real son las listas que lo usan.
-    Solo se permite operar sobre él si el usuario tiene el nivel de permiso
-    requerido en al menos una de esas listas."""
+    """Un artículo personalizado pertenece al catálogo privado de un hogar
+    (usuario_propietario_id, ver migración en db.py); solo puede ser
+    referenciado por listas de ese mismo hogar, así que basta con comprobar
+    que el usuario tiene el nivel de permiso requerido en alguna de las
+    listas que lo usan para saber que pertenece a su propio hogar."""
     listas_ids = db.execute(
         "SELECT DISTINCT lista_id FROM articulos_lista WHERE articulo_personalizado_id = ?",
         (articulo_id,)

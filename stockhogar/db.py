@@ -527,8 +527,9 @@ def init_db():
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre ON historial_articulos(nombre COLLATE NOCASE)"
     )
 
-    # Tabla articulos_personalizados: artículos únicos del catálogo del usuario
-    # NO se comparten entre clientes, disponibles en múltiples listas
+    # Tabla articulos_personalizados: artículos únicos del catálogo de cada
+    # usuario/hogar (usuario_propietario_id), NO se comparten entre hogares,
+    # disponibles en múltiples listas del mismo hogar.
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS articulos_personalizados (
@@ -541,7 +542,8 @@ def init_db():
             cantidad_defecto INTEGER NOT NULL DEFAULT 1,
             fecha_creacion TEXT,
             fecha_actualizacion TEXT,
-            UNIQUE(nombre)
+            usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id),
+            UNIQUE(nombre, usuario_propietario_id)
         )
         """
     )
@@ -637,6 +639,129 @@ def init_db():
         db, "traducciones_productos", "articulo_personalizado_id",
         "INTEGER REFERENCES articulos_personalizados(id) ON DELETE CASCADE"
     )
+
+    # Migración: articulos_personalizados se deduplicaba por nombre a nivel de
+    # TODA la instalación, sin ninguna columna de propietario (pese a que el
+    # comentario original de la tabla decía "no se comparten entre clientes").
+    # Dos hogares no relacionados con un artículo del mismo nombre (p.ej.
+    # "Leche") acababan compartiendo la misma fila: cualquiera podía
+    # renombrarla, cambiarle el icono/categoría o borrarla, afectando al otro
+    # hogar. Añadimos usuario_propietario_id (el dueño de alguna de las listas
+    # que referencian el artículo) y cambiamos el UNIQUE a
+    # (nombre, usuario_propietario_id) para que cada hogar tenga su propio
+    # catálogo aislado, igual que ya ocurre con las listas y el stock.
+    sql_actual = db.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='articulos_personalizados'"
+    ).fetchone()
+    if sql_actual and "usuario_propietario_id" not in sql_actual["sql"]:
+        # 1) Backfill: para cada fila, averiguar qué usuarios son dueños de
+        # las listas que la referencian. Primero se añade la columna (sin
+        # NOT NULL todavía, para poder rellenarla fila a fila antes de
+        # reconstruir la tabla con la restricción definitiva).
+        asegurar_columna(db, "articulos_personalizados", "usuario_propietario_id", "INTEGER")
+        filas = db.execute("SELECT id FROM articulos_personalizados").fetchall()
+        for fila in filas:
+            articulo_id = fila["id"]
+            propietarios = db.execute(
+                """SELECT DISTINCT l.usuario_propietario_id AS propietario_id,
+                          MIN(al.id) AS primera_referencia
+                   FROM articulos_lista al, listas l
+                   WHERE al.articulo_personalizado_id = ? AND al.lista_id = l.id
+                   GROUP BY l.usuario_propietario_id""",
+                (articulo_id,)
+            ).fetchall()
+
+            if not propietarios:
+                # Huérfano: ninguna lista lo referencia, es inalcanzable desde
+                # cualquier endpoint. Se limpia junto con sus traducciones.
+                db.execute(
+                    "DELETE FROM traducciones_productos WHERE articulo_personalizado_id = ?",
+                    (articulo_id,)
+                )
+                db.execute("DELETE FROM articulos_personalizados WHERE id = ?", (articulo_id,))
+                continue
+
+            propietarios_ordenados = sorted(propietarios, key=lambda p: p["primera_referencia"])
+            propietario_original = propietarios_ordenados[0]["propietario_id"]
+            db.execute(
+                "UPDATE articulos_personalizados SET usuario_propietario_id = ? WHERE id = ?",
+                (propietario_original, articulo_id)
+            )
+
+            # Para cada propietario adicional (el caso realmente roto: varios
+            # hogares compartiendo la misma fila), clonar el artículo y
+            # repuntar sus referencias y traducciones al nuevo id.
+            original = db.execute(
+                "SELECT * FROM articulos_personalizados WHERE id = ?", (articulo_id,)
+            ).fetchone()
+            for extra in propietarios_ordenados[1:]:
+                propietario_extra = extra["propietario_id"]
+                cur = db.execute(
+                    """INSERT INTO articulos_personalizados
+                       (nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto,
+                        fecha_creacion, fecha_actualizacion, usuario_propietario_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (original["nombre"], original["categoria"], original["icono"], original["unidad"],
+                     original["sub_descripcion"], original["cantidad_defecto"], original["fecha_creacion"],
+                     original["fecha_actualizacion"], propietario_extra)
+                )
+                nuevo_id = cur.lastrowid
+
+                db.execute(
+                    """UPDATE articulos_lista SET articulo_personalizado_id = ?
+                       WHERE articulo_personalizado_id = ? AND lista_id IN (
+                           SELECT id FROM listas WHERE usuario_propietario_id = ?
+                       )""",
+                    (nuevo_id, articulo_id, propietario_extra)
+                )
+
+                for trad in db.execute(
+                    "SELECT tipo, idioma, texto_original, texto_traducido FROM traducciones_productos "
+                    "WHERE articulo_personalizado_id = ?",
+                    (articulo_id,)
+                ).fetchall():
+                    db.execute(
+                        """INSERT INTO traducciones_productos
+                           (articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        (nuevo_id, trad["tipo"], trad["idioma"], trad["texto_original"],
+                         trad["texto_traducido"], ahora())
+                    )
+
+        # 2) Reconstruir la tabla con la columna NOT NULL y el nuevo UNIQUE
+        # (mismo procedimiento que la migración de espacio_id de más arriba:
+        # nombre temporal + DROP de la vieja + RENAME, para no romper la FK
+        # de articulos_lista).
+        db.commit()
+        db.execute("PRAGMA foreign_keys = OFF")
+        db.execute(
+            """
+            CREATE TABLE articulos_personalizados_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL COLLATE NOCASE,
+                categoria TEXT NOT NULL DEFAULT 'Otros',
+                icono TEXT,
+                unidad TEXT NOT NULL DEFAULT 'ud',
+                sub_descripcion TEXT,
+                cantidad_defecto INTEGER NOT NULL DEFAULT 1,
+                fecha_creacion TEXT,
+                fecha_actualizacion TEXT,
+                usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id),
+                UNIQUE(nombre, usuario_propietario_id)
+            )
+            """
+        )
+        db.execute(
+            "INSERT INTO articulos_personalizados_new "
+            "(id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+            "fecha_creacion, fecha_actualizacion, usuario_propietario_id) "
+            "SELECT id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+            "fecha_creacion, fecha_actualizacion, usuario_propietario_id FROM articulos_personalizados"
+        )
+        db.execute("DROP TABLE articulos_personalizados")
+        db.execute("ALTER TABLE articulos_personalizados_new RENAME TO articulos_personalizados")
+        db.commit()
+        db.execute("PRAGMA foreign_keys = ON")
 
     # Tabla movimientos_stock: auditoria de cambios de cantidad, para poder
     # consultar el historial de un producto y graficar consumo por periodo.
