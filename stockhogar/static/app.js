@@ -34,6 +34,20 @@ window.fetch = async (input, init = {}) => {
   return res;
 };
 
+// El antes-de-cada-peticion del servidor bloquea llamadas nuevas al activar el
+// modo mantenimiento, pero si el usuario se queda quieto en una pantalla sin
+// pedir nada no se entera. Comprobamos el estado cada minuto (y al recuperar
+// el foco) para sacarlo aunque no esté interactuando con la app.
+function iniciarComprobacionMantenimiento() {
+  const comprobar = () => {
+    if (document.visibilityState === "hidden") return;
+    fetch("/api/auth/estado", { headers: { "X-Comprobacion-Mantenimiento": "1" } }).catch(() => {});
+  };
+  setInterval(comprobar, 60000);
+  document.addEventListener("visibilitychange", comprobar);
+}
+iniciarComprobacionMantenimiento();
+
 // Función auxiliar para fetch con timeout y manejo de errores
 async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
