@@ -110,7 +110,7 @@ def migrar_iconos_emoji_a_lucide(db):
     primera ejecución ya no quedan filas con emoji, por lo que reejecutarla en
     cada arranque es un no-op seguro."""
     tablas_con_icono = [
-        "categorias", "productos", "listas", "espacios",
+        "categorias", "productos", "listas",
         "historial_articulos", "articulos_lista",
     ]
     for tabla in tablas_con_icono:
@@ -132,7 +132,7 @@ def migrar_iconos_emoji_a_lucide(db):
             )
 
 
-def _migrar_lista_compra_a_articulos(db, espacio_defecto_id):
+def _migrar_lista_compra_a_articulos(db):
     """
     Migra datos de la tabla antigua lista_compra a articulos_lista.
 
@@ -228,6 +228,24 @@ def _migrar_lista_compra_a_articulos(db, espacio_defecto_id):
         pass  # Si no se puede renombrar, simplemente continuar
 
 
+def _renombrar_categoria(db, nombre_viejo, nombre_nuevo):
+    """Renombra una categoria ya sembrada (p.ej. correccion de un typo en
+    CATEGORIAS_DEFECTO) y actualiza el texto libre 'categoria' en las tablas
+    que lo guardan por nombre en vez de por FK."""
+    vieja = db.execute("SELECT id FROM categorias WHERE nombre = ?", (nombre_viejo,)).fetchone()
+    if vieja is None:
+        return
+
+    nueva = db.execute("SELECT id FROM categorias WHERE nombre = ?", (nombre_nuevo,)).fetchone()
+    if nueva is None:
+        db.execute("UPDATE categorias SET nombre = ? WHERE id = ?", (nombre_nuevo, vieja["id"]))
+    else:
+        db.execute("DELETE FROM categorias WHERE id = ?", (vieja["id"],))
+
+    for tabla in ("productos", "articulos_lista", "historial_articulos", "articulos_personalizados"):
+        db.execute(f"UPDATE {tabla} SET categoria = ? WHERE categoria = ?", (nombre_nuevo, nombre_viejo))
+
+
 def _reparar_fk_articulos_personalizados_old(db):
     """Corrige una instalación afectada por un bug de una migración previa: al
     renombrar articulos_personalizados a un nombre temporal, SQLite reescribió
@@ -271,6 +289,8 @@ def init_db():
     )
     asegurar_columna(db, "usuarios", "email", "TEXT")
     asegurar_columna(db, "usuarios", "idioma_preferido", "TEXT NOT NULL DEFAULT 'es'")
+    asegurar_columna(db, "usuarios", "tema_preferido", "TEXT NOT NULL DEFAULT 'auto'")
+    asegurar_columna(db, "usuarios", "teclado_virtual_activo", "TEXT NOT NULL DEFAULT 'on'")
 
     # Tabla para cuentas OAuth (Google, Apple)
     db.execute(
@@ -342,26 +362,6 @@ def init_db():
         """
     )
 
-    # Espacios: ahora son opcionales (podría usarse para categorizar listas después)
-    # Se mantiene para compatibilidad hacia atrás
-    db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS espacios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            icono TEXT NOT NULL DEFAULT '🏠',
-            fecha_creacion TEXT NOT NULL
-        )
-        """
-    )
-    asegurar_columna(db, "espacios", "color", "TEXT NOT NULL DEFAULT '#B5551A'")
-    if db.execute("SELECT COUNT(*) AS n FROM espacios").fetchone()["n"] == 0:
-        db.execute(
-            "INSERT INTO espacios (nombre, icono, color, fecha_creacion) VALUES (?, ?, ?, ?)",
-            ("Mi casa", "🏠", "#B5551A", ahora()),
-        )
-    espacio_defecto_id = db.execute("SELECT id FROM espacios ORDER BY id LIMIT 1").fetchone()["id"]
-
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS productos (
@@ -378,15 +378,13 @@ def init_db():
     asegurar_columna(db, "productos", "fecha_actualizacion", "TEXT")
     asegurar_columna(db, "productos", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
     asegurar_columna(db, "productos", "icono", "TEXT")
-    asegurar_columna(db, "productos", "espacio_id", "INTEGER")
     # Rellena fechas de productos ya existentes que no las tuvieran (migraciones previas).
     db.execute("UPDATE productos SET fecha_creacion = ? WHERE fecha_creacion IS NULL", (ahora(),))
     db.execute("UPDATE productos SET fecha_actualizacion = ? WHERE fecha_actualizacion IS NULL", (ahora(),))
-    db.execute("UPDATE productos SET espacio_id = ? WHERE espacio_id IS NULL", (espacio_defecto_id,))
+    quitar_columna_si_existe(db, "productos", "espacio_id")
 
     # Tabla articulos_lista: artículos dentro de cada lista
     # Migración: originalmente era lista_compra, ahora vinculada a listas
-    # en lugar de espacios
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS articulos_lista (
@@ -457,7 +455,7 @@ def init_db():
     ).fetchone()
     if tabla_existe:
         # Tabla antigua existe, es una instalación anterior
-        _migrar_lista_compra_a_articulos(db, espacio_defecto_id)
+        _migrar_lista_compra_a_articulos(db)
     db.execute("DROP TABLE IF EXISTS ajustes")
 
     db.execute(
@@ -478,7 +476,6 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS historial_articulos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            espacio_id INTEGER REFERENCES espacios(id) ON DELETE CASCADE,
             nombre TEXT NOT NULL COLLATE NOCASE,
             icono TEXT NOT NULL,
             categoria TEXT,
@@ -492,61 +489,41 @@ def init_db():
     asegurar_columna(db, "historial_articulos", "unidad", "TEXT NOT NULL DEFAULT 'ud'")
     asegurar_columna(db, "historial_articulos", "sub_descripcion", "TEXT")
     asegurar_columna(db, "historial_articulos", "cantidad_defecto", "INTEGER NOT NULL DEFAULT 1")
-    # espacio_id NULL = catálogo por defecto compartido (CATALOGO_DEFECTO); no NULL = aprendido
-    # por ese espacio en concreto, y no debe filtrarse a otros espacios.
-    asegurar_columna(db, "historial_articulos", "espacio_id", "INTEGER REFERENCES espacios(id) ON DELETE CASCADE")
 
-    # Migración: el UNIQUE(nombre) original (una instalación antigua sin espacio_id) no
-    # distingue espacios y bloquearía nombres repetidos entre espacios distintos. SQLite no
-    # permite eliminar el índice autogenerado de un UNIQUE inline con DROP INDEX, así que
-    # reconstruimos la tabla si detectamos ese índice.
-    tiene_unique_antiguo = db.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='index' AND tbl_name='historial_articulos' "
-        "AND name='sqlite_autoindex_historial_articulos_1'"
-    ).fetchone()
-    if tiene_unique_antiguo:
-        db.execute("ALTER TABLE historial_articulos RENAME TO historial_articulos_old")
+    # Migración: instalaciones que aún tengan la columna espacio_id (de cuando existían
+    # "espacios" como stocks independientes, funcionalidad eliminada por no tener UI y
+    # estar ya cubierta por "listas") se consolidan a un catálogo global único por nombre.
+    # Antes de borrar la columna, fusionamos duplicados nombre-case-insensitive quedándonos
+    # con la fila "aprendida" (espacio_id NOT NULL, la más reciente/específica) si existe,
+    # o si no con la fila del catálogo por defecto (espacio_id NULL).
+    columnas_historial = [f["name"] for f in db.execute("PRAGMA table_info(historial_articulos)").fetchall()]
+    if "espacio_id" in columnas_historial:
         db.execute(
-            """
-            CREATE TABLE historial_articulos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                espacio_id INTEGER REFERENCES espacios(id) ON DELETE CASCADE,
-                nombre TEXT NOT NULL COLLATE NOCASE,
-                icono TEXT NOT NULL,
-                categoria TEXT,
-                unidad TEXT NOT NULL DEFAULT 'ud',
-                sub_descripcion TEXT,
-                cantidad_defecto INTEGER NOT NULL DEFAULT 1,
-                fecha_actualizacion TEXT NOT NULL
-            )
-            """
+            "DELETE FROM historial_articulos WHERE id NOT IN ("
+            "  SELECT ("
+            "    SELECT h2.id FROM historial_articulos h2"
+            "    WHERE h2.nombre = h1.nombre COLLATE NOCASE"
+            "    ORDER BY h2.espacio_id IS NULL ASC, h2.id ASC LIMIT 1"
+            "  )"
+            "  FROM historial_articulos h1"
+            "  GROUP BY h1.nombre COLLATE NOCASE"
+            ")"
         )
-        db.execute(
-            "INSERT INTO historial_articulos "
-            "(espacio_id, nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
-            "SELECT espacio_id, nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion "
-            "FROM historial_articulos_old"
-        )
-        db.execute("DROP TABLE historial_articulos_old")
+        db.execute("DROP INDEX IF EXISTS idx_historial_global")
+        db.execute("DROP INDEX IF EXISTS idx_historial_espacio")
+        quitar_columna_si_existe(db, "historial_articulos", "espacio_id")
 
-    # El UNIQUE ahora se aplica con dos índices parciales: uno para el catálogo global
-    # (espacio_id NULL) y otro por espacio, en vez de un UNIQUE(nombre) global.
+    # UNIQUE(nombre) global: ya no hay espacios entre los que distinguir.
     db.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_global ON historial_articulos(nombre COLLATE NOCASE) "
-        "WHERE espacio_id IS NULL"
-    )
-    db.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_espacio ON historial_articulos(espacio_id, nombre COLLATE NOCASE) "
-        "WHERE espacio_id IS NOT NULL"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre ON historial_articulos(nombre COLLATE NOCASE)"
     )
 
-    # Tabla articulos_personalizados: artículos únicos de cada cliente/espacio
-    # NO se comparten entre clientes, disponibles en múltiples listas del mismo espacio
+    # Tabla articulos_personalizados: artículos únicos del catálogo del usuario
+    # NO se comparten entre clientes, disponibles en múltiples listas
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS articulos_personalizados (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            espacio_id INTEGER NOT NULL REFERENCES espacios(id) ON DELETE CASCADE,
             nombre TEXT NOT NULL COLLATE NOCASE,
             categoria TEXT NOT NULL DEFAULT 'Otros',
             icono TEXT,
@@ -555,22 +532,23 @@ def init_db():
             cantidad_defecto INTEGER NOT NULL DEFAULT 1,
             fecha_creacion TEXT,
             fecha_actualizacion TEXT,
-            UNIQUE(espacio_id, nombre)
+            UNIQUE(nombre)
         )
         """
     )
     asegurar_columna(db, "articulos_personalizados", "fecha_creacion", "TEXT")
     asegurar_columna(db, "articulos_personalizados", "fecha_actualizacion", "TEXT")
 
-    # Migración: el UNIQUE(espacio_id, nombre) original era sensible a mayúsculas (la
-    # columna no tenía COLLATE NOCASE), aunque las búsquedas de la app sí usan
-    # COLLATE NOCASE. Bajo concurrencia esto permitía crear duplicados tipo "Leche"/"leche".
-    # SQLite no permite cambiar la colación de una columna con ALTER TABLE, así que
-    # reconstruimos la tabla, fusionando duplicados case-insensitive si los hubiera.
+    # Migración: instalaciones antiguas tenían la columna espacio_id (funcionalidad de
+    # "espacios" ya eliminada, ver historial_articulos más arriba) y/o un UNIQUE
+    # sensible a mayúsculas (sin COLLATE NOCASE), aunque las búsquedas de la app sí usan
+    # COLLATE NOCASE; bajo concurrencia eso permitía duplicados tipo "Leche"/"leche".
+    # SQLite no permite quitar una columna de un UNIQUE ni cambiar la colación con
+    # ALTER TABLE, así que reconstruimos la tabla, fusionando duplicados si los hubiera.
     sql_actual = db.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='articulos_personalizados'"
     ).fetchone()
-    if sql_actual and "COLLATE NOCASE" not in sql_actual["sql"]:
+    if sql_actual and ("espacio_id" in sql_actual["sql"] or "COLLATE NOCASE" not in sql_actual["sql"]):
         # OJO: articulos_lista.articulo_personalizado_id tiene una FK hacia esta tabla.
         # Si la renombrásemos primero (RENAME TO ..._old), SQLite reescribe automáticamente
         # esa FK para que apunte al nombre temporal, y se queda rota al borrar la tabla vieja.
@@ -584,7 +562,6 @@ def init_db():
             """
             CREATE TABLE articulos_personalizados_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                espacio_id INTEGER NOT NULL REFERENCES espacios(id) ON DELETE CASCADE,
                 nombre TEXT NOT NULL COLLATE NOCASE,
                 categoria TEXT NOT NULL DEFAULT 'Otros',
                 icono TEXT,
@@ -593,19 +570,20 @@ def init_db():
                 cantidad_defecto INTEGER NOT NULL DEFAULT 1,
                 fecha_creacion TEXT,
                 fecha_actualizacion TEXT,
-                UNIQUE(espacio_id, nombre)
+                UNIQUE(nombre)
             )
             """
         )
-        # Por cada (espacio_id, nombre case-insensitive) nos quedamos con el id más antiguo.
+        # Por cada nombre case-insensitive (antes distinguido también por espacio_id, ya
+        # eliminado) nos quedamos con el id más antiguo.
         db.execute(
             "INSERT INTO articulos_personalizados_new "
-            "(id, espacio_id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+            "(id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
             "fecha_creacion, fecha_actualizacion) "
-            "SELECT id, espacio_id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+            "SELECT id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
             "fecha_creacion, fecha_actualizacion FROM articulos_personalizados o "
             "WHERE o.id = (SELECT MIN(id) FROM articulos_personalizados "
-            "WHERE espacio_id = o.espacio_id AND nombre = o.nombre COLLATE NOCASE)"
+            "WHERE nombre = o.nombre COLLATE NOCASE)"
         )
         # Repuntar los artículos de lista que apuntaban a un duplicado descartado hacia el
         # id que sobrevivió, para no perderlos por el ON DELETE CASCADE al borrar la tabla vieja.
@@ -613,7 +591,7 @@ def init_db():
             "UPDATE articulos_lista SET articulo_personalizado_id = ("
             "  SELECT MIN(o2.id) FROM articulos_personalizados o2, articulos_personalizados o1 "
             "  WHERE o1.id = articulos_lista.articulo_personalizado_id "
-            "  AND o2.espacio_id = o1.espacio_id AND o2.nombre = o1.nombre COLLATE NOCASE"
+            "  AND o2.nombre = o1.nombre COLLATE NOCASE"
             ") "
             "WHERE articulo_personalizado_id IS NOT NULL"
         )
@@ -642,6 +620,35 @@ def init_db():
         """
     )
     asegurar_columna(db, "traducciones_productos", "fecha_creacion", "TEXT")
+    # articulo_personalizado_id es distinto de articulo_id: articulo_id referencia
+    # articulos_lista(id) (traduccion de un item concreto de una lista), mientras que
+    # articulo_personalizado_id referencia articulos_personalizados(id) (traduccion del
+    # articulo reutilizable del catalogo personal, compartida por todas las listas).
+    asegurar_columna(
+        db, "traducciones_productos", "articulo_personalizado_id",
+        "INTEGER REFERENCES articulos_personalizados(id) ON DELETE CASCADE"
+    )
+
+    # Tabla movimientos_stock: auditoria de cambios de cantidad, para poder
+    # consultar el historial de un producto y graficar consumo por periodo.
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS movimientos_stock (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+            lista_id INTEGER REFERENCES listas(id) ON DELETE SET NULL,
+            usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+            delta INTEGER NOT NULL,
+            cantidad_resultante INTEGER NOT NULL,
+            origen TEXT NOT NULL DEFAULT 'ajuste',
+            fecha TEXT NOT NULL
+        )
+        """
+    )
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_movimientos_stock_producto_fecha "
+        "ON movimientos_stock(producto_id, fecha)"
+    )
 
     # Catalogo de productos habituales de supermercado (ver config.py): se
     # siembra una vez via INSERT OR IGNORE, asi que nunca pisa un articulo
@@ -654,6 +661,13 @@ def init_db():
     )
 
     migrar_iconos_emoji_a_lucide(db)
+    _renombrar_categoria(db, "Alimentacion", "Alimentación")
+
+    # "Espacios" (stocks independientes tipo casa/oficina) se eliminó: nunca tuvo UI y
+    # su función de aislamiento ya la cubren las "listas". Se borra la tabla una vez
+    # migrados los datos que dependían de ella (productos, historial_articulos,
+    # articulos_personalizados, más arriba).
+    db.execute("DROP TABLE IF EXISTS espacios")
 
     db.commit()
     db.close()

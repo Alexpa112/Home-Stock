@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#B5551A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Dreame!</title>
 <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 <link rel="icon" href="{{ url_for('static', filename='icons/favicon.svg') }}" type="image/svg+xml">
@@ -15,8 +16,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <script>
   (function () {
-    var guardado = localStorage.getItem("stockhogar-tema");
-    if (guardado) document.documentElement.dataset.theme = guardado;
+    var pref = localStorage.getItem("stockhogar-tema") || "auto";
+    var aplicado = pref === "auto"
+      ? (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : pref;
+    document.documentElement.dataset.theme = aplicado;
   })();
 </script>
 <style>
@@ -373,36 +377,36 @@
 <div class="pantalla-login">
   <form class="tarjeta-login" id="formLogin">
     <h1><svg class="logo-app" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13 12 3.5 22 13Z" fill="currentColor"/><rect x="4" y="10.5" width="16" height="10" rx="3" fill="currentColor"/><path d="M16.3 7.6a2.3 2.3 0 1 0 0 4.6 2.9 2.9 0 0 1 0-4.6Z" fill="var(--surface)"/><rect x="10.2" y="15" width="3.6" height="5.5" rx="1.2" fill="var(--surface)"/><path d="M19.2 2.2 19.8 3.7 21.3 4.3 19.8 4.9 19.2 6.4 18.6 4.9 17.1 4.3 18.6 3.7Z" fill="currentColor"/></svg> Dreame!</h1>
-    <p class="subtitulo" id="subtituloForm">Inicia sesión para continuar.</p>
+    <p class="subtitulo" id="subtituloForm" data-i18n="login_subtitulo">Inicia sesión para continuar.</p>
 
     <div id="seccionLogin">
-      <label for="campoUsuario">Usuario</label>
-      <input id="campoUsuario" name="usuario" type="text" required autocomplete="username" maxlength="40" placeholder="Tu usuario">
-      <label for="campoPassword">Contraseña</label>
-      <input id="campoPassword" name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="Tu contraseña">
+      <label for="campoUsuario" data-i18n="usuario">Usuario</label>
+      <input id="campoUsuario" name="usuario" type="text" required autocomplete="username" maxlength="40" placeholder="Tu usuario" data-i18n-placeholder="placeholder_tu_usuario">
+      <label for="campoPassword" data-i18n="contraseña">Contraseña</label>
+      <input id="campoPassword" name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="Tu contraseña" data-i18n-placeholder="placeholder_tu_contrasena">
     </div>
 
     <div id="seccionRegistro">
-      <label for="campoNombre">Nombre completo</label>
-      <input id="campoNombre" name="nombre" type="text" maxlength="80" placeholder="Tu nombre">
-      <label for="campoEmail">Email</label>
-      <input id="campoEmail" name="email" type="email" maxlength="100" placeholder="tu@email.com">
-      <label for="campoUsuarioReg">Usuario</label>
-      <input id="campoUsuarioReg" name="usuario" type="text" required autocomplete="off" maxlength="40" placeholder="Tu usuario">
-      <label for="campoPasswordReg">Contraseña</label>
-      <input id="campoPasswordReg" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Mínimo 8 caracteres">
-      <label for="campoPassword2Reg">Confirma contraseña</label>
-      <input id="campoPassword2Reg" name="password2" type="password" required minlength="8" autocomplete="new-password" placeholder="Confirma tu contraseña">
+      <label for="campoNombre" data-i18n="nombre_completo">Nombre completo</label>
+      <input id="campoNombre" name="nombre" type="text" maxlength="80" placeholder="Tu nombre" data-i18n-placeholder="placeholder_tu_nombre">
+      <label for="campoEmail" data-i18n="email">Email</label>
+      <input id="campoEmail" name="email" type="email" maxlength="100" placeholder="tu@email.com" data-i18n-placeholder="placeholder_tu_email">
+      <label for="campoUsuarioReg" data-i18n="usuario">Usuario</label>
+      <input id="campoUsuarioReg" name="usuario" type="text" required autocomplete="off" maxlength="40" placeholder="Tu usuario" data-i18n-placeholder="placeholder_tu_usuario">
+      <label for="campoPasswordReg" data-i18n="contraseña">Contraseña</label>
+      <input id="campoPasswordReg" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Mínimo 8 caracteres" data-i18n-placeholder="minimo_8_caracteres">
+      <label for="campoPassword2Reg" data-i18n="confirma_contrasena">Confirma contraseña</label>
+      <input id="campoPassword2Reg" name="password2" type="password" required minlength="8" autocomplete="new-password" placeholder="Confirma tu contraseña" data-i18n-placeholder="placeholder_confirma_contrasena">
     </div>
 
     <p id="loginError" class="aviso" hidden></p>
 
-    <button type="submit" class="primario" style="width: 100%; padding: 12px 18px;" id="btnFormulario">Entrar</button>
+    <button type="submit" class="primario" style="width: 100%; padding: 12px 18px;" id="btnFormulario" data-i18n="entrar">Entrar</button>
 
     <!-- Alternar entre login y registro -->
     <p style="text-align: center; margin-top: 16px; font-size: 0.9rem; display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 6px; width: 100%;">
-      <span id="textoAlternar" style="color: var(--text-soft); white-space: nowrap;">¿No tienes cuenta?</span>
-      <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600; white-space: nowrap;">Crea una</button>
+      <span id="textoAlternar" style="color: var(--text-soft); white-space: nowrap;" data-i18n="no_tienes_cuenta">¿No tienes cuenta?</span>
+      <button type="button" id="btnAlternarFormulario" style="background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600; white-space: nowrap;" data-i18n="crea_una">Crea una</button>
     </p>
 
     {% if not modo_setup %}
@@ -410,11 +414,11 @@
     <div class="oauth-buttons">
       <a href="/auth/google" class="oauth-button google">
         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
-        Continuar con Google
+        <span data-i18n="continuar_google">Continuar con Google</span>
       </a>
       <a href="/auth/apple" class="oauth-button apple">
         <svg width="18" height="18" viewBox="0 0 384 512" aria-hidden="true" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1-2 49.9-15.2 69.5-34.3z"/></svg>
-        Continuar con Apple
+        <span data-i18n="continuar_apple">Continuar con Apple</span>
       </a>
     </div>
     {% endif %}
@@ -423,6 +427,11 @@
 
 <script>
   const modoSetup = {{ "true" if modo_setup else "false" }};
+  const nextUrl = {{ next_url|tojson }};
+  function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').content;
+  }
+
   const form = document.getElementById("formLogin");
   const error = document.getElementById("loginError");
   const btnAlternar = document.getElementById("btnAlternarFormulario");
@@ -449,10 +458,10 @@
     // validation) si quedan habilitados-pero-vacíos desde el estado anterior.
     document.getElementById("campoUsuario").disabled = false;
     document.getElementById("campoPassword").disabled = false;
-    document.getElementById("subtituloForm").textContent = "Inicia sesión para continuar.";
-    document.getElementById("btnFormulario").textContent = "Entrar";
-    document.getElementById("textoAlternar").textContent = '¿No tienes cuenta?';
-    document.getElementById("btnAlternarFormulario").textContent = "Crea una";
+    document.getElementById("subtituloForm").textContent = window.i18n ? window.i18n.t("login_subtitulo") : "Inicia sesión para continuar.";
+    document.getElementById("btnFormulario").textContent = window.i18n ? window.i18n.t("entrar") : "Entrar";
+    document.getElementById("textoAlternar").textContent = window.i18n ? window.i18n.t("no_tienes_cuenta") : '¿No tienes cuenta?';
+    document.getElementById("btnAlternarFormulario").textContent = window.i18n ? window.i18n.t("crea_una") : "Crea una";
   }
 
   function mostrarRegistro() {
@@ -468,10 +477,10 @@
     // (constraint validation) sin ningún error visible para el usuario.
     document.getElementById("campoUsuario").disabled = true;
     document.getElementById("campoPassword").disabled = true;
-    document.getElementById("subtituloForm").textContent = "Crea tu cuenta para empezar.";
-    document.getElementById("btnFormulario").textContent = "Crear cuenta";
-    document.getElementById("textoAlternar").textContent = '¿Ya tienes cuenta?';
-    document.getElementById("btnAlternarFormulario").textContent = "Inicia sesión";
+    document.getElementById("subtituloForm").textContent = window.i18n ? window.i18n.t("registro_subtitulo") : "Crea tu cuenta para empezar.";
+    document.getElementById("btnFormulario").textContent = window.i18n ? window.i18n.t("crear_cuenta") : "Crear cuenta";
+    document.getElementById("textoAlternar").textContent = window.i18n ? window.i18n.t("ya_tienes_cuenta") : '¿Ya tienes cuenta?';
+    document.getElementById("btnAlternarFormulario").textContent = window.i18n ? window.i18n.t("inicia_sesion_link") : "Inicia sesión";
     document.getElementById("campoNombre").focus();
   }
 
@@ -570,25 +579,27 @@
       const email = document.getElementById("campoEmail").value.trim();
 
       if (password !== password2) {
-        error.textContent = "Las contraseñas no coinciden";
+        error.textContent = window.i18n ? window.i18n.t("error_contrasenas_no_coinciden") : "Las contraseñas no coinciden";
         error.hidden = false;
         return;
       }
 
       const resRegistro = await fetch("/api/auth/registrar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
         body: JSON.stringify({ usuario, password, email }),
       });
       const datosRegistro = await resRegistro.json();
       if (!resRegistro.ok) {
-        error.textContent = datosRegistro.error || "No se pudo crear la cuenta";
+        error.textContent = datosRegistro.error || (window.i18n ? window.i18n.t("error_no_se_pudo_crear_cuenta") : "No se pudo crear la cuenta");
         error.hidden = false;
         return;
       }
 
-      // Backend ya inicia sesión automáticamente - redirigir directo
-      window.location.href = "/?crear_primera_lista=true";
+      // Backend ya inicia sesión automáticamente - redirigir directo.
+      // Si venimos de un enlace de invitación (next), retomar ese flujo en
+      // vez del modal de "crea tu primera lista".
+      window.location.href = nextUrl || "/?crear_primera_lista=true";
     } else {
       // Flujo de login
       const usuario = document.getElementById("campoUsuario").value.trim();
@@ -596,18 +607,19 @@
 
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
         body: JSON.stringify({ usuario, password }),
       });
       const datos = await res.json();
       if (!res.ok) {
-        error.textContent = datos.error || "Usuario o contraseña incorrectos";
+        error.textContent = datos.error || (window.i18n ? window.i18n.t("error_credenciales_incorrectas") : "Usuario o contraseña incorrectos");
         error.hidden = false;
         return;
       }
-      window.location.href = "/";
+      window.location.href = nextUrl || "/";
     }
   });
 </script>
+<script src="{{ url_for('static', filename='i18n.js') }}"></script>
 </body>
 </html>

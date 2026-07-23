@@ -83,12 +83,6 @@ class DOMManager {
   get btnQuitarIconoCompra() { return this.get('btnQuitarIconoCompra'); }
   get compraBotonGuardar() { return this.get('compraBotonGuardar'); }
 
-  // ===== VISTA ESPACIOS =====
-  get vistaEspacios() { return this.get('vistaEspacios'); }
-  get espaciosTarjetas() { return this.get('espaciosTarjetas'); }
-  get btnCerrarEspacios() { return this.get('btnCerrarEspacios'); }
-  get btnEditarEspacios() { return this.get('btnEditarEspacios'); }
-
   // ===== DRAWER LISTAS =====
   get modalMisListas() { return this.get('modalMisListas'); }
   get listaListas() { return this.get('listaListas'); }
@@ -131,5 +125,11 @@ class DOMManager {
   }
 }
 
-// Instancia global singleton
-window.DOM = new DOMManager();
+// Instancia global singleton (solo en navegador: en tests se usa require())
+if (typeof window !== 'undefined') {
+  window.DOM = new DOMManager();
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = DOMManager;
+}

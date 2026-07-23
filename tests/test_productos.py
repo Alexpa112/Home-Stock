@@ -10,7 +10,7 @@ from stockhogar.db import ahora, get_db
 class ProductosValidationTests(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
-        self.app.config.update(TESTING=True)
+        self.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
         self.client = self.app.test_client()
 
         # Estos tests corren contra la BD real persistente (config.py fija

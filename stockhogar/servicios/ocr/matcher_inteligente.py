@@ -100,6 +100,11 @@ class MatcherInteligente:
             "Bebé y Niños": (1.0, 20.0),
         }
 
+        # Catálogo cacheado por instancia: el mismo MatcherInteligente
+        # procesa todas las líneas de un ticket, así que sin esta caché se
+        # repetía el mismo SELECT completo de productos por cada línea.
+        self._cache_catalogo = None
+
     def buscar_en_catalogo(
         self,
         nombre_ocr: str,
@@ -122,10 +127,12 @@ class MatcherInteligente:
         if not nombre_ocr or len(nombre_ocr.strip()) < 2:
             return None
 
-        # 1. Obtener catálogo
-        productos = db.execute(
-            "SELECT id, nombre, categoria, icono FROM productos ORDER BY nombre"
-        ).fetchall()
+        # 1. Obtener catálogo (cacheado para todo el ticket)
+        if self._cache_catalogo is None:
+            self._cache_catalogo = db.execute(
+                "SELECT id, nombre, categoria, icono FROM productos ORDER BY nombre"
+            ).fetchall()
+        productos = self._cache_catalogo
 
         if not productos:
             return None
@@ -241,8 +248,12 @@ class MatcherInteligente:
 
         return None
 
-    def sugerir_cantidad_estandar(self, nombre: str) -> float:
-        """Sugiere cantidad estándar basada en nombre."""
+    def sugerir_cantidad_estandar(self, nombre: str, db=None) -> float:
+        """Sugiere cantidad estándar basada en nombre.
+
+        Prioridad: indicador de tamaño en el nombre > cantidad_defecto
+        aprendida en historial_articulos > 1.0 por defecto.
+        """
 
         nombre_lower = nombre.lower()
 
@@ -250,6 +261,11 @@ class MatcherInteligente:
         for indicador, multiplicador in self.indicadores_cantidad.items():
             if indicador in nombre_lower:
                 return multiplicador
+
+        if db is not None:
+            historico = self.obtener_historico_compras(db, nombre, limite=1)
+            if historico:
+                return historico[0]["cantidad_defecto"]
 
         return 1.0
 
@@ -270,8 +286,9 @@ class MatcherInteligente:
         if precio_total > 0 and cantidad > 0:
             return precio_total / cantidad
 
-        # TODO: En futuro, buscar histórico en DB
-        # Por ahora devolver 0 para que lo sugiera el usuario
+        # No hay ningún campo de precio en el esquema (productos, articulos_lista,
+        # historial_articulos): sin esa columna no hay histórico de precios que
+        # consultar. Requeriría una migración de BD antes de poder estimarlo aquí.
         return 0
 
     def validar_precio(
@@ -296,13 +313,13 @@ class MatcherInteligente:
     def obtener_historico_compras(self, db, nombre: str, limite: int = 10) -> List[Dict]:
         """Obtiene histórico de compras para este producto."""
 
-        # Buscar en historial
+        # Buscar en historial_articulos (aprendizaje de nombre/icono/categoria/cantidad)
         historico = db.execute(
             """
-            SELECT nombre, cantidad, unidad, categoria, icono
-            FROM historial
+            SELECT nombre, cantidad_defecto, unidad, categoria, icono
+            FROM historial_articulos
             WHERE nombre LIKE ?
-            ORDER BY fecha_creacion DESC
+            ORDER BY fecha_actualizacion DESC
             LIMIT ?
             """,
             (f"%{nombre}%", limite)

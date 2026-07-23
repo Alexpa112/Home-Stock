@@ -23,6 +23,15 @@ class ModalBase {
   }
 
   close() {
+    // El input activo puede quedar enfocado dentro del modal aunque este se
+    // oculte (hidden = true no dispara blur/focusin por sí solo): sin esto,
+    // el teclado virtual propio (virtual-keyboard.js) no recibe ninguna
+    // señal para cerrarse -su cierre depende solo de un focusin real, no de
+    // un blur aislado- y se queda flotando sobre la pantalla de detrás.
+    if (this.element.contains(document.activeElement)) {
+      document.activeElement.blur();
+      window.tecladoVirtualController?.detach();
+    }
     this.element.hidden = true;
     document.body.classList.remove('modal-open');
     this.isOpen = false;
@@ -247,25 +256,27 @@ class ValidatedInput {
     this.isValid = true;
 
     if (this.rules.required && !this.input.value.trim()) {
-      this.setError('Este campo es requerido');
+      this.setError((window.i18n && window.i18n.t('este_campo_es_requerido')) || 'Este campo es requerido');
       this.isValid = false;
       return;
     }
 
     if (this.rules.minLength && this.input.value.length < this.rules.minLength) {
-      this.setError(`Mínimo ${this.rules.minLength} caracteres`);
+      const plantillaMin = (window.i18n && window.i18n.t('minimo_n_caracteres')) || 'Mínimo {n} caracteres';
+      this.setError(plantillaMin.replace('{n}', this.rules.minLength));
       this.isValid = false;
       return;
     }
 
     if (this.rules.maxLength && this.input.value.length > this.rules.maxLength) {
-      this.setError(`Máximo ${this.rules.maxLength} caracteres`);
+      const plantillaMax = (window.i18n && window.i18n.t('maximo_n_caracteres')) || 'Máximo {n} caracteres';
+      this.setError(plantillaMax.replace('{n}', this.rules.maxLength));
       this.isValid = false;
       return;
     }
 
     if (this.rules.pattern && !this.rules.pattern.test(this.input.value)) {
-      this.setError(this.rules.errorMessage || 'Formato inválido');
+      this.setError(this.rules.errorMessage || (window.i18n && window.i18n.t('formato_invalido')) || 'Formato inválido');
       this.isValid = false;
       return;
     }
@@ -315,7 +326,13 @@ class KeyboardManager {
   }
 }
 
-/** Gestor de tema (claro/oscuro) */
+/** Gestor de tema (claro/oscuro). No se instancia globalmente: app.js
+ * (guardarTemaPreferido/temaActual) es la única fuente de verdad para el
+ * tema, ya que resuelve "auto" contra prefers-color-scheme y lo persiste
+ * en BD por usuario. Instanciar este manager en paralelo pisaba
+ * document.documentElement.dataset.theme con el valor crudo de
+ * localStorage (p.ej. "auto" sin resolver), rompiendo el tema del sistema.
+ * Se mantiene la clase exportada solo por compatibilidad con sus tests. */
 class ThemeManager {
   constructor(buttonId = 'btnTema') {
     this.button = document.getElementById(buttonId);
@@ -414,7 +431,7 @@ class ToastManager {
     const cerrar = document.createElement('button');
     cerrar.type = 'button';
     cerrar.className = 'toast__cerrar';
-    cerrar.setAttribute('aria-label', 'Cerrar notificación');
+    cerrar.setAttribute('aria-label', (window.i18n && window.i18n.t('cerrar_notificacion')) || 'Cerrar notificación');
     cerrar.textContent = '×';
     const quitar = () => {
       toast.classList.add('toast--saliendo');
@@ -445,22 +462,38 @@ class ToastManager {
   }
 }
 
-// Inicializar managers globales
-const keyboardManager = new KeyboardManager();
-const themeManager = new ThemeManager();
-const toastManager = new ToastManager();
+// Inicializar managers globales (solo en navegador: en tests se usa require(),
+// que envuelve el fichero como módulo CommonJS y por tanto define `module`).
+if (typeof module === 'undefined') {
+  const keyboardManager = new KeyboardManager();
+  const toastManager = new ToastManager();
 
-// Exponer globalmente
-window.UIComponents = {
-  ModalBase,
-  FormModal,
-  TicketModal,
-  CatalogModal,
-  ResponsiveList,
-  ValidatedInput,
-  KeyboardManager,
-  ThemeManager,
-  ScreenUtils,
-  ToastManager
-};
-window.Toast = toastManager;
+  window.UIComponents = {
+    ModalBase,
+    FormModal,
+    TicketModal,
+    CatalogModal,
+    ResponsiveList,
+    ValidatedInput,
+    KeyboardManager,
+    ThemeManager,
+    ScreenUtils,
+    ToastManager
+  };
+  window.Toast = toastManager;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    ModalBase,
+    FormModal,
+    TicketModal,
+    CatalogModal,
+    ResponsiveList,
+    ValidatedInput,
+    KeyboardManager,
+    ThemeManager,
+    ScreenUtils,
+    ToastManager
+  };
+}

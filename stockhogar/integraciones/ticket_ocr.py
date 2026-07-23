@@ -9,6 +9,10 @@ import re
 import pytesseract
 from PIL import Image
 
+from ..servicios.ocr.procesador_imagen import ProcesadorImagen
+
+_procesador_imagen = ProcesadorImagen()
+
 PALABRAS_IGNORAR = [
     "total", "subtotal", "iva", "cambio", "efectivo", "tarjeta", "ticket",
     "factura", "simplificada", "cif", "nif", "gracias", "caja", "operador",
@@ -23,8 +27,28 @@ RE_CANTIDAD_FINAL = re.compile(r"^(.+?)\s+(\d+)\s*(ud|uds|u|unid)\.?$", re.IGNOR
 
 
 def extraer_texto(ruta_imagen):
-    imagen = Image.open(ruta_imagen)
-    return pytesseract.image_to_string(imagen, lang="spa+eng")
+    with open(ruta_imagen, "rb") as f:
+        imagen_bytes = f.read()
+
+    # Reescalado a ancho óptimo (2000px) + corrección de orientación +
+    # escala de grises + CLAHE: sin esto Tesseract corría sobre la foto
+    # completa del móvil (varios MP) en color, con "spa+eng" (doble modelo de
+    # idioma), lo que disparaba el tiempo de lectura del ticket muy por
+    # encima de los 20s objetivo.
+    imagen_procesada = _procesador_imagen.procesar(imagen_bytes)
+    imagen = Image.fromarray(imagen_procesada)
+    try:
+        # timeout: fotos con mucho ruido de fondo pueden disparar el tiempo
+        # de segmentación de Tesseract a varios minutos; pytesseract mata el
+        # proceso al superar el límite (a diferencia del SIGKILL de gunicorn
+        # por --timeout, que deja el tesseract original huérfano consumiendo
+        # CPU indefinidamente).
+        return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6", timeout=45)
+    except RuntimeError:
+        raise RuntimeError(
+            "La foto tardó demasiado en procesarse. Prueba con más luz, "
+            "menos reflejos o recortando la imagen para que solo salga el ticket."
+        )
 
 
 def _limpiar_precio(linea):

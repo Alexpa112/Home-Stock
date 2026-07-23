@@ -38,9 +38,8 @@ stockhogar/
 ├── rutas/
 │   ├── productos.py                # Usa @requerir_sesion, @manejo_errores, Validator
 │   ├── listas.py
-│   ├── lista_compra.py
+│   ├── articulos_lista.py          # antes lista_compra.py
 │   ├── categorias.py
-│   ├── espacios.py
 │   ├── historial.py
 │   ├── auth.py
 │   ├── tickets.py
@@ -59,12 +58,12 @@ stockhogar/
 │   │   ├── dom-manager.js          # ⭐ window.DOM global
 │   │   └── api-client.js           # ⭐ window.API global
 │   ├── modules/
-│   │   ├── productos-manager.js
-│   │   ├── listas-manager.js
-│   │   └── ...
+│   │   ├── drawer-listas.js        # Listas: crear, compartir, invitar
+│   │   ├── form-builder.js
+│   │   └── ui-components.js
 │   ├── style.css
 │   ├── responsive.css
-│   └── app.js
+│   └── app.js                      # Orquestador monolítico (~2200 líneas, no refactorizado todavía)
 │
 └── templates/
     ├── index.html                  # SPA principal
@@ -143,25 +142,19 @@ try {
 ```
 
 ### 4. **Frontend: Organiza en módulos**
-Cada manager es una clase con responsabilidad única:
+Cuando extraigas lógica de `app.js`, hazlo como una clase con responsabilidad
+única, siguiendo el patrón ya usado en `static/modules/drawer-listas.js`:
 
 ```javascript
-// static/modules/productos-manager.js
-class ProductosManager {
+// static/modules/mi-feature.js
+class MiFeatureManager {
   constructor() {
     this.api = window.API;
     this.dom = window.DOM;
-    this.productos = [];
   }
 
   async cargar() {
-    this.productos = await this.api.obtenerProductos();
-    this.renderizar();
-  }
-
-  async crear(datos) {
-    const nuevo = await this.api.crearProducto(datos);
-    this.productos.push(nuevo);
+    this.datos = await this.api.obtenerAlgo();
     this.renderizar();
   }
 
@@ -171,9 +164,13 @@ class ProductosManager {
 }
 
 // En app.js
-window.productosManager = new ProductosManager();
-window.productosManager.cargar();
+window.miFeatureManager = new MiFeatureManager();
+window.miFeatureManager.cargar();
 ```
+
+Nota: la mayor parte de la lógica de UI sigue viviendo en `app.js`
+(~2200 líneas); solo `drawer-listas.js`, `form-builder.js` y
+`ui-components.js` se han extraído hasta ahora.
 
 ---
 
@@ -270,6 +267,9 @@ F12 → Network → (hacer la acción)
 
 ## Roadmap de Refactorización (Fases)
 
+Ver estado real y detallado en `README.md` (sección "Optimización - Estado
+del Proyecto") y `docs/ARQUITECTURA.md`. Resumen:
+
 ### Fase 1: ✅ Base OOP (Hecha)
 - [x] `api/base.py` - APIResponse + decoradores
 - [x] `utils/validation.py` - Validator
@@ -277,24 +277,17 @@ F12 → Network → (hacer la acción)
 - [x] `static/core/dom-manager.js` - Selectores centralizados
 - [x] `static/core/api-client.js` - Fetch centralizado
 
-### Fase 2: Refactorizar rutas (TODO)
-- [ ] `rutas/productos.py` - Usar nuevas clases base
-- [ ] `rutas/listas.py`
-- [ ] `rutas/articulos_lista.py`
-- [ ] `rutas/categorias.py`
-- [ ] `rutas/espacios.py`
-- [ ] Resto de rutas
+### Fase 2: ✅ Refactorizar rutas (Hecha)
+- [x] Todas las rutas usan `@requerir_sesion`, `@manejo_errores` y `Validator`
 
-### Fase 3: Refactorizar frontend (TODO)
-- [ ] Crear `modules/productos-manager.js`
-- [ ] Crear `modules/listas-manager.js`
-- [ ] Refactorizar `app.js` para usar managers
-- [ ] Eliminar código duplicado en js
+### Fase 3: Refactorizar frontend (parcial)
+- [x] `modules/drawer-listas.js`, `modules/form-builder.js`, `modules/ui-components.js`
+- [ ] `app.js` sigue siendo un orquestador monolítico (~2200 líneas); falta extraer el resto
 
-### Fase 4: Tests (TODO)
-- [ ] Cobertura >80% en backend
-- [ ] Pruebas de integración
-- [ ] Tests en frontend (vitest)
+### Fase 4: Tests (parcial)
+- [x] Tests backend (`tests/`, pytest) para productos, OCR, features generales
+- [x] Tests frontend con **Jest** para los módulos ya extraídos
+- [ ] Cobertura >80% en backend (sin medir todavía)
 
 ---
 

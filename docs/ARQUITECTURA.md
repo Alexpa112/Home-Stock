@@ -22,7 +22,6 @@ rutas/
 ├── listas.py         # Múltiples listas de compra
 ├── articulos_lista.py # Ítems de listas
 ├── categorias.py     # Gestión de categorías
-├── espacios.py       # Múltiples stocks
 ├── historial.py      # Catálogo + aprendizaje de iconos
 ├── tickets.py        # Gestión de tickets
 └── ocr_tickets.py    # Escaneo OCR
@@ -160,31 +159,52 @@ window.productosManager.cargar();
 
 ### Esquema Normalizado
 
+Esquema real definido en `stockhogar/db.py` (función `init_db()`). El
+aislamiento de cara al usuario se hace vía `listas`/`stock_lista`. La
+funcionalidad de "espacios" (stocks independientes tipo casa/oficina, que
+nunca tuvo UI) se eliminó por completo: cubría el mismo caso de uso que
+`listas`, sin aportar nada que estas no resolvieran ya.
+
 ```sql
 -- Usuarios
-users (id, nombre_usuario, contraseña_hash, fecha_creacion)
+usuarios (id, nombre_usuario, password_hash, email, idioma_preferido)
 
--- Espacios (multiple stocks)
-espacios (id, usuario_propietario_id, nombre, color, fecha_creacion)
+-- Login OAuth (Google / Apple)
+oauth_accounts (id, usuario_id, proveedor, id_proveedor)  -- UNIQUE(proveedor, id_proveedor)
 
--- Productos (por espacio)
-productos (id, espacio_id, nombre, categoria, cantidad, unidad, 
+-- Productos (catálogo compartido; el stock por lista vive en stock_lista)
+productos (id, nombre, categoria, cantidad, unidad,
            stock_minimo, icono, dias_aviso, fecha_creacion, fecha_actualizacion)
 
--- Listas de compra (Bring! style)
-listas (id, usuario_propietario_id, nombre, descripcion, icono, color, 
-        privada, fecha_creacion, fecha_actualizacion)
+-- Listas de compra (Bring! style) — unidad compartible real
+listas (id, nombre, descripcion, usuario_propietario_id, privada, icono, color)
 
 -- Artículos en listas
-articulos_lista (id, lista_id, nombre, cantidad, unidad, categoria, icono, 
-                 completado, fecha_creacion, fecha_completado)
+articulos_lista (id, lista_id, producto_id, nombre, cantidad, unidad, categoria,
+                 icono, sub_descripcion, origen, activo, fecha_completado,
+                 articulo_personalizado_id)
 
--- Permisos para listas compartidas
-permisos_lista (lista_id, usuario_id, nivel, fecha_otorgado)
+-- Stock propio de cada lista ("Modelo B": listas compartidas comparten filas)
+stock_lista (lista_id, producto_id, ...)  -- UNIQUE(lista_id, producto_id)
 
--- Catálogo (historial de artículos + iconos aprendidos)
-historial_articulos (id, usuario_id, nombre, icono, categoria, unidad, 
-                     cantidad_defecto, fecha_creacion)
+-- Permisos y compartición de listas
+permisos_lista (lista_id, usuario_id, nivel)  -- ver | editar
+invitaciones_lista (lista_id, email_destino, codigo_invitacion, usado, fecha_expiracion)
+
+-- Categorías (compartidas globalmente)
+categorias (nombre, icono)  -- UNIQUE(nombre)
+
+-- Catálogo global (historial de artículos + iconos aprendidos)
+historial_articulos (id, nombre, icono, categoria, unidad, cantidad_defecto)  -- UNIQUE(nombre) COLLATE NOCASE
+
+-- Artículos únicos del catálogo del usuario, disponibles en cualquier lista
+articulos_personalizados (id, nombre)  -- UNIQUE(nombre) COLLATE NOCASE
+
+-- Traducciones cacheadas por producto/artículo e idioma
+traducciones_productos (producto_id, articulo_lista_id, idioma, nombre, descripcion)
+
+-- Auditoría de stock (usada por gráficos de consumo)
+movimientos_stock (producto_id, lista_id, usuario_id, delta, cantidad_resultante, origen, fecha)
 ```
 
 ### Migraciones
@@ -328,8 +348,9 @@ class FavoritosManager {
 
 ## Roadmap Futuro
 
-- [ ] Compartir listas entre usuarios (API lista, falta UI)
-- [ ] Historial de cambios (auditoría)
-- [ ] Gráficos de consumo
+- [x] Compartir listas entre usuarios (API + UI en `rutas/permisos.py` y `static/modules/drawer-listas.js`)
+- [x] Historial de cambios (auditoría) — tabla `movimientos_stock`
+- [x] Gráficos de consumo — `rutas/consumo.py`
 - [ ] Integración con APIs de supermercados
 - [ ] App móvil nativa (Flutter/React Native)
+- [x] Eliminar `espacios` del backend (nunca tuvo UI; su función de aislamiento ya la cubrían `listas`)

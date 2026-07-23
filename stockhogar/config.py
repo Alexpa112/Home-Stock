@@ -14,11 +14,22 @@ DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "stock.db"
 CLAVES_PATH = DATA_DIR / "secret.json"
 
+# Directorio de logs de la aplicacion (montado como volumen en docker-compose.yml
+# para que sobrevivan a la reconstruccion del contenedor). El Panel de Gestion
+# del Servidor (proyecto independiente) lee de aqui para mostrar los logs en vivo.
+LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+LOG_FILE_PATH = LOGS_DIR / "stockhogar.log"
+
 DIAS_AVISO_DEFECTO = 30
 
 # Duracion de la sesion iniciada: al ser un dispositivo domestico compartido,
 # el login es persistente para no tener que volver a autenticarse cada vez.
 DIAS_SESION = 365
+
+# La cookie de sesion solo se marca "Secure" (exigir HTTPS) si APP_URL usa https.
+# En local (http://localhost) se deja sin marcar para poder seguir probando sin TLS.
+USAR_COOKIE_SEGURA = os.getenv("APP_URL", "http://localhost:5000").startswith("https://")
 
 # Categorias de partida (se insertan una sola vez; a partir de ahi son
 # totalmente editables desde la app). "Otros" es el comodin de respaldo y
@@ -27,7 +38,7 @@ DIAS_SESION = 365
 # un supermercado español, para que el catálogo de productos quede bien
 # organizado.
 CATEGORIAS_DEFECTO = [
-    ("Alimentacion", "🍎"),
+    ("Alimentación", "🍎"),
     ("Limpieza", "🧴"),
     ("Higiene", "🧼"),
     ("Bebidas", "🥤"),
@@ -47,20 +58,6 @@ CATEGORIAS_DEFECTO = [
     ("Farmacia y Botiquín", "💊"),
 ]
 CATEGORIA_DEFECTO = "Otros"
-
-# Colores sugeridos para las tarjetas de "stock" (espacios). Cada uno nuevo
-# toma el siguiente color de la lista por turnos, para que se distingan a
-# simple vista sin que el usuario tenga que elegir uno la primera vez.
-PALETA_ESPACIOS = [
-    "#B5551A",  # terracota (color de acento por defecto de la app)
-    "#3E7C8C",  # azul petroleo
-    "#7B6B9E",  # morado
-    "#5B8C5A",  # verde
-    "#C77B9E",  # rosa
-    "#C9A227",  # mostaza
-    "#4A6FA5",  # azul
-    "#B5473F",  # rojo teja
-]
 
 # Catalogo de productos habituales de supermercado en España (investigado:
 # leche, huevos, pan, aceite, pasta, arroz, frutas y verduras son los

@@ -1,12 +1,16 @@
 """Rutas para autenticación OAuth con Google y Apple."""
+import secrets
+
 from flask import Blueprint, request, session, redirect, url_for
 from urllib.parse import urlencode
 import requests
-import json
+import jwt
+from jwt import PyJWKClient
 import logging
 
 from ..api import APIResponse, manejo_errores
 from ..db import ahora, get_db
+from ..translator import traducir
 from ..config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APPLE_CLIENT_ID, APPLE_CLIENT_SECRET, APPLE_TEAM_ID
 
 bp = Blueprint("oauth", __name__, url_prefix="/auth")
@@ -17,18 +21,42 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 APPLE_AUTH_URL = "https://appleid.apple.com/auth/authorize"
 APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
+APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+
+# Cliente JWKS de Apple: cachea las claves publicas y las refresca solas
+# cuando aparece un "kid" que no conoce.
+_apple_jwks_client = PyJWKClient(APPLE_JWKS_URL)
+
+
+def _verificar_id_token_apple(id_token):
+    """Verifica firma y claims (iss/aud/exp) del id_token de Apple.
+
+    Sin esto, cualquiera podria fabricar un id_token con el email que quisiera
+    y tomar el control de la cuenta asociada a ese email.
+    """
+    signing_key = _apple_jwks_client.get_signing_key_from_jwt(id_token)
+    return jwt.decode(
+        id_token,
+        signing_key.key,
+        algorithms=["RS256"],
+        audience=APPLE_CLIENT_ID,
+        issuer="https://appleid.apple.com",
+    )
 
 
 @bp.route("/google", methods=["GET"])
 @manejo_errores
 def oauth_google():
     """Iniciar flujo OAuth con Google."""
+    state = secrets.token_urlsafe(24)
+    session["oauth_state"] = state
     params = {
         "client_id": GOOGLE_CLIENT_ID,
         "redirect_uri": url_for("oauth.oauth_google_callback", _external=True),
         "response_type": "code",
         "scope": "openid email profile",
-        "access_type": "offline"
+        "access_type": "offline",
+        "state": state,
     }
     return redirect(f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
 
@@ -39,12 +67,17 @@ def oauth_google_callback():
     """Callback de Google OAuth."""
     codigo = request.args.get("code")
     error = request.args.get("error")
+    estado_recibido = request.args.get("state")
+    estado_esperado = session.pop("oauth_state", None)
 
     if error:
-        return APIResponse.error(f"Error de Google: {error}", 400)
+        return APIResponse.error(traducir("err_oauth_google_generico").replace("{error}", error), 400)
+
+    if not estado_esperado or estado_recibido != estado_esperado:
+        return APIResponse.error("err_oauth_solicitud_invalida", 400)
 
     if not codigo:
-        return APIResponse.error("No se recibió código de autorización", 400)
+        return APIResponse.error("err_oauth_sin_codigo", 400)
 
     # Intercambiar código por token
     datos_token = {
@@ -70,6 +103,7 @@ def oauth_google_callback():
         # Buscar o crear usuario
         db = get_db()
         email = info_usuario.get("email")
+        email_verificado = info_usuario.get("verified_email")
         nombre = info_usuario.get("name")
         id_proveedor = info_usuario.get("id")
         foto_perfil = info_usuario.get("picture")
@@ -83,11 +117,13 @@ def oauth_google_callback():
         if cuenta_oauth:
             usuario_id = cuenta_oauth["usuario_id"]
         else:
-            # Buscar usuario por email
+            # Solo vincular a una cuenta existente por email si Google lo ha
+            # verificado: si no, cualquiera podria hacerse pasar por el dueño
+            # de ese email y entrar en su cuenta.
             usuario = db.execute(
                 "SELECT id FROM usuarios WHERE email = ?",
                 (email,)
-            ).fetchone()
+            ).fetchone() if email_verificado else None
 
             if usuario:
                 usuario_id = usuario["id"]
@@ -129,19 +165,22 @@ def oauth_google_callback():
 
     except requests.RequestException:
         logging.getLogger(__name__).exception("Error en autenticación Google")
-        return APIResponse.error("No se pudo completar el inicio de sesión con Google. Inténtalo de nuevo.", 500)
+        return APIResponse.error("err_oauth_google_fallo", 500)
 
 
 @bp.route("/apple", methods=["GET"])
 @manejo_errores
 def oauth_apple():
     """Iniciar flujo OAuth con Apple."""
+    state = secrets.token_urlsafe(24)
+    session["oauth_state"] = state
     params = {
         "client_id": APPLE_CLIENT_ID,
         "redirect_uri": url_for("oauth.oauth_apple_callback", _external=True),
         "response_type": "code id_token",
         "response_mode": "form_post",
-        "scope": "openid email name"
+        "scope": "openid email name",
+        "state": state,
     }
     return redirect(f"{APPLE_AUTH_URL}?{urlencode(params)}")
 
@@ -153,12 +192,17 @@ def oauth_apple_callback():
     codigo = request.form.get("code")
     id_token = request.form.get("id_token")
     error = request.form.get("error")
+    estado_recibido = request.form.get("state")
+    estado_esperado = session.pop("oauth_state", None)
 
     if error:
-        return APIResponse.error(f"Error de Apple: {error}", 400)
+        return APIResponse.error(traducir("err_oauth_apple_generico").replace("{error}", error), 400)
+
+    if not estado_esperado or estado_recibido != estado_esperado:
+        return APIResponse.error("err_oauth_solicitud_invalida", 400)
 
     if not codigo:
-        return APIResponse.error("No se recibió código de autorización", 400)
+        return APIResponse.error("err_oauth_sin_codigo", 400)
 
     # Intercambiar código por token
     datos_token = {
@@ -174,16 +218,16 @@ def oauth_apple_callback():
         respuesta_token.raise_for_status()
         tokens = respuesta_token.json()
 
-        # Decodificar id_token para obtener info del usuario
-        # En producción, verificar la firma JWT
-        import base64
-        partes = id_token.split(".")
-        payload = partes[1]
-        # Añadir padding si es necesario
-        payload += "=" * (4 - len(payload) % 4)
-        info_usuario = json.loads(base64.urlsafe_b64decode(payload))
+        # Verificar firma y claims (iss/aud/exp) del id_token contra las
+        # claves publicas de Apple antes de confiar en su contenido.
+        try:
+            info_usuario = _verificar_id_token_apple(id_token)
+        except jwt.PyJWTError:
+            logging.getLogger(__name__).exception("id_token de Apple inválido")
+            return APIResponse.error("err_oauth_apple_identidad", 400)
 
         email = info_usuario.get("email")
+        email_verificado = str(info_usuario.get("email_verified", "")).lower() == "true"
         id_proveedor = info_usuario.get("sub")
 
         # Buscar o crear usuario
@@ -198,11 +242,12 @@ def oauth_apple_callback():
         if cuenta_oauth:
             usuario_id = cuenta_oauth["usuario_id"]
         else:
-            # Buscar usuario por email
+            # Solo vincular a una cuenta existente por email si Apple lo ha
+            # verificado (ver comentario equivalente en el flujo de Google).
             usuario = db.execute(
                 "SELECT id FROM usuarios WHERE email = ?",
                 (email,)
-            ).fetchone() if email else None
+            ).fetchone() if (email and email_verificado) else None
 
             if usuario:
                 usuario_id = usuario["id"]
@@ -243,4 +288,4 @@ def oauth_apple_callback():
 
     except Exception:
         logging.getLogger(__name__).exception("Error en autenticación Apple")
-        return APIResponse.error("No se pudo completar el inicio de sesión con Apple. Inténtalo de nuevo.", 500)
+        return APIResponse.error("err_oauth_apple_fallo", 500)

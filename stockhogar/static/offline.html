@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dreame! · Sin conexión</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #F7F3EE;
+    color: #33291f;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  .caja { max-width: 320px; }
+  .icono { font-size: 48px; margin-bottom: 12px; }
+  h1 { font-size: 1.2rem; margin: 0 0 8px; }
+  p { font-size: 0.95rem; color: #6b5d4f; margin: 0 0 20px; }
+  button {
+    border: none;
+    background: #B5551A;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="caja">
+    <div class="icono">📡</div>
+    <h1>Sin conexión</h1>
+    <p>No se ha podido cargar Dreame! porque no hay red disponible. Los datos ya guardados en tu dispositivo seguirán accesibles al reconectar.</p>
+    <button onclick="location.reload()">Reintentar</button>
+  </div>
+</body>
+</html>

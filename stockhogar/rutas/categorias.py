@@ -1,9 +1,10 @@
 """Rutas para gestionar categorías de productos (editables desde la app)."""
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import CATEGORIA_DEFECTO
 from ..db import get_db
+from ..translator import traducir
 from ..utils import Validator, DataConverter
 
 bp = Blueprint("categorias", __name__, url_prefix="/api/categorias")
@@ -37,7 +38,7 @@ def crear_categoria():
         "SELECT id FROM categorias WHERE nombre = ? COLLATE NOCASE", (nombre,)
     ).fetchone()
     if existente:
-        return APIResponse.error("Ya existe una categoría con ese nombre", 400)
+        return APIResponse.error("err_categoria_duplicada", 400)
 
     cur = db.execute("INSERT INTO categorias (nombre, icono) VALUES (?, ?)", (nombre, icono))
     db.commit()
@@ -52,16 +53,17 @@ def borrar_categoria(categoria_id):
     db = get_db()
     fila = db.execute("SELECT * FROM categorias WHERE id = ?", (categoria_id,)).fetchone()
     if not fila:
-        return APIResponse.no_encontrado("Categoría")
+        return APIResponse.no_encontrado("recurso_categoria")
     if fila["nombre"] == CATEGORIA_DEFECTO:
-        return APIResponse.error(f'No se puede borrar la categoría "{CATEGORIA_DEFECTO}"', 400)
+        mensaje = traducir("err_no_borrar_categoria_defecto").replace("{nombre}", CATEGORIA_DEFECTO)
+        return jsonify({"error": mensaje}), 400
 
     en_uso = db.execute(
         "SELECT COUNT(*) AS n FROM productos WHERE categoria = ?", (fila["nombre"],)
     ).fetchone()["n"]
     if en_uso:
         return APIResponse.error(
-            f"Hay {en_uso} producto(s) usando esta categoría. Cámbialos antes de borrarla.", 409
+            traducir("err_categoria_en_uso").replace("{en_uso}", str(en_uso)), 409
         )
 
     db.execute("DELETE FROM categorias WHERE id = ?", (categoria_id,))

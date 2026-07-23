@@ -535,12 +535,36 @@ echo -e "  ${YELLOW}Acceso:${NC}"
 echo -e "    Local:  http://localhost:${STOCKHOGAR_PORT}"
 echo -e "    Red:    http://${IP_ADDRESS}:${STOCKHOGAR_PORT}"
 echo ""
+
+echo -e "  ${YELLOW}Panel de gestión del servidor:${NC}"
+echo -e "    Es un proyecto aparte (StockHogar-Panel), con su propio instalador."
+echo -e "    Si lo tienes clonado como carpeta hermana de esta, instálalo con:"
+echo -e "      cd ../StockHogar-Panel && ./install.sh"
+echo ""
 echo -e "  ${YELLOW}Comandos útiles:${NC}"
 echo -e "    Logs:       $COMPOSE logs -f stockhogar"
 echo -e "    Detener:    $COMPOSE down"
 echo -e "    Reiniciar:  $COMPOSE restart"
 echo -e "    Actualizar: ./install.sh --update"
 echo ""
+
+# --- Panel de Gestión del Servidor: se instala solo si está disponible -----
+# Es un proyecto independiente (StockHogar-Panel), pero si está clonado como
+# carpeta hermana de este repo, aprovechamos para instalarlo automáticamente
+# aquí también, en vez de obligar a un segundo paso manual.
+PANEL_DIR="$(cd "$SCRIPT_DIR/../StockHogar-Panel" 2>/dev/null && pwd || echo "")"
+if [[ -n "$PANEL_DIR" ]] && [[ -f "$PANEL_DIR/install.sh" ]]; then
+    echo -e "${BLUE}=== Instalando también el Panel de Gestión del Servidor ===${NC}"
+    if (cd "$PANEL_DIR" && ./install.sh "$SCRIPT_DIR"); then
+        log_success "Panel de Gestión instalado (ver arriba la URL y la contraseña temporal)"
+        log_info "Para que arranque solo con la Raspberry Pi: cd \"$PANEL_DIR\" && ./install.sh --systemd"
+    else
+        log_warning "No se pudo instalar el panel automáticamente. Instálalo a mano: cd \"$PANEL_DIR\" && ./install.sh"
+    fi
+    echo ""
+else
+    log_info "No se encontró StockHogar-Panel como carpeta hermana; omito su instalación. Clónalo junto a este repo si quieres el panel de gestión (rendimiento, mantenimiento, backups...)."
+fi
 
 log_info "Comprobando que la aplicación responde..."
 READY=0

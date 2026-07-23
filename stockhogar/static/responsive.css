@@ -56,7 +56,12 @@
 
 body.keyboard-open .modal-fondo,
 body.is-keyboard-open .modal-fondo {
-  padding-bottom: 0;
+  /* Reservar el hueco del teclado: si no, el flex-end ancla el modal al borde
+     fisico de la pantalla (bajo el teclado) en vez de justo encima de el. */
+  padding-bottom: var(--keyboard-offset, 0px);
+  /* Con el teclado abierto no queda espacio de sobra: quitamos el margen
+     superior (10vh) para que el modal pueda crecer y pegarse arriba. */
+  padding-top: 0;
   justify-content: flex-end;
 }
 
@@ -69,6 +74,21 @@ body.is-keyboard-open .modal-fondo {
   flex-direction: column;
   overflow: hidden;
   animation: slideUp var(--transition-normal) ease-out;
+  position: relative;
+}
+
+/* Grip del bottom sheet: solo en móvil, indica que se puede arrastrar hacia abajo para cerrar */
+.modal::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  pointer-events: none;
 }
 
 @keyframes slideUp {
@@ -101,40 +121,8 @@ body.keyboard-open .modal {
 /* MODAL ESPECIFICO DE TICKETS */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
-.modal-ticket {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  height: 100%;
-}
-
-.modal-ticket > h2 {
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--border);
-  margin: 0;
-  font-size: var(--font-lg);
-  flex-shrink: 0;
-}
-
-.modal-ticket > .aviso,
-.modal-ticket > div:nth-child(2),
-.modal-ticket > div:nth-child(3) {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: var(--spacing-md);
-}
-
-.modal-ticket > .acciones-modal {
-  display: flex;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.modal-ticket > .acciones-modal button {
-  flex: 1;
-  min-height: var(--touch-height);
-}
+/* .modal-ticket usa el layout flex estandar de .modal / .modal-content
+   (header y footer fijos, .modal-content hace scroll interno) */
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* CAMPOS DE FORMULARIO - CONSISTENTES Y ADAPTABLES */
@@ -154,6 +142,7 @@ body.keyboard-open .modal {
   font-family: inherit;
   -webkit-appearance: none;
   appearance: none;
+  caret-color: var(--accent);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -189,48 +178,19 @@ body.keyboard-open .modal {
 }
 
 .ticket-item {
-  padding: var(--spacing-md);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
 }
 
-.ticket-item .fila-superior {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--spacing-sm);
-  width: 100%;
-}
-
-.ticket-item .fila-superior input[name="nombre"] {
-  grid-column: 1 / -1;
-  width: 100%;
-}
-
-.ticket-item .fila-superior input[name="cantidad"],
-.ticket-item .fila-superior input[name="unidad"] {
-  width: 100%;
-  min-width: 0;
-}
-
-.ticket-item .fila-superior button {
-  width: var(--touch-height-small);
-  height: var(--touch-height-small);
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: var(--font-base);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.ticket-item-quitar,
+.ticket-stepper-btn {
+  min-height: var(--touch-height-small);
   transition: background-color var(--transition-fast);
 }
 
-.ticket-item .fila-superior button:active {
+.ticket-item-quitar:active,
+.ticket-stepper-btn:active {
   background-color: var(--surface);
 }
 
@@ -266,6 +226,8 @@ body.keyboard-open .modal {
   white-space: normal;
   line-height: 1.2;
 }
+
+.modal-footer button[hidden] { display: none; }
 
 .modal button:active {
   transform: scale(0.98);
@@ -313,16 +275,17 @@ body.keyboard-open .modal {
     border-radius: var(--radius-lg);
   }
 
+  /* En escritorio el modal es centrado, no un sheet arrastrable: sin grip */
+  .modal::before {
+    display: none;
+  }
+
   .modal > form {
     padding: var(--spacing-lg);
   }
 
-  .ticket-item .fila-superior {
-    grid-template-columns: 1fr 100px 80px auto;
-  }
-
-  .ticket-item .fila-superior input[name="nombre"] {
-    grid-column: 1;
+  .ticket-item-fila {
+    max-width: 260px;
   }
 }
 

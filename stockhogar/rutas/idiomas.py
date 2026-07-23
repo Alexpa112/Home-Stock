@@ -1,12 +1,25 @@
 """Rutas para gestionar idiomas y configuración de idioma."""
+import re
+import unicodedata
+
 from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import get_db
 from ..translator import IDIOMAS_DISPONIBLES, traducir, obtener_idiomas, traducir_todas_para_idioma
-from .espacios import obtener_espacio_actual
 
 bp = Blueprint("idiomas", __name__, url_prefix="/api/idiomas")
+
+
+def _clave_categoria(nombre):
+    """Genera la clave de traducción para una categoría igual que claveCategoria()
+    en stockhogar/static/i18n.js: quita tildes/diacríticos antes de normalizar,
+    para que las claves casen entre backend y frontend."""
+    sin_tildes = unicodedata.normalize("NFD", nombre)
+    sin_tildes = "".join(c for c in sin_tildes if unicodedata.category(c) != "Mn")
+    clave = sin_tildes.lower().replace("&", "y")
+    clave = re.sub(r"[^a-z0-9]+", "_", clave).strip("_")
+    return f"categoria_{clave}"
 
 
 @bp.route("/disponibles", methods=["GET"])
@@ -106,7 +119,6 @@ def traducir_claves():
 
 
 @bp.route("/todos/<idioma>", methods=["GET"])
-@requerir_sesion
 @manejo_errores
 def obtener_todas_traducciones(idioma):
     """Obtiene TODAS las traducciones para un idioma, incluyendo categorías dinámicas.
@@ -273,7 +285,7 @@ def obtener_todas_traducciones(idioma):
 
     # Agregar TODAS las categorías del mapeo (no solo las que están en la BD del usuario)
     for categoria_original, traduccion in mapeo_idioma.items():
-        clave = f'categoria_{categoria_original.lower().replace(" ", "_").replace("&", "y")}'
+        clave = _clave_categoria(categoria_original)
         todas[clave] = traduccion
 
     return APIResponse.success({

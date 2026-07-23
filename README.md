@@ -19,6 +19,16 @@ pip install -r requirements.txt
 python run.py
 ```
 
+### Panel de gestión del servidor
+
+El panel (rendimiento, mantenimiento, reinicio, logs en vivo, backups,
+configuración y usuarios) es un **proyecto independiente**, fuera de este
+repositorio: [StockHogar-Panel](../StockHogar-Panel). Se instala y se
+ejecuta por separado (proceso y puerto propios), y solo necesita saber dónde
+está esta instalación de StockHogar para leer/escribir sus mismos ficheros
+(`.env`, base de datos, logs, backups). Consulta su propio README para
+instalarlo.
+
 ## 📚 Documentación
 
 | Para | Documento |
@@ -29,11 +39,10 @@ python run.py
 | **Arquitectura** | [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) |
 | **API** | [`docs/API.md`](docs/API.md) |
 | **Problemas** | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) |
-| **Refactorización** | [`RESUMEN_OPTIMIZACION.md`](RESUMEN_OPTIMIZACION.md) |
 
 ## ✨ Características
 
-✅ **Inventario inteligente** - Múltiples espacios independientes  
+✅ **Inventario inteligente** - Stock con avisos de mínimos y caducidad  
 ✅ **Lista automática** - Se genera al bajar stock  
 ✅ **Escaneo OCR** - Lee tickets localmente (sin internet)  
 ✅ **Multi-usuario** - Sesiones persistentes (365 días)  
@@ -60,7 +69,7 @@ python run.py
 | Frontend | JavaScript vanilla (sin frameworks) |
 | OCR | Tesseract |
 | Container | Docker + Docker Compose |
-| Testing | pytest (backend), vitest (frontend) |
+| Testing | pytest (backend), Jest (frontend) |
 
 ## 🔒 Seguridad
 
@@ -94,19 +103,11 @@ python run.py
 - ✅ Respuestas JSON estandarizadas via `APIResponse`
 - ✅ -35% líneas promedio por ruta
 
-**Ver detalles**: 
-- [`FASE_2_COMPLETA.md`](FASE_2_COMPLETA.md) - Fase 2 backend completada
-- [`RESUMEN_OPTIMIZACION.md`](RESUMEN_OPTIMIZACION.md) - Todas las fases
-
-### ✅ Fase 3: Frontend OOP (100% Completa)
-- ✅ 6 managers (ProductosManager, CompraManager, CategoriasManager, EspaciosManager, TicketsManager, UIManager)
-- ✅ Refactorizar `app.js` como orquestador limpio (2050 → 300 líneas, -85%)
-- ✅ Singletons globales `window.DOM`, `window.API` con métodos centralizados
-- ✅ Render methods automáticos en cada manager
-- ✅ Manejo de formularios modales (create/edit/delete)
-- ✅ 71 tests con Jest (>85% coverage)
-- ✅ Eliminadas 1,477 líneas de código legacy
-- ✅ Documentación completa (FASE_3_FRONTEND.md, TESTING.md)
+### ⚠️ Fase 3: Frontend OOP (parcial - documentación desactualizada)
+- ✅ Singletons globales `window.DOM`, `window.API` con métodos centralizados (`static/core/`)
+- ✅ Algunos módulos extraídos como managers independientes (`static/modules/drawer-listas.js`, `form-builder.js`, `ui-components.js`)
+- ❌ `app.js` sigue siendo un orquestador monolítico (~2200 líneas, no las 300 líneas históricamente reportadas aquí); el resto de managers listados en versiones anteriores de este README (ProductosManager, CompraManager, CategoriasManager, EspaciosManager, TicketsManager) no existen como ficheros separados
+- ✅ Tests con Jest para los módulos ya extraídos
 
 ---
 
@@ -166,10 +167,10 @@ rm data/stock.db && docker compose restart
 |------|-----------|--------|----------|
 | **Fase 1** | Infraestructura OOP | ✅ 100% | Clases base, singletons, documentación |
 | **Fase 2** | Backend (Python) | ✅ 100% | 10/10 rutas refactorizadas, -35% líneas |
-| **Fase 3** | Frontend (JavaScript) | ✅ 100% | 6 managers, -85% app.js, 71 tests |
+| **Fase 3** | Frontend (JavaScript) | ⚠️ Parcial | Singletons `DOM`/`API` + 3 módulos extraídos (`drawer-listas.js`, `form-builder.js`, `ui-components.js`); `app.js` sigue siendo un orquestador monolítico (~2200 líneas) |
 | **Fase 4** | Tests Backend | ⏳ Pendiente | pytest coverage (bonus) |
 
-**Overall Progress**: 87% - Proyecto 87% optimizado, 3/4 fases completadas
+Ver detalle de por qué la Fase 3 está marcada como parcial en la sección "Fase 3: Frontend OOP" más arriba.
 
 ---
 
@@ -182,25 +183,6 @@ MIT - Libre para uso personal y comercial
 **¿Primer viaje?** → Lee [`docs/00-INICIO.md`](docs/00-INICIO.md)  
 **¿Vas a desarrollar?** → Lee [`docs/DESARROLLO.md`](docs/DESARROLLO.md)  
 **¿Quieres entender la arquitectura?** → Lee [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
-
-## Varios stocks (casa, oficina, segunda vivienda...)
-
-Justo debajo de la cabecera hay una pastilla (p. ej. "🏠 Mi casa") que muestra
-el **stock activo**. Tócala para abrir el gestor de stocks:
-
-- Cada stock tiene su **propio inventario y su propia lista de la compra**,
-  completamente independientes entre sí (si consumes algo en "Oficina" no
-  afecta a "Mi casa", y viceversa).
-- Las **categorías** y el **catálogo/historial de artículos e iconos** sí son
-  compartidos entre todos los stocks, para no tener que redefinirlos en cada
-  uno.
-- Tocar un stock de la lista cambia a él al momento. El cambio se recuerda
-  por sesión (dispositivo), así que cada persona/dispositivo puede quedarse
-  viendo un stock distinto sin pisarse.
-- El botón **✕** borra un stock **junto con todo su contenido** (inventario y
-  lista de la compra); no se puede borrar si es el único que queda.
-- Instalaciones ya existentes migran solo: todo lo que ya tenías queda dentro
-  de un primer stock llamado "Mi casa".
 
 ## Uso
 

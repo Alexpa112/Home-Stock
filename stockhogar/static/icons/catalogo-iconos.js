@@ -151,4 +151,127 @@ const CATALOGO_ICONOS = [
   { icono: "h-heart", palabras: ["favorito", "salud", "querer"] },
   { icono: "h-star", palabras: ["favorito", "destacado"] },
   { icono: "h-calendar", palabras: ["calendario", "fecha", "agenda"] },
+
+  // --- Ampliación: descanso y salón ---
+  { icono: "bed", palabras: ["cama", "dormitorio"] },
+  { icono: "sofa", palabras: ["sofa", "salon"] },
+  { icono: "lamp", palabras: ["lampara", "luz"] },
+  { icono: "door-open", palabras: ["puerta", "cerradura"] },
+  { icono: "sticky-note", palabras: ["nota", "recordatorio"] },
+
+  // --- Ampliación: salud y cuidado personal ---
+  { icono: "glasses", palabras: ["gafas"] },
+  { icono: "syringe", palabras: ["jeringa", "vacuna"] },
+
+  // --- Ampliación: tecnología y seguridad ---
+  { icono: "lock", palabras: ["candado", "cerrojo"] },
+  { icono: "shield", palabras: ["alarma", "seguridad"] },
+  { icono: "wifi", palabras: ["wifi", "router"] },
+  { icono: "network", palabras: ["red", "cableado"] },
+  { icono: "speaker", palabras: ["altavoz", "sonido"] },
+  { icono: "mouse-pointer-2", palabras: ["raton pc"] },
+  { icono: "keyboard", palabras: ["teclado"] },
+  { icono: "monitor", palabras: ["monitor", "pantalla"] },
+  { icono: "webcam", palabras: ["webcam"] },
+  { icono: "alarm-clock", palabras: ["despertador"] },
+
+  // --- Ampliación: clima y confort ---
+  { icono: "snowflake", palabras: ["congelador", "frio"] },
+  { icono: "sun", palabras: ["sol", "verano", "protector solar"] },
+  { icono: "fan", palabras: ["ventilador"] },
+  { icono: "air-vent", palabras: ["aire acondicionado"] },
+
+  // --- Ampliación: compra, dinero y organización ---
+  { icono: "shopping-bag", palabras: ["bolsa de compra"] },
+  { icono: "store", palabras: ["tienda", "comercio"] },
+  { icono: "tag", palabras: ["etiqueta", "precio"] },
+  { icono: "barcode", palabras: ["codigo de barras"] },
+  { icono: "receipt", palabras: ["ticket", "recibo"] },
+  { icono: "piggy-bank", palabras: ["hucha", "ahorro"] },
+
+  // --- Ampliación: cocina ---
+  { icono: "pizza", palabras: ["pizza"] },
+  { icono: "blender", palabras: ["batidora"] },
+  { icono: "cooking-pot", palabras: ["olla", "cazuela"] },
+  { icono: "hand-platter", palabras: ["bandeja", "servir"] },
+  { icono: "brush", palabras: ["cepillo", "fregar"] },
+
+  // --- Ampliación: exterior, jardín y viajes ---
+  { icono: "shrub", palabras: ["arbusto", "seto"] },
+  { icono: "tent", palabras: ["tienda de campaña", "camping"] },
+  { icono: "compass", palabras: ["brujula", "senderismo"] },
+  { icono: "anchor", palabras: ["ancla", "nautica"] },
+  { icono: "ship", palabras: ["barco"] },
+  { icono: "plane", palabras: ["avion"] },
+  { icono: "train-front", palabras: ["tren"] },
+  { icono: "bus", palabras: ["autobus"] },
+
+  // --- Ampliación: papelería y manualidades ---
+  { icono: "ruler", palabras: ["regla"] },
+  { icono: "paintbrush", palabras: ["pincel", "manualidades"] },
+  { icono: "palette", palabras: ["pintura", "colores"] },
+  { icono: "sticker", palabras: ["pegatina"] },
+  { icono: "stamp", palabras: ["sello"] },
+  { icono: "mailbox", palabras: ["buzon", "correo"] },
+  { icono: "highlighter", palabras: ["subrayador", "fluorescente"] },
+  { icono: "eraser", palabras: ["goma de borrar"] },
+
+  // --- Ampliación: bricolaje pesado y construcción ---
+  { icono: "toolbox", palabras: ["caja de herramientas"] },
+  { icono: "paint-roller", palabras: ["rodillo", "pintar pared"] },
+  { icono: "paint-bucket", palabras: ["bote de pintura"] },
+  { icono: "shovel", palabras: ["pala", "jardin"] },
+  { icono: "pickaxe", palabras: ["pico"] },
+  { icono: "axe", palabras: ["hacha", "leñador"] },
+  { icono: "hard-hat", palabras: ["casco de obra"] },
+  { icono: "construction", palabras: ["obras", "reforma"] },
+  { icono: "brick-wall", palabras: ["ladrillo", "pared"] },
+
+  // --- Ampliación: ciencia y salud ---
+  { icono: "flask-conical", palabras: ["matraz", "quimico"] },
+  { icono: "test-tube-2", palabras: ["tubo de ensayo"] },
+  { icono: "microscope", palabras: ["microscopio"] },
+  { icono: "magnet", palabras: ["iman"] },
+  { icono: "gauge", palabras: ["medidor", "presion"] },
+  { icono: "heart-pulse", palabras: ["tension", "pulso"] },
+  { icono: "activity", palabras: ["electrocardiograma", "salud"] },
+
+  // --- Ampliación: redes y conectividad ---
+  { icono: "cable", palabras: ["cable"] },
+  { icono: "router", palabras: ["router"] },
+  { icono: "antenna", palabras: ["antena"] },
+  { icono: "satellite-dish", palabras: ["parabolica"] },
+  { icono: "usb", palabras: ["usb", "pendrive"] },
+  { icono: "hard-drive", palabras: ["disco duro"] },
+
+  // --- Ampliación: música y ocio ---
+  { icono: "music", palabras: ["musica", "cancion"] },
+  { icono: "guitar", palabras: ["guitarra"] },
+  { icono: "piano", palabras: ["piano", "teclado musical"] },
+  { icono: "drum", palabras: ["tambor", "bateria"] },
+  { icono: "disc-3", palabras: ["vinilo", "cd"] },
+  { icono: "radio", palabras: ["radio"] },
+  { icono: "dumbbell", palabras: ["mancuerna", "pesas"] },
+  { icono: "weight", palabras: ["peso", "kettlebell"] },
+
+  // --- Ampliación: cielo, clima nocturno y playa ---
+  { icono: "cloud", palabras: ["nube", "nublado"] },
+  { icono: "cloud-rain", palabras: ["lluvia"] },
+  { icono: "cloud-snow", palabras: ["nieve"] },
+  { icono: "moon", palabras: ["luna", "noche"] },
+  { icono: "palmtree", palabras: ["palmera", "playa"] },
+  { icono: "sailboat", palabras: ["velero"] },
+  { icono: "mountain", palabras: ["montaña", "senderismo"] },
+
+  // --- Ampliación: detalles y regalo ---
+  { icono: "crown", palabras: ["corona", "disfraz"] },
+  { icono: "gem", palabras: ["joya"] },
+  { icono: "diamond", palabras: ["diamante"] },
+  { icono: "sparkles", palabras: ["brillos", "fiesta"] },
+
+  // --- Ampliación: iconos propios (no existen en lucide-static ni heroicons) ---
+  { icono: "c-toilet-paper", palabras: ["papel higienico"] },
+  { icono: "c-iron", palabras: ["plancha", "planchar"] },
+  { icono: "c-toothbrush", palabras: ["cepillo de dientes"] },
+  { icono: "c-broom", palabras: ["escoba", "barrer"] },
 ];

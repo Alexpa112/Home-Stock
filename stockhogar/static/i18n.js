@@ -14,7 +14,7 @@ class TranslationManager {
    * Obtiene idioma guardado o el actual de la sesión
    */
   obtenerIdiomaGuardado() {
-    return localStorage.getItem('idioma') || 'es';
+    return window.__IDIOMA_INICIAL__ || localStorage.getItem('idioma') || 'es';
   }
 
   /**
@@ -263,7 +263,7 @@ class TranslationManager {
         if (!articuloId) continue;
 
         try {
-          const response = await fetch(`/api/articulos-personalizados/${articuloId}/traducciones/${idioma}`);
+          const response = await fetch(`/api/articulos/personalizados/${articuloId}/traducciones/${idioma}`);
           const traducciones = await response.json();
 
           if (traducciones && traducciones.data) {

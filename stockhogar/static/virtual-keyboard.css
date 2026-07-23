@@ -1,0 +1,147 @@
+/* Teclado virtual propio (fase 1: numérico; fase 2: alfanumérico QWERTY).
+   Diseño plano y minimal, integrado con la paleta de la propia app
+   (--surface/--bg/--border/--accent de style.css:1-76) en vez de imitar el
+   "keycap" 3D de iOS: teclas planas con borde sutil y esquinas redondeadas
+   grandes, una sola tecla de acento (Intro) y feedback por escala+color al
+   pulsar. Claro/oscuro llega gratis al reutilizar las variables de la app;
+   no se declara paleta propia. */
+
+.teclado-virtual {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10050;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  padding: 8px calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  touch-action: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.teclado-virtual[hidden] {
+  display: none;
+}
+
+/* Cada sub-panel (numérico / alfanumérico) y cada grupo de filas
+   intercambiable (letras / símbolos) es un simple contenedor de filas; se
+   declara [hidden] explícitamente para no depender de que ninguna regla
+   posterior con la misma especificidad que el estilo [hidden] del user
+   agent lo pise. */
+.teclado-virtual-panel,
+.teclado-virtual-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.teclado-virtual-panel[hidden],
+.teclado-virtual-grupo[hidden] {
+  display: none;
+}
+
+/* Cada fila reparte SU PROPIO ancho con flex (ver .teclado-virtual-tecla),
+   lo que hace que el ancho de una tecla dependa de cuántas teclas tenga su
+   fila: en el panel alfanumérico las filas van de 7 a 10 teclas, así que sin
+   límite las teclas de una fila corta (p.ej. zxcvbnm, 7) saldrían mucho más
+   anchas que las de una fila larga (qwertyuiop, 10) y las columnas no
+   alinearían entre filas. Fijar un ancho máximo (calculado sobre la fila más
+   larga, 10 teclas + gaps) hace que todas las filas usen el mismo ancho de
+   tecla; el hueco restante de las filas cortas se reparte como sangría a los
+   lados (justify-content: center), igual que en un QWERTY real. */
+.teclado-virtual-fila {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+/* Keycaps estilo iOS: tecla "flotando" con un borde inferior más marcado que
+   el resto (simula el bisel/relieve del keycap real) en vez del plano puro
+   de antes. Radio de esquina más cerrado que --radius-md, como en iOS. */
+.teclado-virtual-tecla {
+  flex: 1 1 0;
+  max-width: calc((100% - 9 * 5px) / 10);
+  min-height: 44px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 400;
+  -webkit-appearance: none;
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1.5px 0 1px rgba(0, 0, 0, .18);
+  transition: transform .06s ease, background-color .06s ease, box-shadow .06s ease;
+}
+
+.teclado-virtual-tecla:active {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  transform: translateY(1px) scale(.97);
+}
+
+/* Teclas "especiales" (mayúsculas, borrar, 123/ABC): tono de fondo de la app
+   (--bg) para diferenciarlas del resto de keycaps, como en iOS (teclas
+   grises más oscuras frente a las teclas de letra). */
+.teclado-virtual-tecla--borrar,
+.teclado-virtual-tecla--mayus,
+.teclado-virtual-tecla--alterna {
+  background: var(--bg);
+  color: var(--text-soft);
+  font-size: .95rem;
+}
+
+.teclado-virtual-tecla--borrar:active,
+.teclado-virtual-tecla--mayus:active,
+.teclado-virtual-tecla--alterna:active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+/* Mayúsculas y borrar flanqueando la fila zxcvbnm, igual que en iOS: más
+   anchas que una tecla de letra normal (~1.5x) para que la fila 3 mida lo
+   mismo que las filas de 10 teclas de arriba (1.5 + 7 + 1.5 = 10). */
+.teclado-virtual-tecla--flanco {
+  flex: 1.5 1 0;
+  max-width: none;
+}
+
+.teclado-virtual-tecla--intro {
+  flex: 1.4;
+  max-width: none;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-size: .95rem;
+  font-weight: 600;
+}
+
+.teclado-virtual-tecla--intro:active {
+  transform: scale(.96);
+  opacity: .85;
+}
+
+/* Mayúsculas (⇧): resaltada mientras está activa, como feedback de que la
+   siguiente letra saldrá en mayúscula. */
+.teclado-virtual-tecla--mayus.teclado-virtual-tecla--activa {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--accent-soft);
+}
+
+/* Barra espaciadora: mucho más ancha que una tecla normal, con el texto
+   "espacio" en minúscula y tamaño reducido, como en iOS. */
+.teclado-virtual-tecla--espacio {
+  flex: 5;
+  max-width: none;
+  font-size: .8rem;
+  color: var(--text-soft);
+}

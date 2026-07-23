@@ -56,7 +56,7 @@ class ProcesadorTicketsV2:
         categoria = match["categoria"] if match else self.matcher.deducir_categoria(linea.nombre)
 
         # 3. Sugerir cantidad estándar
-        cantidad_sugerida = self.matcher.sugerir_cantidad_estandar(linea.nombre)
+        cantidad_sugerida = self.matcher.sugerir_cantidad_estandar(linea.nombre, db)
 
         # 4. Estimar precio unitario
         precio_unitario = linea.precio_unitario
