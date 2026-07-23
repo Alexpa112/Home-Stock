@@ -58,29 +58,44 @@ describe('VirtualKeyboardDetector.isTouchOnly()', () => {
 });
 
 describe('VirtualKeyboardDetector.shouldUseCustomKeyboard()', () => {
-  beforeEach(() => {
+  // El toggle manual de Ajustes manda sobre cualquier heurística automática:
+  // ni el tipo de puntero, ni la detección de lector de pantalla, ni la de
+  // teclado físico deben poder anular la preferencia explícita del usuario.
+  test('false si la preferencia de usuario está desactivada', () => {
     mockMatchMedia({
       '(pointer: coarse)': true,
       '(hover: none)': true,
       '(any-pointer: fine)': false,
     });
-  });
-
-  test('false si la preferencia de usuario está desactivada', () => {
     expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(false)).toBe(false);
   });
 
-  test('false si se detectó navegación por Tab (heurística de lector de pantalla)', () => {
+  test('true si la preferencia está activada aunque se detectó navegación por Tab', () => {
+    mockMatchMedia({
+      '(pointer: coarse)': true,
+      '(hover: none)': true,
+      '(any-pointer: fine)': false,
+    });
     window.__a11y_tabDetectado = true;
-    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(false);
+    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(true);
   });
 
-  test('false si se detectó teclado físico real', () => {
+  test('true si la preferencia está activada aunque se detectó teclado físico', () => {
+    mockMatchMedia({
+      '(pointer: coarse)': true,
+      '(hover: none)': true,
+      '(any-pointer: fine)': false,
+    });
     window.__teclado_fisico_detectado = true;
-    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(false);
+    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(true);
   });
 
-  test('true cuando todo lo demás es favorable', () => {
+  test('true si la preferencia está activada aunque el dispositivo reporte puntero fino (no touch-only)', () => {
+    mockMatchMedia({
+      '(pointer: coarse)': false,
+      '(hover: none)': false,
+      '(any-pointer: fine)': true,
+    });
     expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(true);
   });
 });

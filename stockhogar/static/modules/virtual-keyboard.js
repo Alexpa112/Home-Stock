@@ -24,15 +24,17 @@ class VirtualKeyboardDetector {
      cualquier toque, asumimos navegación asistida por teclado físico.
      LIMITACIÓN CONOCIDA: VoiceOver/TalkBack activados por gestos táctiles
      (el caso más común en móvil) NO se detectan con esta señal, ya que
-     esos lectores no usan Tab en touch. La mitigación real para ese caso
-     es el toggle manual de Ajustes, no esta heurística. */
+     esos lectores no usan Tab en touch. Ya no se usa para desactivar el
+     teclado propio (ver shouldUseCustomKeyboard): el toggle manual de
+     Ajustes es la única mitigación real para ese caso. */
   static hasScreenReader() {
     return window.__a11y_tabDetectado === true;
   }
 
   /* Heurística: un keydown real (no generado por el teclado custom) indica
      que hay un teclado físico (USB/Bluetooth) conectado. Se persiste en
-     sessionStorage para no reaparecer en el resto de la sesión. */
+     sessionStorage para no reaparecer en el resto de la sesión. Ya no se usa
+     para desactivar el teclado propio (ver shouldUseCustomKeyboard). */
   static hasPhysicalKeyboard() {
     if (window.__teclado_fisico_detectado === true) return true;
     try {
@@ -42,12 +44,13 @@ class VirtualKeyboardDetector {
     }
   }
 
+  /* El toggle manual de Ajustes manda sobre cualquier heurística automática
+     (isTouchOnly/hasScreenReader/hasPhysicalKeyboard): si el dispositivo
+     reporta un puntero fino falso (p.ej. soporte de lápiz) o una detección
+     de teclado físico incorrecta, el usuario debe poder forzar el
+     comportamiento eligiéndolo explícitamente en Ajustes. */
   static shouldUseCustomKeyboard(preferenciaUsuario) {
-    if (!preferenciaUsuario) return false;
-    if (!VirtualKeyboardDetector.isTouchOnly()) return false;
-    if (VirtualKeyboardDetector.hasScreenReader()) return false;
-    if (VirtualKeyboardDetector.hasPhysicalKeyboard()) return false;
-    return true;
+    return !!preferenciaUsuario;
   }
 }
 
