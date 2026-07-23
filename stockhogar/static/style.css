@@ -109,6 +109,7 @@ input, select, textarea {
 html, body {
   height: 100%;
   width: 100%;
+  overflow: hidden;
 }
 
 html {
@@ -120,34 +121,40 @@ body {
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
-  min-height: 100svh;
-  min-height: 100dvh;
-  overflow-x: hidden;
-  overscroll-behavior-x: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-body.is-keyboard-open {
-  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body.modal-open {
-  overflow: hidden;
   height: 100dvh;
 }
 
 #appShell {
-  min-height: 100svh;
-  min-height: 100dvh;
+  height: 100svh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   transition: transform .2s ease;
   will-change: transform;
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 body.keyboard-open:not(.modal-open) #appShell {
   transform: translateY(calc(-1 * min(var(--keyboard-offset, 0px), 20vh)));
+}
+
+/* Con una modal abierta, #appShell queda detrás del overlay (.modal-fondo,
+   position:fixed, inset:0) pero SIGUE siendo el ancestro con scroll propio
+   (overflow-y:auto de arriba). Un touchmove que empiece sobre una zona sin
+   scroll propio dentro de la modal puede "encadenar" el scroll hacia arriba
+   en el DOM y mover #appShell por debajo del overlay semitransparente,
+   dando la sensación de que "se puede hacer scroll a toda la página" con
+   la modal abierta. Bloquearlo aquí, no solo confiar en overscroll-behavior
+   dentro de la modal. */
+body.modal-open #appShell {
+  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {

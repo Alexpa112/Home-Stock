@@ -107,10 +107,15 @@ body.is-keyboard-open .modal-fondo {
   flex: 1;
 }
 
-/* Asegurar que el modal se adapte al teclado */
+/* Asegurar que el modal se adapte al teclado.
+   IMPORTANTE: svh (estatica), NUNCA dvh aqui. dvh ya se encoge sola cuando
+   aparece el teclado nativo en iOS/Android modernos; si a eso le restamos
+   ademas --keyboard-offset (calculado a mano via visualViewport en app.js),
+   el hueco del teclado se descuenta DOS veces y el modal queda diminuto
+   (bug real reportado: "la modal se la come el teclado"). */
 body.is-keyboard-open .modal,
 body.keyboard-open .modal {
-  max-height: calc(100dvh - var(--keyboard-offset, 0px));
+  max-height: calc(100svh - var(--keyboard-offset, 0px));
   margin-bottom: 0;
 }
 
@@ -301,7 +306,7 @@ body.keyboard-open .modal {
   }
 
   body.is-keyboard-open .modal {
-    max-height: calc(100dvh - var(--keyboard-offset, 0px) - var(--spacing-md));
+    max-height: calc(100svh - var(--keyboard-offset, 0px) - var(--spacing-md));
   }
 }
 

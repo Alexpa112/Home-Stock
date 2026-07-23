@@ -12,11 +12,12 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 
 from . import db, seguridad
 from .config import DIAS_SESION, USAR_COOKIE_SEGURA, LOG_FILE_PATH
-from .rutas import auth, articulos_lista, categorias, consumo, historial, listas, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios
-from .rutas.auth import RUTAS_PUBLICAS
 from .servicios import mantenimiento
 
 csrf = CSRFProtect()
+
+from .rutas import auth, articulos_lista, categorias, consumo, historial, listas, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios
+from .rutas.auth import RUTAS_PUBLICAS
 
 
 def _configurar_logging_a_fichero():
