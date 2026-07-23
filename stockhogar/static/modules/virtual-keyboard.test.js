@@ -255,6 +255,24 @@ describe('VirtualKeyboardController: marcado proactivo (_sincronizarMarcado)', (
     expect(nuevo.getAttribute('inputmode')).toBe('none');
     expect(nuevo.hasAttribute('readonly')).toBe(true);
   });
+
+  test('una mutación del DOM sin ningún <input> nuevo no dispara un re-escaneo del documento', async () => {
+    document.body.innerHTML = '';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+
+    const spyQuerySelectorAll = jest.spyOn(document, 'querySelectorAll');
+    spyQuerySelectorAll.mockClear();
+
+    const divSinInputs = document.createElement('div');
+    divSinInputs.innerHTML = '<span>tile de la lista de la compra</span>';
+    document.body.appendChild(divSinInputs);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(spyQuerySelectorAll).not.toHaveBeenCalledWith('input');
+  });
 });
 
 describe('VirtualKeyboardController.insertChar()/backspace()', () => {

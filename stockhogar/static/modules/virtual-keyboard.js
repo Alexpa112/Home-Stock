@@ -138,8 +138,21 @@ class VirtualKeyboardController {
 
     // Los formularios de ticket/lista generan filas de <input> nuevas en
     // caliente (app.js, form-builder.js); hay que marcarlas también en
-    // cuanto aparecen, antes de que el usuario pueda tocarlas.
-    this._observer = new MutationObserver(this._sincronizarMarcadoDiferido);
+    // cuanto aparecen, antes de que el usuario pueda tocarlas. La mayoría de
+    // mutaciones del documento (re-render de la lista de la compra, tiles de
+    // catálogo, etc.) no añaden ningún <input>, así que se filtran aquí para
+    // no lanzar un querySelectorAll('input') sobre todo el documento en cada
+    // mutación irrelevante.
+    this._observer = new MutationObserver((mutaciones) => {
+      const hayInputNuevo = mutaciones.some((m) =>
+        Array.from(m.addedNodes).some(
+          (nodo) =>
+            nodo.nodeType === Node.ELEMENT_NODE &&
+            (nodo.matches?.('input') || nodo.querySelector?.('input'))
+        )
+      );
+      if (hayInputNuevo) this._sincronizarMarcadoDiferido();
+    });
     this._observer.observe(document.body, { childList: true, subtree: true });
   }
 
