@@ -437,6 +437,18 @@ async function cargarHistorial() {
   }
 }
 
+// Retrasa la ejecución hasta que paren de llegar llamadas: evita reconstruir
+// listas/grids completos en cada pulsación mientras se escribe (con el
+// teclado virtual propio esto se notaba como escritura lenta/no fluida, al
+// bloquear el hilo principal entre tecla y tecla).
+function debounce(fn, esperaMs) {
+  let temporizador;
+  return (...args) => {
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => fn(...args), esperaMs);
+  };
+}
+
 // Quita acentos para que buscar "platano" encuentre "Plátanos".
 function normalizarTexto(texto) {
   const SIN_ACENTOS = new RegExp("[̀-ͯ]", "g");
@@ -613,9 +625,12 @@ function cerrarModalSelectorIconos() {
 }
 
 // Event listener para el buscador
-buscadorIconos.addEventListener("input", () => {
-  renderizarIconosGrid(buscadorIconos.value);
-});
+buscadorIconos.addEventListener(
+  "input",
+  debounce(() => {
+    renderizarIconosGrid(buscadorIconos.value);
+  }, 150)
+);
 
 btnCerrarSelectorIconos.addEventListener("click", cerrarModalSelectorIconos);
 
@@ -977,10 +992,13 @@ form.addEventListener("submit", async (e) => {
 btnCancelar.addEventListener("click", cerrarModal);
 habilitarBottomSheet(modalFondo, modalFondo.querySelector(".modal"), cerrarModal);
 
-buscador.addEventListener("input", (e) => {
-  textoBusqueda = e.target.value;
-  render();
-});
+buscador.addEventListener(
+  "input",
+  debounce((e) => {
+    textoBusqueda = e.target.value;
+    render();
+  }, 150)
+);
 
 filtros.addEventListener("click", (e) => {
   const btn = e.target.closest(".chip");
@@ -1565,7 +1583,10 @@ async function toggleArticuloEnLista(entry, btn) {
   }
 }
 
-catalogoBuscadorEl.addEventListener("input", (e) => renderCatalogo(e.target.value));
+catalogoBuscadorEl.addEventListener(
+  "input",
+  debounce((e) => renderCatalogo(e.target.value), 150)
+);
 
 if (btnCrearDesdeCatalogo) {
   btnCrearDesdeCatalogo.addEventListener("click", () => {
