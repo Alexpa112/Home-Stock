@@ -307,16 +307,25 @@ function habilitarDragDown(modal, alCerrar) {
     startY = toqueY;
     currentY = startY;
     isDragging = true;
-  });
+  }, { passive: true });
 
+  // { passive: false } + preventDefault(): sin esto, en un dispositivo real
+  // el navegador interpreta el mismo touchmove como un intento de scroll
+  // nativo/rebote de .modal-content (que tiene overflow-y:auto) y se lo
+  // queda para sí, compitiendo con el transform que aplicamos aquí; el
+  // resultado es que el arrastre nunca "se siente" como un cierre y solo
+  // queda la X como forma de cerrar (bug real reportado, invisible al
+  // simular el toque por JS porque dispatchEvent no reproduce el
+  // reconocimiento de gestos nativo del navegador).
   modal.addEventListener("touchmove", (e) => {
     if (!isDragging) return;
     currentY = e.touches[0].clientY;
     const diff = currentY - startY;
     if (diff > 0) {
+      e.preventDefault();
       modal.style.transform = `translateY(${diff}px)`;
     }
-  });
+  }, { passive: false });
 
   modal.addEventListener("touchend", () => {
     if (!isDragging) return;
