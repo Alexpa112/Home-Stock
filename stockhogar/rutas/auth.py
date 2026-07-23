@@ -159,6 +159,12 @@ def actualizar_perfil():
     if nombre:
         if len(nombre) > 80:
             return APIResponse.validacion("err_nombre_max_80")
+        duplicado = db.execute(
+            "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE AND id != ?",
+            (nombre, usuario_id)
+        ).fetchone()
+        if duplicado:
+            return APIResponse.error("err_usuario_duplicado", 400)
         db.execute(
             "UPDATE usuarios SET nombre_usuario = ? WHERE id = ?",
             (nombre, usuario_id)
@@ -167,8 +173,8 @@ def actualizar_perfil():
 
     # Actualizar contraseña si se proporciona
     if password:
-        if len(password) < 4:
-            return APIResponse.validacion("err_password_min_4")
+        if len(password) < 8:
+            return APIResponse.validacion("err_password_min_8")
         nuevo_hash = generate_password_hash(password)
         db.execute(
             "UPDATE usuarios SET password_hash = ? WHERE id = ?",
@@ -229,8 +235,8 @@ def cambiar_password():
     password_confirmacion = datos.get("password_confirmacion") or ""
 
     # Validar contraseña nueva
-    if len(password_nueva) < 4:
-        return APIResponse.validacion("err_nueva_password_min_4")
+    if len(password_nueva) < 8:
+        return APIResponse.validacion("err_nueva_password_min_8")
 
     if password_nueva != password_confirmacion:
         return APIResponse.validacion("error_contrasenas_no_coinciden")

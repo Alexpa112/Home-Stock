@@ -160,19 +160,27 @@ def test_crear_lista_nueva():
 
             # Intentar insertar duplicate
             conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
+            try:
+                cur = conn.cursor()
 
-            def ahora():
-                return datetime.now().isoformat(timespec="seconds")
+                def ahora():
+                    return datetime.now().isoformat(timespec="seconds")
 
-            cur.execute(
-                """INSERT INTO stock_lista
-                   (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (nueva_lista_id, prod_id, 999, 999, ahora(), ahora())
-            )
-            conn.commit()
-            conn.close()
+                cur.execute(
+                    """INSERT INTO stock_lista
+                       (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (nueva_lista_id, prod_id, 999, 999, ahora(), ahora())
+                )
+                conn.commit()
+            finally:
+                # Si el INSERT de arriba lanza sqlite3.IntegrityError (el caso
+                # esperado, comprobado mas abajo), la conexion quedaba
+                # abierta con una transaccion sin confirmar hasta que el GC
+                # la recogiera, bloqueando con "database is locked" cualquier
+                # otra escritura mientras tanto (incluidas las de otros
+                # tests). Cerrarla siempre, se lance o no la excepcion.
+                conn.close()
             assert False, "UNIQUE constraint NO esta funcionando"
     except sqlite3.IntegrityError as e:
         assert "UNIQUE constraint failed" in str(e), f"Unexpected error: {e}"

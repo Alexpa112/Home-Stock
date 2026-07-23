@@ -5,7 +5,21 @@
  * - Fase 2: inputs de texto libre (text/email/password/tel/search), con
  *   layout QWERTY español, mayúsculas, capa de símbolos/acentos y mostrar/
  *   ocultar contraseña.
+ *
+ * El renderizado de las teclas usa la librería simple-keyboard (vendorizada
+ * en static/vendor/simple-keyboard, sin CDN, para mantener la app offline):
+ * es robusta, gestiona el toque de forma nativa (pointerdown/pointerup) sin
+ * el retraso de "click" y no requiere reinventar la geometría de un teclado.
+ * Toda la lógica de CUÁNDO/DÓNDE mostrarlo, qué input está activo, el marcado
+ * proactivo de inputmode/readonly y la inserción de caracteres en el input
+ * real sigue siendo propia (ver comentarios en cada método): esa es la parte
+ * con quirks reales de iOS ya cazados uno a uno, y no depende del motor de
+ * renderizado de las teclas.
  */
+
+const SimpleKeyboardCtor = (typeof require === 'function')
+  ? require('simple-keyboard').default
+  : window.SimpleKeyboard && window.SimpleKeyboard.default;
 
 /** Detección de cuándo debe activarse el teclado custom. */
 class VirtualKeyboardDetector {
@@ -82,6 +96,56 @@ class VirtualKeyboardLayout {
   }
 }
 
+// Layout numérico (simple-keyboard). Una sola capa.
+const LAYOUT_NUMERICO = {
+  default: [
+    '1 2 3',
+    '4 5 6',
+    '7 8 9',
+    ', 0 {bksp}',
+    '{enter}',
+  ],
+};
+
+// Layouts del panel alfanumérico: QWERTY español (con ñ), mayúsculas y una
+// capa de símbolos/acentos. {numbers}/{abc} alternan default<->symbols;
+// {shift} alterna default<->shift (un solo toque, no caps-lock).
+const LAYOUT_ALFA = {
+  default: [
+    'q w e r t y u i o p',
+    'a s d f g h j k l ñ',
+    '{shift} z x c v b n m {bksp}',
+    '{numbers} {eye} {space} {enter}',
+  ],
+  shift: [
+    'Q W E R T Y U I O P',
+    'A S D F G H J K L Ñ',
+    '{shift} Z X C V B N M {bksp}',
+    '{numbers} {eye} {space} {enter}',
+  ],
+  symbols: [
+    '1 2 3 4 5 6 7 8 9 0',
+    '¿ ¡ / : ; ( )',
+    'á é í ó ú {bksp}',
+    '{abc} {eye} {space} {enter}',
+  ],
+};
+
+const DISPLAY_ALFA = {
+  '{bksp}': '⌫',
+  '{enter}': 'Intro',
+  '{shift}': '⇧',
+  '{numbers}': '123',
+  '{abc}': 'ABC',
+  '{space}': 'espacio',
+  '{eye}': '👁',
+};
+
+const DISPLAY_NUMERICO = {
+  '{bksp}': '⌫',
+  '{enter}': 'Intro',
+};
+
 /** Controlador del teclado virtual: DOM, foco, inserción de caracteres. */
 class VirtualKeyboardController {
   constructor() {
@@ -104,15 +168,20 @@ class VirtualKeyboardController {
     this._tipoPorInput = new WeakMap();
     this._esPasswordPorInput = new WeakMap();
     this._tipoActivo = null; // 'numerico' | 'texto', del input actualmente enfocado
-    this._modo = 'letras'; // 'letras' | 'simbolos' (capa del panel alfanumérico)
+    this._layoutNameAlfa = 'default'; // 'default' | 'shift' | 'symbols'
     this._shiftActivo = false;
     this._observer = null;
+    this._caretEl = null;
+    this._canvasMedida = null;
     this._sincronizarMarcadoDiferido = this._sincronizarMarcadoDiferido.bind(this);
     this._onDocFocusIn = this._onDocFocusIn.bind(this);
     this._onDocKeyDown = this._onDocKeyDown.bind(this);
     this._onVentanaPierdeFoco = this._onVentanaPierdeFoco.bind(this);
     this._onCambioVisibilidad = this._onCambioVisibilidad.bind(this);
     this._onDocPointerDownFuera = this._onDocPointerDownFuera.bind(this);
+    this._onDocClickActivo = this._onDocClickActivo.bind(this);
+    this._onScrollOResize = this._onScrollOResize.bind(this);
+    this._reportarAltura = this._reportarAltura.bind(this);
   }
 
   init(preferenciaInicial) {
@@ -133,13 +202,32 @@ class VirtualKeyboardController {
     // porque no habrá ningún focusin posterior que lo haga por nosotros.
     window.addEventListener('blur', this._onVentanaPierdeFoco);
     document.addEventListener('visibilitychange', this._onCambioVisibilidad);
+    // El input activo es readonly (ver _marcar): no dibuja caret nativo, así
+    // que hay que reposicionar el caret falso cuando el usuario toca dentro
+    // del campo para mover el punto de inserción, o cuando el layout cambia.
+    document.addEventListener('click', this._onDocClickActivo, true);
+    window.addEventListener('resize', this._onScrollOResize);
+    document.addEventListener('scroll', this._onScrollOResize, true);
 
     this._sincronizarMarcado();
 
     // Los formularios de ticket/lista generan filas de <input> nuevas en
     // caliente (app.js, form-builder.js); hay que marcarlas también en
-    // cuanto aparecen, antes de que el usuario pueda tocarlas.
-    this._observer = new MutationObserver(this._sincronizarMarcadoDiferido);
+    // cuanto aparecen, antes de que el usuario pueda tocarlas. La mayoría de
+    // mutaciones del documento (re-render de la lista de la compra, tiles de
+    // catálogo, etc.) no añaden ningún <input>, así que se filtran aquí para
+    // no lanzar un querySelectorAll('input') sobre todo el documento en cada
+    // mutación irrelevante.
+    this._observer = new MutationObserver((mutaciones) => {
+      const hayInputNuevo = mutaciones.some((m) =>
+        Array.from(m.addedNodes).some(
+          (nodo) =>
+            nodo.nodeType === Node.ELEMENT_NODE &&
+            (nodo.matches?.('input') || nodo.querySelector?.('input'))
+        )
+      );
+      if (hayInputNuevo) this._sincronizarMarcadoDiferido();
+    });
     this._observer.observe(document.body, { childList: true, subtree: true });
   }
 
@@ -203,177 +291,39 @@ class VirtualKeyboardController {
     if (this.activeInput === el) this._ocultarPanel();
   }
 
-  _crearFila(contenedor, teclas, { crearBoton } = {}) {
-    const filaEl = document.createElement('div');
-    filaEl.className = 'teclado-virtual-fila';
-    teclas.forEach((tecla) => {
-      const btn = (crearBoton && crearBoton(tecla)) || this._crearBotonSimple(tecla);
-      filaEl.appendChild(btn);
-    });
-    contenedor.appendChild(filaEl);
-    return filaEl;
-  }
-
-  _crearBotonSimple(tecla) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.tabIndex = -1;
-    btn.className = 'teclado-virtual-tecla';
-    if (tecla === '⌫') btn.classList.add('teclado-virtual-tecla--borrar');
-    btn.textContent = tecla;
-    btn.dataset.tecla = tecla;
-    return btn;
-  }
-
-  _crearBotonLetra(min) {
-    const btn = this._crearBotonSimple(min);
-    btn.dataset.letraMin = min;
-    btn.dataset.letraMay = min.toUpperCase();
-    return btn;
-  }
-
-  /* Botón "especial" con icono en vez de texto (mayúsculas/borrar), estilo
-     glifo de iOS en lugar de los caracteres ⇧/⌫ crudos. dataset.tecla se
-     mantiene igual que antes (⇧/⌫) porque la lógica de _manejarTecla() sigue
-     dependiendo de ese valor; solo cambia lo que se ve. */
-  _crearBotonEspecial(tecla, iconoHtml, claseExtra) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.tabIndex = -1;
-    btn.className = `teclado-virtual-tecla ${claseExtra}`;
-    btn.innerHTML = iconoHtml;
-    btn.dataset.tecla = tecla;
-    return btn;
-  }
-
-  _iconoMayus() {
-    return '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 2 3 12h5v8h8v-8h5z"/></svg>';
-  }
-
-  _iconoBorrar() {
-    return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H8l-6-7z"/><path d="m11 10 4 4m0-4-4 4"/></svg>';
-  }
-
-  _crearPanelNumerico() {
-    const panel = document.createElement('div');
-    panel.className = 'teclado-virtual-panel';
-
-    const filas = [
-      ['1', '2', '3'],
-      ['4', '5', '6'],
-      ['7', '8', '9'],
-      [',', '0', '⌫'],
-    ];
-    filas.forEach((fila) => this._crearFila(panel, fila, {
-      crearBoton: (tecla) => (tecla === '⌫'
-        ? this._crearBotonEspecial(tecla, this._iconoBorrar(), 'teclado-virtual-tecla--borrar')
-        : this._crearBotonSimple(tecla)),
-    }));
-
-    const filaAcciones = document.createElement('div');
-    filaAcciones.className = 'teclado-virtual-fila';
-    const btnIntro = document.createElement('button');
-    btnIntro.type = 'button';
-    btnIntro.tabIndex = -1;
-    btnIntro.className = 'teclado-virtual-tecla teclado-virtual-tecla--intro';
-    btnIntro.textContent = 'Intro';
-    btnIntro.dataset.tecla = 'Intro';
-    filaAcciones.appendChild(btnIntro);
-    panel.appendChild(filaAcciones);
-
-    return panel;
-  }
-
-  _crearPanelAlfa() {
-    const panel = document.createElement('div');
-    panel.className = 'teclado-virtual-panel';
-
-    // Capa "letras": distribución QWERTY español de iOS — fila 1 y 2 con
-    // el mismo número de teclas (la ñ ocupa el hueco que en el layout
-    // inglés dejaría la fila de en medio más corta), y fila 3 con
-    // mayúsculas/borrar flanqueando zxcvbnm, igual que en iOS.
-    this._grupoLetras = document.createElement('div');
-    this._grupoLetras.className = 'teclado-virtual-grupo';
-    ['qwertyuiop', 'asdfghjklñ'].forEach((fila) => {
-      this._crearFila(this._grupoLetras, fila.split(''), {
-        crearBoton: (letra) => this._crearBotonLetra(letra),
-      });
-    });
-    this._crearFila(this._grupoLetras, ['⇧', ...'zxcvbnm'.split(''), '⌫'], {
-      crearBoton: (tecla) => {
-        if (tecla === '⇧') {
-          this._btnShift = this._crearBotonEspecial(
-            tecla, this._iconoMayus(), 'teclado-virtual-tecla--mayus teclado-virtual-tecla--flanco'
-          );
-          return this._btnShift;
-        }
-        if (tecla === '⌫') {
-          return this._crearBotonEspecial(
-            tecla, this._iconoBorrar(), 'teclado-virtual-tecla--borrar teclado-virtual-tecla--flanco'
-          );
-        }
-        return this._crearBotonLetra(tecla);
+  /* Construye una instancia de simple-keyboard sobre un contenedor propio.
+     onRender se dispara tras cada pulsación/cambio de layout: se aprovecha
+     para volver a medir la altura real del panel (ver _reportarAltura), en
+     vez de fiarnos de una única medición al abrir, que es lo que dejaba el
+     offset de las modales desincronizado cuando el panel cambiaba de capa
+     (p.ej. al pasar de letras a símbolos, con distinto número de filas). */
+  _crearTeclado(contenedorEl, { layout, display }) {
+    return new SimpleKeyboardCtor(contenedorEl, {
+      layout,
+      layoutName: 'default',
+      display,
+      mergeDisplay: true,
+      physicalKeyboardHighlight: false,
+      preventMouseDownDefault: true,
+      disableCaretPositioning: true,
+      // No se fuerza useTouchEvents/useMouseEvents: simple-keyboard usa
+      // Pointer Events por defecto cuando el navegador los soporta (todos los
+      // navegadores objetivo), que unifican ratón y táctil con la menor
+      // latencia posible (pointerdown/pointerup, sin el retraso de ~300ms de
+      // 'click' ni la duplicidad touch+mouse de forzar solo eventos táctiles).
+      buttonTheme: [
+        { class: 'teclado-virtual-tecla--borrar', buttons: '{bksp}' },
+        { class: 'teclado-virtual-tecla--mayus', buttons: '{shift}' },
+        { class: 'teclado-virtual-tecla--alterna', buttons: '{numbers} {abc}' },
+        { class: 'teclado-virtual-tecla--intro', buttons: '{enter}' },
+        { class: 'teclado-virtual-tecla--espacio', buttons: '{space}' },
+        { class: 'teclado-virtual-tecla--ojo', buttons: '{eye}' },
+      ],
+      onKeyPress: (boton) => this._manejarTecla(boton),
+      onRender: () => {
+        if (this.activeInput) this._reportarAltura();
       },
     });
-    panel.appendChild(this._grupoLetras);
-
-    // Capa "símbolos": dígitos + puntuación + acentos (con borrar al final
-    // de la última fila, para poder corregir sin volver a la capa de
-    // letras — en iOS ese hueco lo ocupa el toggle "#+="/más símbolos, que
-    // aquí no hace falta porque ya mostramos todo en una sola capa).
-    this._grupoSimbolos = document.createElement('div');
-    this._grupoSimbolos.className = 'teclado-virtual-grupo';
-    this._grupoSimbolos.hidden = true;
-    this._crearFila(this._grupoSimbolos, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
-    this._crearFila(this._grupoSimbolos, ['¿', '¡', '/', ':', ';', '(', ')']);
-    this._crearFila(this._grupoSimbolos, ['á', 'é', 'í', 'ó', 'ú', '⌫'], {
-      crearBoton: (tecla) => (tecla === '⌫'
-        ? this._crearBotonEspecial(tecla, this._iconoBorrar(), 'teclado-virtual-tecla--borrar teclado-virtual-tecla--flanco')
-        : this._crearBotonSimple(tecla)),
-    });
-    panel.appendChild(this._grupoSimbolos);
-
-    // Fila inferior: 123/ABC, mostrar/ocultar contraseña (oculto por
-    // defecto), espaciadora e Intro — igual que la fila inferior de iOS.
-    const filaInferior = document.createElement('div');
-    filaInferior.className = 'teclado-virtual-fila';
-
-    this._btnModo = document.createElement('button');
-    this._btnModo.type = 'button';
-    this._btnModo.tabIndex = -1;
-    this._btnModo.className = 'teclado-virtual-tecla teclado-virtual-tecla--alterna';
-    this._btnModo.textContent = '123';
-    this._btnModo.dataset.tecla = '123';
-    filaInferior.appendChild(this._btnModo);
-
-    this._btnPassword = document.createElement('button');
-    this._btnPassword.type = 'button';
-    this._btnPassword.tabIndex = -1;
-    this._btnPassword.className = 'teclado-virtual-tecla';
-    this._btnPassword.textContent = '👁';
-    this._btnPassword.dataset.tecla = '👁';
-    this._btnPassword.hidden = true;
-    filaInferior.appendChild(this._btnPassword);
-
-    const btnEspacio = document.createElement('button');
-    btnEspacio.type = 'button';
-    btnEspacio.tabIndex = -1;
-    btnEspacio.className = 'teclado-virtual-tecla teclado-virtual-tecla--espacio';
-    btnEspacio.textContent = 'espacio';
-    btnEspacio.dataset.tecla = ' ';
-    filaInferior.appendChild(btnEspacio);
-
-    const btnIntro = document.createElement('button');
-    btnIntro.type = 'button';
-    btnIntro.tabIndex = -1;
-    btnIntro.className = 'teclado-virtual-tecla teclado-virtual-tecla--intro';
-    btnIntro.textContent = 'Intro';
-    btnIntro.dataset.tecla = 'Intro';
-    filaInferior.appendChild(btnIntro);
-
-    panel.appendChild(filaInferior);
-
-    return panel;
   }
 
   _crearDom() {
@@ -385,31 +335,29 @@ class VirtualKeyboardController {
     el.setAttribute('role', 'group');
     el.setAttribute('aria-label', 'Teclado numérico');
 
-    this.panelNumerico = this._crearPanelNumerico();
-    this.panelAlfa = this._crearPanelAlfa();
-    this.panelAlfa.hidden = true;
-    el.appendChild(this.panelNumerico);
-    el.appendChild(this.panelAlfa);
-
-    // preventDefault() en 'touchstart'/'pointerdown' evita que tocar una
-    // tecla dispare el comportamiento por defecto del navegador sobre ella
-    // (incluido el intento de robar el foco a un <button>, aunque tenga
-    // tabIndex=-1). No es la defensa principal contra la pérdida de foco
-    // -esa vive ahora en _onDocFocusIn(), ver más abajo-, pero evita
-    // parpadeos visuales y el resaltado de "tap" nativo del navegador.
-    el.addEventListener('touchstart', (e) => {
-      if (e.target.closest('button[data-tecla]')) e.preventDefault();
-    }, { passive: false });
-
-    el.addEventListener('pointerdown', (e) => {
-      const btn = e.target.closest('button[data-tecla]');
-      if (!btn) return;
-      e.preventDefault();
-      this._manejarTecla(btn.dataset.tecla);
-    });
+    this.contNumerico = document.createElement('div');
+    this.contNumerico.className = 'teclado-virtual-panel';
+    this.contAlfa = document.createElement('div');
+    this.contAlfa.className = 'teclado-virtual-panel';
+    this.contAlfa.hidden = true;
+    el.appendChild(this.contNumerico);
+    el.appendChild(this.contAlfa);
 
     document.body.appendChild(el);
     this.element = el;
+
+    this.tecladoNumerico = this._crearTeclado(this.contNumerico, {
+      layout: LAYOUT_NUMERICO,
+      display: DISPLAY_NUMERICO,
+    });
+    this.tecladoAlfa = this._crearTeclado(this.contAlfa, {
+      layout: LAYOUT_ALFA,
+      display: DISPLAY_ALFA,
+    });
+
+    // Botón de mostrar/ocultar contraseña: oculto salvo que el input activo
+    // sea de tipo password (ver attach()).
+    this.contAlfa.classList.add('teclado-virtual--sin-password');
   }
 
   /* Única fuente de verdad de cuándo abrir/cerrar el panel: se basa solo en
@@ -426,8 +374,8 @@ class VirtualKeyboardController {
   _onDocFocusIn(event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    // Foco dentro del propio panel (no debería ocurrir con tabIndex=-1,
-    // pero por si acaso): no hacer nada.
+    // Foco dentro del propio panel (no debería ocurrir, pero por si acaso):
+    // no hacer nada.
     if (this.element && this.element.contains(target)) return;
     if (this.marcados.has(target) && !target.disabled) {
       this.attach(target);
@@ -475,6 +423,18 @@ class VirtualKeyboardController {
     this._sincronizarMarcado();
   }
 
+  /* Reposiciona el caret falso cuando el usuario toca dentro del campo
+     activo (el input es readonly y no dibuja caret nativo, ver _marcar). */
+  _onDocClickActivo(event) {
+    if (!this.activeInput) return;
+    if (event.target !== this.activeInput) return;
+    this._colocarCaretFalso();
+  }
+
+  _onScrollOResize() {
+    if (this.activeInput) this._reportarAltura();
+  }
+
   /* Muestra el panel del teclado para un input ya marcado (inputmode="none"
      + readonly ya aplicados de antemano por _sincronizarMarcado). */
   attach(inputEl) {
@@ -488,30 +448,27 @@ class VirtualKeyboardController {
 
     // Reset del estado del panel alfanumérico en cada apertura: siempre
     // empieza en minúsculas y en la capa de letras.
-    this._modo = 'letras';
+    this._layoutNameAlfa = 'default';
     this._shiftActivo = false;
-    this._actualizarMayusculas();
-    this._actualizarModo();
+    this.tecladoAlfa?.setOptions({ layoutName: 'default' });
 
     const esNumerico = this._tipoActivo === 'numerico';
-    this.panelNumerico.hidden = !esNumerico;
-    this.panelAlfa.hidden = esNumerico;
+    this.contNumerico.hidden = !esNumerico;
+    this.contAlfa.hidden = esNumerico;
     this.element.setAttribute('aria-label', esNumerico ? 'Teclado numérico' : 'Teclado alfanumérico');
 
     const esPassword = this._esPasswordPorInput.get(inputEl) === true;
-    if (this._btnPassword) {
-      this._btnPassword.hidden = !esPassword;
-      if (esPassword) {
-        inputEl.type = 'password';
-        this._btnPassword.textContent = '👁';
-        this._btnPassword.dataset.tecla = '👁';
-      }
+    this.contAlfa.classList.toggle('teclado-virtual--sin-password', !esPassword);
+    if (esPassword) {
+      inputEl.type = 'password';
+      this.tecladoAlfa?.setOptions({ display: { ...DISPLAY_ALFA, '{eye}': '👁' } });
     }
 
     this.element.hidden = false;
 
     this._reportarAltura();
     document.body.dataset.tecladoVirtualActivo = '1';
+    this._colocarCaretFalso();
 
     // El panel puede encoger el modal/contenedor que se esté mostrando
     // (ver responsive.css, --keyboard-offset); si el input estaba cerca
@@ -520,6 +477,7 @@ class VirtualKeyboardController {
     // difiere al siguiente frame para que el reflow del max-height ya
     // se haya aplicado antes de calcular qué hace falta desplazar.
     window.requestAnimationFrame(() => {
+      this._reportarAltura();
       if (this.activeInput === inputEl) {
         inputEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
@@ -536,6 +494,7 @@ class VirtualKeyboardController {
     if (!this.activeInput) return;
     this.activeInput = null;
     if (this.element) this.element.hidden = true;
+    this._ocultarCaretFalso();
 
     document.body.classList.remove('keyboard-open', 'is-keyboard-open');
     document.documentElement.style.setProperty('--keyboard-offset', '0px');
@@ -553,7 +512,18 @@ class VirtualKeyboardController {
     this._ocultarPanel();
   }
 
+  /* Mide la altura REAL del panel visible (numérico o alfa) y la vuelca en
+     las variables CSS que consume responsive.css/style.css para encoger las
+     modales (--keyboard-offset/--keyboard-height) y decidir si la modal
+     activa cuenta como "cubierta" (is-keyboard-open). Se llama no solo al
+     abrir el panel, sino también en cada re-render de simple-keyboard
+     (cambio de capa letras/símbolos/mayúsculas) y en resize/scroll: la
+     altura de una capa de 5 filas (símbolos) no es la misma que la de una
+     de 4 (letras), y medir una sola vez al abrir dejaba el offset corto o
+     largo según qué capa estuviera activa en ese momento, encogiendo mal la
+     modal o dejándola tapada por el teclado. */
   _reportarAltura() {
+    if (!this.element || this.element.hidden) return;
     const alto = this.element.getBoundingClientRect().height;
     document.documentElement.style.setProperty('--keyboard-height', `${alto}px`);
     document.documentElement.style.setProperty('--keyboard-offset', `${alto}px`);
@@ -562,70 +532,59 @@ class VirtualKeyboardController {
     document.body.classList.toggle('is-keyboard-open', !hayModalAbierto);
   }
 
-  _manejarTecla(tecla) {
+  _manejarTecla(boton) {
     if (!this.activeInput) return;
     this._tecladoCustomOrigina = true;
-    if (tecla === '⌫') {
-      this.backspace();
-    } else if (tecla === 'Intro') {
-      if (this._tipoActivo === 'numerico') this.commitEnter();
-      else this.irAlSiguienteCampo();
-    } else if (tecla === '⇧') {
-      this._shiftActivo = !this._shiftActivo;
-      this._actualizarMayusculas();
-    } else if (tecla === '123' || tecla === 'ABC') {
-      this._modo = this._modo === 'letras' ? 'simbolos' : 'letras';
-      this._actualizarModo();
-    } else if (tecla === '👁' || tecla === '🙈') {
-      this._alternarVisibilidadPassword();
-    } else {
-      this.insertChar(tecla);
-      // Mayúsculas de un solo toque: se desactiva tras la letra insertada,
-      // igual que en los teclados nativos (no es un bloqueo tipo caps-lock).
-      if (this._shiftActivo) {
+    switch (boton) {
+      case '{bksp}':
+        this.backspace();
+        break;
+      case '{enter}':
+        if (this._tipoActivo === 'numerico') this.commitEnter();
+        else this.irAlSiguienteCampo();
+        break;
+      case '{shift}':
+        this._shiftActivo = !this._shiftActivo;
+        this._layoutNameAlfa = this._shiftActivo ? 'shift' : 'default';
+        this.tecladoAlfa?.setOptions({ layoutName: this._layoutNameAlfa });
+        break;
+      case '{numbers}':
+        this._layoutNameAlfa = 'symbols';
+        this.tecladoAlfa?.setOptions({ layoutName: 'symbols' });
+        break;
+      case '{abc}':
         this._shiftActivo = false;
-        this._actualizarMayusculas();
-      }
+        this._layoutNameAlfa = 'default';
+        this.tecladoAlfa?.setOptions({ layoutName: 'default' });
+        break;
+      case '{eye}':
+        this._alternarVisibilidadPassword();
+        break;
+      case '{space}':
+        this.insertChar(' ');
+        break;
+      default:
+        this.insertChar(boton);
+        // Mayúsculas de un solo toque: se desactiva tras la letra insertada,
+        // igual que en los teclados nativos (no es un bloqueo tipo
+        // caps-lock).
+        if (this._shiftActivo) {
+          this._shiftActivo = false;
+          this._layoutNameAlfa = 'default';
+          this.tecladoAlfa?.setOptions({ layoutName: 'default' });
+        }
+        break;
     }
     window.setTimeout(() => { this._tecladoCustomOrigina = false; }, 0);
   }
 
-  /* Actualiza mayúsculas/minúsculas de las teclas de letra sin recrear el
-     DOM (solo cambia textContent/dataset.tecla de los botones existentes). */
-  _actualizarMayusculas() {
-    if (!this.panelAlfa) return;
-    this.panelAlfa.querySelectorAll('button[data-letra-min]').forEach((btn) => {
-      const valor = this._shiftActivo ? btn.dataset.letraMay : btn.dataset.letraMin;
-      btn.textContent = valor;
-      btn.dataset.tecla = valor;
-    });
-    if (this._btnShift) {
-      this._btnShift.classList.toggle('teclado-virtual-tecla--activa', this._shiftActivo);
-    }
-  }
-
-  /* Alterna entre la capa de letras (QWERTY) y la de símbolos/acentos,
-     ambas ya construidas en el DOM (solo se hace toggle de hidden). */
-  _actualizarModo() {
-    if (!this._grupoLetras || !this._grupoSimbolos) return;
-    const enSimbolos = this._modo === 'simbolos';
-    this._grupoLetras.hidden = enSimbolos;
-    this._grupoSimbolos.hidden = !enSimbolos;
-    if (this._btnModo) {
-      const etiqueta = enSimbolos ? 'ABC' : '123';
-      this._btnModo.textContent = etiqueta;
-      this._btnModo.dataset.tecla = etiqueta;
-    }
-  }
-
   _alternarVisibilidadPassword() {
     const el = this.activeInput;
-    if (!el || !this._btnPassword) return;
+    if (!el) return;
     const estabaOculta = el.type === 'password';
     el.type = estabaOculta ? 'text' : 'password';
     const icono = estabaOculta ? '🙈' : '👁';
-    this._btnPassword.textContent = icono;
-    this._btnPassword.dataset.tecla = icono;
+    this.tecladoAlfa?.setOptions({ display: { ...DISPLAY_ALFA, '{eye}': icono } });
   }
 
   /* Equivalente al "Siguiente"/"Ir" de los teclados nativos en campos de
@@ -670,6 +629,7 @@ class VirtualKeyboardController {
       // Selección no soportada para este tipo de input; no es un fallo.
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
+    this._colocarCaretFalso();
   }
 
   backspace() {
@@ -696,6 +656,7 @@ class VirtualKeyboardController {
       // Selección no soportada para este tipo de input; no es un fallo.
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
+    this._colocarCaretFalso();
   }
 
   commitEnter() {
@@ -717,6 +678,51 @@ class VirtualKeyboardController {
     el.dispatchEvent(new Event('change', { bubbles: true }));
     this._ocultarPanel();
     el.blur();
+  }
+
+  /* Caret falso: el input activo es readonly (ver _marcar) y no dibuja
+     caret nativo en ningún navegador aunque su valor se siga modificando
+     por JS. Esta barra sustituye visualmente a ese caret, posicionada sobre
+     el ancho de texto medido con un <canvas> oculto (misma fuente/tamaño
+     que el input real). */
+  _colocarCaretFalso() {
+    const el = this.activeInput;
+    if (!el || typeof el.getBoundingClientRect !== 'function') return;
+    if (!this._caretEl) {
+      this._caretEl = document.createElement('div');
+      this._caretEl.className = 'teclado-virtual-caret-fake';
+      this._caretEl.hidden = true;
+      document.body.appendChild(this._caretEl);
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      this._ocultarCaretFalso();
+      return;
+    }
+    const pos = el.selectionStart ?? el.value.length;
+    const textoHastaCaret = el.value.slice(0, pos);
+    const anchoTexto = this._medirAnchoTexto(el, textoHastaCaret);
+    const estilos = window.getComputedStyle(el);
+    const padL = parseFloat(estilos.paddingLeft) || 0;
+    const borderL = parseFloat(estilos.borderLeftWidth) || 0;
+    this._caretEl.style.left = `${rect.left + borderL + padL + anchoTexto}px`;
+    this._caretEl.style.top = `${rect.top + (parseFloat(estilos.paddingTop) || 0)}px`;
+    const altoLinea = parseFloat(estilos.lineHeight);
+    this._caretEl.style.height = `${Number.isFinite(altoLinea) ? altoLinea : rect.height * 0.6}px`;
+    this._caretEl.hidden = false;
+  }
+
+  _ocultarCaretFalso() {
+    if (this._caretEl) this._caretEl.hidden = true;
+  }
+
+  _medirAnchoTexto(el, texto) {
+    if (!this._canvasMedida) this._canvasMedida = document.createElement('canvas');
+    const ctx = this._canvasMedida.getContext && this._canvasMedida.getContext('2d');
+    if (!ctx) return 0;
+    const estilos = window.getComputedStyle(el);
+    ctx.font = `${estilos.fontStyle} ${estilos.fontWeight} ${estilos.fontSize} ${estilos.fontFamily}`;
+    return ctx.measureText(texto).width;
   }
 }
 
