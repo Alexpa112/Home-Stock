@@ -50,8 +50,7 @@ iniciarComprobacionMantenimiento();
 
 // Si otro usuario de la casa añade o marca algo en stock/lista de la compra,
 // refrescamos en segundo plano para que se vea sin tener que recargar a mano.
-// Evitamos hacerlo con un modal abierto o mientras se escribe en el buscador,
-// para no interrumpir una edición en curso.
+// Evitamos hacerlo con un modal abierto para no interrumpir una edición en curso.
 function iniciarAutoRefresco() {
   setInterval(() => {
     const hayModalAbierto = Array.from(document.querySelectorAll('.modal-fondo')).some((modal) => !modal.hidden);
@@ -473,6 +472,46 @@ function normalizarTexto(texto) {
     .trim();
 }
 
+// Distancia de Levenshtein, para tolerar una pequeña errata al escribir.
+function distanciaEdicion(a, b) {
+  const filas = a.length + 1;
+  const columnas = b.length + 1;
+  const dp = Array.from({ length: filas }, (_, i) => [i, ...new Array(columnas - 1).fill(0)]);
+  for (let j = 0; j < columnas; j++) dp[0][j] = j;
+  for (let i = 1; i < filas; i++) {
+    for (let j = 1; j < columnas; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[filas - 1][columnas - 1];
+}
+
+// Una palabra del nombre "cumple" un termino buscado si lo contiene tal cual
+// (asi "leche" encuentra "lechera") o, para palabras de 4+ letras, si difieren
+// en como mucho una letra (asi "aceitunas" encuentra "aceitunad" o "aceitun").
+function palabraCoincide(termino, palabra) {
+  if (!termino) return true;
+  if (palabra.includes(termino)) return true;
+  if (termino.length >= 4 && Math.abs(termino.length - palabra.length) <= 1) {
+    return distanciaEdicion(termino, palabra) <= 1;
+  }
+  return false;
+}
+
+// Busqueda "semi-inteligente": ignora acentos y mayusculas, no exige el orden
+// de las palabras (buscar "leche entera" encuentra "Entera Leche Pascual") y
+// tolera una pequeña errata por palabra.
+function coincideBusqueda(nombre, busqueda) {
+  const consulta = normalizarTexto(busqueda);
+  if (!consulta) return true;
+  const palabrasNombre = normalizarTexto(nombre).split(/\s+/).filter(Boolean);
+  const terminos = consulta.split(/\s+/).filter(Boolean);
+  return terminos.every((termino) => palabrasNombre.some((palabra) => palabraCoincide(termino, palabra)));
+}
+
 // Pulsacion corta vs. mantener pulsado, unificando raton y tactil.
 function agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, duracion = 480) {
   let temporizador = null;
@@ -743,7 +782,7 @@ async function cargarProductos() {
 function render() {
   const filtrados = productos.filter((p) => {
     const pasaCategoria = categoriaActiva === "todas" || p.categoria === categoriaActiva;
-    const pasaTexto = p.nombre.toLowerCase().includes(textoBusqueda.toLowerCase());
+    const pasaTexto = coincideBusqueda(p.nombre, textoBusqueda);
     return pasaCategoria && pasaTexto;
   });
 
@@ -795,7 +834,7 @@ async function cambiarCantidad(id, delta) {
   if (productosEnProceso.has(id)) return;
   productosEnProceso.add(id);
 
-  let actualizado;
+  let actualizado = null;
   try {
     const res = await fetch(`/api/productos/${id}`, {
       method: "PATCH",
@@ -806,25 +845,26 @@ async function cambiarCantidad(id, delta) {
     if (!res.ok) {
       console.error(`Error PATCH: ${res.status} ${res.statusText}`);
       Toast.error(datos?.error || `No se pudo cambiar la cantidad (${res.status})`);
-      return;
-    }
-    if (!datos || !datos.id) {
+    } else if (!datos || !datos.id) {
       console.error("Respuesta inválida del servidor", datos);
       Toast.error("Respuesta inválida del servidor al cambiar la cantidad");
-      return;
+    } else {
+      actualizado = datos;
     }
-    actualizado = datos;
   } catch (error) {
     console.error("Error cambiando cantidad:", error);
     Toast.error("No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
-    return;
   } finally {
     productosEnProceso.delete(id);
   }
 
-  productos = productos.map((p) => (p.id === id ? actualizado : p));
+  // Repintamos siempre, haya ido bien o mal: si no, el boton se queda con el
+  // atributo "disabled" del render anterior y deja de responder a clics.
+  if (actualizado) {
+    productos = productos.map((p) => (p.id === id ? actualizado : p));
+    cargarListaCompra();
+  }
   render();
-  cargarListaCompra();
 }
 
 async function borrarProducto(id) {
@@ -1457,9 +1497,8 @@ function cerrarModalCatalogo() {
 }
 
 function renderCatalogo(filtro) {
-  const texto = normalizarTexto(filtro);
-  const items = texto
-    ? historialLista.filter((h) => normalizarTexto(h.nombre).includes(texto))
+  const items = filtro
+    ? historialLista.filter((h) => coincideBusqueda(h.nombre, filtro))
     : historialLista;
 
   catalogoGruposEl.innerHTML = "";

@@ -25,6 +25,15 @@ def close_db(exception=None):
         db.close()
 
 
+def usuario_existe(usuario_id):
+    """Comprueba que el usuario de la sesion sigue existiendo (p.ej. no ha sido
+    borrado desde otro dispositivo mientras esta sesion seguia activa)."""
+    if not usuario_id:
+        return False
+    fila = get_db().execute("SELECT 1 FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    return fila is not None
+
+
 def asegurar_columna(db, tabla, columna, definicion):
     columnas = [f["name"] for f in db.execute(f"PRAGMA table_info({tabla})").fetchall()]
     if columna not in columnas:

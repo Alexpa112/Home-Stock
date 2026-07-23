@@ -115,7 +115,9 @@ def create_app():
     def exigir_sesion():
         if request.endpoint in RUTAS_PUBLICAS:
             return None
-        if not session.get("usuario"):
+        sesion_valida = session.get("usuario") and db.usuario_existe(session.get("usuario_id"))
+        if not sesion_valida:
+            session.clear()
             if request.path.startswith("/api/"):
                 return jsonify({"error": "No has iniciado sesión"}), 401
             # Preservar la página solicitada (p.ej. un enlace de invitación a
