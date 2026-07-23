@@ -94,9 +94,15 @@ def obtener_traducciones_producto(producto_id, idioma):
     """
     db = get_db()
 
+    lista_id = lista_actual_con_permiso(db, session)
+    if not lista_id:
+        return APIResponse.no_permitido()
+
     producto = db.execute(
-        "SELECT * FROM productos WHERE id = ?",
-        (producto_id,)
+        """SELECT p.id FROM productos p
+           JOIN stock_lista sl ON sl.producto_id = p.id AND sl.lista_id = ?
+           WHERE p.id = ?""",
+        (lista_id, producto_id),
     ).fetchone()
 
     if not producto:

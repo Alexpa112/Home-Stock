@@ -48,19 +48,6 @@ function iniciarComprobacionMantenimiento() {
 }
 iniciarComprobacionMantenimiento();
 
-// Si otro usuario de la casa añade o marca algo en stock/lista de la compra,
-// refrescamos en segundo plano para que se vea sin tener que recargar a mano.
-// Evitamos hacerlo con un modal abierto para no interrumpir una edición en curso.
-function iniciarAutoRefresco() {
-  setInterval(() => {
-    const hayModalAbierto = Array.from(document.querySelectorAll('.modal-fondo')).some((modal) => !modal.hidden);
-    const escribiendoEnBuscador = document.activeElement === buscador;
-    if (document.visibilityState === "hidden" || hayModalAbierto || escribiendoEnBuscador) return;
-    cargarProductos();
-    cargarListaCompra();
-  }, 25000);
-}
-
 // Función auxiliar para fetch con timeout y manejo de errores
 async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -480,84 +467,9 @@ function normalizarTexto(texto) {
     .trim();
 }
 
-// Distancia de Levenshtein, para tolerar una pequeña errata al escribir.
-function distanciaEdicion(a, b) {
-  const filas = a.length + 1;
-  const columnas = b.length + 1;
-  const dp = Array.from({ length: filas }, (_, i) => [i, ...new Array(columnas - 1).fill(0)]);
-  for (let j = 0; j < columnas; j++) dp[0][j] = j;
-  for (let i = 1; i < filas; i++) {
-    for (let j = 1; j < columnas; j++) {
-      dp[i][j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
-    }
-  }
-  return dp[filas - 1][columnas - 1];
-}
-
-// Una palabra del nombre "cumple" un termino buscado si lo contiene tal cual
-// (asi "leche" encuentra "lechera") o, para palabras de 4+ letras, si difieren
-// en como mucho una letra (asi "aceitunas" encuentra "aceitunad" o "aceitun").
-function palabraCoincide(termino, palabra) {
-  if (!termino) return true;
-  if (palabra.includes(termino)) return true;
-  if (termino.length >= 4 && Math.abs(termino.length - palabra.length) <= 1) {
-    return distanciaEdicion(termino, palabra) <= 1;
-  }
-  return false;
-}
-
-// Busqueda "semi-inteligente": ignora acentos y mayusculas, no exige el orden
-// de las palabras (buscar "leche entera" encuentra "Entera Leche Pascual") y
-// tolera una pequeña errata por palabra.
-function coincideBusqueda(nombre, busqueda) {
-  const consulta = normalizarTexto(busqueda);
-  if (!consulta) return true;
-  const palabrasNombre = normalizarTexto(nombre).split(/\s+/).filter(Boolean);
-  const terminos = consulta.split(/\s+/).filter(Boolean);
-  return terminos.every((termino) => palabrasNombre.some((palabra) => palabraCoincide(termino, palabra)));
-}
-
 // Pulsacion corta vs. mantener pulsado, unificando raton y tactil.
-const UMBRAL_MOVIMIENTO_CANCELA_PULSACION = 10; // px
-
-function agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, duracion = 480) {
-  let temporizador = null;
-  let fueLarga = false;
-  let inicioX = 0;
-  let inicioY = 0;
-
-  function empezar(e) {
-    fueLarga = false;
-    inicioX = e.clientX;
-    inicioY = e.clientY;
-    temporizador = setTimeout(() => {
-      fueLarga = true;
-      if (navigator.vibrate) navigator.vibrate(15);
-      alPulsarLargo();
-    }, duracion);
-  }
-  function cancelar() {
-    clearTimeout(temporizador);
-  }
-  function mover(e) {
-    const distancia = Math.hypot(e.clientX - inicioX, e.clientY - inicioY);
-    if (distancia > UMBRAL_MOVIMIENTO_CANCELA_PULSACION) cancelar();
-  }
-  function terminar() {
-    clearTimeout(temporizador);
-    if (!fueLarga) alPulsarCorto();
-  }
-
-  elemento.addEventListener("pointerdown", empezar);
-  elemento.addEventListener("pointermove", mover);
-  elemento.addEventListener("pointerup", terminar);
-  elemento.addEventListener("pointerleave", cancelar);
-  elemento.addEventListener("pointercancel", cancelar);
-  elemento.addEventListener("contextmenu", (e) => e.preventDefault());
-}
+// Implementación en modules/gestures.js (testeada en gestures.test.js).
+const agregarPulsacion = window.Gestures.agregarPulsacion;
 
 async function cargarCategorias() {
   try {
@@ -801,7 +713,7 @@ async function cargarProductos() {
 function render() {
   const filtrados = productos.filter((p) => {
     const pasaCategoria = categoriaActiva === "todas" || p.categoria === categoriaActiva;
-    const pasaTexto = coincideBusqueda(p.nombre, textoBusqueda);
+    const pasaTexto = p.nombre.toLowerCase().includes(textoBusqueda.toLowerCase());
     return pasaCategoria && pasaTexto;
   });
 
@@ -853,37 +765,33 @@ async function cambiarCantidad(id, delta) {
   if (productosEnProceso.has(id)) return;
   productosEnProceso.add(id);
 
-  let actualizado = null;
+  let actualizado;
   try {
-    const res = await fetch(`/api/productos/${id}`, {
+    // fetchConTimeout ya lanza (con el mensaje del servidor si lo hay) si la
+    // respuesta no es res.ok, así que aquí solo queda validar el cuerpo.
+    const res = await fetchConTimeout(`/api/productos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ delta }),
-    });
+    }, 8000);
     const datos = await res.json().catch(() => null);
-    if (!res.ok) {
-      console.error(`Error PATCH: ${res.status} ${res.statusText}`);
-      Toast.error(datos?.error || `No se pudo cambiar la cantidad (${res.status})`);
-    } else if (!datos || !datos.id) {
+    if (!datos || !datos.id) {
       console.error("Respuesta inválida del servidor", datos);
       Toast.error("Respuesta inválida del servidor al cambiar la cantidad");
-    } else {
-      actualizado = datos;
+      return;
     }
+    actualizado = datos;
   } catch (error) {
     console.error("Error cambiando cantidad:", error);
-    Toast.error("No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
+    Toast.error(error.message || "No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
+    return;
   } finally {
     productosEnProceso.delete(id);
   }
 
-  // Repintamos siempre, haya ido bien o mal: si no, el boton se queda con el
-  // atributo "disabled" del render anterior y deja de responder a clics.
-  if (actualizado) {
-    productos = productos.map((p) => (p.id === id ? actualizado : p));
-    cargarListaCompra();
-  }
+  productos = productos.map((p) => (p.id === id ? actualizado : p));
   render();
+  cargarListaCompra();
 }
 
 async function borrarProducto(id) {
@@ -1345,10 +1253,12 @@ formCompra.addEventListener("submit", async (e) => {
   try {
     // Si es una edición y el artículo tiene ID personalizado, usar API de artículos personalizados
     const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId")?.value;
+    let catalogoPersonalizadoActualizado = false;
     if (id && articuloPersonalizadoId) {
       try {
         const articuloActualizado = await editarArticuloPersonalizado(articuloPersonalizadoId, payload);
         console.log("Artículo personalizado actualizado:", articuloActualizado);
+        catalogoPersonalizadoActualizado = true;
       } catch (error) {
         console.error("Error actualizando artículo personalizado:", error);
         Toast.error(error.message || "No se pudo actualizar el artículo personalizado. Inténtalo de nuevo.");
@@ -1365,12 +1275,28 @@ formCompra.addEventListener("submit", async (e) => {
       });
       articulo = await res.json();
       if (!res.ok) {
-        Toast.error(articulo?.error || "No se pudo guardar el artículo");
+        // Si el catálogo personalizado ya se actualizó por encima, el estado
+        // ha quedado parcialmente aplicado: avisar de eso en vez de un error
+        // generico que sugiere que no se guardó nada.
+        if (catalogoPersonalizadoActualizado) {
+          Toast.error(
+            "El artículo del catálogo se actualizó, pero no se pudo guardar en esta lista: " +
+            (articulo?.error || "inténtalo de nuevo")
+          );
+          cargarListaCompra();
+        } else {
+          Toast.error(articulo?.error || "No se pudo guardar el artículo");
+        }
         return;
       }
     } catch (error) {
       console.error("Error guardando artículo:", error);
-      Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
+      if (catalogoPersonalizadoActualizado) {
+        Toast.error("El artículo del catálogo se actualizó, pero no se pudo guardar en esta lista. Comprueba tu conexión e inténtalo de nuevo.");
+        cargarListaCompra();
+      } else {
+        Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
+      }
       return;
     }
 
@@ -1526,8 +1452,9 @@ function cerrarModalCatalogo() {
 }
 
 function renderCatalogo(filtro) {
-  const items = filtro
-    ? historialLista.filter((h) => coincideBusqueda(h.nombre, filtro))
+  const texto = normalizarTexto(filtro);
+  const items = texto
+    ? historialLista.filter((h) => normalizarTexto(h.nombre).includes(texto))
     : historialLista;
 
   catalogoGruposEl.innerHTML = "";
@@ -2054,17 +1981,19 @@ class ScrollManager {
 
   init() {
     let startX = 0;
+    let startY = 0;
     let dentroDeScrollHorizontal = null; // se calcula una vez por gesto, no en cada touchmove
 
     document.addEventListener('touchstart', (e) => {
       startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
       dentroDeScrollHorizontal = null;
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
       const currentX = e.touches[0].clientX;
       const diffX = Math.abs(currentX - startX);
-      const diffY = Math.abs(e.touches[0].clientY - (e.touches[0].clientY || 0));
+      const diffY = Math.abs(e.touches[0].clientY - startY);
 
       if (diffX > 20) {
         if (dentroDeScrollHorizontal === null) {
@@ -2328,7 +2257,6 @@ misListasPromise.then(() => {
   cargarCategorias().then(() => {
     cargarProductos();
     cargarListaCompra();
-    iniciarAutoRefresco();
   });
 });
 cargarHistorial();

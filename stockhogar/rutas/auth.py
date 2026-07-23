@@ -173,8 +173,8 @@ def actualizar_perfil():
 
     # Actualizar contraseña si se proporciona
     if password:
-        if len(password) < 4:
-            return APIResponse.validacion("err_password_min_4")
+        if len(password) < 8:
+            return APIResponse.validacion("err_password_min_8")
         nuevo_hash = generate_password_hash(password)
         db.execute(
             "UPDATE usuarios SET password_hash = ? WHERE id = ?",
@@ -235,8 +235,8 @@ def cambiar_password():
     password_confirmacion = datos.get("password_confirmacion") or ""
 
     # Validar contraseña nueva
-    if len(password_nueva) < 4:
-        return APIResponse.validacion("err_nueva_password_min_4")
+    if len(password_nueva) < 8:
+        return APIResponse.validacion("err_nueva_password_min_8")
 
     if password_nueva != password_confirmacion:
         return APIResponse.validacion("error_contrasenas_no_coinciden")

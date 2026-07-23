@@ -5,6 +5,16 @@
  */
 
 /**
+ * Token CSRF publicado por el backend en <meta name="csrf-token">.
+ * Necesario en todo fetch mutador (POST/PUT/PATCH/DELETE): sin él Flask-WTF
+ * responde 400 "Token CSRF invalido o ausente" aunque la sesión sea válida.
+ */
+function cabecerasCsrf(extra = {}) {
+  const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  return { ...extra, 'X-CSRFToken': token };
+}
+
+/**
  * Clase para gestionar el drawer de listas
  * Responsabilidad: mostrar/ocultar drawer, cargar listas, cambiar lista, crear nueva
  */
@@ -339,7 +349,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nombre, color })
       });
 
@@ -419,7 +429,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nombre, color, icono })
       });
 
@@ -530,6 +540,16 @@ class DrawerListasManager {
     if (btnCompartirWhatsApp) {
       btnCompartirWhatsApp.addEventListener('click', () => this.compartirPorWhatsApp());
     }
+
+    // Botón compartir nativo (share sheet del sistema: WhatsApp, email, SMS, etc.)
+    const btnCompartirNativo = document.getElementById('btnCompartirNativo');
+    if (btnCompartirNativo) {
+      if (navigator.share) {
+        btnCompartirNativo.addEventListener('click', () => this.compartirNativo());
+      } else {
+        btnCompartirNativo.hidden = true;
+      }
+    }
   }
 
   async salirDeLista() {
@@ -541,7 +561,8 @@ class DrawerListasManager {
 
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/salir`, {
-        method: 'POST'
+        method: 'POST',
+        headers: cabecerasCsrf()
       });
 
       if (!res.ok) {
@@ -667,7 +688,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/permisos/${usuarioId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nivel: nuevoNivel })
       });
 
@@ -694,7 +715,8 @@ class DrawerListasManager {
 
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/permisos/${usuarioId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: cabecerasCsrf()
       });
 
       if (!res.ok) {
@@ -807,7 +829,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ usuario: nombreUsuario, nivel })
       });
 
@@ -843,7 +865,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ email, nivel })
       });
 
@@ -878,7 +900,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ email: emailTemporal, nivel })
       });
 
@@ -915,14 +937,49 @@ class DrawerListasManager {
     }
   }
 
-  copiarEnlace() {
+  async copiarEnlace() {
     const input = document.getElementById('enlaceInvitacionInput');
     if (!input) return;
 
+    const textoOk = (window.i18n && window.i18n.t('enlace_copiado_portapapeles')) || '¡Enlace copiado al portapapeles!';
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(input.value);
+        this.mostrarMensaje(textoOk, 'exito');
+        return;
+      } catch (error) {
+        // Sin permiso o API no disponible en este contexto: cae al método clásico
+      }
+    }
+
     input.select();
     document.execCommand('copy');
+    this.mostrarMensaje(textoOk, 'exito');
+  }
 
-    this.mostrarMensaje((window.i18n && window.i18n.t('enlace_copiado_portapapeles')) || '¡Enlace copiado al portapapeles!', 'exito');
+  async compartirNativo() {
+    if (!this.listaEditandoId) return;
+
+    const enlace = document.getElementById('enlaceInvitacionInput')?.value;
+    if (!enlace) return;
+
+    const lista = this.listas.find(l => l.id === this.listaEditandoId);
+    const nombreLista = lista?.nombre || (window.i18n && window.i18n.t('mi_lista')) || 'Mi lista';
+    const etiquetaLista = (window.i18n && window.i18n.t('compartir_lista_titulo')) || 'Lista de la compra';
+    const titulo = `${etiquetaLista}: ${nombreLista}`;
+    const texto = (window.i18n && window.i18n.t('whatsapp_mensaje_compartir')) ||
+      'Hola! Te quiero compartir mi lista de compra "{nombre}" en Dreame! (aplicacion de listas compartidas).\n\nPuedes verla y actualizarla en tiempo real. Únete aquí:\n{enlace}';
+
+    try {
+      await navigator.share({
+        title: titulo,
+        text: texto.replace('{nombre}', nombreLista).replace('{enlace}', ''),
+        url: enlace
+      });
+    } catch (error) {
+      // Usuario canceló el share sheet o el navegador lo bloqueó: no es un error real
+    }
   }
 
   mostrarMensaje(mensaje, tipo) {
@@ -961,7 +1018,7 @@ class DrawerListasManager {
     try {
       const res = await fetch(`/api/listas/${this.listaEditandoId}/compartir`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ email: emailTemporal, nivel })
       });
 
@@ -1230,7 +1287,7 @@ class CrearListaModal extends FormModal {
     try {
       const res = await fetch('/api/listas', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecerasCsrf({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nombre, icono, color })
       });
 

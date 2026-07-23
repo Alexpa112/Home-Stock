@@ -579,7 +579,7 @@ describe('DrawerListasManager', () => {
       manager.copiarEnlace();
 
       expect(document.execCommand).toHaveBeenCalledWith('copy');
-      expect(document.getElementById('miembrosExito').textContent).toBe('Enlace copiado al portapapeles!');
+      expect(document.getElementById('miembrosExito').textContent).toBe('¡Enlace copiado al portapapeles!');
     });
 
     test('compartirPorWhatsApp() abre wa.me con el número si se indica', async () => {

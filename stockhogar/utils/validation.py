@@ -22,13 +22,15 @@ class Validator:
         return numero
 
     @staticmethod
-    def entero_minimo(valor: Any, nombre_campo: str, minimo: int = 1) -> int:
-        """Valida que sea entero y lo fuerza al mínimo indicado si es menor."""
+    def entero_minimo(valor: Any, nombre_campo: str, minimo: int = 1, maximo: int = 100_000) -> int:
+        """Valida que sea entero y lo fuerza al rango [minimo, maximo] si se sale.
+        El tope superior evita cantidades absurdas (p.ej. un cliente mandando
+        999999999999) sin necesidad de rechazar la petición con un error."""
         try:
             numero = int(valor)
         except (TypeError, ValueError) as e:
             raise ValidationError(f"La {nombre_campo} debe ser un número entero") from e
-        return max(minimo, numero)
+        return max(minimo, min(numero, maximo))
 
     @staticmethod
     def string_requerido(valor: Any, nombre_campo: str, max_len: int = 255) -> str:
