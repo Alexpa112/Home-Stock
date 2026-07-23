@@ -15,6 +15,7 @@ from ..servicios.stock import (
 )
 from .categorias import normalizar_categoria
 from .historial import recordar_articulo
+from .listas import _usuario_tiene_permiso
 from ..servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
@@ -155,6 +156,31 @@ def traducir_producto_auto():
     # Almacenar en BD si se proporciona ID
     if producto_id or articulo_id:
         db = get_db()
+        usuario_id = session.get("usuario_id")
+
+        # Comprobar que el producto_id/articulo_id pertenece a una lista a la
+        # que el usuario tiene acceso: sin esto, cualquier usuario autenticado
+        # podia pasar el ID de un producto/articulo de OTRO hogar (los IDs son
+        # autoincrementales y facilmente enumerables) y sobrescribir sus
+        # traducciones via INSERT OR REPLACE.
+        acceso_valido = False
+        if producto_id:
+            lista_del_producto = db.execute(
+                "SELECT lista_id FROM stock_lista WHERE producto_id = ?", (producto_id,)
+            ).fetchall()
+            acceso_valido = any(
+                _usuario_tiene_permiso(db, fila["lista_id"], usuario_id) for fila in lista_del_producto
+            )
+        elif articulo_id:
+            fila_articulo = db.execute(
+                "SELECT lista_id FROM articulos_lista WHERE id = ?", (articulo_id,)
+            ).fetchone()
+            acceso_valido = bool(
+                fila_articulo and _usuario_tiene_permiso(db, fila_articulo["lista_id"], usuario_id)
+            )
+
+        if not acceso_valido:
+            return APIResponse.no_permitido()
         for idioma in traducciones_nombre:
             if idioma != "es":  # No guardar original
                 try:

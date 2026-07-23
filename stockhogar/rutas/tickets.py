@@ -3,7 +3,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from flask import Blueprint, request
+from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import get_db
@@ -11,7 +11,7 @@ from ..translator import traducir
 from ..integraciones import ticket_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..utils import Validator
-from ..servicios.stock import crear_producto_nuevo, sumar_stock
+from ..servicios.stock import crear_producto_nuevo, sumar_stock, lista_actual_con_permiso
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
@@ -60,10 +60,14 @@ def analizar_ticket():
         respuesta = crear_respuesta_usuario(items, db)
 
     except Exception as e:
-        return APIResponse.error(
-            traducir("err_tesseract_no_disponible").replace("{detalle}", str(e)),
-            500
-        )
+        # No se devuelve str(e) al cliente: puede filtrar rutas de fichero
+        # temporales o detalles internos de librerías (ver @manejo_errores,
+        # que para el resto de endpoints ya evita esto con un mensaje
+        # generico). Aqui se hacia una excepcion para dar una pista sobre
+        # Tesseract, pero el detalle real solo debe ir al log del servidor.
+        import logging
+        logging.getLogger(__name__).exception("Error analizando ticket")
+        return APIResponse.error("err_interno_generico", 500)
     finally:
         os.unlink(tmp.name)
 
@@ -74,10 +78,23 @@ def analizar_ticket():
 @requerir_sesion
 @manejo_errores
 def confirmar_ticket():
+    """Confirma los items de un ticket escaneado y los aplica al stock.
+
+    Requiere permiso de 'editar' en la lista activa: sin esta comprobacion,
+    sumar_stock()/crear_producto_nuevo() resolvian la lista de sesion sin
+    verificar ningun permiso (a diferencia de todos los endpoints de
+    productos.py), permitiendo a un usuario con acceso de solo lectura -o
+    sin ningun acceso ya revocado- seguir modificando el stock de una lista
+    ajena subiendo un ticket.
+    """
+    db = get_db()
+    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
+    if not lista_id:
+        return APIResponse.no_permitido()
+
     datos = request.get_json(force=True) or {}
     items = datos.get("items") or []
 
-    db = get_db()
     creados = 0
     actualizados = 0
 
@@ -90,11 +107,11 @@ def confirmar_ticket():
 
         producto_id = item.get("producto_id")
         if producto_id:
-            sumar_stock(db, int(producto_id), cantidad)
+            sumar_stock(db, int(producto_id), cantidad, lista_id)
             actualizados += 1
         else:
             categoria = item.get("categoria") or "Otros"
-            crear_producto_nuevo(db, nombre, categoria, cantidad, unidad)
+            crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, lista_id=lista_id)
             creados += 1
 
     db.commit()

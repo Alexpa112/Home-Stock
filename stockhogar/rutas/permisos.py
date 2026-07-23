@@ -215,6 +215,13 @@ def actualizar_permiso(lista_id, usuario_id):
     if not lista or lista["usuario_propietario_id"] != usuario_actual_id:
         return APIResponse.no_permitido()
 
+    if usuario_id == usuario_actual_id:
+        # El propietario no tiene fila en permisos_lista (su acceso viene de
+        # ser el dueño, no de un permiso); sin este aviso el UPDATE de abajo
+        # no afecta a ninguna fila y la peticion "tiene exito" sin haber
+        # cambiado nada, dando una falsa sensacion de que se aplico.
+        return APIResponse.error("err_no_cambiar_permiso_propietario", 400)
+
     nivel = Validator.string_opcional(datos.get("nivel"), "editar", 10)
     if nivel not in ["ver", "editar"]:
         return APIResponse.error("err_nivel_invalido", 400)
@@ -244,6 +251,9 @@ def revocar_acceso(lista_id, usuario_id):
 
     if not lista or lista["usuario_propietario_id"] != usuario_actual_id:
         return APIResponse.no_permitido()
+
+    if usuario_id == usuario_actual_id:
+        return APIResponse.error("err_no_revocar_acceso_propietario", 400)
 
     db.execute(
         "DELETE FROM permisos_lista WHERE lista_id = ? AND usuario_id = ?",
