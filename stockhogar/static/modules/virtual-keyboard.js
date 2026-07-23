@@ -107,12 +107,16 @@ class VirtualKeyboardController {
     this._modo = 'letras'; // 'letras' | 'simbolos' (capa del panel alfanumérico)
     this._shiftActivo = false;
     this._observer = null;
+    this._caretEl = null;
+    this._canvasMedida = null;
     this._sincronizarMarcadoDiferido = this._sincronizarMarcadoDiferido.bind(this);
     this._onDocFocusIn = this._onDocFocusIn.bind(this);
     this._onDocKeyDown = this._onDocKeyDown.bind(this);
     this._onVentanaPierdeFoco = this._onVentanaPierdeFoco.bind(this);
     this._onCambioVisibilidad = this._onCambioVisibilidad.bind(this);
     this._onDocPointerDownFuera = this._onDocPointerDownFuera.bind(this);
+    this._onDocClickActivo = this._onDocClickActivo.bind(this);
+    this._onScrollOResize = this._onScrollOResize.bind(this);
   }
 
   init(preferenciaInicial) {
@@ -133,6 +137,12 @@ class VirtualKeyboardController {
     // porque no habrá ningún focusin posterior que lo haga por nosotros.
     window.addEventListener('blur', this._onVentanaPierdeFoco);
     document.addEventListener('visibilitychange', this._onCambioVisibilidad);
+    // El input activo es readonly (ver _marcar): no dibuja caret nativo, así
+    // que hay que reposicionar el caret falso cuando el usuario toca dentro
+    // del campo para mover el punto de inserción, o cuando el layout cambia.
+    document.addEventListener('click', this._onDocClickActivo, true);
+    window.addEventListener('resize', this._onScrollOResize);
+    document.addEventListener('scroll', this._onScrollOResize, true);
 
     this._sincronizarMarcado();
 
@@ -410,6 +420,78 @@ class VirtualKeyboardController {
 
     document.body.appendChild(el);
     this.element = el;
+
+    if (!this._caretEl) {
+      const caret = document.createElement('div');
+      caret.className = 'teclado-virtual-caret-fake';
+      caret.hidden = true;
+      document.body.appendChild(caret);
+      this._caretEl = caret;
+    }
+  }
+
+  /* Ancho en px del texto dado con la tipografía real del input, usando un
+     canvas fuera de pantalla (no añade ningún nodo al DOM ni provoca
+     reflow). Se reutiliza el mismo canvas entre llamadas. */
+  _anchoTexto(el, texto) {
+    if (!this._canvasMedida) this._canvasMedida = document.createElement('canvas');
+    const ctx = this._canvasMedida.getContext('2d');
+    // jsdom (entorno de tests) no implementa CanvasRenderingContext2D: sin
+    // medición real de texto no hay forma fiable de posicionar el caret
+    // falso, así que se omite en ese entorno (no es un fallo funcional).
+    if (!ctx) return 0;
+    const estilo = window.getComputedStyle(el);
+    ctx.font = `${estilo.fontStyle} ${estilo.fontWeight} ${estilo.fontSize} ${estilo.fontFamily}`;
+    return ctx.measureText(texto).width;
+  }
+
+  /* Recalcula posición y altura del caret falso a partir de selectionStart
+     del input activo. Debe llamarse tras cualquier cambio de valor,
+     selección o layout (ver insertChar/backspace/attach y los listeners de
+     click/scroll/resize instalados en init()). */
+  _actualizarCaretFake() {
+    const el = this.activeInput;
+    if (!el || !this._caretEl || document.activeElement !== el) {
+      this._ocultarCaretFake();
+      return;
+    }
+    const estilo = window.getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    const paddingLeft = parseFloat(estilo.paddingLeft) || 0;
+    const paddingTop = parseFloat(estilo.paddingTop) || 0;
+    const paddingBottom = parseFloat(estilo.paddingBottom) || 0;
+    const borderLeft = parseFloat(estilo.borderLeftWidth) || 0;
+    const borderTop = parseFloat(estilo.borderTopWidth) || 0;
+    const pos = el.selectionStart ?? (el.value || '').length;
+    const textoAntes = (el.value || '').slice(0, pos);
+    const ancho = this._anchoTexto(el, textoAntes);
+    const scrollLeft = el.scrollLeft || 0;
+
+    this._caretEl.style.left = `${rect.left + borderLeft + paddingLeft + ancho - scrollLeft}px`;
+    this._caretEl.style.top = `${rect.top + borderTop + paddingTop}px`;
+    this._caretEl.style.height = `${Math.max(rect.height - paddingTop - paddingBottom, 0)}px`;
+    this._caretEl.hidden = false;
+    // Reinicia la animación de parpadeo para que el caret aparezca siempre
+    // sólido justo tras teclear/tocar, en vez de poder quedar invisible a
+    // mitad del ciclo de parpadeo.
+    this._caretEl.style.animation = 'none';
+    void this._caretEl.offsetWidth;
+    this._caretEl.style.animation = '';
+  }
+
+  _ocultarCaretFake() {
+    if (this._caretEl) this._caretEl.hidden = true;
+  }
+
+  _onDocClickActivo(event) {
+    if (!this.activeInput || event.target !== this.activeInput) return;
+    // El navegador aún no ha actualizado selectionStart en el propio evento
+    // click; se difiere al siguiente tick.
+    window.setTimeout(() => this._actualizarCaretFake(), 0);
+  }
+
+  _onScrollOResize() {
+    if (this.activeInput) this._actualizarCaretFake();
   }
 
   /* Única fuente de verdad de cuándo abrir/cerrar el panel: se basa solo en
@@ -464,6 +546,9 @@ class VirtualKeyboardController {
 
   _onDocKeyDown(event) {
     if (this._tecladoCustomOrigina) return;
+    // Ya detectado en una tecla anterior: no repetir el querySelectorAll('input')
+    // sobre todo el documento en cada pulsación, solo la primera vez.
+    if (window.__teclado_fisico_detectado) return;
     window.__teclado_fisico_detectado = true;
     try {
       sessionStorage.setItem('stockhogar-teclado-fisico-detectado', '1');
@@ -522,8 +607,10 @@ class VirtualKeyboardController {
     window.requestAnimationFrame(() => {
       if (this.activeInput === inputEl) {
         inputEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        this._actualizarCaretFake();
       }
     });
+    this._actualizarCaretFake();
   }
 
   /* Oculta el panel y limpia el estado de "teclado abierto", pero NO
@@ -536,6 +623,7 @@ class VirtualKeyboardController {
     if (!this.activeInput) return;
     this.activeInput = null;
     if (this.element) this.element.hidden = true;
+    this._ocultarCaretFake();
 
     document.body.classList.remove('keyboard-open', 'is-keyboard-open');
     document.documentElement.style.setProperty('--keyboard-offset', '0px');
@@ -670,6 +758,7 @@ class VirtualKeyboardController {
       // Selección no soportada para este tipo de input; no es un fallo.
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
+    this._actualizarCaretFake();
   }
 
   backspace() {
@@ -696,6 +785,7 @@ class VirtualKeyboardController {
       // Selección no soportada para este tipo de input; no es un fallo.
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
+    this._actualizarCaretFake();
   }
 
   commitEnter() {

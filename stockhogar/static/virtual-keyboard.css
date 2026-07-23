@@ -145,3 +145,25 @@
   font-size: .8rem;
   color: var(--text-soft);
 }
+
+/* Caret falso: los inputs gestionados por el teclado propio llevan
+   readonly (ver virtual-keyboard.js _marcar), y un input readonly no
+   dibuja caret nativo en ningún navegador aunque su valor se siga
+   modificando por JS. Esta barra sustituye visualmente a ese caret. */
+.teclado-virtual-caret-fake {
+  position: fixed;
+  width: 1.5px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 10051;
+  animation: teclado-virtual-caret-parpadeo 1s step-end infinite;
+}
+
+.teclado-virtual-caret-fake[hidden] {
+  display: none;
+}
+
+@keyframes teclado-virtual-caret-parpadeo {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
