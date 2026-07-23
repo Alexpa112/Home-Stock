@@ -461,6 +461,30 @@ describe('VirtualKeyboardController fase 2: panel alfanumérico', () => {
     expect(controller._grupoSimbolos.hidden).toBe(true);
   });
 
+  test('los dígitos viven en la capa de símbolos: no se ven hasta pulsar 123', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.attach(document.getElementById('nombre'));
+
+    // querySelector busca en todo el panel, incluido el numérico (que tiene
+    // sus propias teclas '1'..'9'): hay que acotar al grupo de símbolos del
+    // panel alfa para comprobar el dígito que nos interesa.
+    const digitoUno = () => controller._grupoSimbolos.querySelector('button[data-tecla="1"]');
+
+    // Antes de pulsar 123, el dígito vive en _grupoSimbolos pero no es
+    // visible (el grupo entero está hidden).
+    expect(digitoUno()).not.toBeNull();
+    expect(digitoUno().closest('[hidden]')).not.toBeNull();
+
+    controller._manejarTecla('123');
+
+    expect(controller._grupoSimbolos.hidden).toBe(false);
+    expect(digitoUno().closest('[hidden]')).toBeNull();
+
+    controller._manejarTecla('1');
+    expect(document.getElementById('nombre').value).toBe('1');
+  });
+
   test('la tecla 👁 solo aparece para type="password" y alterna la visibilidad', () => {
     document.body.innerHTML = '<input id="pass" type="password"><input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();

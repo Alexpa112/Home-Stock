@@ -142,11 +142,11 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   transition: transform .2s ease;
-  will-change: transform;
   overflow-x: hidden;
 }
 
 body.keyboard-open:not(.modal-open) #appShell {
+  will-change: transform;
   transform: translateY(calc(-1 * min(var(--keyboard-offset, 0px), 20vh)));
 }
 
@@ -1169,6 +1169,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+#vistaCompra {
+  padding-bottom: calc(56px + 32px + 16px);
 }
 
 .grupo-compra-titulo {

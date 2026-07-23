@@ -23,6 +23,15 @@ class ModalBase {
   }
 
   close() {
+    // El input activo puede quedar enfocado dentro del modal aunque este se
+    // oculte (hidden = true no dispara blur/focusin por sí solo): sin esto,
+    // el teclado virtual propio (virtual-keyboard.js) no recibe ninguna
+    // señal para cerrarse -su cierre depende solo de un focusin real, no de
+    // un blur aislado- y se queda flotando sobre la pantalla de detrás.
+    if (this.element.contains(document.activeElement)) {
+      document.activeElement.blur();
+      window.tecladoVirtualController?.detach();
+    }
     this.element.hidden = true;
     document.body.classList.remove('modal-open');
     this.isOpen = false;
