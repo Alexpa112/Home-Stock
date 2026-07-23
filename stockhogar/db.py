@@ -807,6 +807,14 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_movimientos_stock_producto_fecha "
             "ON movimientos_stock(producto_id, fecha)"
         )
+        # resumen_consumo() (rutas/consumo.py) filtra por lista_id+fecha para
+        # el grafico de consumo; sin este indice es un full table scan, y la
+        # tabla crece sin limite (cada sumar_stock/edicion/ticket añade una
+        # fila, sin purga).
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_movimientos_stock_lista_fecha "
+            "ON movimientos_stock(lista_id, fecha)"
+        )
 
         # Catalogo de productos habituales de supermercado (ver config.py): se
         # siembra una vez via INSERT OR IGNORE, asi que nunca pisa un articulo
