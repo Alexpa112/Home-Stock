@@ -1288,10 +1288,12 @@ formCompra.addEventListener("submit", async (e) => {
   try {
     // Si es una edición y el artículo tiene ID personalizado, usar API de artículos personalizados
     const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId")?.value;
+    let catalogoPersonalizadoActualizado = false;
     if (id && articuloPersonalizadoId) {
       try {
         const articuloActualizado = await editarArticuloPersonalizado(articuloPersonalizadoId, payload);
         console.log("Artículo personalizado actualizado:", articuloActualizado);
+        catalogoPersonalizadoActualizado = true;
       } catch (error) {
         console.error("Error actualizando artículo personalizado:", error);
         Toast.error(error.message || "No se pudo actualizar el artículo personalizado. Inténtalo de nuevo.");
@@ -1308,12 +1310,28 @@ formCompra.addEventListener("submit", async (e) => {
       });
       articulo = await res.json();
       if (!res.ok) {
-        Toast.error(articulo?.error || "No se pudo guardar el artículo");
+        // Si el catálogo personalizado ya se actualizó por encima, el estado
+        // ha quedado parcialmente aplicado: avisar de eso en vez de un error
+        // generico que sugiere que no se guardó nada.
+        if (catalogoPersonalizadoActualizado) {
+          Toast.error(
+            "El artículo del catálogo se actualizó, pero no se pudo guardar en esta lista: " +
+            (articulo?.error || "inténtalo de nuevo")
+          );
+          cargarListaCompra();
+        } else {
+          Toast.error(articulo?.error || "No se pudo guardar el artículo");
+        }
         return;
       }
     } catch (error) {
       console.error("Error guardando artículo:", error);
-      Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
+      if (catalogoPersonalizadoActualizado) {
+        Toast.error("El artículo del catálogo se actualizó, pero no se pudo guardar en esta lista. Comprueba tu conexión e inténtalo de nuevo.");
+        cargarListaCompra();
+      } else {
+        Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
+      }
       return;
     }
 
