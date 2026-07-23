@@ -232,6 +232,28 @@ class VirtualKeyboardController {
     return btn;
   }
 
+  /* Botón "especial" con icono en vez de texto (mayúsculas/borrar), estilo
+     glifo de iOS en lugar de los caracteres ⇧/⌫ crudos. dataset.tecla se
+     mantiene igual que antes (⇧/⌫) porque la lógica de _manejarTecla() sigue
+     dependiendo de ese valor; solo cambia lo que se ve. */
+  _crearBotonEspecial(tecla, iconoHtml, claseExtra) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.tabIndex = -1;
+    btn.className = `teclado-virtual-tecla ${claseExtra}`;
+    btn.innerHTML = iconoHtml;
+    btn.dataset.tecla = tecla;
+    return btn;
+  }
+
+  _iconoMayus() {
+    return '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 2 3 12h5v8h8v-8h5z"/></svg>';
+  }
+
+  _iconoBorrar() {
+    return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H8l-6-7z"/><path d="m11 10 4 4m0-4-4 4"/></svg>';
+  }
+
   _crearPanelNumerico() {
     const panel = document.createElement('div');
     panel.className = 'teclado-virtual-panel';
@@ -242,7 +264,11 @@ class VirtualKeyboardController {
       ['7', '8', '9'],
       [',', '0', '⌫'],
     ];
-    filas.forEach((fila) => this._crearFila(panel, fila));
+    filas.forEach((fila) => this._crearFila(panel, fila, {
+      crearBoton: (tecla) => (tecla === '⌫'
+        ? this._crearBotonEspecial(tecla, this._iconoBorrar(), 'teclado-virtual-tecla--borrar')
+        : this._crearBotonSimple(tecla)),
+    }));
 
     const filaAcciones = document.createElement('div');
     filaAcciones.className = 'teclado-virtual-fila';
@@ -262,45 +288,53 @@ class VirtualKeyboardController {
     const panel = document.createElement('div');
     panel.className = 'teclado-virtual-panel';
 
-    // Capa "letras": 3 filas QWERTY español (con ñ).
+    // Capa "letras": distribución QWERTY español de iOS — fila 1 y 2 con
+    // el mismo número de teclas (la ñ ocupa el hueco que en el layout
+    // inglés dejaría la fila de en medio más corta), y fila 3 con
+    // mayúsculas/borrar flanqueando zxcvbnm, igual que en iOS.
     this._grupoLetras = document.createElement('div');
     this._grupoLetras.className = 'teclado-virtual-grupo';
-    ['qwertyuiop', 'asdfghjklñ', 'zxcvbnm'].forEach((fila) => {
+    ['qwertyuiop', 'asdfghjklñ'].forEach((fila) => {
       this._crearFila(this._grupoLetras, fila.split(''), {
         crearBoton: (letra) => this._crearBotonLetra(letra),
       });
     });
+    this._crearFila(this._grupoLetras, ['⇧', ...'zxcvbnm'.split(''), '⌫'], {
+      crearBoton: (tecla) => {
+        if (tecla === '⇧') {
+          this._btnShift = this._crearBotonEspecial(
+            tecla, this._iconoMayus(), 'teclado-virtual-tecla--mayus teclado-virtual-tecla--flanco'
+          );
+          return this._btnShift;
+        }
+        if (tecla === '⌫') {
+          return this._crearBotonEspecial(
+            tecla, this._iconoBorrar(), 'teclado-virtual-tecla--borrar teclado-virtual-tecla--flanco'
+          );
+        }
+        return this._crearBotonLetra(tecla);
+      },
+    });
     panel.appendChild(this._grupoLetras);
 
-    // Capa "símbolos": dígitos + acentos y puntuación menos frecuente. Antes
-    // los dígitos eran una fila aparte, siempre visible incluso en la capa
-    // de letras; ahora viven aquí, ocultos hasta que se pulsa 123, igual que
-    // el resto de esta capa. Sin teclas muertas (mucho más simple de
-    // implementar) — cada tecla inserta ya el carácter final, suficiente
-    // para nombres de producto en español.
+    // Capa "símbolos": dígitos + puntuación + acentos (con borrar al final
+    // de la última fila, para poder corregir sin volver a la capa de
+    // letras — en iOS ese hueco lo ocupa el toggle "#+="/más símbolos, que
+    // aquí no hace falta porque ya mostramos todo en una sola capa).
     this._grupoSimbolos = document.createElement('div');
     this._grupoSimbolos.className = 'teclado-virtual-grupo';
     this._grupoSimbolos.hidden = true;
     this._crearFila(this._grupoSimbolos, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
     this._crearFila(this._grupoSimbolos, ['¿', '¡', '/', ':', ';', '(', ')']);
-    this._crearFila(this._grupoSimbolos, ['á', 'é', 'í', 'ó', 'ú']);
+    this._crearFila(this._grupoSimbolos, ['á', 'é', 'í', 'ó', 'ú', '⌫'], {
+      crearBoton: (tecla) => (tecla === '⌫'
+        ? this._crearBotonEspecial(tecla, this._iconoBorrar(), 'teclado-virtual-tecla--borrar teclado-virtual-tecla--flanco')
+        : this._crearBotonSimple(tecla)),
+    });
     panel.appendChild(this._grupoSimbolos);
 
-    // Fila de símbolos comunes + mayúsculas + borrar, siempre visible en
-    // ambas capas (independiente del toggle 123/ABC).
-    this._crearFila(panel, ['⇧', '@', '.', ',', '-', '_', '⌫'], {
-      crearBoton: (tecla) => {
-        if (tecla === '⇧') {
-          this._btnShift = this._crearBotonSimple(tecla);
-          this._btnShift.classList.add('teclado-virtual-tecla--mayus');
-          return this._btnShift;
-        }
-        return this._crearBotonSimple(tecla);
-      },
-    });
-
     // Fila inferior: 123/ABC, mostrar/ocultar contraseña (oculto por
-    // defecto), espaciadora e Intro.
+    // defecto), espaciadora e Intro — igual que la fila inferior de iOS.
     const filaInferior = document.createElement('div');
     filaInferior.className = 'teclado-virtual-fila';
 
@@ -325,7 +359,7 @@ class VirtualKeyboardController {
     btnEspacio.type = 'button';
     btnEspacio.tabIndex = -1;
     btnEspacio.className = 'teclado-virtual-tecla teclado-virtual-tecla--espacio';
-    btnEspacio.textContent = '␣';
+    btnEspacio.textContent = 'espacio';
     btnEspacio.dataset.tecla = ' ';
     filaInferior.appendChild(btnEspacio);
 
