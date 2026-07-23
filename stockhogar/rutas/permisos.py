@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
-from ..translator import traducir
 from ..utils import Validator
 from ..servicios.email_service import EmailService
 
@@ -129,25 +128,24 @@ def compartir_lista(lista_id):
     # Si es por nombre de usuario
     if nombre_usuario_destino:
         usuario_destino = db.execute(
-            "SELECT id FROM usuarios WHERE nombre_usuario = ?",
+            "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE",
             (nombre_usuario_destino,)
         ).fetchone()
 
         if not usuario_destino:
             return APIResponse.error("err_usuario_no_encontrado", 404)
 
-        # Agregar permiso
-        try:
-            db.execute(
-                """INSERT OR REPLACE INTO permisos_lista
-                   (lista_id, usuario_id, nivel, fecha_otorgado)
-                   VALUES (?, ?, ?, ?)""",
-                (lista_id, usuario_destino["id"], nivel, ahora())
-            )
-            db.commit()
-            return APIResponse.success({"mensaje": "Lista compartida correctamente"})
-        except Exception as e:
-            return APIResponse.error(str(e), 400)
+        # Agregar permiso. Cualquier fallo inesperado (p.ej. FK invalida) lo
+        # captura el @manejo_errores del endpoint con un 500 generico, en vez
+        # de devolver el texto crudo de la excepcion al cliente.
+        db.execute(
+            """INSERT OR REPLACE INTO permisos_lista
+               (lista_id, usuario_id, nivel, fecha_otorgado)
+               VALUES (?, ?, ?, ?)""",
+            (lista_id, usuario_destino["id"], nivel, ahora())
+        )
+        db.commit()
+        return APIResponse.success({"mensaje": "Lista compartida correctamente"})
 
     # Si es por email, crear invitación
     elif email_destino:
@@ -156,46 +154,45 @@ def compartir_lista(lista_id):
         codigo = secrets.token_urlsafe(24)
         fecha_expiracion = (datetime.now() + timedelta(days=7)).isoformat(timespec="seconds")
 
-        try:
-            # Obtener nombre del remitente (propietario de la lista)
-            propietario = db.execute(
-                "SELECT nombre_usuario FROM usuarios WHERE id = ?",
-                (usuario_id,)
-            ).fetchone()
-            nombre_remitente = propietario["nombre_usuario"] if propietario else "Un usuario"
+        # Obtener nombre del remitente (propietario de la lista)
+        propietario = db.execute(
+            "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+            (usuario_id,)
+        ).fetchone()
+        nombre_remitente = propietario["nombre_usuario"] if propietario else "Un usuario"
 
-            # Obtener nombre de la lista
-            lista = db.execute(
-                "SELECT nombre FROM listas WHERE id = ?",
-                (lista_id,)
-            ).fetchone()
-            nombre_lista = lista["nombre"] if lista else "Una lista"
+        # Obtener nombre de la lista
+        lista = db.execute(
+            "SELECT nombre FROM listas WHERE id = ?",
+            (lista_id,)
+        ).fetchone()
+        nombre_lista = lista["nombre"] if lista else "Una lista"
 
-            # Crear invitación en BD
-            db.execute(
-                """INSERT INTO invitaciones_lista
-                   (lista_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (lista_id, email_destino, nivel, codigo, ahora(), fecha_expiracion)
-            )
-            db.commit()
+        # Crear invitación en BD
+        db.execute(
+            """INSERT INTO invitaciones_lista
+               (lista_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (lista_id, email_destino, nivel, codigo, ahora(), fecha_expiracion)
+        )
+        db.commit()
 
-            # Enviar email de invitación
-            email_enviado = EmailService.enviar_invitacion_lista(
-                email_destino=email_destino,
-                nombre_lista=nombre_lista,
-                nombre_remitente=nombre_remitente,
-                codigo_invitacion=codigo,
-                nivel=nivel
-            )
+        # Enviar email de invitación. Cualquier fallo inesperado (BD o envio)
+        # lo captura el @manejo_errores del endpoint con un 500 generico, en
+        # vez de devolver el texto crudo de la excepcion al cliente.
+        email_enviado = EmailService.enviar_invitacion_lista(
+            email_destino=email_destino,
+            nombre_lista=nombre_lista,
+            nombre_remitente=nombre_remitente,
+            codigo_invitacion=codigo,
+            nivel=nivel
+        )
 
-            return APIResponse.success({
-                "mensaje": "Invitación enviada" if email_enviado else "Invitación creada (email no enviado)",
-                "codigo": codigo,
-                "email_enviado": email_enviado
-            })
-        except Exception as e:
-            return APIResponse.error(str(e), 400)
+        return APIResponse.success({
+            "mensaje": "Invitación enviada" if email_enviado else "Invitación creada (email no enviado)",
+            "codigo": codigo,
+            "email_enviado": email_enviado
+        })
 
     return APIResponse.error("err_falta_email_o_usuario", 400)
 
@@ -283,25 +280,24 @@ def aceptar_invitacion(codigo):
     if datetime.now() > fecha_expiracion:
         return APIResponse.error("err_invitacion_expirada", 400)
 
-    try:
-        # Agregar permiso
-        db.execute(
-            """INSERT OR REPLACE INTO permisos_lista
-               (lista_id, usuario_id, nivel, fecha_otorgado)
-               VALUES (?, ?, ?, ?)""",
-            (invitacion["lista_id"], usuario_id, invitacion["nivel"], ahora())
-        )
+    # Agregar permiso. Cualquier fallo inesperado lo captura el
+    # @manejo_errores del endpoint con un 500 generico, en vez de devolver el
+    # texto crudo de la excepcion al cliente.
+    db.execute(
+        """INSERT OR REPLACE INTO permisos_lista
+           (lista_id, usuario_id, nivel, fecha_otorgado)
+           VALUES (?, ?, ?, ?)""",
+        (invitacion["lista_id"], usuario_id, invitacion["nivel"], ahora())
+    )
 
-        # Marcar invitación como usada
-        db.execute(
-            """UPDATE invitaciones_lista
-               SET usado = 1, usuario_aceptacion_id = ?, fecha_aceptacion = ?
-               WHERE id = ?""",
-            (usuario_id, ahora(), invitacion["id"])
-        )
+    # Marcar invitación como usada
+    db.execute(
+        """UPDATE invitaciones_lista
+           SET usado = 1, usuario_aceptacion_id = ?, fecha_aceptacion = ?
+           WHERE id = ?""",
+        (usuario_id, ahora(), invitacion["id"])
+    )
 
-        db.commit()
+    db.commit()
 
-        return APIResponse.success({"mensaje": "¡Invitación aceptada!", "lista_id": invitacion["lista_id"]})
-    except Exception as e:
-        return APIResponse.error(traducir("err_aceptar_invitacion_generico").replace("{error}", str(e)), 400)
+    return APIResponse.success({"mensaje": "¡Invitación aceptada!", "lista_id": invitacion["lista_id"]})
