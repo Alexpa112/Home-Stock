@@ -88,6 +88,10 @@ const filtros = document.getElementById("filtros");
 const fab = document.getElementById("btnAbrirModal");
 const modalFondo = document.getElementById("modal");
 const form = document.getElementById("formProducto");
+const botonesEnviarProducto = [
+  ...form.querySelectorAll('button[type="submit"]'),
+  ...document.querySelectorAll(`button[form="${form.id}"]`),
+];
 const btnCancelar = document.getElementById("btnCancelar");
 const modalTitulo = document.getElementById("modalTitulo");
 const campoCategoria = document.getElementById("campoCategoria");
@@ -107,6 +111,10 @@ const btnToggleCompletados = document.getElementById("btnToggleCompletados");
 
 const modalCompraFondo = document.getElementById("modalCompra");
 const formCompra = document.getElementById("formCompra");
+const botonesEnviarCompra = [
+  ...formCompra.querySelectorAll('button[type="submit"]'),
+  ...document.querySelectorAll(`button[form="${formCompra.id}"]`),
+];
 const btnCancelarCompra = document.getElementById("btnCancelarCompra");
 const compraModalTitulo = document.getElementById("compraModalTitulo");
 const compraEditIdEl = document.getElementById("compraEditId");
@@ -955,43 +963,48 @@ form.addEventListener("submit", async (e) => {
   };
   if (!payload.nombre) return;
 
-  if (id) {
-    const res = await fetch(`/api/productos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      Toast.error(error.error || "No se pudo guardar los cambios.");
-      return;
-    }
-    const actualizado = await res.json();
-    productos = productos.map((p) => (p.id === actualizado.id ? actualizado : p));
-  } else {
-    const res = await fetch("/api/productos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      Toast.error(error.error || "No se pudo crear el producto.");
-      return;
-    }
-    const creado = await res.json();
-    productos.push(creado);
+  botonesEnviarProducto.forEach((btn) => (btn.disabled = true));
+  try {
+    if (id) {
+      const res = await fetch(`/api/productos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        Toast.error(error.error || "No se pudo guardar los cambios.");
+        return;
+      }
+      const actualizado = await res.json();
+      productos = productos.map((p) => (p.id === actualizado.id ? actualizado : p));
+    } else {
+      const res = await fetch("/api/productos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        Toast.error(error.error || "No se pudo crear el producto.");
+        return;
+      }
+      const creado = await res.json();
+      productos.push(creado);
 
-    // Traducir automáticamente el nombre del producto a todos los idiomas
-    // (en background, sin bloquear la UI)
-    fetch("/api/productos/traducir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre: payload.nombre,
-        producto_id: creado.id
-      })
-    }).catch(err => console.warn('Traducción automática fallida:', err));
+      // Traducir automáticamente el nombre del producto a todos los idiomas
+      // (en background, sin bloquear la UI)
+      fetch("/api/productos/traducir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: payload.nombre,
+          producto_id: creado.id
+        })
+      }).catch(err => console.warn('Traducción automática fallida:', err));
+    }
+  } finally {
+    botonesEnviarProducto.forEach((btn) => (btn.disabled = false));
   }
 
   cerrarModal();
@@ -1274,54 +1287,59 @@ formCompra.addEventListener("submit", async (e) => {
     payload.lista_id = parseInt(listaId);
   }
 
-  // Si es una edición y el artículo tiene ID personalizado, usar API de artículos personalizados
-  const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId")?.value;
-  if (id && articuloPersonalizadoId) {
-    try {
-      const articuloActualizado = await editarArticuloPersonalizado(articuloPersonalizadoId, payload);
-      console.log("Artículo personalizado actualizado:", articuloActualizado);
-    } catch (error) {
-      console.error("Error actualizando artículo personalizado:", error);
-      Toast.error(error.message || "No se pudo actualizar el artículo personalizado. Inténtalo de nuevo.");
-      return;
-    }
-  }
-
-  let articulo;
+  botonesEnviarCompra.forEach((btn) => (btn.disabled = true));
   try {
-    const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    articulo = await res.json();
-    if (!res.ok) {
-      Toast.error(articulo?.error || "No se pudo guardar el artículo");
+    // Si es una edición y el artículo tiene ID personalizado, usar API de artículos personalizados
+    const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId")?.value;
+    if (id && articuloPersonalizadoId) {
+      try {
+        const articuloActualizado = await editarArticuloPersonalizado(articuloPersonalizadoId, payload);
+        console.log("Artículo personalizado actualizado:", articuloActualizado);
+      } catch (error) {
+        console.error("Error actualizando artículo personalizado:", error);
+        Toast.error(error.message || "No se pudo actualizar el artículo personalizado. Inténtalo de nuevo.");
+        return;
+      }
+    }
+
+    let articulo;
+    try {
+      const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
+        method: id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      articulo = await res.json();
+      if (!res.ok) {
+        Toast.error(articulo?.error || "No se pudo guardar el artículo");
+        return;
+      }
+    } catch (error) {
+      console.error("Error guardando artículo:", error);
+      Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
       return;
     }
-  } catch (error) {
-    console.error("Error guardando artículo:", error);
-    Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
-    return;
-  }
 
-  // Traducir automáticamente el nombre del artículo a todos los idiomas
-  // (en background, sin bloquear la UI)
-  if (!id && articulo && articulo.id) {
-    fetch("/api/productos/traducir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre: payload.nombre,
-        descripcion: payload.sub_descripcion || "",
-        articulo_id: articulo.id
-      })
-    }).catch(err => console.warn('Traducción automática fallida:', err));
-  }
+    // Traducir automáticamente el nombre del artículo a todos los idiomas
+    // (en background, sin bloquear la UI)
+    if (!id && articulo && articulo.id) {
+      fetch("/api/productos/traducir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: payload.nombre,
+          descripcion: payload.sub_descripcion || "",
+          articulo_id: articulo.id
+        })
+      }).catch(err => console.warn('Traducción automática fallida:', err));
+    }
 
-  cerrarModalCompra();
-  cargarListaCompra();
-  cargarHistorial();
+    cerrarModalCompra();
+    cargarListaCompra();
+    cargarHistorial();
+  } finally {
+    botonesEnviarCompra.forEach((btn) => (btn.disabled = false));
+  }
 });
 
 btnCancelarCompra.addEventListener("click", cerrarModalCompra);
