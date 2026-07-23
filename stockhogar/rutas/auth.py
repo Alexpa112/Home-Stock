@@ -159,6 +159,12 @@ def actualizar_perfil():
     if nombre:
         if len(nombre) > 80:
             return APIResponse.validacion("err_nombre_max_80")
+        duplicado = db.execute(
+            "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE AND id != ?",
+            (nombre, usuario_id)
+        ).fetchone()
+        if duplicado:
+            return APIResponse.error("err_usuario_duplicado", 400)
         db.execute(
             "UPDATE usuarios SET nombre_usuario = ? WHERE id = ?",
             (nombre, usuario_id)
