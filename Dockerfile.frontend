@@ -26,7 +26,12 @@ COPY middleware.ts next.config.mjs tailwind.config.ts postcss.config.mjs tsconfi
 # rewrites(), que corre en el servidor de Next, no en el navegador.
 ARG NEXT_PUBLIC_API_URL=http://stockhogar:5000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-RUN if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm run build; else npm run build; fi
+# --webpack: Turbopack (motor por defecto de "next build" en Next 16) solo
+# tiene bindings nativos, sin soporte para linux/arm (Raspberry Pi 32-bit);
+# ahi solo se cargan bindings WASM, que Turbopack no puede usar, y el build
+# falla con "Turbopack is not supported on this platform". Webpack sí
+# funciona en todas las arquitecturas.
+RUN if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm run build -- --webpack; else npm run build -- --webpack; fi
 
 FROM node:20-bookworm-slim
 WORKDIR /app
