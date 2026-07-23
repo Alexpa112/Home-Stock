@@ -12,11 +12,13 @@ function agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, duracion = 480
   let fueLarga = false;
   let inicioX = 0;
   let inicioY = 0;
+  let ultimoPointerType = null;
 
   function empezar(e) {
     fueLarga = false;
     inicioX = e.clientX;
     inicioY = e.clientY;
+    ultimoPointerType = e.pointerType;
     temporizador = setTimeout(() => {
       fueLarga = true;
       if (navigator.vibrate) navigator.vibrate(15);
@@ -40,7 +42,14 @@ function agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, duracion = 480
   elemento.addEventListener("pointerup", terminar);
   elemento.addEventListener("pointerleave", cancelar);
   elemento.addEventListener("pointercancel", cancelar);
-  elemento.addEventListener("contextmenu", (e) => e.preventDefault());
+  // Solo se previene el menu contextual nativo para el long-press tactil/pen
+  // (copiar/compartir de iOS/Android); en desktop con raton, el clic derecho
+  // debe seguir abriendo el menu contextual normal del navegador.
+  elemento.addEventListener("contextmenu", (e) => {
+    if (ultimoPointerType === "touch" || ultimoPointerType === "pen") {
+      e.preventDefault();
+    }
+  });
 }
 
 if (typeof module === 'undefined') {

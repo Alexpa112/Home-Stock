@@ -13,12 +13,14 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-// jsdom no implementa PointerEvent; un Event con clientX/clientY asignados a
-// mano es indistinguible para agregarPulsacion(), que solo lee esas props.
-function dispararPointer(elemento, tipo, x, y) {
+// jsdom no implementa PointerEvent; un Event con clientX/clientY/pointerType
+// asignados a mano es indistinguible para agregarPulsacion(), que solo lee
+// esas props.
+function dispararPointer(elemento, tipo, x, y, pointerType = 'touch') {
   const evento = new Event(tipo, { bubbles: true });
   evento.clientX = x;
   evento.clientY = y;
+  evento.pointerType = pointerType;
   elemento.dispatchEvent(evento);
 }
 
@@ -107,10 +109,19 @@ describe('agregarPulsacion()', () => {
     expect(alPulsarCorto).not.toHaveBeenCalled();
   });
 
-  test('contextmenu (menú nativo de long-press) se previene', () => {
+  test('contextmenu tras un long-press tactil se previene (menú nativo de copiar/compartir)', () => {
     agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, 480);
+    dispararPointer(elemento, 'pointerdown', 100, 100, 'touch');
     const evento = new Event('contextmenu', { bubbles: true, cancelable: true });
     elemento.dispatchEvent(evento);
     expect(evento.defaultPrevented).toBe(true);
+  });
+
+  test('contextmenu con raton (clic derecho de escritorio) NO se previene', () => {
+    agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, 480);
+    dispararPointer(elemento, 'pointerdown', 100, 100, 'mouse');
+    const evento = new Event('contextmenu', { bubbles: true, cancelable: true });
+    elemento.dispatchEvent(evento);
+    expect(evento.defaultPrevented).toBe(false);
   });
 });
