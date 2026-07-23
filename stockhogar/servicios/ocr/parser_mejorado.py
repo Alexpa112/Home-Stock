@@ -87,9 +87,15 @@ class ParserMejorado:
             "tarjeta", "visa", "mastercard", "ticket", "factura", "recibo",
             "iva", "irpf", "impuesto", "fecha", "hora", "tienda", "caja",
             "operador", "atencion", "cliente", "gracias", "vuelvo", "cuenta",
-            "www", "http", "email", "tlf", "cif", "nif", "empresa", "domicilio",
+            "www", "http", "email", "tlf", "telefono", "cif", "nif", "empresa", "domicilio",
             "devolucion", "cambios", "garantia", "oferta", "promocion", "descuento",
             "puntos", "puntuacion", "codigo", "lote", "lotes",
+            # Fidelización / programas de puntos
+            "fidelidad", "fidelizacion", "monedero", "socio", "socia",
+            "ha ganado", "ganado", "acumulado", "acumulados", "saldo",
+            "recompensa", "recompensas", "vale descuento", "cheque descuento",
+            "ahorro acumulado", "club", "supercompra", "mi club", "carrefour pass",
+            "n. socio", "nº socio", "num. socio",
         }
 
         # Regex mejorados
@@ -106,6 +112,25 @@ class ParserMejorado:
             re.IGNORECASE
         )
 
+        # Patrones típicos de cabecera (nombre de tienda, dirección, CIF, teléfono)
+        self.regex_cif_nif = re.compile(r'\b[A-Z]\d{7,8}[A-Z0-9]?\b')
+        self.regex_telefono = re.compile(r'\b\d{9}\b')
+        self.regex_cod_postal = re.compile(r'\b\d{5}\b')
+
+        # Cantidad con unidad real (kg, l, ud...), a diferencia de
+        # regex_cantidad que acepta cualquier palabra tras el número
+        # (útil para no confundir "28100 Alcobendas" con una cantidad).
+        unidades_alt = '|'.join(sorted(self.unidades_map.keys(), key=len, reverse=True))
+        self.regex_cantidad_unidad = re.compile(
+            r'\d+[.,]?\d*\s*(?:' + unidades_alt + r')\b\.?',
+            re.IGNORECASE | re.UNICODE
+        )
+        self.palabras_cabecera = {
+            "s.a.", "s.l.", "s.a", "s.l", "sl", "sa", "s.coop", "avda", "avenida",
+            "c/", "calle", "polígono", "poligono", "cif", "nif", "tel", "telefono",
+            "teléfono", "fax", "www", "http", ".com", ".es",
+        }
+
     def parsear(self, texto: str) -> List[LineaTicketMejorada]:
         """Parsea ticket complejo y extrae líneas con contexto."""
         if not texto or not texto.strip():
@@ -121,8 +146,14 @@ class ParserMejorado:
         # TARJETA suele venir el pie del ticket: fidelización, marketing, etc.)
         fin_productos = self._detectar_fin_productos(lineas_limpias)
 
+        # Detectar dónde empieza la sección de productos (antes suele venir la
+        # cabecera: nombre de tienda, dirección, CIF, teléfono, fecha/hora).
+        inicio_productos = self._detectar_inicio_productos(lineas_limpias)
+
         productos = []
         for idx, linea in enumerate(lineas_limpias):
+            if idx < inicio_productos:
+                continue
             if idx >= fin_productos:
                 break
             if self._es_linea_valida(linea):
@@ -172,6 +203,44 @@ class ParserMejorado:
         if ultimo_idx == -1:
             return len(lineas)
         return ultimo_idx + 1
+
+    def _detectar_inicio_productos(self, lineas: List[str]) -> int:
+        """Detecta el índice a partir del cual empiezan los productos,
+        saltando la cabecera del ticket (nombre de tienda, dirección,
+        CIF/NIF, teléfono, fecha/hora), que no contiene productos.
+
+        Se considera cabecera toda línea inicial que no tenga un precio
+        (##,## €) ni una cantidad con unidad, y que además "parezca"
+        cabecera (contiene CIF/NIF, teléfono, código postal o palabras
+        típicas de dirección/razón social). Se limita la búsqueda a las
+        primeras 12 líneas para no comerse todo el ticket si el OCR no
+        detecta precios.
+        """
+        limite = min(len(lineas), 12)
+        for idx in range(limite):
+            linea = lineas[idx]
+            linea_lower = linea.lower()
+
+            tiene_precio = bool(self.regex_precio.search(linea))
+            tiene_cantidad = bool(self.regex_cantidad_unidad.search(linea))
+            if tiene_precio or tiene_cantidad:
+                return idx
+
+            es_cabecera = (
+                bool(self.regex_cif_nif.search(linea)) or
+                bool(self.regex_telefono.search(linea)) or
+                bool(self.regex_cod_postal.search(linea)) or
+                any(p in linea_lower for p in self.palabras_cabecera)
+            )
+            if not es_cabecera and idx > 0:
+                # Primera línea que no parece cabecera ni tiene precio/cantidad:
+                # puede ser un producto sin precio detectado por el OCR, o el
+                # nombre de la tienda (idx 0, casi siempre cabecera). A partir
+                # de la segunda línea, si no es claramente cabecera, se asume
+                # que ya empiezan los productos.
+                return idx
+
+        return limite
 
     def _es_linea_valida(self, linea: str) -> bool:
         """Valida si la línea contiene un producto potencial."""
