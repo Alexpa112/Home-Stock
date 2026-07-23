@@ -80,6 +80,7 @@
 button { touch-action: manipulation; }
 input, select, textarea {
   font-size: 16px;
+  caret-color: var(--accent);
 }
 
 /* ---------- Barras de desplazamiento ---------- */
@@ -134,7 +135,6 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   transition: transform .2s ease;
-  will-change: transform;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -142,6 +142,7 @@ body.modal-open {
 }
 
 body.keyboard-open:not(.modal-open) #appShell {
+  will-change: transform;
   transform: translateY(calc(-1 * min(var(--keyboard-offset, 0px), 20vh)));
 }
 
@@ -654,43 +655,72 @@ body.modal-open .fab {
 }
 
 .modal-header {
+  position: relative;
   flex-shrink: 0;
-  padding: 20px;
+  padding: 20px 88px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
 }
 
-.modal-header h2 {
+.modal-header h2,
+.modal-header h3 {
   margin: 0;
   flex: 1;
+  min-width: 0;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.btn-cerrar-modal {
+.modal-header .btn-cerrar-modal {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
   background: none;
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 0;
   line-height: 1;
   color: var(--text);
 }
 
-.btn-header-editar {
+.modal-header .btn-header-editar {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 0 4px;
   line-height: 1;
   color: var(--text);
   transition: opacity 200ms ease;
 }
 
-.btn-header-icono {
+.modal-header .btn-header-icono {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -920,6 +950,7 @@ body.keyboard-open .modal-superpuesta .modal {
   -webkit-appearance: none;
   appearance: none;
   -webkit-font-smoothing: antialiased;
+  caret-color: var(--accent);
 }
 .modal input:focus-visible, .modal select:focus-visible, .modal textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .modal input { touch-action: manipulation; }
@@ -1176,6 +1207,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+#vistaCompra {
+  padding-bottom: calc(56px + 32px + 16px);
 }
 
 .grupo-compra-titulo {

@@ -44,16 +44,19 @@ class TraduccionArticuloPersonalizadoTest(unittest.TestCase):
                 (self.usuario_id,),
             )
             db.execute("DELETE FROM listas WHERE usuario_propietario_id = ?", (self.usuario_id,))
-            db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             articulo = db.execute(
-                "SELECT id FROM articulos_personalizados WHERE nombre = ?",
-                ("ZzzArticuloTestUnico",),
+                "SELECT id FROM articulos_personalizados WHERE nombre = ? AND usuario_propietario_id = ?",
+                ("ZzzArticuloTestUnico", self.usuario_id),
             ).fetchone()
             if articulo:
                 db.execute(
                     "DELETE FROM traducciones_productos WHERE articulo_personalizado_id = ?", (articulo["id"],)
                 )
                 db.execute("DELETE FROM articulos_personalizados WHERE id = ?", (articulo["id"],))
+            # articulos_personalizados.usuario_propietario_id referencia
+            # usuarios(id): hay que borrar la fila personalizada antes que el
+            # usuario, o la FK lo impide.
+            db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             db.commit()
 
     def test_crear_articulo_personalizado_genera_traducciones(self):
@@ -67,7 +70,8 @@ class TraduccionArticuloPersonalizadoTest(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             articulo = db.execute(
-                "SELECT id FROM articulos_personalizados WHERE nombre = ?", (nombre,)
+                "SELECT id FROM articulos_personalizados WHERE nombre = ? AND usuario_propietario_id = ?",
+                (nombre, self.usuario_id),
             ).fetchone()
             self.assertIsNotNone(articulo, "El artículo personalizado no se creó")
 

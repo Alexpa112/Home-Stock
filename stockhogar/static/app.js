@@ -34,6 +34,20 @@ window.fetch = async (input, init = {}) => {
   return res;
 };
 
+// El antes-de-cada-peticion del servidor bloquea llamadas nuevas al activar el
+// modo mantenimiento, pero si el usuario se queda quieto en una pantalla sin
+// pedir nada no se entera. Comprobamos el estado cada minuto (y al recuperar
+// el foco) para sacarlo aunque no esté interactuando con la app.
+function iniciarComprobacionMantenimiento() {
+  const comprobar = () => {
+    if (document.visibilityState === "hidden") return;
+    fetch("/api/auth/estado", { headers: { "X-Comprobacion-Mantenimiento": "1" } }).catch(() => {});
+  };
+  setInterval(comprobar, 60000);
+  document.addEventListener("visibilitychange", comprobar);
+}
+iniciarComprobacionMantenimiento();
+
 // Función auxiliar para fetch con timeout y manejo de errores
 async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -74,6 +88,10 @@ const filtros = document.getElementById("filtros");
 const fab = document.getElementById("btnAbrirModal");
 const modalFondo = document.getElementById("modal");
 const form = document.getElementById("formProducto");
+const botonesEnviarProducto = [
+  ...form.querySelectorAll('button[type="submit"]'),
+  ...document.querySelectorAll(`button[form="${form.id}"]`),
+];
 const btnCancelar = document.getElementById("btnCancelar");
 const modalTitulo = document.getElementById("modalTitulo");
 const campoCategoria = document.getElementById("campoCategoria");
@@ -93,6 +111,10 @@ const btnToggleCompletados = document.getElementById("btnToggleCompletados");
 
 const modalCompraFondo = document.getElementById("modalCompra");
 const formCompra = document.getElementById("formCompra");
+const botonesEnviarCompra = [
+  ...formCompra.querySelectorAll('button[type="submit"]'),
+  ...document.querySelectorAll(`button[form="${formCompra.id}"]`),
+];
 const btnCancelarCompra = document.getElementById("btnCancelarCompra");
 const compraModalTitulo = document.getElementById("compraModalTitulo");
 const compraEditIdEl = document.getElementById("compraEditId");
@@ -432,6 +454,18 @@ async function cargarHistorial() {
   }
 }
 
+// Retrasa la ejecución hasta que paren de llegar llamadas: evita reconstruir
+// listas/grids completos en cada pulsación mientras se escribe (con el
+// teclado virtual propio esto se notaba como escritura lenta/no fluida, al
+// bloquear el hilo principal entre tecla y tecla).
+function debounce(fn, esperaMs) {
+  let temporizador;
+  return (...args) => {
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => fn(...args), esperaMs);
+  };
+}
+
 // Quita acentos para que buscar "platano" encuentre "Plátanos".
 function normalizarTexto(texto) {
   const SIN_ACENTOS = new RegExp("[̀-ͯ]", "g");
@@ -443,32 +477,8 @@ function normalizarTexto(texto) {
 }
 
 // Pulsacion corta vs. mantener pulsado, unificando raton y tactil.
-function agregarPulsacion(elemento, alPulsarCorto, alPulsarLargo, duracion = 480) {
-  let temporizador = null;
-  let fueLarga = false;
-
-  function empezar() {
-    fueLarga = false;
-    temporizador = setTimeout(() => {
-      fueLarga = true;
-      if (navigator.vibrate) navigator.vibrate(15);
-      alPulsarLargo();
-    }, duracion);
-  }
-  function cancelar() {
-    clearTimeout(temporizador);
-  }
-  function terminar() {
-    clearTimeout(temporizador);
-    if (!fueLarga) alPulsarCorto();
-  }
-
-  elemento.addEventListener("pointerdown", empezar);
-  elemento.addEventListener("pointerup", terminar);
-  elemento.addEventListener("pointerleave", cancelar);
-  elemento.addEventListener("pointercancel", cancelar);
-  elemento.addEventListener("contextmenu", (e) => e.preventDefault());
-}
+// Implementación en modules/gestures.js (testeada en gestures.test.js).
+const agregarPulsacion = window.Gestures.agregarPulsacion;
 
 async function cargarCategorias() {
   try {
@@ -608,9 +618,12 @@ function cerrarModalSelectorIconos() {
 }
 
 // Event listener para el buscador
-buscadorIconos.addEventListener("input", () => {
-  renderizarIconosGrid(buscadorIconos.value);
-});
+buscadorIconos.addEventListener(
+  "input",
+  debounce(() => {
+    renderizarIconosGrid(buscadorIconos.value);
+  }, 150)
+);
 
 btnCerrarSelectorIconos.addEventListener("click", cerrarModalSelectorIconos);
 
@@ -763,17 +776,14 @@ async function cambiarCantidad(id, delta) {
 
   let actualizado;
   try {
-    const res = await fetch(`/api/productos/${id}`, {
+    // fetchConTimeout ya lanza (con el mensaje del servidor si lo hay) si la
+    // respuesta no es res.ok, así que aquí solo queda validar el cuerpo.
+    const res = await fetchConTimeout(`/api/productos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ delta }),
-    });
+    }, 8000);
     const datos = await res.json().catch(() => null);
-    if (!res.ok) {
-      console.error(`Error PATCH: ${res.status} ${res.statusText}`);
-      Toast.error(datos?.error || `No se pudo cambiar la cantidad (${res.status})`);
-      return;
-    }
     if (!datos || !datos.id) {
       console.error("Respuesta inválida del servidor", datos);
       Toast.error("Respuesta inválida del servidor al cambiar la cantidad");
@@ -782,7 +792,7 @@ async function cambiarCantidad(id, delta) {
     actualizado = datos;
   } catch (error) {
     console.error("Error cambiando cantidad:", error);
-    Toast.error("No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
+    Toast.error(error.message || "No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
     return;
   } finally {
     productosEnProceso.delete(id);
@@ -924,43 +934,48 @@ form.addEventListener("submit", async (e) => {
   };
   if (!payload.nombre) return;
 
-  if (id) {
-    const res = await fetch(`/api/productos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      Toast.error(error.error || "No se pudo guardar los cambios.");
-      return;
-    }
-    const actualizado = await res.json();
-    productos = productos.map((p) => (p.id === actualizado.id ? actualizado : p));
-  } else {
-    const res = await fetch("/api/productos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      Toast.error(error.error || "No se pudo crear el producto.");
-      return;
-    }
-    const creado = await res.json();
-    productos.push(creado);
+  botonesEnviarProducto.forEach((btn) => (btn.disabled = true));
+  try {
+    if (id) {
+      const res = await fetch(`/api/productos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        Toast.error(error.error || "No se pudo guardar los cambios.");
+        return;
+      }
+      const actualizado = await res.json();
+      productos = productos.map((p) => (p.id === actualizado.id ? actualizado : p));
+    } else {
+      const res = await fetch("/api/productos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        Toast.error(error.error || "No se pudo crear el producto.");
+        return;
+      }
+      const creado = await res.json();
+      productos.push(creado);
 
-    // Traducir automáticamente el nombre del producto a todos los idiomas
-    // (en background, sin bloquear la UI)
-    fetch("/api/productos/traducir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre: payload.nombre,
-        producto_id: creado.id
-      })
-    }).catch(err => console.warn('Traducción automática fallida:', err));
+      // Traducir automáticamente el nombre del producto a todos los idiomas
+      // (en background, sin bloquear la UI)
+      fetch("/api/productos/traducir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: payload.nombre,
+          producto_id: creado.id
+        })
+      }).catch(err => console.warn('Traducción automática fallida:', err));
+    }
+  } finally {
+    botonesEnviarProducto.forEach((btn) => (btn.disabled = false));
   }
 
   cerrarModal();
@@ -972,10 +987,13 @@ form.addEventListener("submit", async (e) => {
 btnCancelar.addEventListener("click", cerrarModal);
 habilitarBottomSheet(modalFondo, modalFondo.querySelector(".modal"), cerrarModal);
 
-buscador.addEventListener("input", (e) => {
-  textoBusqueda = e.target.value;
-  render();
-});
+buscador.addEventListener(
+  "input",
+  debounce((e) => {
+    textoBusqueda = e.target.value;
+    render();
+  }, 150)
+);
 
 filtros.addEventListener("click", (e) => {
   const btn = e.target.closest(".chip");
@@ -1240,54 +1258,77 @@ formCompra.addEventListener("submit", async (e) => {
     payload.lista_id = parseInt(listaId);
   }
 
-  // Si es una edición y el artículo tiene ID personalizado, usar API de artículos personalizados
-  const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId")?.value;
-  if (id && articuloPersonalizadoId) {
-    try {
-      const articuloActualizado = await editarArticuloPersonalizado(articuloPersonalizadoId, payload);
-      console.log("Artículo personalizado actualizado:", articuloActualizado);
-    } catch (error) {
-      console.error("Error actualizando artículo personalizado:", error);
-      Toast.error(error.message || "No se pudo actualizar el artículo personalizado. Inténtalo de nuevo.");
-      return;
-    }
-  }
-
-  let articulo;
+  botonesEnviarCompra.forEach((btn) => (btn.disabled = true));
   try {
-    const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    articulo = await res.json();
-    if (!res.ok) {
-      Toast.error(articulo?.error || "No se pudo guardar el artículo");
+    // Si es una edición y el artículo tiene ID personalizado, usar API de artículos personalizados
+    const articuloPersonalizadoId = document.getElementById("compraArticuloPersonalizadoId")?.value;
+    let catalogoPersonalizadoActualizado = false;
+    if (id && articuloPersonalizadoId) {
+      try {
+        const articuloActualizado = await editarArticuloPersonalizado(articuloPersonalizadoId, payload);
+        console.log("Artículo personalizado actualizado:", articuloActualizado);
+        catalogoPersonalizadoActualizado = true;
+      } catch (error) {
+        console.error("Error actualizando artículo personalizado:", error);
+        Toast.error(error.message || "No se pudo actualizar el artículo personalizado. Inténtalo de nuevo.");
+        return;
+      }
+    }
+
+    let articulo;
+    try {
+      const res = await fetch(id ? `/api/articulos/${id}` : "/api/articulos", {
+        method: id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      articulo = await res.json();
+      if (!res.ok) {
+        // Si el catálogo personalizado ya se actualizó por encima, el estado
+        // ha quedado parcialmente aplicado: avisar de eso en vez de un error
+        // generico que sugiere que no se guardó nada.
+        if (catalogoPersonalizadoActualizado) {
+          Toast.error(
+            "El artículo del catálogo se actualizó, pero no se pudo guardar en esta lista: " +
+            (articulo?.error || "inténtalo de nuevo")
+          );
+          cargarListaCompra();
+        } else {
+          Toast.error(articulo?.error || "No se pudo guardar el artículo");
+        }
+        return;
+      }
+    } catch (error) {
+      console.error("Error guardando artículo:", error);
+      if (catalogoPersonalizadoActualizado) {
+        Toast.error("El artículo del catálogo se actualizó, pero no se pudo guardar en esta lista. Comprueba tu conexión e inténtalo de nuevo.");
+        cargarListaCompra();
+      } else {
+        Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
+      }
       return;
     }
-  } catch (error) {
-    console.error("Error guardando artículo:", error);
-    Toast.error("No se pudo guardar el artículo. Comprueba tu conexión e inténtalo de nuevo.");
-    return;
-  }
 
-  // Traducir automáticamente el nombre del artículo a todos los idiomas
-  // (en background, sin bloquear la UI)
-  if (!id && articulo && articulo.id) {
-    fetch("/api/productos/traducir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre: payload.nombre,
-        descripcion: payload.sub_descripcion || "",
-        articulo_id: articulo.id
-      })
-    }).catch(err => console.warn('Traducción automática fallida:', err));
-  }
+    // Traducir automáticamente el nombre del artículo a todos los idiomas
+    // (en background, sin bloquear la UI)
+    if (!id && articulo && articulo.id) {
+      fetch("/api/productos/traducir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: payload.nombre,
+          descripcion: payload.sub_descripcion || "",
+          articulo_id: articulo.id
+        })
+      }).catch(err => console.warn('Traducción automática fallida:', err));
+    }
 
-  cerrarModalCompra();
-  cargarListaCompra();
-  cargarHistorial();
+    cerrarModalCompra();
+    cargarListaCompra();
+    cargarHistorial();
+  } finally {
+    botonesEnviarCompra.forEach((btn) => (btn.disabled = false));
+  }
 });
 
 btnCancelarCompra.addEventListener("click", cerrarModalCompra);
@@ -1560,7 +1601,10 @@ async function toggleArticuloEnLista(entry, btn) {
   }
 }
 
-catalogoBuscadorEl.addEventListener("input", (e) => renderCatalogo(e.target.value));
+catalogoBuscadorEl.addEventListener(
+  "input",
+  debounce((e) => renderCatalogo(e.target.value), 150)
+);
 
 if (btnCrearDesdeCatalogo) {
   btnCrearDesdeCatalogo.addEventListener("click", () => {
@@ -1946,24 +1990,33 @@ class ScrollManager {
 
   init() {
     let startX = 0;
+    let startY = 0;
+    let dentroDeScrollHorizontal = null; // se calcula una vez por gesto, no en cada touchmove
 
     document.addEventListener('touchstart', (e) => {
       startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dentroDeScrollHorizontal = null;
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
       const currentX = e.touches[0].clientX;
       const diffX = Math.abs(currentX - startX);
-      const diffY = Math.abs(e.touches[0].clientY - (e.touches[0].clientY || 0));
+      const diffY = Math.abs(e.touches[0].clientY - startY);
 
       if (diffX > 20) {
-        let el = e.target;
-        while (el && el !== document.body) {
-          if (el.scrollWidth > el.clientWidth) {
-            return;
+        if (dentroDeScrollHorizontal === null) {
+          dentroDeScrollHorizontal = false;
+          let el = e.target;
+          while (el && el !== document.body) {
+            if (el.scrollWidth > el.clientWidth) {
+              dentroDeScrollHorizontal = true;
+              break;
+            }
+            el = el.parentElement;
           }
-          el = el.parentElement;
         }
+        if (dentroDeScrollHorizontal) return;
 
         if (diffX > 50 && diffY < 20) {
           e.preventDefault();
@@ -2110,8 +2163,8 @@ function crearItemLista(lista) {
   const info = document.createElement('div');
   info.style.cssText = 'flex: 1;';
   info.innerHTML = `
-    <div style="font-weight: 600; font-size: 0.95rem;">${lista.nombre}</div>
-    <div style="font-size: 0.75rem; color: var(--text-soft);">${lista.mi_rol ? lista.mi_rol.toUpperCase() : 'VER'}</div>
+    <div style="font-weight: 600; font-size: 0.95rem;">${escapeHtml(lista.nombre)}</div>
+    <div style="font-size: 0.75rem; color: var(--text-soft);">${escapeHtml(lista.mi_rol ? lista.mi_rol.toUpperCase() : 'VER')}</div>
   `;
 
   div.appendChild(icono);

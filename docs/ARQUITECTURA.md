@@ -197,8 +197,8 @@ categorias (nombre, icono)  -- UNIQUE(nombre)
 -- Catálogo global (historial de artículos + iconos aprendidos)
 historial_articulos (id, nombre, icono, categoria, unidad, cantidad_defecto)  -- UNIQUE(nombre) COLLATE NOCASE
 
--- Artículos únicos del catálogo del usuario, disponibles en cualquier lista
-articulos_personalizados (id, nombre)  -- UNIQUE(nombre) COLLATE NOCASE
+-- Catálogo privado por hogar, disponible en las listas de ese mismo hogar
+articulos_personalizados (id, nombre, usuario_propietario_id)  -- UNIQUE(nombre, usuario_propietario_id), nombre COLLATE NOCASE
 
 -- Traducciones cacheadas por producto/artículo e idioma
 traducciones_productos (producto_id, articulo_lista_id, idioma, nombre, descripcion)

@@ -87,9 +87,15 @@ class ParserMejorado:
             "tarjeta", "visa", "mastercard", "ticket", "factura", "recibo",
             "iva", "irpf", "impuesto", "fecha", "hora", "tienda", "caja",
             "operador", "atencion", "cliente", "gracias", "vuelvo", "cuenta",
-            "www", "http", "email", "tlf", "cif", "nif", "empresa", "domicilio",
+            "www", "http", "email", "tlf", "telefono", "cif", "nif", "empresa", "domicilio",
             "devolucion", "cambios", "garantia", "oferta", "promocion", "descuento",
             "puntos", "puntuacion", "codigo", "lote", "lotes",
+            # Fidelización / programas de puntos
+            "fidelidad", "fidelizacion", "monedero", "socio", "socia",
+            "ha ganado", "ganado", "acumulado", "acumulados", "saldo",
+            "recompensa", "recompensas", "vale descuento", "cheque descuento",
+            "ahorro acumulado", "club", "supercompra", "mi club", "carrefour pass",
+            "n. socio", "nº socio", "num. socio",
         }
 
         # Regex mejorados
@@ -98,12 +104,39 @@ class ParserMejorado:
             re.IGNORECASE | re.UNICODE
         )
         self.regex_precio = re.compile(
-            r'(\d+[.,]\d{2})\s*(€|\$)?',
+            r'(?<![A-Za-záéíóúñ])(\d*[.,]\d{2})\s*(€|\$)?',
             re.IGNORECASE
         )
         self.regex_precio_unitario = re.compile(
             r'@\s*(\d+[.,]\d+)\s*(€|\/kg|\/l|\/ud)?',
             re.IGNORECASE
+        )
+
+        # Patrones típicos de cabecera (nombre de tienda, dirección, CIF, teléfono)
+        self.regex_cif_nif = re.compile(r'\b[A-Z]\d{7,8}[A-Z0-9]?\b')
+        self.regex_telefono = re.compile(r'\b\d{9}\b')
+        self.regex_cod_postal = re.compile(r'\b\d{5}\b')
+
+        # Cantidad con unidad real (kg, l, ud...), a diferencia de
+        # regex_cantidad que acepta cualquier palabra tras el número
+        # (útil para no confundir "28100 Alcobendas" con una cantidad).
+        unidades_alt = '|'.join(sorted(self.unidades_map.keys(), key=len, reverse=True))
+        self.regex_cantidad_unidad = re.compile(
+            r'\d+[.,]?\d*\s*(?:' + unidades_alt + r')\b\.?',
+            re.IGNORECASE | re.UNICODE
+        )
+        self.palabras_cabecera = {
+            "s.a.", "s.l.", "s.a", "s.l", "sl", "sa", "s.coop", "avda", "avenida",
+            "c/", "calle", "polígono", "poligono", "cif", "nif", "tel", "telefono",
+            "teléfono", "fax", "www", "http", ".com", ".es",
+        }
+
+        # Cantidad "suelta" al principio de la línea (p.ej. "2 COCA COLA 1,80"):
+        # un entero corto seguido de espacio y letra, típico de tickets donde
+        # la cantidad va delante del nombre del artículo sin unidad explícita.
+        self.regex_cantidad_inicial = re.compile(
+            r'^(\d{1,3})\s+(?=[a-záéíóúñ])',
+            re.IGNORECASE | re.UNICODE
         )
 
     def parsear(self, texto: str) -> List[LineaTicketMejorada]:
@@ -121,8 +154,14 @@ class ParserMejorado:
         # TARJETA suele venir el pie del ticket: fidelización, marketing, etc.)
         fin_productos = self._detectar_fin_productos(lineas_limpias)
 
+        # Detectar dónde empieza la sección de productos (antes suele venir la
+        # cabecera: nombre de tienda, dirección, CIF, teléfono, fecha/hora).
+        inicio_productos = self._detectar_inicio_productos(lineas_limpias)
+
         productos = []
         for idx, linea in enumerate(lineas_limpias):
+            if idx < inicio_productos:
+                continue
             if idx >= fin_productos:
                 break
             if self._es_linea_valida(linea):
@@ -156,22 +195,61 @@ class ParserMejorado:
         productos, sino el cierre de la compra (total, forma de pago, cambio)
         y el pie de página (fidelización, marketing, publicidad).
 
-        Todo lo que aparece después de la última mención a total/pago/cambio
-        se considera pie de ticket y se descarta del parseo de productos.
+        Se usa la PRIMERA línea que marca el cierre de la compra (total,
+        forma de pago, cambio): a partir de ahí ya no hay más productos.
+        Usar la última ocurrencia es incorrecto porque el pie de ticket
+        (fidelización/marketing) suele repetir esas mismas palabras
+        ("Solicita tu tarjeta física", "NUM. TOTAL ART. VENDIDOS"), lo que
+        desplazaría el corte hasta el final y dejaría pasar todo el pie.
         """
-        palabras_cierre = {
-            "total", "subtotal", "cambio", "tarjeta", "efectivo", "pago",
-            "importe", "visa", "mastercard",
-        }
-        ultimo_idx = -1
+        regex_cierre = re.compile(
+            r'\b(total|subtotal|tot|cambio|tarjeta|efectivo|pago|importe|'
+            r'visa|mastercard)\b',
+            re.IGNORECASE | re.UNICODE
+        )
         for idx, linea in enumerate(lineas):
-            linea_lower = linea.lower()
-            if any(p in linea_lower for p in palabras_cierre):
-                ultimo_idx = idx
+            if regex_cierre.search(linea):
+                return idx
 
-        if ultimo_idx == -1:
-            return len(lineas)
-        return ultimo_idx + 1
+        return len(lineas)
+
+    def _detectar_inicio_productos(self, lineas: List[str]) -> int:
+        """Detecta el índice a partir del cual empiezan los productos,
+        saltando la cabecera del ticket (nombre de tienda, dirección,
+        CIF/NIF, teléfono, fecha/hora), que no contiene productos.
+
+        Se considera cabecera toda línea inicial que no tenga un precio
+        (##,## €) ni una cantidad con unidad, y que además "parezca"
+        cabecera (contiene CIF/NIF, teléfono, código postal o palabras
+        típicas de dirección/razón social). Se limita la búsqueda a las
+        primeras 12 líneas para no comerse todo el ticket si el OCR no
+        detecta precios.
+        """
+        limite = min(len(lineas), 12)
+        for idx in range(limite):
+            linea = lineas[idx]
+            linea_lower = linea.lower()
+
+            tiene_precio = bool(self.regex_precio.search(linea))
+            tiene_cantidad = bool(self.regex_cantidad_unidad.search(linea))
+            if tiene_precio or tiene_cantidad:
+                return idx
+
+            es_cabecera = (
+                bool(self.regex_cif_nif.search(linea)) or
+                bool(self.regex_telefono.search(linea)) or
+                bool(self.regex_cod_postal.search(linea)) or
+                any(p in linea_lower for p in self.palabras_cabecera)
+            )
+            if not es_cabecera and idx > 0:
+                # Primera línea que no parece cabecera ni tiene precio/cantidad:
+                # puede ser un producto sin precio detectado por el OCR, o el
+                # nombre de la tienda (idx 0, casi siempre cabecera). A partir
+                # de la segunda línea, si no es claramente cabecera, se asume
+                # que ya empiezan los productos.
+                return idx
+
+        return limite
 
     def _es_linea_valida(self, linea: str) -> bool:
         """Valida si la línea contiene un producto potencial."""
@@ -236,11 +314,19 @@ class ParserMejorado:
         contexto_anterior: str,
         contexto_siguiente: str
     ) -> Tuple[float, TipoUnidad, str]:
-        """Extrae cantidad y unidad con contexto."""
+        """Extrae cantidad y unidad con contexto.
 
-        # Patrón: número + unidad
+        Solo se reconoce como cantidad+unidad un número seguido de una
+        unidad real (kg, l, ud...), nunca de una palabra cualquiera:
+        si no, un formato tipo "2 COCA COLA" confundiría "COCA" con la
+        unidad y se comería la primera palabra del nombre del artículo.
+        """
+
+        # Patrón: número + unidad real (kg, l, ud, paq...)
         match = re.search(
-            r'(\d+[.,]?\d*)\s*([a-záéíóúñ\.]+)',
+            r'(\d+[.,]?\d*)\s*(' + '|'.join(
+                sorted(self.unidades_map.keys(), key=len, reverse=True)
+            ) + r')\b\.?',
             linea,
             re.UNICODE | re.IGNORECASE
         )
@@ -254,6 +340,17 @@ class ParserMejorado:
                 unidad = self.unidades_map.get(unidad_str, TipoUnidad.UNIDAD)
                 cantidad_texto = f"{cantidad} {unidad.value}"
                 return cantidad, unidad, cantidad_texto
+            except ValueError:
+                pass
+
+        # Sin unidad explícita: mirar si hay una cantidad suelta al
+        # principio de la línea (p.ej. "2 COCA COLA 1,80" -> cantidad 2)
+        match_inicial = self.regex_cantidad_inicial.match(linea)
+        if match_inicial:
+            try:
+                cantidad = float(match_inicial.group(1))
+                if cantidad > 0:
+                    return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
             except ValueError:
                 pass
 
@@ -292,13 +389,35 @@ class ParserMejorado:
             return 0
 
     def _limpiar_nombre(self, linea: str, cantidad_texto: str, precio_total: float) -> str:
-        """Limpia nombre del producto removiendo cantidad y precio."""
+        """Limpia nombre del producto removiendo cantidad y precio.
 
-        # Quitar cantidad con unidad
-        nombre = re.sub(r'\d+[.,]?\d*\s*[a-záéíóúñ]+\.?', '', linea, flags=re.UNICODE | re.IGNORECASE)
+        Solo se elimina cantidad+unidad cuando la unidad es real (kg, l,
+        ud...), o la cantidad suelta al principio de la línea. Nunca se
+        elimina un número seguido de una palabra cualquiera, porque eso
+        rompería el nombre del artículo (p.ej. "2 COCA COLA" -> "Cola").
+        """
 
-        # Quitar precios
+        # Quitar precio unitario (@1.20€/kg)
+        nombre = re.sub(self.regex_precio_unitario, '', linea)
+
+        # Quitar precios primero: si no, un precio sin el "0" inicial
+        # (p.ej. ",70") deja sueltos sus dígitos y la regex de cantidad
+        # los confunde con una cantidad+unidad (p.ej. "70 C").
         nombre = re.sub(self.regex_precio, '', nombre)
+
+        # Quitar cantidad con unidad real
+        nombre = re.sub(self.regex_cantidad_unidad, '', nombre)
+
+        # Quitar cantidad suelta al principio de la línea (p.ej. "2 Coca Cola")
+        nombre = self.regex_cantidad_inicial.sub('', nombre)
+
+        # Quitar letra suelta de tipo de IVA al final (p.ej. "... A", "... B")
+        # que queda huérfana tras quitar el precio cuando este no tenía
+        # dígitos que la regex de cantidad pudiera arrastrar consigo.
+        nombre = re.sub(r'\s+[a-záéíóúñ]\s*$', '', nombre, flags=re.UNICODE | re.IGNORECASE)
+
+        # Quitar códigos numéricos sueltos al final (referencias, códigos de barras)
+        nombre = re.sub(r'\s+\d+\s*$', '', nombre)
 
         # Quitar símbolos tabulares
         nombre = re.sub(r'\.{2,}|-{2,}', ' ', nombre)

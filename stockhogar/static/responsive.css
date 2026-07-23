@@ -59,6 +59,9 @@ body.is-keyboard-open .modal-fondo {
   /* Reservar el hueco del teclado: si no, el flex-end ancla el modal al borde
      fisico de la pantalla (bajo el teclado) en vez de justo encima de el. */
   padding-bottom: var(--keyboard-offset, 0px);
+  /* Con el teclado abierto no queda espacio de sobra: quitamos el margen
+     superior (10vh) para que el modal pueda crecer y pegarse arriba. */
+  padding-top: 0;
   justify-content: flex-end;
 }
 
@@ -144,6 +147,7 @@ body.keyboard-open .modal {
   font-family: inherit;
   -webkit-appearance: none;
   appearance: none;
+  caret-color: var(--accent);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 

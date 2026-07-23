@@ -1,5 +1,8 @@
 /**
- * Tests para el teclado virtual propio (fase 1: solo layout numérico)
+ * Tests para el teclado virtual propio (fase 1: numérico; fase 2: alfa).
+ * El renderizado de teclas lo hace simple-keyboard (ver virtual-keyboard.js);
+ * estos tests cubren la lógica propia: detección, marcado de inputs, foco,
+ * inserción de caracteres y layouts, no la librería en sí.
  */
 const {
   VirtualKeyboardDetector,
@@ -58,29 +61,44 @@ describe('VirtualKeyboardDetector.isTouchOnly()', () => {
 });
 
 describe('VirtualKeyboardDetector.shouldUseCustomKeyboard()', () => {
-  beforeEach(() => {
+  // El toggle manual de Ajustes manda sobre cualquier heurística automática:
+  // ni el tipo de puntero, ni la detección de lector de pantalla, ni la de
+  // teclado físico deben poder anular la preferencia explícita del usuario.
+  test('false si la preferencia de usuario está desactivada', () => {
     mockMatchMedia({
       '(pointer: coarse)': true,
       '(hover: none)': true,
       '(any-pointer: fine)': false,
     });
-  });
-
-  test('false si la preferencia de usuario está desactivada', () => {
     expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(false)).toBe(false);
   });
 
-  test('false si se detectó navegación por Tab (heurística de lector de pantalla)', () => {
+  test('true si la preferencia está activada aunque se detectó navegación por Tab', () => {
+    mockMatchMedia({
+      '(pointer: coarse)': true,
+      '(hover: none)': true,
+      '(any-pointer: fine)': false,
+    });
     window.__a11y_tabDetectado = true;
-    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(false);
+    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(true);
   });
 
-  test('false si se detectó teclado físico real', () => {
+  test('true si la preferencia está activada aunque se detectó teclado físico', () => {
+    mockMatchMedia({
+      '(pointer: coarse)': true,
+      '(hover: none)': true,
+      '(any-pointer: fine)': false,
+    });
     window.__teclado_fisico_detectado = true;
-    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(false);
+    expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(true);
   });
 
-  test('true cuando todo lo demás es favorable', () => {
+  test('true si la preferencia está activada aunque el dispositivo reporte puntero fino (no touch-only)', () => {
+    mockMatchMedia({
+      '(pointer: coarse)': false,
+      '(hover: none)': false,
+      '(any-pointer: fine)': true,
+    });
     expect(VirtualKeyboardDetector.shouldUseCustomKeyboard(true)).toBe(true);
   });
 });
@@ -240,6 +258,24 @@ describe('VirtualKeyboardController: marcado proactivo (_sincronizarMarcado)', (
     expect(nuevo.getAttribute('inputmode')).toBe('none');
     expect(nuevo.hasAttribute('readonly')).toBe(true);
   });
+
+  test('una mutación del DOM sin ningún <input> nuevo no dispara un re-escaneo del documento', async () => {
+    document.body.innerHTML = '';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+
+    const spyQuerySelectorAll = jest.spyOn(document, 'querySelectorAll');
+    spyQuerySelectorAll.mockClear();
+
+    const divSinInputs = document.createElement('div');
+    divSinInputs.innerHTML = '<span>tile de la lista de la compra</span>';
+    document.body.appendChild(divSinInputs);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(spyQuerySelectorAll).not.toHaveBeenCalledWith('input');
+  });
 });
 
 describe('VirtualKeyboardController.insertChar()/backspace()', () => {
@@ -367,6 +403,35 @@ describe('VirtualKeyboardController: el panel no se cierra por blur transitorio 
     expect(controller.element.hidden).toBe(true);
   });
 
+  test('tocar fuera del teclado y del input activo lo cierra, aunque lo tocado no sea enfocable', () => {
+    document.body.innerHTML = '<input id="nombre" type="text"><div id="tarjeta">una tarjeta cualquiera</div>';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+    const input = document.getElementById('nombre');
+    input.focus();
+    controller.attach(input);
+
+    document.getElementById('tarjeta').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+    expect(controller.activeInput).toBeNull();
+    expect(controller.element.hidden).toBe(true);
+    expect(document.activeElement).not.toBe(input);
+  });
+
+  test('tocar una tecla del propio panel NO cierra el teclado (pointerdown dentro del panel)', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.init(true);
+    controller.attach(document.getElementById('nombre'));
+
+    const botonQ = controller.element.querySelector('[data-skbtn="q"]');
+    expect(botonQ).not.toBeNull();
+    botonQ.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+    expect(controller.activeInput).not.toBeNull();
+    expect(controller.element.hidden).toBe(false);
+  });
+
   test('perder la atención de la pestaña (window blur) cierra el panel', () => {
     document.body.innerHTML = '<input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();
@@ -380,17 +445,13 @@ describe('VirtualKeyboardController: el panel no se cierra por blur transitorio 
 });
 
 describe('VirtualKeyboardController fase 2: panel alfanumérico', () => {
-  function tecla(controller, valor) {
-    return controller.element.querySelector(`button[data-tecla="${valor}"]`);
-  }
-
   test('attach() con input de texto muestra el sub-panel alfa y oculta el numérico', () => {
     document.body.innerHTML = '<input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();
     controller.attach(document.getElementById('nombre'));
 
-    expect(controller.panelAlfa.hidden).toBe(false);
-    expect(controller.panelNumerico.hidden).toBe(true);
+    expect(controller.contAlfa.hidden).toBe(false);
+    expect(controller.contNumerico.hidden).toBe(true);
     expect(controller.element.getAttribute('aria-label')).toBe('Teclado alfanumérico');
   });
 
@@ -399,69 +460,74 @@ describe('VirtualKeyboardController fase 2: panel alfanumérico', () => {
     const controller = new VirtualKeyboardController();
     controller.attach(document.getElementById('cantidad'));
 
-    expect(controller.panelNumerico.hidden).toBe(false);
-    expect(controller.panelAlfa.hidden).toBe(true);
+    expect(controller.contNumerico.hidden).toBe(false);
+    expect(controller.contAlfa.hidden).toBe(true);
     expect(controller.element.getAttribute('aria-label')).toBe('Teclado numérico');
   });
 
-  test('la tecla ⇧ alterna mayúsculas sin recrear el DOM (mismo nodo antes/después)', () => {
+  test('la tecla {shift} alterna la capa a mayúsculas y vuelve a minúsculas tras insertar una letra', () => {
     document.body.innerHTML = '<input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();
     const input = document.getElementById('nombre');
     controller.attach(input);
 
-    const botonQ = tecla(controller, 'q');
-    expect(botonQ.textContent).toBe('q');
+    expect(controller._layoutNameAlfa).toBe('default');
 
-    controller._manejarTecla('⇧');
+    controller._manejarTecla('{shift}');
+    expect(controller._layoutNameAlfa).toBe('shift');
+    expect(controller._shiftActivo).toBe(true);
 
-    const botonMayus = tecla(controller, 'Q');
-    expect(botonMayus).toBe(botonQ); // mismo nodo, solo cambió textContent/dataset
-
-    controller._manejarTecla('Q'); // pulsar la Q ya en mayúscula inserta 'Q' y autodesactiva shift
+    controller._manejarTecla('Q'); // simple-keyboard entrega ya la letra en mayúscula (capa 'shift')
     expect(input.value).toBe('Q');
+    // Mayúsculas de un solo toque: se autodesactiva tras insertar la letra.
+    expect(controller._shiftActivo).toBe(false);
+    expect(controller._layoutNameAlfa).toBe('default');
 
     controller._manejarTecla('a');
     expect(input.value).toBe('Qa');
-    expect(tecla(controller, 'q')).not.toBeNull(); // el shift ya se autodesactivó: volvió a minúscula
   });
 
-  test('la tecla 123/ABC alterna la capa de letras y la de símbolos/acentos', () => {
+  test('la tecla {numbers}/{abc} alterna la capa de letras y la de símbolos/acentos', () => {
     document.body.innerHTML = '<input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();
     controller.attach(document.getElementById('nombre'));
 
-    expect(controller._grupoLetras.hidden).toBe(false);
-    expect(controller._grupoSimbolos.hidden).toBe(true);
+    expect(controller._layoutNameAlfa).toBe('default');
 
-    controller._manejarTecla('123');
+    controller._manejarTecla('{numbers}');
+    expect(controller._layoutNameAlfa).toBe('symbols');
 
-    expect(controller._grupoLetras.hidden).toBe(true);
-    expect(controller._grupoSimbolos.hidden).toBe(false);
-    expect(tecla(controller, 'ABC')).not.toBeNull();
-
-    controller._manejarTecla('ABC');
-
-    expect(controller._grupoLetras.hidden).toBe(false);
-    expect(controller._grupoSimbolos.hidden).toBe(true);
+    controller._manejarTecla('{abc}');
+    expect(controller._layoutNameAlfa).toBe('default');
   });
 
-  test('la tecla 👁 solo aparece para type="password" y alterna la visibilidad', () => {
+  test('los dígitos de la capa de símbolos se insertan igual que cualquier otra tecla', () => {
+    document.body.innerHTML = '<input id="nombre" type="text">';
+    const controller = new VirtualKeyboardController();
+    controller.attach(document.getElementById('nombre'));
+
+    controller._manejarTecla('{numbers}');
+    controller._manejarTecla('1');
+
+    expect(document.getElementById('nombre').value).toBe('1');
+  });
+
+  test('el botón {eye} solo se muestra para type="password" y alterna la visibilidad', () => {
     document.body.innerHTML = '<input id="pass" type="password"><input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();
 
     controller.attach(document.getElementById('nombre'));
-    expect(controller._btnPassword.hidden).toBe(true);
+    expect(controller.contAlfa.classList.contains('teclado-virtual--sin-password')).toBe(true);
 
     const passwordInput = document.getElementById('pass');
     controller.attach(passwordInput);
-    expect(controller._btnPassword.hidden).toBe(false);
+    expect(controller.contAlfa.classList.contains('teclado-virtual--sin-password')).toBe(false);
     expect(passwordInput.type).toBe('password');
 
-    controller._manejarTecla('👁');
+    controller._manejarTecla('{eye}');
     expect(passwordInput.type).toBe('text');
 
-    controller._manejarTecla('🙈');
+    controller._manejarTecla('{eye}');
     expect(passwordInput.type).toBe('password');
   });
 
@@ -509,16 +575,48 @@ describe('VirtualKeyboardController fase 2: panel alfanumérico', () => {
     expect(controller.activeInput).toBeNull();
   });
 
-  test('Intro en un input de texto llama a irAlSiguienteCampo(), no a commitEnter()', () => {
+  test('{enter} en un input de texto llama a irAlSiguienteCampo(), no a commitEnter()', () => {
     document.body.innerHTML = '<input id="nombre" type="text">';
     const controller = new VirtualKeyboardController();
     controller.attach(document.getElementById('nombre'));
     const spyIr = jest.spyOn(controller, 'irAlSiguienteCampo');
     const spyCommit = jest.spyOn(controller, 'commitEnter');
 
-    controller._manejarTecla('Intro');
+    controller._manejarTecla('{enter}');
 
     expect(spyIr).toHaveBeenCalledTimes(1);
     expect(spyCommit).not.toHaveBeenCalled();
+  });
+
+  test('{space} inserta un espacio literal', () => {
+    document.body.innerHTML = '<input id="nombre" type="text" value="hola">';
+    const controller = new VirtualKeyboardController();
+    const input = document.getElementById('nombre');
+    controller.attach(input);
+    input.setSelectionRange(4, 4); // cursor al final de "hola"
+
+    controller._manejarTecla('{space}');
+
+    expect(input.value).toBe('hola ');
+  });
+});
+
+describe('VirtualKeyboardController: altura del panel y offset de modales', () => {
+  test('_reportarAltura() vuelve a medir y marca is-keyboard-open según haya o no una modal visible', () => {
+    document.body.innerHTML = `
+      <input id="nombre" type="text">
+      <div class="modal-fondo" hidden><div class="modal"></div></div>`;
+    const controller = new VirtualKeyboardController();
+    const input = document.getElementById('nombre');
+    controller.attach(input);
+
+    // Sin ninguna modal visible (el único .modal-fondo está oculto).
+    expect(document.body.classList.contains('is-keyboard-open')).toBe(true);
+
+    document.querySelector('.modal-fondo').hidden = false;
+    controller._reportarAltura();
+
+    expect(document.body.classList.contains('keyboard-open')).toBe(true);
+    expect(document.body.classList.contains('is-keyboard-open')).toBe(false);
   });
 });

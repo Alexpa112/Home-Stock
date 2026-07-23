@@ -67,6 +67,36 @@ describe('ModalBase', () => {
     expect(modal.onClose).toHaveBeenCalledTimes(1);
   });
 
+  test('close() quita el foco del input activo dentro del modal y avisa al teclado virtual', () => {
+    document.body.innerHTML = '<div id="m1"><input id="campo"></div>';
+    const modal = new ModalBase('m1');
+    window.tecladoVirtualController = { detach: jest.fn() };
+
+    modal.open();
+    document.getElementById('campo').focus();
+    expect(document.activeElement.id).toBe('campo');
+
+    modal.close();
+
+    expect(document.activeElement).not.toBe(document.getElementById('campo'));
+    expect(window.tecladoVirtualController.detach).toHaveBeenCalledTimes(1);
+    delete window.tecladoVirtualController;
+  });
+
+  test('close() no toca el foco ni el teclado virtual si este está fuera del modal', () => {
+    document.body.innerHTML = '<div id="m1"></div><input id="fuera">';
+    const modal = new ModalBase('m1');
+    window.tecladoVirtualController = { detach: jest.fn() };
+
+    modal.open();
+    document.getElementById('fuera').focus();
+    modal.close();
+
+    expect(document.activeElement.id).toBe('fuera');
+    expect(window.tecladoVirtualController.detach).not.toHaveBeenCalled();
+    delete window.tecladoVirtualController;
+  });
+
   test('handleKeyboard() añade la clase solo si hay campos editables', () => {
     document.body.innerHTML = '<div id="m1"><input type="text"></div>';
     const modal = new ModalBase('m1');
