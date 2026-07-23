@@ -3,7 +3,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/*.db
+data/*.db-wal
+data/*.db-shm
 data/secret.json
+data/backups/
 .env
 .env.development
 server.log
