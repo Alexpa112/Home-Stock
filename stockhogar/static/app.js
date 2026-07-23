@@ -802,17 +802,14 @@ async function cambiarCantidad(id, delta) {
 
   let actualizado;
   try {
-    const res = await fetch(`/api/productos/${id}`, {
+    // fetchConTimeout ya lanza (con el mensaje del servidor si lo hay) si la
+    // respuesta no es res.ok, así que aquí solo queda validar el cuerpo.
+    const res = await fetchConTimeout(`/api/productos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ delta }),
-    });
+    }, 8000);
     const datos = await res.json().catch(() => null);
-    if (!res.ok) {
-      console.error(`Error PATCH: ${res.status} ${res.statusText}`);
-      Toast.error(datos?.error || `No se pudo cambiar la cantidad (${res.status})`);
-      return;
-    }
     if (!datos || !datos.id) {
       console.error("Respuesta inválida del servidor", datos);
       Toast.error("Respuesta inválida del servidor al cambiar la cantidad");
@@ -821,7 +818,7 @@ async function cambiarCantidad(id, delta) {
     actualizado = datos;
   } catch (error) {
     console.error("Error cambiando cantidad:", error);
-    Toast.error("No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
+    Toast.error(error.message || "No se pudo cambiar la cantidad. Comprueba tu conexión e inténtalo de nuevo.");
     return;
   } finally {
     productosEnProceso.delete(id);
