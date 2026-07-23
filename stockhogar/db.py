@@ -446,6 +446,18 @@ def init_db():
 
         # Migración de datos: si stock_lista está vacía, poblarla desde productos
         # Para cada lista del usuario, crear entrada de stock para todos los productos
+        #
+        # NOTA: esto siembra CADA lista existente con TODOS los productos del
+        # catálogo (que en el modelo antiguo, previo a stock_lista, no tenía
+        # ninguna columna de propietario: cantidad/stock_minimo vivían
+        # directamente en `productos`, compartidos por toda la instalación).
+        # No hay forma de inferir retroactivamente "de quién" era cada
+        # producto porque esa distinción nunca existió antes de esta
+        # migración; sembrar todas las listas con el valor que ya era visible
+        # para todos preserva los datos existentes en la actualización, no
+        # crea una fuga nueva. Es un puente de una sola vez (solo corre si
+        # stock_lista está vacía): a partir de aquí cada fila de stock_lista
+        # es independiente por lista, que es lo que realmente aísla el stock.
         stock_count = db.execute("SELECT COUNT(*) AS n FROM stock_lista").fetchone()["n"]
         if stock_count == 0:
             listas = db.execute("SELECT id FROM listas").fetchall()
