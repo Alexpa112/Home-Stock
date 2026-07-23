@@ -253,9 +253,6 @@ class VirtualKeyboardController {
     const panel = document.createElement('div');
     panel.className = 'teclado-virtual-panel';
 
-    // Fila de dígitos, siempre visible en ambas capas.
-    this._crearFila(panel, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
-
     // Capa "letras": 3 filas QWERTY español (con ñ).
     this._grupoLetras = document.createElement('div');
     this._grupoLetras.className = 'teclado-virtual-grupo';
@@ -266,12 +263,16 @@ class VirtualKeyboardController {
     });
     panel.appendChild(this._grupoLetras);
 
-    // Capa "símbolos": acentos y puntuación menos frecuente. Sin teclas
-    // muertas (mucho más simple de implementar) — cada tecla inserta ya el
-    // carácter final, suficiente para nombres de producto en español.
+    // Capa "símbolos": dígitos + acentos y puntuación menos frecuente. Antes
+    // los dígitos eran una fila aparte, siempre visible incluso en la capa
+    // de letras; ahora viven aquí, ocultos hasta que se pulsa 123, igual que
+    // el resto de esta capa. Sin teclas muertas (mucho más simple de
+    // implementar) — cada tecla inserta ya el carácter final, suficiente
+    // para nombres de producto en español.
     this._grupoSimbolos = document.createElement('div');
     this._grupoSimbolos.className = 'teclado-virtual-grupo';
     this._grupoSimbolos.hidden = true;
+    this._crearFila(this._grupoSimbolos, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
     this._crearFila(this._grupoSimbolos, ['¿', '¡', '/', ':', ';', '(', ')']);
     this._crearFila(this._grupoSimbolos, ['á', 'é', 'í', 'ó', 'ú']);
     panel.appendChild(this._grupoSimbolos);
