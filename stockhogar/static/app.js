@@ -2136,8 +2136,8 @@ function crearItemLista(lista) {
   const info = document.createElement('div');
   info.style.cssText = 'flex: 1;';
   info.innerHTML = `
-    <div style="font-weight: 600; font-size: 0.95rem;">${lista.nombre}</div>
-    <div style="font-size: 0.75rem; color: var(--text-soft);">${lista.mi_rol ? lista.mi_rol.toUpperCase() : 'VER'}</div>
+    <div style="font-weight: 600; font-size: 0.95rem;">${escapeHtml(lista.nombre)}</div>
+    <div style="font-size: 0.75rem; color: var(--text-soft);">${escapeHtml(lista.mi_rol ? lista.mi_rol.toUpperCase() : 'VER')}</div>
   `;
 
   div.appendChild(icono);
