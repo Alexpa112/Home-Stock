@@ -223,9 +223,10 @@ class TranslationManager {
 
     // Guardar en BD
     try {
+      const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
       await fetch('/api/idiomas/cambiar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
         body: JSON.stringify({ idioma: nuevoIdioma })
       });
     } catch (error) {
