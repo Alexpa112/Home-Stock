@@ -2016,9 +2016,11 @@ class ScrollManager {
 
   init() {
     let startX = 0;
+    let dentroDeScrollHorizontal = null; // se calcula una vez por gesto, no en cada touchmove
 
     document.addEventListener('touchstart', (e) => {
       startX = e.touches[0].clientX;
+      dentroDeScrollHorizontal = null;
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
@@ -2027,13 +2029,18 @@ class ScrollManager {
       const diffY = Math.abs(e.touches[0].clientY - (e.touches[0].clientY || 0));
 
       if (diffX > 20) {
-        let el = e.target;
-        while (el && el !== document.body) {
-          if (el.scrollWidth > el.clientWidth) {
-            return;
+        if (dentroDeScrollHorizontal === null) {
+          dentroDeScrollHorizontal = false;
+          let el = e.target;
+          while (el && el !== document.body) {
+            if (el.scrollWidth > el.clientWidth) {
+              dentroDeScrollHorizontal = true;
+              break;
+            }
+            el = el.parentElement;
           }
-          el = el.parentElement;
         }
+        if (dentroDeScrollHorizontal) return;
 
         if (diffX > 50 && diffY < 20) {
           e.preventDefault();
