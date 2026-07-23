@@ -67,27 +67,33 @@ def resumen_consumo():
         return APIResponse.success({"dias": [], "por_producto": []})
 
     dias = _dias_solicitados()
+    # Modificador de datetime() como bind variable, no interpolado en el SQL:
+    # aunque _dias_solicitados() ya fuerza int() y clampa a [1, 365] (no
+    # explotable hoy), construir la query con f-string va contra la
+    # convencion de bind variables del proyecto y seria inyeccion inmediata
+    # si esa funcion cambiara en el futuro para aceptar el valor sin sanear.
+    desde = f"-{dias} days"
 
     por_dia = db.execute(
-        f"""SELECT substr(m.fecha, 1, 10) AS dia, SUM(-m.delta) AS consumo
+        """SELECT substr(m.fecha, 1, 10) AS dia, SUM(-m.delta) AS consumo
             FROM movimientos_stock m
             WHERE m.lista_id = ? AND m.delta < 0
-              AND m.fecha >= datetime('now', '-{dias} days')
+              AND m.fecha >= datetime('now', ?)
             GROUP BY dia
             ORDER BY dia ASC""",
-        (lista_id,),
+        (lista_id, desde),
     ).fetchall()
 
     por_producto = db.execute(
-        f"""SELECT p.nombre, p.icono, SUM(-m.delta) AS consumo
+        """SELECT p.nombre, p.icono, SUM(-m.delta) AS consumo
             FROM movimientos_stock m
             JOIN productos p ON p.id = m.producto_id
             WHERE m.lista_id = ? AND m.delta < 0
-              AND m.fecha >= datetime('now', '-{dias} days')
+              AND m.fecha >= datetime('now', ?)
             GROUP BY m.producto_id
             ORDER BY consumo DESC
             LIMIT 10""",
-        (lista_id,),
+        (lista_id, desde),
     ).fetchall()
 
     return APIResponse.success({
