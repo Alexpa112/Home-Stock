@@ -16,6 +16,11 @@ def get_db():
         g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON")
+        # WAL + synchronous=NORMAL: en la SD de la Raspberry Pi el modo por
+        # defecto (rollback journal + synchronous=FULL) hace un fsync costoso
+        # en cada commit y bloquea lectores mientras hay una escritura.
+        g.db.execute("PRAGMA journal_mode = WAL")
+        g.db.execute("PRAGMA synchronous = NORMAL")
     return g.db
 
 
@@ -412,6 +417,9 @@ def init_db():
             fecha_creacion TEXT
         )
         """
+    )
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_articulos_lista_lista_id ON articulos_lista(lista_id, activo)"
     )
 
     # Tabla stock_lista: NUEVA - stock POR LISTA, no global
