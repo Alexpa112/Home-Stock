@@ -328,7 +328,8 @@ step_start "Verificar estructura del proyecto"
 
 MISSING=0
 for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" "run.py" \
-            "stockhogar/static/manifest.json" "stockhogar/static/icons/sprite.svg" "stockhogar/static/icons/icon-192.png"; do
+            "stockhogar/static/manifest.json" "stockhogar/static/icons/sprite.svg" "stockhogar/static/icons/icon-192.png" \
+            "Dockerfile.frontend" "package.json" "next.config.mjs"; do
     if [[ ! -f "$FILE" ]]; then
         log_error "Falta: $FILE"
         MISSING=1
@@ -417,6 +418,7 @@ REQUIRED_VARS=(
     SMTP_SERVER SMTP_PORT SMTP_USER SMTP_PASSWORD SMTP_FROM
     APP_URL
     STOCKHOGAR_PORT
+    STOCKHOGAR_FRONTEND_PORT
     FLASK_ENV
 )
 DEFAULT_VALUE() {
@@ -426,6 +428,7 @@ DEFAULT_VALUE() {
         SMTP_FROM) echo "noreply@homestock.local" ;;
         APP_URL) echo "http://localhost:5000" ;;
         STOCKHOGAR_PORT) echo "5000" ;;
+        STOCKHOGAR_FRONTEND_PORT) echo "3000" ;;
         FLASK_ENV) echo "production" ;;
         *) echo "" ;;
     esac
@@ -531,7 +534,14 @@ echo -e "${GREEN}===============================================================
 echo -e "${GREEN}  StockHogar instalado${NC}"
 echo -e "${GREEN}================================================================${NC}"
 echo ""
-echo -e "  ${YELLOW}Acceso:${NC}"
+FRONTEND_PORT="$(grep -m1 '^STOCKHOGAR_FRONTEND_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+
+echo -e "  ${YELLOW}Acceso (frontend nuevo, Next.js):${NC}"
+echo -e "    Local:  http://localhost:${FRONTEND_PORT}"
+echo -e "    Red:    http://${IP_ADDRESS}:${FRONTEND_PORT}"
+echo ""
+echo -e "  ${YELLOW}Backend Flask (API, y frontend anterior en /):${NC}"
 echo -e "    Local:  http://localhost:${STOCKHOGAR_PORT}"
 echo -e "    Red:    http://${IP_ADDRESS}:${STOCKHOGAR_PORT}"
 echo ""
@@ -583,7 +593,24 @@ for i in $(seq 1 15); do
 done
 
 if [[ $READY -eq 1 ]]; then
-    log_success "Aplicación respondiendo correctamente en el puerto ${STOCKHOGAR_PORT}"
+    log_success "Backend respondiendo correctamente en el puerto ${STOCKHOGAR_PORT}"
+
+    # El frontend depende del backend y puede tardar un poco mas en arrancar
+    # (compilacion/arranque de Next.js); no bloqueante ni dispara rollback,
+    # solo se avisa si tarda mas de lo esperado.
+    FRONTEND_READY=0
+    for i in $(seq 1 15); do
+        if curl -fsS "http://localhost:${FRONTEND_PORT}/" > /dev/null 2>&1; then
+            FRONTEND_READY=1
+            break
+        fi
+        sleep 4
+    done
+    if [[ $FRONTEND_READY -eq 1 ]]; then
+        log_success "Frontend respondiendo correctamente en el puerto ${FRONTEND_PORT}"
+    else
+        log_warning "El frontend aún no responde tras 60s. Puede seguir arrancando; revisa: $COMPOSE logs -f frontend"
+    fi
     exit 0
 elif [[ $UPDATE_MODE -eq 1 ]]; then
     # En --update SÍ tenemos una versión anterior conocida-buena a la que

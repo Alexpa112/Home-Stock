@@ -1,0 +1,53 @@
+# Dockerfile del frontend Next.js (rediseño de la rama dev2).
+# node:20-bookworm-slim: mismo Debian base que Dockerfile.raspbian, y Node 20
+# sigue publicando manifiesto multi-arco con linux/arm/v7 y linux/arm64,
+# necesarios para Raspberry Pi (32-bit y 64-bit respectivamente). Si en el
+# futuro Node deja de publicar armv7, este build fallará en Pi de 32-bit y
+# habrá que fijar una version anterior o migrar a 64-bit.
+FROM node:20-bookworm-slim AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json* pnpm-lock.yaml* ./
+RUN if [ -f pnpm-lock.yaml ]; then \
+        corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile; \
+    else \
+        npm ci; \
+    fi
+
+COPY app ./app
+COPY components ./components
+COPY hooks ./hooks
+COPY lib ./lib
+COPY public ./public
+COPY middleware.ts next.config.mjs tailwind.config.ts postcss.config.mjs tsconfig.json components.json ./
+
+# URL del backend Flask DENTRO de la red de docker-compose (nombre del
+# servicio "stockhogar", no localhost): la usa next.config.mjs en su función
+# rewrites(), que corre en el servidor de Next, no en el navegador.
+ARG NEXT_PUBLIC_API_URL=http://stockhogar:5000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+RUN if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm run build; else npm run build; fi
+
+FROM node:20-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.mjs ./
+
+ARG NEXT_PUBLIC_API_URL=http://stockhogar:5000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -fsS "http://localhost:3000/" >/dev/null || exit 1
+
+# next start (servidor de produccion): nunca "next dev" en el contenedor, que
+# es mas lento y expone el overlay de errores de desarrollo.
+CMD ["npm", "run", "start"]

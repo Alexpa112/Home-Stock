@@ -14,3 +14,13 @@ server_dev.log
 coverage/
 logs/*.log*
 node_modules/
+
+# Frontend Next.js (rama dev2 integrada)
+.next/
+out/
+next-env.d.ts
+npm-debug.log
+yarn-error.log
+*.pem
+.env.production.local
+.env*.local

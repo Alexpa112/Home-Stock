@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-primary: #0f172a;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #64748b;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #3b82f6;
+  --color-accent-foreground: #ffffff;
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --font-sans: system-ui, -apple-system, sans-serif;
+}
+
+.dark {
+  --color-primary: #f1f5f9;
+  --color-primary-foreground: #0f172a;
+  --color-secondary: #94a3b8;
+  --color-secondary-foreground: #0f172a;
+  --color-accent: #60a5fa;
+  --color-accent-foreground: #0f172a;
+  --color-background: #0f172a;
+  --color-foreground: #f1f5f9;
+  --color-muted: #1e293b;
+  --color-muted-foreground: #94a3b8;
+  --color-border: #1e293b;
+  --color-card: #1e293b;
+  --color-card-foreground: #f1f5f9;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    @apply min-h-[44px] text-base;
+    font-size: 16px;
+  }
+
+  button,
+  [role="button"],
+  a {
+    @apply min-h-[44px];
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border bg-card p-4 shadow-sm;
+  }
+
+  .btn-primary {
+    @apply inline-flex h-10 items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 active:scale-95 transition-all;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-10 items-center justify-center rounded-lg border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted active:scale-95 transition-all;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
