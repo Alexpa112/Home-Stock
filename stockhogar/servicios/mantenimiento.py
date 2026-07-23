@@ -10,13 +10,29 @@ del Servidor (proyecto independiente, fuera de este repositorio), escribiendo
 o borrando el mismo fichero directamente - no hay ninguna llamada de codigo
 entre ambos proyectos.
 """
+import time
+
 from ..config import DATA_DIR
 
 RUTA_FLAG = DATA_DIR / "mantenimiento.flag"
 
+# activo() se llama en el before_request de CADA peticion no estatica (ver
+# stockhogar/__init__.py): sin cachear, es un stat() de disco sincrono por
+# peticion aunque el flag solo lo cambie un proceso externo (el Panel de
+# Gestion) muy de vez en cuando. Con este TTL, a lo sumo se tarda
+# TTL_CACHE_SEGUNDOS en reaccionar a un cambio real, lo cual es aceptable
+# para una pantalla de mantenimiento (no es una comprobacion de seguridad
+# que deba ser instantanea).
+TTL_CACHE_SEGUNDOS = 3
+_cache = {"valor": None, "expira": 0.0}
+
 
 def activo():
-    return RUTA_FLAG.exists()
+    ahora = time.monotonic()
+    if _cache["valor"] is None or ahora >= _cache["expira"]:
+        _cache["valor"] = RUTA_FLAG.exists()
+        _cache["expira"] = ahora + TTL_CACHE_SEGUNDOS
+    return _cache["valor"]
 
 
 def mensaje():
