@@ -7,6 +7,12 @@
       "runtimeArgs": ["run.py"],
       "port": 5000,
       "autoPort": true
+    },
+    {
+      "name": "stockhogar-next",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
     }
   ]
 }

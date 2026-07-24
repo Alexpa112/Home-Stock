@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut } from 'lucide-react'
+import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut, AlertCircle } from 'lucide-react'
 import { listas as listasApi, permisos } from '@/lib/api'
 
 interface Lista {
@@ -37,6 +37,9 @@ export default function ListasPage() {
 
   // Panel de compartir (solo una lista abierta a la vez)
   const [compartiendoId, setCompartiendoId] = useState<number | null>(null)
+  const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<number | null>(null)
+  const [confirmandoSalirId, setConfirmandoSalirId] = useState<number | null>(null)
+  const [confirmandoRevocarId, setConfirmandoRevocarId] = useState<number | null>(null)
   const [miembros, setMiembros] = useState<Miembro[]>([])
   const [propietario, setPropietario] = useState<{ nombre_usuario: string } | null>(null)
   const [busqueda, setBusqueda] = useState('')
@@ -109,7 +112,8 @@ export default function ListasPage() {
   }
 
   const handleEliminarLista = async (id: number) => {
-    if (!confirm('¿Eliminar esta lista y todos sus artículos? Esta acción no se puede deshacer.')) return
+    if (confirmandoEliminarId !== id) { setConfirmandoEliminarId(id); return }
+    setConfirmandoEliminarId(null)
     try {
       setError('')
       await listasApi.eliminar(id)
@@ -124,7 +128,8 @@ export default function ListasPage() {
   }
 
   const handleSalirLista = async (id: number) => {
-    if (!confirm('¿Salir de esta lista compartida? Dejarás de tener acceso a ella.')) return
+    if (confirmandoSalirId !== id) { setConfirmandoSalirId(id); return }
+    setConfirmandoSalirId(null)
     try {
       setError('')
       await listasApi.salir(id)
@@ -190,7 +195,8 @@ export default function ListasPage() {
 
   const quitarAcceso = async (usuarioId: number) => {
     if (!compartiendoId) return
-    if (!confirm('¿Quitar el acceso de este usuario a la lista?')) return
+    if (confirmandoRevocarId !== usuarioId) { setConfirmandoRevocarId(usuarioId); return }
+    setConfirmandoRevocarId(null)
     try {
       await permisos.revocar(compartiendoId, usuarioId)
       await abrirCompartir(compartiendoId)
@@ -221,7 +227,11 @@ export default function ListasPage() {
             <h3 className="font-semibold flex items-center gap-2">
               {lista.nombre}
               {esPropia && (
-                <button onClick={() => iniciarRenombrar(lista)} aria-label="Renombrar">
+                <button
+                  onClick={() => iniciarRenombrar(lista)}
+                  aria-label={`Renombrar lista ${lista.nombre}`}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+                >
                   <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
               )}
@@ -248,24 +258,38 @@ export default function ListasPage() {
         </button>
         {esPropia ? (
           <>
-            <button onClick={() => abrirCompartir(lista.id)} className="btn-primary flex items-center gap-1">
+            <button onClick={() => abrirCompartir(lista.id)} className="btn-primary flex items-center gap-1.5 px-3">
               <Users className="w-4 h-4" /> Compartir
             </button>
-            <button
-              onClick={() => handleEliminarLista(lista.id)}
-              className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
-              aria-label="Eliminar lista"
-            >
-              <Trash2 className="w-4 h-4 text-red-500" />
-            </button>
+            {confirmandoEliminarId === lista.id ? (
+              <div className="flex gap-1">
+                <button onClick={() => handleEliminarLista(lista.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">Eliminar</button>
+                <button onClick={() => setConfirmandoEliminarId(null)} className="px-3 h-11 text-xs font-semibold bg-muted rounded-xl">No</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleEliminarLista(lista.id)}
+                className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                aria-label="Eliminar lista"
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </button>
+            )}
           </>
         ) : (
-          <button
-            onClick={() => handleSalirLista(lista.id)}
-            className="btn-secondary flex items-center gap-1 text-red-600 dark:text-red-400"
-          >
-            <LogOut className="w-4 h-4" /> Salir
-          </button>
+          confirmandoSalirId === lista.id ? (
+            <div className="flex gap-1">
+              <button onClick={() => handleSalirLista(lista.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">Salir</button>
+              <button onClick={() => setConfirmandoSalirId(null)} className="px-3 h-11 text-xs font-semibold bg-muted rounded-xl">No</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => handleSalirLista(lista.id)}
+              className="btn-secondary flex items-center gap-1.5 text-red-600 dark:text-red-400"
+            >
+              <LogOut className="w-4 h-4" /> Salir
+            </button>
+          )
         )}
       </div>
     </div>
@@ -281,11 +305,19 @@ export default function ListasPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg text-sm">{error}</div>
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">Error</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        </div>
       )}
 
       <form onSubmit={handleCrear} className="card flex gap-2">
+        <label htmlFor="lista-nombre" className="sr-only">Nombre de la nueva lista</label>
         <input
+          id="lista-nombre"
           type="text"
           value={nuevoNombre}
           onChange={(e) => setNuevoNombre(e.target.value)}
@@ -351,9 +383,16 @@ export default function ListasPage() {
                         <option value="ver">Solo ver</option>
                         <option value="editar">Puede editar</option>
                       </select>
-                      <button onClick={() => quitarAcceso(m.id)} aria-label="Quitar acceso">
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
+                      {confirmandoRevocarId === m.id ? (
+                        <div className="flex gap-1">
+                          <button onClick={() => quitarAcceso(m.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-lg">Quitar</button>
+                          <button onClick={() => setConfirmandoRevocarId(null)} className="px-2 h-8 text-xs bg-muted rounded-lg">No</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => quitarAcceso(m.id)} className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg" aria-label="Quitar acceso">
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

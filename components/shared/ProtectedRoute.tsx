@@ -27,6 +27,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           return
         }
 
+        // Sincronizar tema del backend con la clase CSS y localStorage
+        const tema = datos.usuario.tema_preferido || 'auto'
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        const usarDark = tema === 'dark' || (tema === 'auto' && prefersDark)
+        document.documentElement.classList.toggle('dark', usarDark)
+        document.documentElement.classList.toggle('light', !usarDark)
+        localStorage.setItem('theme', usarDark ? 'dark' : 'light')
+
         setIsAuthorized(true)
       } catch (error) {
         console.error('Auth check failed:', error)

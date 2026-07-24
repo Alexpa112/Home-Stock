@@ -133,48 +133,78 @@ export default function EscanearTicketPage() {
 
       {items.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold">{items.length} producto(s) detectado(s) — revisa antes de confirmar</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">{items.length} producto(s) detectado(s)</h2>
+            <button
+              onClick={() => {
+                const todosIncluidos = items.every(i => i.incluir)
+                setItems(prev => prev.map(i => ({ ...i, incluir: !todosIncluidos })))
+              }}
+              className="text-sm text-accent hover:underline font-medium"
+            >
+              {items.every(i => i.incluir) ? 'Deseleccionar todos' : 'Seleccionar todos'}
+            </button>
+          </div>
           <div className="space-y-2">
             {items.map((item, idx) => (
               <div
                 key={idx}
-                className={`card flex items-center gap-3 ${!item.incluir ? 'opacity-50' : ''} ${
+                className={`card !p-3 transition-opacity ${!item.incluir ? 'opacity-40' : ''} ${
                   item.confianza_match < 0.7 ? 'border-yellow-400 dark:border-yellow-700' : ''
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={item.incluir}
-                  onChange={(e) => actualizarItem(idx, { incluir: e.target.checked })}
-                  className="w-5 h-5 flex-shrink-0"
-                  aria-label="Incluir este producto"
-                />
-                <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={item.nombre}
-                    onChange={(e) => actualizarItem(idx, { nombre: e.target.value })}
-                    className="input-field !py-1.5 col-span-2"
-                  />
-                  <input
-                    type="number"
-                    value={item.cantidad}
-                    min={0}
-                    onChange={(e) => actualizarItem(idx, { cantidad: parseInt(e.target.value) || 0 })}
-                    className="input-field !py-1.5"
-                  />
-                  <input
-                    type="text"
-                    value={item.categoria}
-                    onChange={(e) => actualizarItem(idx, { categoria: e.target.value })}
-                    className="input-field !py-1.5"
-                  />
+                <div className="flex items-start gap-3">
+                  {/* Checkbox con zona táctil grande */}
+                  <button
+                    onClick={() => actualizarItem(idx, { incluir: !item.incluir })}
+                    className={`mt-1 w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      item.incluir
+                        ? 'bg-accent border-accent'
+                        : 'border-border bg-card'
+                    }`}
+                    aria-label={item.incluir ? 'Excluir producto' : 'Incluir producto'}
+                  >
+                    {item.incluir && <Check className="w-3.5 h-3.5 text-white" />}
+                  </button>
+
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <input
+                      type="text"
+                      value={item.nombre}
+                      onChange={(e) => actualizarItem(idx, { nombre: e.target.value })}
+                      className="input-field"
+                      inputMode="text"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        value={item.cantidad}
+                        min={0}
+                        onChange={(e) => actualizarItem(idx, { cantidad: parseInt(e.target.value) || 0 })}
+                        className="input-field"
+                        inputMode="numeric"
+                        placeholder="Cantidad"
+                      />
+                      <input
+                        type="text"
+                        value={item.categoria}
+                        onChange={(e) => actualizarItem(idx, { categoria: e.target.value })}
+                        className="input-field"
+                        placeholder="Categoría"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex-shrink-0 mt-1">
+                    {item.producto_id ? (
+                      <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                        <Check className="w-4 h-4" /> Conocido
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Nuevo</span>
+                    )}
+                  </div>
                 </div>
-                {item.producto_id ? (
-                  <Check className="w-5 h-5 text-green-500 flex-shrink-0" aria-label="Ya existe en el catálogo" />
-                ) : (
-                  <span className="text-xs text-muted-foreground flex-shrink-0">Nuevo</span>
-                )}
               </div>
             ))}
           </div>
