@@ -64,12 +64,16 @@ class TicketsManager {
       this.ticketItemsEl,
       this.ticketAdvertenciasEl,
     ];
+    // El botón que abre el modal es opcional: el manager también puede usarse
+    // desde otros disparadores o abrirse programáticamente en tests/integraciones.
     if (requeridos.some((el) => !el)) {
       throw new Error('Elementos del flujo de tickets incompletos');
     }
   }
 
   _registrarEventos() {
+    // El disparador visual puede no existir aunque el flujo interno sí esté
+    // montado; por eso `btnEscanearTicket` no forma parte de los requeridos.
     if (this.btnEscanearTicket) this.btnEscanearTicket.addEventListener('click', () => this.open());
     this.btnCancelarTicket.addEventListener('click', () => this.close());
     this.btnVolverFotoTicket.addEventListener('click', () => this.irAPasoFoto());
