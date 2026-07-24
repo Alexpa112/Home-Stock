@@ -190,6 +190,15 @@ export default function StockPage() {
 
   const isLowStock = (item: Producto) => item.cantidad <= item.stock_minimo
 
+  const getEstadoCardClass = (item: Producto) => {
+    if (isLowStock(item) && item.revisar_caducidad) {
+      return 'border-red-200 ring-2 ring-amber-200 dark:border-red-900 dark:ring-amber-900/70'
+    }
+    if (isLowStock(item)) return 'border-red-200 dark:border-red-900'
+    if (item.revisar_caducidad) return 'border-amber-200 dark:border-amber-900'
+    return ''
+  }
+
   // Filtrar items por búsqueda
   const filteredItems = items.filter((item) => {
     const matchesQuery =
@@ -399,7 +408,7 @@ export default function StockPage() {
                   value={formData.stock_minimo}
                   onChange={(e) => {
                     const nextValue = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, stock_minimo: Number.isNaN(nextValue) ? 0 : nextValue })
+                    setFormData({ ...formData, stock_minimo: Number.isNaN(nextValue) ? 0 : Math.max(0, nextValue) })
                   }}
                   min="0"
                   className="input-field"
@@ -417,7 +426,7 @@ export default function StockPage() {
                   value={formData.dias_aviso}
                   onChange={(e) => {
                     const nextValue = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, dias_aviso: Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue) })
+                    setFormData({ ...formData, dias_aviso: Math.max(1, Number.isNaN(nextValue) ? 1 : nextValue) })
                   }}
                   min="1"
                   className="input-field"
@@ -511,13 +520,7 @@ export default function StockPage() {
           {filteredItems.map((item) => (
           <div
             key={item.id}
-            className={`card flex flex-col justify-between ${
-              isLowStock(item)
-                ? 'border-red-200 dark:border-red-900'
-                : item.revisar_caducidad
-                  ? 'border-amber-200 dark:border-amber-900'
-                  : ''
-            }`}
+            className={`card flex flex-col justify-between ${getEstadoCardClass(item)}`}
           >
             <div>
               <div className="flex items-start justify-between gap-2 mb-3">
