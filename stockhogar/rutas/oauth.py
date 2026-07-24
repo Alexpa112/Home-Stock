@@ -1,7 +1,7 @@
 """Rutas para autenticación OAuth con Google y Apple."""
 import secrets
 
-from flask import Blueprint, request, session, redirect, url_for
+from flask import Blueprint, request, session, redirect
 from urllib.parse import urlencode
 import requests
 import jwt
@@ -11,7 +11,7 @@ import logging
 from ..api import APIResponse, manejo_errores
 from ..db import ahora, get_db
 from ..translator import traducir
-from ..config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APPLE_CLIENT_ID, APPLE_CLIENT_SECRET, APPLE_TEAM_ID
+from ..config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APPLE_CLIENT_ID, APPLE_CLIENT_SECRET, APPLE_TEAM_ID, APP_URL
 
 bp = Blueprint("oauth", __name__, url_prefix="/auth")
 
@@ -52,7 +52,7 @@ def oauth_google():
     session["oauth_state"] = state
     params = {
         "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": url_for("oauth.oauth_google_callback", _external=True),
+        "redirect_uri": f"{APP_URL}/auth/google/callback",
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
@@ -84,7 +84,7 @@ def oauth_google_callback():
         "code": codigo,
         "client_id": GOOGLE_CLIENT_ID,
         "client_secret": GOOGLE_CLIENT_SECRET,
-        "redirect_uri": url_for("oauth.oauth_google_callback", _external=True),
+        "redirect_uri": f"{APP_URL}/auth/google/callback",
         "grant_type": "authorization_code"
     }
 
@@ -181,7 +181,7 @@ def oauth_apple():
     session["oauth_state"] = state
     params = {
         "client_id": APPLE_CLIENT_ID,
-        "redirect_uri": url_for("oauth.oauth_apple_callback", _external=True),
+        "redirect_uri": f"{APP_URL}/auth/apple/callback",
         "response_type": "code id_token",
         "response_mode": "form_post",
         "scope": "openid email name",
@@ -214,7 +214,7 @@ def oauth_apple_callback():
         "code": codigo,
         "client_id": APPLE_CLIENT_ID,
         "client_secret": APPLE_CLIENT_SECRET or APPLE_CLIENT_ID,
-        "redirect_uri": url_for("oauth.oauth_apple_callback", _external=True),
+        "redirect_uri": f"{APP_URL}/auth/apple/callback",
         "grant_type": "authorization_code"
     }
 

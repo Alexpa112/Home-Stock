@@ -1,6 +1,7 @@
 """Rutas del inventario de productos (stock)."""
 import logging
-from flask import Blueprint, g, request, session
+import threading
+from flask import Blueprint, current_app, g, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import DIAS_AVISO_DEFECTO
@@ -15,6 +16,7 @@ from ..servicios.stock import (
 )
 from .categorias import normalizar_categoria
 from .historial import recordar_articulo
+from .listas import _usuario_tiene_permiso
 from ..servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
@@ -122,24 +124,68 @@ def obtener_traducciones_producto(producto_id, idioma):
     return APIResponse.success(resultado)
 
 
+def _traducir_y_guardar_en_segundo_plano(app, nombre, descripcion, producto_id, articulo_id):
+    """Traduce a todos los idiomas y graba en BD, en un hilo aparte.
+
+    Cada idioma es 1-2 inferencias neuronales de Argos Translate (hasta 8
+    en total para nombre+descripcion): ejecutado dentro del ciclo
+    request-response, esto ocupaba un worker/hilo de gunicorn entero durante
+    esa traduccion (cientos de ms a varios segundos en una Raspberry Pi),
+    dejando sin atender el resto de peticiones del hogar (listar productos,
+    marcar un articulo comprado...) mientras tanto. El cliente nunca lee la
+    respuesta de este endpoint (ver app.js: fetch(...).catch(...), sin
+    .then()), asi que no hay perdida funcional en no esperarla.
+    """
+    with app.app_context():
+        try:
+            db = get_db()
+            traducciones_nombre = TraductorAutomatico.traducir_a_todos_idiomas(nombre) if nombre else {}
+            traducciones_desc = TraductorAutomatico.traducir_a_todos_idiomas(descripcion) if descripcion else {}
+
+            for idioma in traducciones_nombre:
+                if idioma != "es":  # No guardar original
+                    try:
+                        db.execute(
+                            """INSERT OR REPLACE INTO traducciones_productos
+                               (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                            (producto_id, articulo_id, "nombre", idioma, nombre, traducciones_nombre[idioma], ahora())
+                        )
+                    except Exception as e:
+                        logger.error(f"Error almacenando traducción: {e}")
+
+            for idioma in traducciones_desc:
+                if idioma != "es" and descripcion:
+                    try:
+                        db.execute(
+                            """INSERT OR REPLACE INTO traducciones_productos
+                               (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
+                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                            (producto_id, articulo_id, "descripcion", idioma, descripcion, traducciones_desc[idioma], ahora())
+                        )
+                    except Exception as e:
+                        logger.error(f"Error almacenando traducción: {e}")
+
+            db.commit()
+        except Exception:
+            logger.exception("Error en traduccion automatica en segundo plano")
+
+
 @bp.route("/traducir", methods=["POST"])
 @requerir_sesion
 @manejo_errores
 def traducir_producto_auto():
     """
-    Traduce automáticamente un nombre/descripción a todos los idiomas.
-
-    Usado cuando se crea un nuevo producto/artículo.
-    Almacena las traducciones en la BD para reutilización.
+    Encola la traducción automática de un nombre/descripción a todos los
+    idiomas y la guarda en BD para reutilización, en segundo plano (ver
+    _traducir_y_guardar_en_segundo_plano). Usado al crear un nuevo
+    producto/artículo.
     """
     # El frontend dispara esta petición en segundo plano sin esperarla
-    # (ver app.js). Si tarda (traducción neuronal offline, lenta en según
-    # qué hardware) y el usuario cambia de lista mientras tanto, la cookie
-    # de sesión que Flask reenvía por defecto en cada respuesta llegaría
-    # con el "lista_actual_id" desactualizado de cuando empezó esta
-    # petición, pisando la selección de lista más reciente. Esta ruta no
-    # necesita tocar la sesión, así que pedimos a SessionInterfaceOmitible
-    # que no la reenvíe (ver stockhogar/__init__.py).
+    # (ver app.js). Esta ruta no toca la sesión, así que pedimos a
+    # SessionInterfaceOmitible que no la reenvíe (ver stockhogar/__init__.py)
+    # para no pisar con una cookie desactualizada la lista activa si el
+    # usuario cambia de lista mientras el hilo en segundo plano sigue vivo.
     g._omitir_refresco_sesion = True
 
     datos = request.get_json(force=True) or {}
@@ -148,43 +194,42 @@ def traducir_producto_auto():
     producto_id = datos.get("producto_id")  # Opcional
     articulo_id = datos.get("articulo_id")  # Opcional
 
-    # Traducir a todos los idiomas
-    traducciones_nombre = TraductorAutomatico.traducir_a_todos_idiomas(nombre) if nombre else {}
-    traducciones_desc = TraductorAutomatico.traducir_a_todos_idiomas(descripcion) if descripcion else {}
-
-    # Almacenar en BD si se proporciona ID
     if producto_id or articulo_id:
         db = get_db()
-        for idioma in traducciones_nombre:
-            if idioma != "es":  # No guardar original
-                try:
-                    db.execute(
-                        """INSERT OR REPLACE INTO traducciones_productos
-                           (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (producto_id, articulo_id, "nombre", idioma, nombre, traducciones_nombre[idioma], ahora())
-                    )
-                except Exception as e:
-                    logger.error(f"Error almacenando traducción: {e}")
+        usuario_id = session.get("usuario_id")
 
-        for idioma in traducciones_desc:
-            if idioma != "es" and descripcion:
-                try:
-                    db.execute(
-                        """INSERT OR REPLACE INTO traducciones_productos
-                           (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (producto_id, articulo_id, "descripcion", idioma, descripcion, traducciones_desc[idioma], ahora())
-                    )
-                except Exception as e:
-                    logger.error(f"Error almacenando traducción: {e}")
+        # Comprobar que el producto_id/articulo_id pertenece a una lista a la
+        # que el usuario tiene acceso: sin esto, cualquier usuario autenticado
+        # podia pasar el ID de un producto/articulo de OTRO hogar (los IDs son
+        # autoincrementales y facilmente enumerables) y sobrescribir sus
+        # traducciones via INSERT OR REPLACE.
+        acceso_valido = False
+        if producto_id:
+            lista_del_producto = db.execute(
+                "SELECT lista_id FROM stock_lista WHERE producto_id = ?", (producto_id,)
+            ).fetchall()
+            acceso_valido = any(
+                _usuario_tiene_permiso(db, fila["lista_id"], usuario_id) for fila in lista_del_producto
+            )
+        elif articulo_id:
+            fila_articulo = db.execute(
+                "SELECT lista_id FROM articulos_lista WHERE id = ?", (articulo_id,)
+            ).fetchone()
+            acceso_valido = bool(
+                fila_articulo and _usuario_tiene_permiso(db, fila_articulo["lista_id"], usuario_id)
+            )
 
-        db.commit()
+        if not acceso_valido:
+            return APIResponse.no_permitido()
 
-    return APIResponse.success({
-        "nombre": traducciones_nombre,
-        "descripcion": traducciones_desc
-    })
+    app = current_app._get_current_object()
+    threading.Thread(
+        target=_traducir_y_guardar_en_segundo_plano,
+        args=(app, nombre, descripcion, producto_id, articulo_id),
+        daemon=True,
+    ).start()
+
+    return APIResponse.success({"encolado": True})
 
 
 @bp.route("/<int:producto_id>", methods=["PATCH"])

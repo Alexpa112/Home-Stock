@@ -1,7 +1,9 @@
 """Ruta de la pagina principal (SPA)."""
 import logging
 from flask import Blueprint, render_template, session, redirect, url_for, request, current_app, send_from_directory
+from flask_wtf.csrf import generate_csrf
 
+from .. import csrf
 from ..api import manejo_errores, APIResponse
 from ..db import get_db
 
@@ -61,10 +63,25 @@ def aceptar_invitacion_pagina(codigo):
     return render_template("aceptar_invitacion.html", codigo=codigo)
 
 
+@bp.route("/api/csrf-token", methods=["GET"])
+@manejo_errores
+def csrf_token():
+    """Token CSRF para clientes que no renderizan la plantilla Jinja (SPA
+    Next.js separada del backend): sin esto no hay forma de rellenar la
+    cabecera X-CSRFToken que exige Flask-WTF en toda petición mutable."""
+    return APIResponse.success({"csrf_token": generate_csrf()})
+
+
 @bp.route("/api/log/client", methods=["POST"])
+@csrf.exempt
 @manejo_errores
 def log_client_error():
-    """Endpoint para que el cliente envíe logs (errores, warnings)."""
+    """Endpoint para que el cliente envíe logs (errores, warnings).
+
+    Exento de CSRF: se envía con navigator.sendBeacon (no soporta cabeceras
+    personalizadas como X-CSRFToken) y también en el momento en que el propio
+    error de la página puede impedir que el token esté disponible.
+    """
     datos = request.get_json(force=True) or {}
     nivel = datos.get("nivel", "info").lower()  # info, warning, error
     mensaje = datos.get("mensaje", "")

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Block pushes to produccion unless promoting from dev2.
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [ "$remote_ref" = "refs/heads/produccion" ] && [ "$local_ref" != "refs/heads/dev2" ]; then
+    echo "ERROR: Push blocked. Only dev2 can update produccion (use: git push origin dev2:produccion)." 1>&2
+    exit 1
+  fi
+done
+exit 0

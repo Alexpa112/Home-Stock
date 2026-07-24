@@ -234,6 +234,14 @@ def salir_lista(lista_id):
         (lista_id, usuario_id),
     )
     db.commit()
+
+    # Si era la lista activa, limpiarla de sesion: sin esto, el usuario
+    # seguiria "viendo" (intentando usar) una lista de la que acaba de salir
+    # hasta que seleccione otra a mano.
+    if session.get("lista_actual_id") == lista_id:
+        session.pop("lista_actual_id", None)
+        session.modified = True
+
     return APIResponse.success()
 
 

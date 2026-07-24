@@ -33,6 +33,54 @@
     window.__TECLADO_VIRTUAL_INICIAL__ = tecladoPref;
   })();
 </script>
+<script>
+  // Reporta errores JS del cliente al servidor (docker logs), para poder
+  // diagnosticar fallos en dispositivos donde no hay acceso a la consola
+  // del navegador (p.ej. Safari en iPhone sin Mac para el Web Inspector).
+  (function () {
+    var ENDPOINT = "/api/log/client";
+    var enviados = 0;
+    var MAX_ENVIOS = 20; // evita bucles de errores saturando el servidor
+
+    function enviar(nivel, mensaje, contexto) {
+      if (enviados >= MAX_ENVIOS) return;
+      enviados++;
+      try {
+        var body = JSON.stringify({
+          nivel: nivel,
+          mensaje: String(mensaje).slice(0, 2000),
+          contexto: Object.assign({
+            url: location.href,
+            userAgent: navigator.userAgent,
+          }, contexto || {}),
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "application/json" }));
+        } else {
+          fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: body, keepalive: true }).catch(function () {});
+        }
+      } catch (e) {
+        // Si ni siquiera se puede reportar el error, no hay nada más que hacer.
+      }
+    }
+
+    window.addEventListener("error", function (evento) {
+      enviar("error", evento.message || "Error desconocido", {
+        origen: evento.filename,
+        linea: evento.lineno,
+        columna: evento.colno,
+        stack: evento.error && evento.error.stack,
+      });
+    });
+
+    window.addEventListener("unhandledrejection", function (evento) {
+      var razon = evento.reason;
+      enviar("error", "Promesa rechazada sin capturar: " + (razon && razon.message ? razon.message : razon), {
+        stack: razon && razon.stack,
+      });
+    });
+  })();
+</script>
 </head>
 <body>
 
