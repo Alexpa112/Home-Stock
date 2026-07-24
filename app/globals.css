@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-@theme inline {
+@theme {
   /* Light Mode */
   --color-primary: #1F2937;
   --color-primary-foreground: #FFFFFF;
