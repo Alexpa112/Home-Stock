@@ -849,7 +849,10 @@
 <!-- Gestos tap/mantener-pulsado (requerido por app.js) -->
 <script src="{{ url_for('static', filename='modules/gestures.js') }}"></script>
 
-<!-- App principal: lógica completa original restaurada -->
+<!-- Manager de tickets OCR (requerido por app.js) -->
+<script src="{{ url_for('static', filename='modules/tickets-manager.js') }}"></script>
+
+<!-- App principal: orquestación y lógica restante -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 <script>
   if ('serviceWorker' in navigator) {

@@ -281,8 +281,8 @@ del Proyecto") y `docs/ARQUITECTURA.md`. Resumen:
 - [x] Todas las rutas usan `@requerir_sesion`, `@manejo_errores` y `Validator`
 
 ### Fase 3: Refactorizar frontend (parcial)
-- [x] `modules/drawer-listas.js`, `modules/form-builder.js`, `modules/ui-components.js`
-- [ ] `app.js` sigue siendo un orquestador monolítico (~2200 líneas); falta extraer el resto
+- [x] `modules/drawer-listas.js`, `modules/form-builder.js`, `modules/ui-components.js`, `modules/tickets-manager.js`
+- [ ] `app.js` sigue siendo un orquestador grande; falta extraer el resto de dominios
 
 ### Fase 4: Tests (parcial)
 - [x] Tests backend (`tests/`, pytest) para productos, OCR, features generales

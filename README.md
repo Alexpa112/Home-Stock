@@ -105,8 +105,8 @@ instalarlo.
 
 ### ⚠️ Fase 3: Frontend OOP (parcial - documentación desactualizada)
 - ✅ Singletons globales `window.DOM`, `window.API` con métodos centralizados (`static/core/`)
-- ✅ Algunos módulos extraídos como managers independientes (`static/modules/drawer-listas.js`, `form-builder.js`, `ui-components.js`)
-- ❌ `app.js` sigue siendo un orquestador monolítico (~2200 líneas, no las 300 líneas históricamente reportadas aquí); el resto de managers listados en versiones anteriores de este README (ProductosManager, CompraManager, CategoriasManager, EspaciosManager, TicketsManager) no existen como ficheros separados
+- ✅ Algunos módulos extraídos como managers independientes (`static/modules/drawer-listas.js`, `form-builder.js`, `ui-components.js`, `tickets-manager.js`)
+- ⚠️ `app.js` sigue siendo un orquestador todavía grande; la extracción del flujo OCR a `tickets-manager.js` reduce parte del acoplamiento, pero aún faltan más managers del plan histórico
 - ✅ Tests con Jest para los módulos ya extraídos
 
 ---
@@ -167,7 +167,7 @@ rm data/stock.db && docker compose restart
 |------|-----------|--------|----------|
 | **Fase 1** | Infraestructura OOP | ✅ 100% | Clases base, singletons, documentación |
 | **Fase 2** | Backend (Python) | ✅ 100% | 10/10 rutas refactorizadas, -35% líneas |
-| **Fase 3** | Frontend (JavaScript) | ⚠️ Parcial | Singletons `DOM`/`API` + 3 módulos extraídos (`drawer-listas.js`, `form-builder.js`, `ui-components.js`); `app.js` sigue siendo un orquestador monolítico (~2200 líneas) |
+| **Fase 3** | Frontend (JavaScript) | ⚠️ Parcial | Singletons `DOM`/`API` + 4 módulos extraídos (`drawer-listas.js`, `form-builder.js`, `ui-components.js`, `tickets-manager.js`); `app.js` sigue centralizando gran parte de la lógica |
 | **Fase 4** | Tests Backend | ⏳ Pendiente | pytest coverage (bonus) |
 
 Ver detalle de por qué la Fase 3 está marcada como parcial en la sección "Fase 3: Frontend OOP" más arriba.
