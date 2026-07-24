@@ -32,8 +32,8 @@ export function SearchBar({
             onChange('')
             onClear?.()
           }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded transition-colors"
-          aria-label="Clear search"
+          className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors"
+          aria-label="Limpiar búsqueda"
         >
           <X className="w-5 h-5 text-muted-foreground" />
         </button>

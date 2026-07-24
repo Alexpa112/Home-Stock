@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock3, TriangleAlert } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
@@ -35,8 +36,11 @@ const FORM_VACIO = {
   categoria: 'Otros',
   cantidad: 1,
   stock_minimo: 1,
+  dias_aviso: 30,
   unidad: 'ud',
 }
+
+type FiltroStock = 'todos' | 'bajo-stock' | 'caducidad'
 
 export default function StockPage() {
   const [items, setItems] = useState<Producto[]>([])
@@ -49,6 +53,7 @@ export default function StockPage() {
   const [formData, setFormData] = useState(FORM_VACIO)
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false)
   const [nuevaCategoria, setNuevaCategoria] = useState('')
+  const [filtroActivo, setFiltroActivo] = useState<FiltroStock>('todos')
 
   useEffect(() => {
     bootstrap()
@@ -95,6 +100,7 @@ export default function StockPage() {
       categoria: item.categoria,
       cantidad: item.cantidad,
       stock_minimo: item.stock_minimo,
+      dias_aviso: item.dias_aviso,
       unidad: item.unidad,
     })
     setShowForm(true)
@@ -110,6 +116,7 @@ export default function StockPage() {
           categoria: formData.categoria,
           cantidad: formData.cantidad,
           stock_minimo: formData.stock_minimo,
+          dias_aviso: formData.dias_aviso,
           unidad: formData.unidad,
         })
       } else {
@@ -118,6 +125,7 @@ export default function StockPage() {
           categoria: formData.categoria,
           cantidad: formData.cantidad,
           stock_minimo: formData.stock_minimo,
+          dias_aviso: formData.dias_aviso,
           unidad: formData.unidad,
         })
       }
@@ -180,39 +188,60 @@ export default function StockPage() {
     }
   }
 
+  const isLowStock = (item: Producto) => item.cantidad <= item.stock_minimo
+
   // Filtrar items por búsqueda
-  const filteredItems = items.filter((item) =>
-    item.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.categoria.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredItems = items.filter((item) => {
+    const matchesQuery =
+      item.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.categoria.toLowerCase().includes(searchQuery.toLowerCase())
+
+    if (!matchesQuery) return false
+    if (filtroActivo === 'bajo-stock') return isLowStock(item)
+    if (filtroActivo === 'caducidad') return item.revisar_caducidad
+    return true
+  })
 
   // Calcular estadísticas
   const stats = {
     totalItems: items.length,
     totalQuantity: items.reduce((sum, item) => sum + item.cantidad, 0),
+    bajoStock: items.filter((item) => isLowStock(item)).length,
     porRevisar: items.filter((item) => item.revisar_caducidad).length,
   }
 
+  const filtros: Array<{ key: FiltroStock; label: string; count: number }> = [
+    { key: 'todos', label: 'Todos', count: items.length },
+    { key: 'bajo-stock', label: 'Bajo stock', count: stats.bajoStock },
+    { key: 'caducidad', label: 'Revisar caducidad', count: stats.porRevisar },
+  ]
+
   return (
-    <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
+    <div className="max-w-6xl mx-auto p-4 lg:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold">Mi Stock</h1>
-          <p className="text-muted-foreground mt-1">Gestiona tu inventario del hogar</p>
+          <p className="text-muted-foreground mt-1">Gestiona tu inventario y detecta rápido mínimos y productos a revisar</p>
         </div>
-        <button
-          onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
-          className="btn-primary flex items-center gap-2 min-h-[44px]"
-        >
-          <Plus className="w-5 h-5" />
-          <span className="hidden sm:inline">Añadir Producto</span>
-          <span className="sm:hidden">Añadir</span>
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/dashboard/shopping" className="btn-secondary flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5" />
+            <span>Ver compra</span>
+          </Link>
+          <button
+            onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
+            className="btn-primary flex items-center gap-2 min-h-[44px]"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Añadir Producto</span>
+            <span className="sm:hidden">Añadir</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatsCard
           title="Artículos"
           value={stats.totalItems}
@@ -228,13 +257,47 @@ export default function StockPage() {
           description="Unidades disponibles"
         />
         <StatsCard
+          title="Bajo Stock"
+          value={stats.bajoStock}
+          icon={ShoppingCart}
+          color="red"
+          description="Cantidad igual o inferior al mínimo"
+        />
+        <StatsCard
           title="Por Revisar"
           value={stats.porRevisar}
-          icon={AlertCircle}
+          icon={Clock3}
           color="yellow"
-          description="Sin actualizar hace tiempo"
+          description="Revisión por caducidad o tiempo"
         />
       </div>
+
+      {(stats.bajoStock > 0 || stats.porRevisar > 0) && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {stats.bajoStock > 0 && (
+            <div className="panel-danger flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <p className="font-semibold">Reposición pendiente</p>
+                <p className="text-sm leading-6">
+                  {stats.bajoStock} producto(s) están en mínimo o por debajo. Cuando la cantidad es igual o menor que el stock mínimo,
+                  el backend los considera para reponer.
+                </p>
+              </div>
+              <Link href="/dashboard/shopping" className="btn-secondary shrink-0">
+                Abrir compra
+              </Link>
+            </div>
+          )}
+          {stats.porRevisar > 0 && (
+            <div className="panel-warning space-y-1">
+              <p className="font-semibold">Revisión de caducidad</p>
+              <p className="text-sm leading-6">
+                {stats.porRevisar} producto(s) llevan tiempo sin actualizarse. Revísalos aunque no estén bajo stock.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Add / Edit Form */}
       {showForm && (
@@ -316,7 +379,7 @@ export default function StockPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Cantidad</label>
                 <input
@@ -334,11 +397,39 @@ export default function StockPage() {
                 <input
                   type="number"
                   value={formData.stock_minimo}
-                  onChange={(e) => setFormData({ ...formData, stock_minimo: parseInt(e.target.value) || 1 })}
+                  onChange={(e) => {
+                    const nextValue = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, stock_minimo: Number.isNaN(nextValue) ? 0 : nextValue })
+                  }}
                   min="0"
                   className="input-field"
                   inputMode="numeric"
                 />
+                <p className="mt-2 text-xs text-muted-foreground">Cuando la cantidad llegue a este valor o baje más, quedará marcado para reponer.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Aviso de revisión (días)</label>
+                <input
+                  type="number"
+                  value={formData.dias_aviso}
+                  onChange={(e) => {
+                    const nextValue = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, dias_aviso: Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue) })
+                  }}
+                  min="1"
+                  className="input-field"
+                  inputMode="numeric"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">Si pasan estos días sin actualizar el producto, se marcará para revisar caducidad.</p>
+              </div>
+              <div className="panel-info flex flex-col justify-center">
+                <p className="font-semibold">Diferencia clave</p>
+                <p className="text-sm leading-6">
+                  <strong>Bajo stock</strong> significa reponer. <strong>Revisar caducidad</strong> significa comprobar estado/fecha del producto.
+                </p>
               </div>
             </div>
 
@@ -363,7 +454,7 @@ export default function StockPage() {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
+        <div className="panel-danger flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">Error</p>
@@ -374,12 +465,24 @@ export default function StockPage() {
 
       {/* Search Bar */}
       {items.length > 0 && !loading && (
-        <div>
+        <div className="space-y-3">
           <SearchBar
             placeholder="Buscar por nombre o categoría..."
             value={searchQuery}
             onChange={setSearchQuery}
           />
+          <div className="flex flex-wrap gap-2">
+            {filtros.map((filtro) => (
+              <button
+                key={filtro.key}
+                type="button"
+                onClick={() => setFiltroActivo(filtro.key)}
+                className={filtroActivo === filtro.key ? 'btn-primary' : 'btn-secondary'}
+              >
+                {filtro.label} ({filtro.count})
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -404,16 +507,39 @@ export default function StockPage() {
           <p className="text-muted-foreground">No se encontraron productos</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredItems.map((item) => (
-            <div key={item.id} className="card flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
+          <div
+            key={item.id}
+            className={`card flex flex-col justify-between ${
+              isLowStock(item)
+                ? 'border-red-200 dark:border-red-900'
+                : item.revisar_caducidad
+                  ? 'border-amber-200 dark:border-amber-900'
+                  : ''
+            }`}
+          >
+            <div>
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
+                  <div className="flex flex-wrap gap-2">
                     <CategoryBadge category={item.categoria} />
+                    {isLowStock(item) && (
+                      <span className="status-badge status-badge-danger">
+                        <TriangleAlert className="w-3.5 h-3.5" />
+                        Bajo stock
+                      </span>
+                    )}
+                    {item.revisar_caducidad && (
+                      <span className="status-badge status-badge-warning">
+                        <Clock3 className="w-3.5 h-3.5" />
+                        Revisar caducidad
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => abrirEdicion(item)}
                       className="p-2 hover:bg-muted rounded-lg transition-colors min-h-[44px] flex items-center justify-center"
@@ -431,34 +557,67 @@ export default function StockPage() {
                   </div>
                 </div>
 
+                <div className="space-y-2 text-sm mt-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Stock mínimo</span>
+                    <span className={`font-semibold ${isLowStock(item) ? 'text-red-600 dark:text-red-300' : 'text-foreground'}`}>
+                      {item.stock_minimo} {item.unidad}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Aviso revisión</span>
+                    <span className="font-semibold text-foreground">{item.dias_aviso} días</span>
+                  </div>
+                </div>
+
+                {isLowStock(item) && (
+                  <div className="panel-danger mt-4 p-3">
+                    <p className="text-sm font-semibold">Reponer pronto</p>
+                    <p className="mt-1 text-sm">
+                      Tiene {item.cantidad} {item.unidad} y su mínimo es {item.stock_minimo}.
+                    </p>
+                  </div>
+                )}
+
                 {item.revisar_caducidad && (
-                  <div className="mt-3">
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
-                      ⚠️ Hace tiempo que no se actualiza
+                  <div className="panel-warning mt-4 p-3">
+                    <p className="text-sm font-semibold">Revisión recomendada</p>
+                    <p className="mt-1 text-sm">
+                      Lleva tiempo sin actualizarse. Comprueba su estado aunque siga habiendo stock.
                     </p>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
-                <span className="text-sm text-muted-foreground">Cantidad ({item.unidad})</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleAjustarCantidad(item.id, -1)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:bg-muted"
-                    aria-label="Restar"
-                  >
-                    -
-                  </button>
-                  <span className="text-lg font-bold text-accent w-8 text-center">{item.cantidad}</span>
-                  <button
-                    onClick={() => handleAjustarCantidad(item.id, 1)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:bg-muted"
-                    aria-label="Sumar"
-                  >
-                    +
-                  </button>
+              <div className="pt-4 border-t border-border mt-auto space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Cantidad ({item.unidad})</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleAjustarCantidad(item.id, -1)}
+                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border hover:bg-muted"
+                      aria-label="Restar"
+                    >
+                      -
+                    </button>
+                    <span className={`text-lg font-bold w-10 text-center ${isLowStock(item) ? 'text-red-600 dark:text-red-300' : 'text-accent'}`}>
+                      {item.cantidad}
+                    </span>
+                    <button
+                      onClick={() => handleAjustarCantidad(item.id, 1)}
+                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border hover:bg-muted"
+                      aria-label="Sumar"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
+
+                {isLowStock(item) && (
+                  <Link href="/dashboard/shopping" className="btn-secondary w-full">
+                    Ver lista de compra
+                  </Link>
+                )}
               </div>
             </div>
           ))}
