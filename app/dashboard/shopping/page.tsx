@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, ShoppingCart, Pencil, Check } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, ShoppingCart, Pencil, Check, AlertTriangle } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
@@ -17,6 +17,7 @@ interface ArticuloLista {
   categoria: string | null
   icono: string | null
   completado: boolean
+  origen: 'auto' | 'manual'
 }
 
 interface Categoria {
@@ -40,6 +41,7 @@ export default function ShoppingPage() {
   })
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [edicion, setEdicion] = useState({ nombre: '', cantidad: 1 })
+  const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
 
   useEffect(() => {
     loadItems()
@@ -94,8 +96,11 @@ export default function ShoppingPage() {
   }
 
   const handleDeleteItem = async (id: number) => {
-    if (!confirm('¿Eliminar este artículo?')) return
-
+    if (confirmandoId !== id) {
+      setConfirmandoId(id)
+      return
+    }
+    setConfirmandoId(null)
     try {
       setError('')
       await articulosLista.eliminar(id)
@@ -180,8 +185,9 @@ export default function ShoppingPage() {
           <h2 className="text-lg font-semibold">Nuevo Artículo</h2>
           <form onSubmit={handleAddItem} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Artículo</label>
+              <label htmlFor="art-nombre" className="block text-sm font-medium mb-2">Artículo</label>
               <input
+                id="art-nombre"
                 type="text"
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
@@ -194,8 +200,9 @@ export default function ShoppingPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Categoría</label>
+                <label htmlFor="art-categoria" className="block text-sm font-medium mb-2">Categoría</label>
                 <select
+                  id="art-categoria"
                   value={formData.categoria}
                   onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
                   className="input-field"
@@ -209,8 +216,9 @@ export default function ShoppingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Cantidad</label>
+                <label htmlFor="art-cantidad" className="block text-sm font-medium mb-2">Cantidad</label>
                 <input
+                  id="art-cantidad"
                   type="number"
                   value={formData.cantidad}
                   onChange={(e) => setFormData({ ...formData, cantidad: parseInt(e.target.value) || 1 })}
@@ -289,59 +297,109 @@ export default function ShoppingPage() {
                   >
                     <button
                       onClick={() => handleToggleBought(item.id, true)}
-                      className="p-1 hover:bg-green-50 dark:hover:bg-green-950 rounded-lg transition-colors flex-shrink-0"
-                      aria-label="Marcar como comprado"
+                      className="w-11 h-11 flex items-center justify-center hover:bg-green-50 dark:hover:bg-green-950 rounded-xl transition-colors flex-shrink-0"
+                      aria-label={`Marcar ${item.nombre} como comprado`}
                     >
                       <Circle className="w-6 h-6 text-muted-foreground" />
                     </button>
 
                     {editandoId === item.id ? (
-                      <div className="flex-1 flex gap-2 items-center">
+                      <div className="flex-1 flex flex-col gap-2">
                         <input
                           type="text"
                           value={edicion.nombre}
                           onChange={(e) => setEdicion({ ...edicion, nombre: e.target.value })}
-                          className="input-field !py-1 flex-1"
+                          className="input-field"
                           autoFocus
+                          inputMode="text"
                         />
-                        <input
-                          type="number"
-                          min={1}
-                          value={edicion.cantidad}
-                          onChange={(e) => setEdicion({ ...edicion, cantidad: parseInt(e.target.value) || 1 })}
-                          className="input-field !py-1 w-16"
-                        />
-                        <button onClick={() => guardarEdicion(item.id)} aria-label="Guardar">
-                          <Check className="w-5 h-5 text-green-500" />
-                        </button>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            value={edicion.cantidad}
+                            onChange={(e) => setEdicion({ ...edicion, cantidad: parseInt(e.target.value) || 1 })}
+                            className="input-field w-24"
+                            inputMode="numeric"
+                          />
+                          <button
+                            onClick={() => guardarEdicion(item.id)}
+                            className="btn-primary flex-1 flex items-center justify-center gap-2"
+                            aria-label="Guardar"
+                          >
+                            <Check className="w-4 h-4" /> Guardar
+                          </button>
+                          <button
+                            onClick={() => setEditandoId(null)}
+                            className="btn-secondary px-3"
+                            aria-label="Cancelar edición"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground mb-1">
-                          {item.nombre}
-                          {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="font-medium text-foreground">
+                            {item.nombre}
+                            {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
+                          </p>
+                          {item.origen === 'auto' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+                              <AlertTriangle className="w-3 h-3" />
+                              Stock bajo
+                            </span>
+                          )}
+                        </div>
                         {item.categoria && <CategoryBadge category={item.categoria} />}
                       </div>
                     )}
 
-                    <button
-                      onClick={() => iniciarEdicion(item)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors flex-shrink-0"
-                      aria-label="Editar"
-                    >
-                      <Pencil className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors flex-shrink-0"
-                      aria-label="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
+                    {editandoId !== item.id && (
+                      <button
+                        onClick={() => iniciarEdicion(item)}
+                        className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
+                        aria-label="Editar"
+                      >
+                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    )}
+                    {confirmandoId === item.id ? (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl"
+                        >
+                          Sí
+                        </button>
+                        <button
+                          onClick={() => setConfirmandoId(null)}
+                          className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
+                        aria-label="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Sin resultados de búsqueda */}
+          {searchQuery && filteredPendingItems.length === 0 && filteredBoughtItems.length === 0 && (
+            <div className="text-center py-8 space-y-2">
+              <p className="text-muted-foreground">Sin resultados para <strong>«{searchQuery}»</strong></p>
+              <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">Limpiar búsqueda</button>
             </div>
           )}
 
@@ -357,8 +415,8 @@ export default function ShoppingPage() {
                   >
                     <button
                       onClick={() => handleToggleBought(item.id, false)}
-                      className="p-1 flex-shrink-0"
-                      aria-label="Marcar como pendiente"
+                      className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
+                      aria-label={`Restaurar ${item.nombre} como pendiente`}
                     >
                       <CheckCircle2 className="w-6 h-6 text-green-500" />
                     </button>
@@ -370,7 +428,7 @@ export default function ShoppingPage() {
 
                     <button
                       onClick={() => handleDeleteItem(item.id)}
-                      className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors flex-shrink-0"
+                      className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
                       aria-label="Eliminar"
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />

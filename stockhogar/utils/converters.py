@@ -85,6 +85,7 @@ class DataConverter:
             "sub_descripcion": DataConverter.safe_field(row, "sub_descripcion"),
             "articulo_personalizado_id": DataConverter.safe_field(row, "articulo_personalizado_id"),
             "completado": bool(DataConverter.safe_field(row, "completado", 0)),
+            "origen": DataConverter.safe_field(row, "origen", "manual"),
             "fecha_creacion": DataConverter.safe_field(row, "fecha_creacion"),
             "fecha_completado": DataConverter.safe_field(row, "fecha_completado"),
         }

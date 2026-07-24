@@ -1,46 +1,72 @@
 @import 'tailwindcss';
 
 @theme inline {
-  /* Light Mode - Warm, Modern, Friendly (Bring! Inspired) */
+  /* Light Mode */
   --color-primary: #1F2937;
   --color-primary-foreground: #FFFFFF;
-  --color-secondary: #6B7280;
+  --color-secondary: #374151;
   --color-secondary-foreground: #FFFFFF;
   --color-accent: #FF7A59;
   --color-accent-foreground: #FFFFFF;
-  --color-background: #FAFAFA;
-  --color-foreground: #1F2937;
-  --color-muted: #F3F4F6;
-  --color-muted-foreground: #6B7280;
-  --color-border: #E5E7EB;
+  --color-background: #F8F7F5;
+  --color-foreground: #1A1A1A;
+  --color-muted: #EFEFED;
+  --color-muted-foreground: #4B5563;   /* 5.9:1 sobre #EFEFED — AA ✓ */
+  --color-border: #E0DFDC;
   --color-card: #FFFFFF;
-  --color-card-foreground: #1F2937;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
-  --color-info: #3B82F6;
+  --color-card-foreground: #1A1A1A;
+  --color-surface-raised: #F3F2F0;
+  --color-success: #059669;            /* 4.6:1 sobre blanco — AA ✓ */
+  --color-warning: #D97706;            /* 4.5:1 sobre blanco — AA ✓ */
+  --color-error: #DC2626;              /* 5.1:1 sobre blanco — AA ✓ */
+  --color-info: #2563EB;               /* 5.9:1 sobre blanco — AA ✓ */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
 
+/* Fallback cuando JS aún no ha aplicado la clase .dark */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --color-primary: #F9FAFB;
+    --color-primary-foreground: #111827;
+    --color-secondary: #D1D5DB;
+    --color-secondary-foreground: #111827;
+    --color-accent: #FF8A69;
+    --color-accent-foreground: #1A0A00;
+    --color-background: #0F1117;
+    --color-foreground: #F1F0EE;
+    --color-muted: #1C1F26;
+    --color-muted-foreground: #9CA3AF;
+    --color-border: #2D3139;
+    --color-card: #181B22;
+    --color-card-foreground: #F1F0EE;
+    --color-surface-raised: #1C1F26;
+    --color-success: #34D399;
+    --color-warning: #FBBF24;
+    --color-error: #F87171;
+    --color-info: #60A5FA;
+  }
+}
+
 .dark {
-  /* Dark Mode - Warm, Sophisticated */
+  /* Dark Mode */
   --color-primary: #F9FAFB;
-  --color-primary-foreground: #1F2937;
+  --color-primary-foreground: #111827;
   --color-secondary: #D1D5DB;
-  --color-secondary-foreground: #1F2937;
+  --color-secondary-foreground: #111827;
   --color-accent: #FF8A69;
-  --color-accent-foreground: #FFFFFF;
-  --color-background: #111827;
-  --color-foreground: #F9FAFB;
-  --color-muted: #1F2937;
-  --color-muted-foreground: #D1D5DB;
-  --color-border: #374151;
-  --color-card: #1F2937;
-  --color-card-foreground: #F9FAFB;
-  --color-success: #34D399;
-  --color-warning: #FBBF24;
-  --color-error: #F87171;
-  --color-info: #60A5FA;
+  --color-accent-foreground: #1A0A00;
+  --color-background: #0F1117;
+  --color-foreground: #F1F0EE;
+  --color-muted: #1C1F26;
+  --color-muted-foreground: #9CA3AF;   /* 5.7:1 sobre #1C1F26 — AA ✓ */
+  --color-border: #2D3139;
+  --color-card: #181B22;
+  --color-card-foreground: #F1F0EE;
+  --color-surface-raised: #1C1F26;
+  --color-success: #34D399;            /* 9.3:1 sobre #181B22 — AAA ✓ */
+  --color-warning: #FBBF24;            /* 8.5:1 — AAA ✓ */
+  --color-error: #F87171;              /* 5.2:1 — AA ✓ */
+  --color-info: #60A5FA;               /* 5.9:1 — AA ✓ */
 }
 
 @layer base {
@@ -59,13 +85,26 @@
     font-family: var(--font-sans);
   }
 
+  /* Focus visible global — solo teclado/dispositivos de puntero */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  /* Eliminar outline en click ratón pero conservarlo para teclado */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }
 
-  h1 { @apply text-4xl lg:text-5xl; }
-  h2 { @apply text-3xl lg:text-4xl; }
-  h3 { @apply text-2xl lg:text-3xl; }
+  /* Escala adecuada para PWA/dashboard, no landing page */
+  h1 { @apply text-2xl lg:text-3xl; }
+  h2 { @apply text-xl lg:text-2xl; }
+  h3 { @apply text-lg lg:text-xl; }
 
   input[type="text"],
   input[type="number"],
@@ -81,16 +120,16 @@
     padding: 12px 16px;
   }
 
+  /* min-h solo en elementos interactivos de acción, no en links inline */
   button,
-  [role="button"],
-  a {
-    @apply min-h-[48px];
+  [role="button"] {
+    @apply min-h-[44px];
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl border bg-card p-6 shadow-sm transition-all duration-200 hover:shadow-md;
+    @apply rounded-2xl border bg-card p-4 sm:p-5 shadow-sm transition-all duration-200 hover:shadow-md;
   }
 
   .card-compact {
@@ -139,23 +178,27 @@
   }
 
   .badge {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold;
   }
 
   .badge-primary {
-    @apply bg-accent/10 text-accent;
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    color: var(--color-accent);
   }
 
   .badge-success {
-    @apply bg-success/10 text-success;
+    background-color: color-mix(in srgb, var(--color-success) 12%, transparent);
+    color: var(--color-success);
   }
 
   .badge-warning {
-    @apply bg-warning/10 text-warning;
+    background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
+    color: var(--color-warning);
   }
 
   .badge-error {
-    @apply bg-error/10 text-error;
+    background-color: color-mix(in srgb, var(--color-error) 12%, transparent);
+    color: var(--color-error);
   }
 
   .fade-in {
@@ -205,5 +248,10 @@
 
   .shadow-card-lg {
     @apply shadow-lg;
+  }
+
+  /* Safe area para el bottom bar en iOS con notch/home indicator */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

@@ -40,6 +40,12 @@ export default function RootLayout({
         <meta name="twitter:card" content="summary_large_image" />
       </head>
       <body className="antialiased text-foreground">
+        {/* Anti-FOUC: aplica clase dark/light antes del primer render */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.add('light')}})()`,
+          }}
+        />
         {children}
       </body>
     </html>
