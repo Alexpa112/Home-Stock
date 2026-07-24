@@ -332,7 +332,7 @@ window.habilitarBottomSheet = habilitarBottomSheet;
 function escapeHtml(texto) {
   const div = document.createElement("div");
   div.textContent = texto;
-  return div.innerHTML;
+  return div.innerHTML.replace(/'/g, "&#39;");
 }
 
 /* --- Tema claro/oscuro --- */

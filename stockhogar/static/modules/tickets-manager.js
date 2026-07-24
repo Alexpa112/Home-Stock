@@ -9,7 +9,7 @@ class TicketsManager {
     this.escapeHtml = options.escapeHtml || ((texto) => {
       const div = document.createElement('div');
       div.textContent = texto;
-      return div.innerHTML;
+      return div.innerHTML.replace(/'/g, '&#39;');
     });
     this.renderIcon = options.renderIcon || ((icono) => icono || '');
     this.populateCategorySelect = options.populateCategorySelect || (() => {});

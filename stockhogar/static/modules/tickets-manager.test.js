@@ -37,6 +37,7 @@ function crearManager(opciones = {}) {
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
+      .replaceAll("'", '&#39;')
       .replaceAll('"', '&quot;'),
     renderIcon: (icono) => `<svg data-icon="${icono || ''}"></svg>`,
     populateCategorySelect: (select, seleccionada) => {
