@@ -1,22 +1,11 @@
 'use client'
 
+import { BookOpen, TrendingDown } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { TrendingDown, BookOpen } from 'lucide-react'
+import { StatusMessage } from '@/components/shared/StatusMessage'
 import { consumo as consumoApi, historial as historialApi } from '@/lib/api'
-
-interface ProductoConsumo {
-  nombre: string
-  icono: string | null
-  consumo: number
-}
-
-interface ArticuloCatalogo {
-  nombre: string
-  icono: string | null
-  categoria: string | null
-  unidad: string
-  cantidad_defecto: number | null
-}
+import { getErrorMessage } from '@/lib/error-utils'
+import type { ArticuloCatalogo, ProductoConsumo } from '@/lib/types'
 
 const RANGOS = [
   { dias: 7, label: '7 días' },
@@ -32,33 +21,24 @@ export default function HistorialPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    cargarConsumo(dias)
-    historialApi
-      .listar()
-      .then((data: any) => setCatalogo(Array.isArray(data) ? data : []))
-      .catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void cargarConsumo(dias)
+    historialApi.listar().then((data: any) => setCatalogo(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
 
-  const cargarConsumo = async (d: number) => {
+  const cargarConsumo = async (rango: number) => {
     try {
       setLoading(true)
       setError('')
-      const data: any = await consumoApi.resumen(d)
+      const data: any = await consumoApi.resumen(rango)
       setPorProducto(data.por_producto || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error de conexión')
+      setError(getErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
-  const cambiarRango = (d: number) => {
-    setDias(d)
-    cargarConsumo(d)
-  }
-
-  const maxConsumo = Math.max(1, ...porProducto.map((p) => p.consumo))
+  const maxConsumo = Math.max(1, ...porProducto.map((producto) => producto.consumo))
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
@@ -67,9 +47,7 @@ export default function HistorialPage() {
         <p className="text-muted-foreground mt-1">Consumo de tu lista activa y catálogo de artículos aprendidos</p>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg text-sm">{error}</div>
-      )}
+      {error && <StatusMessage message={error} />}
 
       <div className="card space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -77,15 +55,16 @@ export default function HistorialPage() {
             <TrendingDown className="w-5 h-5 text-accent" /> Más consumido
           </h2>
           <div className="flex gap-1">
-            {RANGOS.map((r) => (
+            {RANGOS.map((rango) => (
               <button
-                key={r.dias}
-                onClick={() => cambiarRango(r.dias)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  dias === r.dias ? 'bg-accent text-accent-foreground' : 'bg-muted text-foreground hover:bg-border'
-                }`}
+                key={rango.dias}
+                onClick={() => {
+                  setDias(rango.dias)
+                  void cargarConsumo(rango.dias)
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${dias === rango.dias ? 'bg-accent text-accent-foreground' : 'bg-muted text-foreground hover:bg-border'}`}
               >
-                {r.label}
+                {rango.label}
               </button>
             ))}
           </div>
@@ -99,17 +78,14 @@ export default function HistorialPage() {
           </p>
         ) : (
           <div className="space-y-3">
-            {porProducto.map((p, i) => (
-              <div key={i} className="space-y-1">
+            {porProducto.map((producto, index) => (
+              <div key={index} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{p.nombre}</span>
-                  <span className="text-muted-foreground">{p.consumo} ud.</span>
+                  <span className="font-medium">{producto.nombre}</span>
+                  <span className="text-muted-foreground">{producto.consumo} ud.</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-accent rounded-full"
-                    style={{ width: `${Math.max(4, (p.consumo / maxConsumo) * 100)}%` }}
-                  />
+                  <div className="h-full bg-accent rounded-full" style={{ width: `${Math.max(4, (producto.consumo / maxConsumo) * 100)}%` }} />
                 </div>
               </div>
             ))}
@@ -126,9 +102,9 @@ export default function HistorialPage() {
         </p>
         {catalogo.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto">
-            {catalogo.map((a, i) => (
-              <div key={i} className="p-2 rounded-lg bg-muted text-sm truncate" title={a.nombre}>
-                {a.nombre}
+            {catalogo.map((articulo, index) => (
+              <div key={index} className="p-2 rounded-lg bg-muted text-sm truncate" title={articulo.nombre}>
+                {articulo.nombre}
               </div>
             ))}
           </div>

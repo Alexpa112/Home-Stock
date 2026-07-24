@@ -1,203 +1,42 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut } from 'lucide-react'
-import { listas as listasApi, permisos } from '@/lib/api'
-
-interface Lista {
-  id: number
-  nombre: string
-  descripcion: string | null
-  icono: string
-  color: string
-  privada: boolean
-  usuario_propietario_id: number
-  mi_rol?: string
-}
-
-interface Miembro {
-  id: number
-  nombre_usuario: string
-  email: string | null
-  nivel: string
-  fecha_otorgado?: string
-}
-
-const CLAVE_LISTA_ACTIVA = 'stockhogar-lista-activa-ui'
+import { Check, LogOut, Pencil, Plus, Trash2, UserPlus, Users, X } from 'lucide-react'
+import { StatusMessage } from '@/components/shared/StatusMessage'
+import { useListsPage } from '@/hooks/useListsPage'
+import type { Lista } from '@/lib/types'
 
 export default function ListasPage() {
-  const [propias, setPropias] = useState<Lista[]>([])
-  const [compartidas, setCompartidas] = useState<Lista[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [nuevoNombre, setNuevoNombre] = useState('')
-  const [listaActivaId, setListaActivaId] = useState<number | null>(null)
-  const [renombrandoId, setRenombrandoId] = useState<number | null>(null)
-  const [nombreEditado, setNombreEditado] = useState('')
-
-  // Panel de compartir (solo una lista abierta a la vez)
-  const [compartiendoId, setCompartiendoId] = useState<number | null>(null)
-  const [miembros, setMiembros] = useState<Miembro[]>([])
-  const [propietario, setPropietario] = useState<{ nombre_usuario: string } | null>(null)
-  const [busqueda, setBusqueda] = useState('')
-  const [resultados, setResultados] = useState<{ id: number; nombre_usuario: string; email: string | null }[]>([])
-  const [nivelNuevo, setNivelNuevo] = useState<'ver' | 'editar'>('editar')
-
-  useEffect(() => {
-    cargar()
-    const guardada = localStorage.getItem(CLAVE_LISTA_ACTIVA)
-    if (guardada) setListaActivaId(parseInt(guardada, 10))
-  }, [])
-
-  const cargar = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      const data: any = await listasApi.listar()
-      setPropias(data.propias || [])
-      setCompartidas(data.compartidas || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error de conexión')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCrear = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!nuevoNombre.trim()) return
-    try {
-      setError('')
-      const nueva: any = await listasApi.crear(nuevoNombre.trim())
-      setNuevoNombre('')
-      await cargar()
-      handleSeleccionar(nueva.id)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la lista')
-    }
-  }
-
-  const handleSeleccionar = async (id: number) => {
-    try {
-      setError('')
-      await listasApi.seleccionar(id)
-      setListaActivaId(id)
-      localStorage.setItem(CLAVE_LISTA_ACTIVA, String(id))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al seleccionar la lista')
-    }
-  }
-
-  const iniciarRenombrar = (lista: Lista) => {
-    setRenombrandoId(lista.id)
-    setNombreEditado(lista.nombre)
-  }
-
-  const guardarRenombrar = async (id: number) => {
-    if (!nombreEditado.trim()) {
-      setRenombrandoId(null)
-      return
-    }
-    try {
-      setError('')
-      await listasApi.actualizar(id, { nombre: nombreEditado.trim() })
-      setRenombrandoId(null)
-      await cargar()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al renombrar la lista')
-    }
-  }
-
-  const handleEliminarLista = async (id: number) => {
-    if (!confirm('¿Eliminar esta lista y todos sus artículos? Esta acción no se puede deshacer.')) return
-    try {
-      setError('')
-      await listasApi.eliminar(id)
-      if (listaActivaId === id) {
-        setListaActivaId(null)
-        localStorage.removeItem(CLAVE_LISTA_ACTIVA)
-      }
-      await cargar()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar la lista')
-    }
-  }
-
-  const handleSalirLista = async (id: number) => {
-    if (!confirm('¿Salir de esta lista compartida? Dejarás de tener acceso a ella.')) return
-    try {
-      setError('')
-      await listasApi.salir(id)
-      if (listaActivaId === id) {
-        setListaActivaId(null)
-        localStorage.removeItem(CLAVE_LISTA_ACTIVA)
-      }
-      await cargar()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al salir de la lista')
-    }
-  }
-
-  const abrirCompartir = async (listaId: number) => {
-    setCompartiendoId(listaId)
-    setResultados([])
-    setBusqueda('')
-    try {
-      const data: any = await permisos.miembros(listaId)
-      setPropietario(data.propietario)
-      setMiembros(data.miembros || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar miembros')
-    }
-  }
-
-  const buscarUsuarios = async (q: string) => {
-    setBusqueda(q)
-    if (q.trim().length < 2) {
-      setResultados([])
-      return
-    }
-    try {
-      const data: any = await permisos.buscarUsuarios(q.trim())
-      setResultados(data.usuarios || [])
-    } catch {
-      setResultados([])
-    }
-  }
-
-  const compartirCon = async (nombreUsuario: string) => {
-    if (!compartiendoId) return
-    try {
-      setError('')
-      await permisos.compartir(compartiendoId, { usuario: nombreUsuario, nivel: nivelNuevo })
-      await abrirCompartir(compartiendoId)
-      setBusqueda('')
-      setResultados([])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al compartir')
-    }
-  }
-
-  const cambiarNivel = async (usuarioId: number, nivel: 'ver' | 'editar') => {
-    if (!compartiendoId) return
-    try {
-      await permisos.actualizarPermiso(compartiendoId, usuarioId, nivel)
-      await abrirCompartir(compartiendoId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar el permiso')
-    }
-  }
-
-  const quitarAcceso = async (usuarioId: number) => {
-    if (!compartiendoId) return
-    if (!confirm('¿Quitar el acceso de este usuario a la lista?')) return
-    try {
-      await permisos.revocar(compartiendoId, usuarioId)
-      await abrirCompartir(compartiendoId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al quitar el acceso')
-    }
-  }
+  const {
+    abrirCompartir,
+    busqueda,
+    buscarUsuarios,
+    cambiarNivel,
+    compartidas,
+    compartiendoId,
+    compartirCon,
+    eliminarLista,
+    error,
+    guardarRenombrar,
+    iniciarRenombrar,
+    listaActivaId,
+    loading,
+    miembros,
+    nivelNuevo,
+    nombreEditado,
+    nuevoNombre,
+    propietario,
+    propias,
+    quitarAcceso,
+    renombrandoId,
+    resultados,
+    salirLista,
+    seleccionarLista,
+    setCompartiendoId,
+    setNivelNuevo,
+    setNombreEditado,
+    setNuevoNombre,
+    submitCrearLista,
+  } = useListsPage()
 
   const renderLista = (lista: Lista, esPropia: boolean) => (
     <div key={lista.id} className="card space-y-3">
@@ -239,11 +78,7 @@ export default function ListasPage() {
         )}
       </div>
       <div className="flex gap-2">
-        <button
-          onClick={() => handleSeleccionar(lista.id)}
-          disabled={listaActivaId === lista.id}
-          className="btn-secondary flex-1 disabled:opacity-50"
-        >
+        <button onClick={() => seleccionarLista(lista.id)} disabled={listaActivaId === lista.id} className="btn-secondary flex-1 disabled:opacity-50">
           {listaActivaId === lista.id ? 'Ya activa' : 'Usar esta lista'}
         </button>
         {esPropia ? (
@@ -252,7 +87,7 @@ export default function ListasPage() {
               <Users className="w-4 h-4" /> Compartir
             </button>
             <button
-              onClick={() => handleEliminarLista(lista.id)}
+              onClick={() => confirm('¿Eliminar esta lista y todos sus artículos? Esta acción no se puede deshacer.') && eliminarLista(lista.id)}
               className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
               aria-label="Eliminar lista"
             >
@@ -261,7 +96,7 @@ export default function ListasPage() {
           </>
         ) : (
           <button
-            onClick={() => handleSalirLista(lista.id)}
+            onClick={() => confirm('¿Salir de esta lista compartida? Dejarás de tener acceso a ella.') && salirLista(lista.id)}
             className="btn-secondary flex items-center gap-1 text-red-600 dark:text-red-400"
           >
             <LogOut className="w-4 h-4" /> Salir
@@ -275,16 +110,12 @@ export default function ListasPage() {
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold">Mis Listas</h1>
-        <p className="text-muted-foreground mt-1">
-          La lista "activa" es la que ves en Stock y en la Lista de la Compra
-        </p>
+        <p className="text-muted-foreground mt-1">La lista activa es la que ves en Stock y en la Lista de la Compra</p>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg text-sm">{error}</div>
-      )}
+      {error && <StatusMessage message={error} />}
 
-      <form onSubmit={handleCrear} className="card flex gap-2">
+      <form onSubmit={submitCrearLista} className="card flex gap-2">
         <input
           type="text"
           value={nuevoNombre}
@@ -304,13 +135,13 @@ export default function ListasPage() {
           {propias.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-lg font-semibold">Propias</h2>
-              <div className="grid gap-3">{propias.map((l) => renderLista(l, true))}</div>
+              <div className="grid gap-3">{propias.map((lista) => renderLista(lista, true))}</div>
             </div>
           )}
           {compartidas.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-lg font-semibold">Compartidas conmigo</h2>
-              <div className="grid gap-3">{compartidas.map((l) => renderLista(l, false))}</div>
+              <div className="grid gap-3">{compartidas.map((lista) => renderLista(lista, false))}</div>
             </div>
           )}
           {propias.length === 0 && compartidas.length === 0 && (
@@ -319,7 +150,6 @@ export default function ListasPage() {
         </>
       )}
 
-      {/* Panel de compartir */}
       {compartiendoId !== null && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
           <div className="bg-card rounded-xl w-full max-w-md p-4 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -339,27 +169,25 @@ export default function ListasPage() {
                     <span className="text-muted-foreground">Propietario</span>
                   </div>
                 )}
-                {miembros.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between text-sm gap-2">
-                    <span className="truncate">{m.nombre_usuario}</span>
+                {miembros.map((miembro) => (
+                  <div key={miembro.id} className="flex items-center justify-between text-sm gap-2">
+                    <span className="truncate">{miembro.nombre_usuario}</span>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <select
-                        value={m.nivel}
-                        onChange={(e) => cambiarNivel(m.id, e.target.value as 'ver' | 'editar')}
+                        value={miembro.nivel}
+                        onChange={(e) => cambiarNivel(miembro.id, e.target.value as 'ver' | 'editar')}
                         className="input-field !py-1 !px-2 text-xs"
                       >
                         <option value="ver">Solo ver</option>
                         <option value="editar">Puede editar</option>
                       </select>
-                      <button onClick={() => quitarAcceso(m.id)} aria-label="Quitar acceso">
+                      <button onClick={() => confirm('¿Quitar el acceso de este usuario a la lista?') && quitarAcceso(miembro.id)} aria-label="Quitar acceso">
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </button>
                     </div>
                   </div>
                 ))}
-                {miembros.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Nadie más tiene acceso todavía.</p>
-                )}
+                {miembros.length === 0 && <p className="text-xs text-muted-foreground">Nadie más tiene acceso todavía.</p>}
               </div>
             </div>
 
@@ -373,24 +201,20 @@ export default function ListasPage() {
                   placeholder="Nombre de usuario o email (min. 2 letras)"
                   className="input-field flex-1"
                 />
-                <select
-                  value={nivelNuevo}
-                  onChange={(e) => setNivelNuevo(e.target.value as 'ver' | 'editar')}
-                  className="input-field w-32"
-                >
+                <select value={nivelNuevo} onChange={(e) => setNivelNuevo(e.target.value as 'ver' | 'editar')} className="input-field w-32">
                   <option value="editar">Editar</option>
                   <option value="ver">Ver</option>
                 </select>
               </div>
               {resultados.length > 0 && (
                 <div className="space-y-1">
-                  {resultados.map((u) => (
+                  {resultados.map((usuario) => (
                     <button
-                      key={u.id}
-                      onClick={() => compartirCon(u.nombre_usuario)}
+                      key={usuario.id}
+                      onClick={() => compartirCon(usuario.nombre_usuario)}
                       className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-muted text-sm"
                     >
-                      <span>{u.nombre_usuario}</span>
+                      <span>{usuario.nombre_usuario}</span>
                       <UserPlus className="w-4 h-4 text-accent" />
                     </button>
                   ))}

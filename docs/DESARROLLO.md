@@ -14,8 +14,12 @@ source venv/bin/activate           # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 pip install pytest pytest-cov black flake8
 
-# Ejecutar en modo desarrollo
+# Ejecutar backend en modo desarrollo
 FLASK_ENV=development python run.py
+
+# Frontend Next.js (en otra terminal)
+npm install
+npm run dev
 ```
 
 ---
@@ -25,49 +29,42 @@ FLASK_ENV=development python run.py
 Lee primero: [ARQUITECTURA.md](ARQUITECTURA.md)
 
 ```
+app/
+├── dashboard/
+│   ├── layout.tsx                  # Shell autenticado + navegación
+│   ├── page.tsx                    # Stock
+│   ├── shopping/page.tsx           # Lista de compra
+│   ├── listas/page.tsx             # Gestión y compartición de listas
+│   ├── ticket/page.tsx             # OCR de tickets + confirmación
+│   ├── historial/page.tsx          # Consumo y catálogo aprendido
+│   └── settings/page.tsx           # Preferencias de usuario
+├── layout.tsx
+└── page.tsx
+
+components/
+├── dashboard/                      # StatsCard, SearchBar, CategoryBadge...
+└── shared/                         # ProtectedRoute, StatusMessage...
+
+hooks/
+├── useAuth.ts
+├── useActiveListSelection.ts
+├── useStockPage.ts
+├── useShoppingPage.ts
+├── useListsPage.ts
+└── useSettingsPage.ts
+
+lib/
+├── api.ts                          # Cliente HTTP y contratos de endpoints
+├── error-utils.ts                  # Helpers de errores y parseo
+├── session.ts                      # Logout / redirect
+├── types.ts                        # Tipos compartidos del frontend
+└── utils.ts
+
 stockhogar/
 ├── api/
-│   ├── __init__.py                 # Exporta APIResponse, decoradores
-│   └── base.py                     # ⭐ Clases base para todos los endpoints
-│
-├── utils/
-│   ├── __init__.py
-│   ├── validation.py               # ⭐ Validator (todo el proyecto usa esto)
-│   └── converters.py               # ⭐ DataConverter (JSON serialization)
-│
 ├── rutas/
-│   ├── productos.py                # Usa @requerir_sesion, @manejo_errores, Validator
-│   ├── listas.py
-│   ├── articulos_lista.py          # antes lista_compra.py
-│   ├── categorias.py
-│   ├── historial.py
-│   ├── auth.py
-│   ├── tickets.py
-│   └── ocr_tickets.py
-│
 ├── servicios/
-│   ├── ocr/
-│   │   ├── procesador_imagen.py
-│   │   ├── extractor_texto.py
-│   │   ├── parseador_ticket.py
-│   │   └── matcher_productos.py
-│   └── __init__.py
-│
-├── static/
-│   ├── core/
-│   │   ├── dom-manager.js          # ⭐ window.DOM global
-│   │   └── api-client.js           # ⭐ window.API global
-│   ├── modules/
-│   │   ├── drawer-listas.js        # Listas: crear, compartir, invitar
-│   │   ├── form-builder.js
-│   │   └── ui-components.js
-│   ├── style.css
-│   ├── responsive.css
-│   └── app.js                      # Orquestador monolítico (~2200 líneas, no refactorizado todavía)
-│
-└── templates/
-    ├── index.html                  # SPA principal
-    └── login.html
+└── utils/
 ```
 
 ---
@@ -115,62 +112,51 @@ def crear():
     return APIResponse.success(resultado, 201)
 ```
 
-### 3. **Frontend: Usa DOMManager y APIClient**
+### 3. **Frontend: usa `lib/api.ts`, hooks y tipos compartidos**
 ❌ No hagas:
-```javascript
-const btnTema = document.getElementById('btnTema');
-const btnCategorias = document.getElementById('btnCategorias');
+```tsx
+const [items, setItems] = useState([])
 
-fetch('/api/productos')
-  .then(res => res.json())
-  .then(data => console.log(data))
-  .catch(err => console.error(err))
+useEffect(() => {
+  fetch('/api/productos')
+    .then((res) => res.json())
+    .then(setItems)
+}, [])
 ```
 
 ✅ Hazlo así:
-```javascript
-// Los elementos están globales en window.DOM
-window.DOM.btnTema.addEventListener('click', () => { ... });
+```tsx
+const { items, loading, error, submitForm } = useStockPage()
+```
 
-// Llamadas API centralizadas
-try {
-  const productos = await window.API.obtenerProductos();
-  console.log(productos);
-} catch (error) {
-  console.error(error.message);
+Y cuando necesites contratos o helpers comunes:
+- `lib/api.ts` para hablar con Flask
+- `lib/types.ts` para las shapes compartidas
+- `lib/error-utils.ts` para mensajes/parsers consistentes
+
+### 4. **Frontend: separa página, hook y componentes**
+Patrón actual recomendado:
+
+```tsx
+// app/dashboard/mi-pagina/page.tsx
+export default function MiPagina() {
+  const estado = useMiPagina()
+  return <MiVista {...estado} />
 }
 ```
 
-### 4. **Frontend: Organiza en módulos**
-Cuando extraigas lógica de `app.js`, hazlo como una clase con responsabilidad
-única, siguiendo el patrón ya usado en `static/modules/drawer-listas.js`:
-
-```javascript
-// static/modules/mi-feature.js
-class MiFeatureManager {
-  constructor() {
-    this.api = window.API;
-    this.dom = window.DOM;
-  }
-
-  async cargar() {
-    this.datos = await this.api.obtenerAlgo();
-    this.renderizar();
-  }
-
-  renderizar() {
-    // Solo renderización, sin lógica de negocio
-  }
+```ts
+// hooks/useMiPagina.ts
+export function useMiPagina() {
+  // carga, acciones, estado derivado
 }
-
-// En app.js
-window.miFeatureManager = new MiFeatureManager();
-window.miFeatureManager.cargar();
 ```
 
-Nota: la mayor parte de la lógica de UI sigue viviendo en `app.js`
-(~2200 líneas); solo `drawer-listas.js`, `form-builder.js` y
-`ui-components.js` se han extraído hasta ahora.
+Regla práctica:
+- **page.tsx**: composición visual
+- **hook**: estado, efectos y acciones async
+- **components/**: piezas de UI reutilizables
+- **lib/**: contratos, sesión, utilidades, tipos
 
 ---
 
@@ -270,24 +256,24 @@ F12 → Network → (hacer la acción)
 Ver estado real y detallado en `README.md` (sección "Optimización - Estado
 del Proyecto") y `docs/ARQUITECTURA.md`. Resumen:
 
-### Fase 1: ✅ Base OOP (Hecha)
+### Fase 1: ✅ Base OOP backend (hecha)
 - [x] `api/base.py` - APIResponse + decoradores
 - [x] `utils/validation.py` - Validator
 - [x] `utils/converters.py` - DataConverter
-- [x] `static/core/dom-manager.js` - Selectores centralizados
-- [x] `static/core/api-client.js` - Fetch centralizado
 
-### Fase 2: ✅ Refactorizar rutas (Hecha)
+### Fase 2: ✅ Refactorización de rutas Flask (hecha)
 - [x] Todas las rutas usan `@requerir_sesion`, `@manejo_errores` y `Validator`
 
-### Fase 3: Refactorizar frontend (parcial)
-- [x] `modules/drawer-listas.js`, `modules/form-builder.js`, `modules/ui-components.js`, `modules/tickets-manager.js`
-- [ ] `app.js` sigue siendo un orquestador grande; falta extraer el resto de dominios
+### Fase 3: ✅ Base frontend Next.js modularizada
+- [x] Páginas críticas del dashboard en `app/dashboard/*`
+- [x] Hooks por dominio (`useStockPage`, `useShoppingPage`, `useListsPage`, `useSettingsPage`)
+- [x] Tipos y utilidades compartidas en `lib/`
+- [x] Feedback homogéneo vía `components/shared/StatusMessage.tsx`
 
-### Fase 4: Tests (parcial)
-- [x] Tests backend (`tests/`, pytest) para productos, OCR, features generales
-- [x] Tests frontend con **Jest** para los módulos ya extraídos
-- [ ] Cobertura >80% en backend (sin medir todavía)
+### Fase 4: ⏳ Tests y cobertura
+- [x] Tests backend (`tests/`, pytest) para productos, OCR y features generales
+- [ ] Aumentar regresiones del frontend actual
+- [ ] Medir cobertura global y fijar umbrales
 
 ---
 

@@ -1,75 +1,68 @@
 'use client'
 
+import type { ChangeEvent } from 'react'
 import { useState } from 'react'
-import { Camera, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
+import { Camera, Check, Loader, Upload } from 'lucide-react'
+import { StatusMessage } from '@/components/shared/StatusMessage'
 import { tickets } from '@/lib/api'
-
-// Shape real: ver stockhogar/servicios/ocr/procesador_tickets_v2.py:crear_respuesta_usuario
-interface ItemTicket {
-  nombre: string
-  cantidad: number
-  unidad: string
-  categoria: string
-  producto_id: number | null
-  confianza_match: number
-  confianza_cantidad: number
-  precio_valido: boolean
-  incluir?: boolean
-}
+import { getErrorMessage, parseNonNegativeInteger } from '@/lib/error-utils'
+import type { TicketItem, TicketWarning } from '@/lib/types'
 
 export default function EscanearTicketPage() {
   const [analizando, setAnalizando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
-  const [items, setItems] = useState<ItemTicket[]>([])
-  const [advertencias, setAdvertencias] = useState<{ tipo: string; mensaje: string }[]>([])
+  const [items, setItems] = useState<TicketItem[]>([])
+  const [advertencias, setAdvertencias] = useState<TicketWarning[]>([])
   const [error, setError] = useState('')
   const [resultado, setResultado] = useState<{ creados: number; actualizados: number } | null>(null)
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
     if (!file) return
+
     setError('')
     setResultado(null)
     setAnalizando(true)
+
     try {
       const data: any = await tickets.analizar(file)
-      const conIncluir = (data.items || []).map((it: ItemTicket) => ({ ...it, incluir: true }))
-      setItems(conIncluir)
+      setItems((data.items || []).map((item: TicketItem) => ({ ...item, incluir: true })))
       setAdvertencias(data.advertencias || [])
       if ((data.items || []).length === 0) {
         setError('No se detectó ningún producto en la imagen. Prueba con una foto más nítida y bien encuadrada.')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error analizando el ticket')
+      setError(getErrorMessage(err, 'Error analizando el ticket'))
     } finally {
       setAnalizando(false)
-      e.target.value = ''
+      event.target.value = ''
     }
   }
 
-  const actualizarItem = (idx: number, cambios: Partial<ItemTicket>) => {
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...cambios } : it)))
+  const actualizarItem = (index: number, cambios: Partial<TicketItem>) => {
+    setItems((prev) => prev.map((item, currentIndex) => (currentIndex === index ? { ...item, ...cambios } : item)))
   }
 
   const handleConfirmar = async () => {
-    const seleccionados = items.filter((it) => it.incluir && it.nombre.trim())
+    const seleccionados = items.filter((item) => item.incluir && item.nombre.trim())
     if (seleccionados.length === 0) return
+
     try {
       setConfirmando(true)
       setError('')
       const data: any = await tickets.confirmar(
-        seleccionados.map((it) => ({
-          nombre: it.nombre,
-          cantidad: it.cantidad,
-          unidad: it.unidad,
-          categoria: it.categoria,
-          producto_id: it.producto_id,
+        seleccionados.map((item) => ({
+          nombre: item.nombre,
+          cantidad: item.cantidad,
+          unidad: item.unidad,
+          categoria: item.categoria,
+          producto_id: item.producto_id,
         }))
       )
       setResultado(data)
       setItems([])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error importando los productos')
+      setError(getErrorMessage(err, 'Error importando los productos'))
     } finally {
       setConfirmando(false)
     }
@@ -79,23 +72,17 @@ export default function EscanearTicketPage() {
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold">Escanear Ticket</h1>
-        <p className="text-muted-foreground mt-1">
-          Haz una foto del ticket de compra y añade los productos al stock automáticamente
-        </p>
+        <p className="text-muted-foreground mt-1">Haz una foto del ticket de compra y añade los productos al stock automáticamente</p>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg text-sm flex items-start gap-2">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <StatusMessage variant="error" message={error} />}
 
       {resultado && (
-        <div className="p-4 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-200 rounded-lg text-sm">
-          Ticket importado: {resultado.creados} producto(s) nuevo(s), {resultado.actualizados} actualizado(s).{' '}
-          <a href="/dashboard" className="underline font-medium">Ver stock</a>
-        </div>
+        <StatusMessage
+          variant="success"
+          message={`Ticket importado: ${resultado.creados} producto(s) nuevo(s), ${resultado.actualizados} actualizado(s).`}
+          className="items-center"
+        />
       )}
 
       {items.length === 0 && !analizando && (
@@ -122,11 +109,8 @@ export default function EscanearTicketPage() {
 
       {advertencias.length > 0 && (
         <div className="space-y-2">
-          {advertencias.map((a, i) => (
-            <div key={i} className="p-3 bg-yellow-50 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200 rounded-lg text-sm flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{a.mensaje}</span>
-            </div>
+          {advertencias.map((advertencia, index) => (
+            <StatusMessage key={index} variant="warning" message={advertencia.mensaje} />
           ))}
         </div>
       )}
@@ -135,17 +119,12 @@ export default function EscanearTicketPage() {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">{items.length} producto(s) detectado(s) — revisa antes de confirmar</h2>
           <div className="space-y-2">
-            {items.map((item, idx) => (
-              <div
-                key={idx}
-                className={`card flex items-center gap-3 ${!item.incluir ? 'opacity-50' : ''} ${
-                  item.confianza_match < 0.7 ? 'border-yellow-400 dark:border-yellow-700' : ''
-                }`}
-              >
+            {items.map((item, index) => (
+              <div key={index} className={`card flex items-center gap-3 ${!item.incluir ? 'opacity-50' : ''} ${item.confianza_match < 0.7 ? 'border-yellow-400 dark:border-yellow-700' : ''}`}>
                 <input
                   type="checkbox"
                   checked={item.incluir}
-                  onChange={(e) => actualizarItem(idx, { incluir: e.target.checked })}
+                  onChange={(e) => actualizarItem(index, { incluir: e.target.checked })}
                   className="w-5 h-5 flex-shrink-0"
                   aria-label="Incluir este producto"
                 />
@@ -153,20 +132,20 @@ export default function EscanearTicketPage() {
                   <input
                     type="text"
                     value={item.nombre}
-                    onChange={(e) => actualizarItem(idx, { nombre: e.target.value })}
+                    onChange={(e) => actualizarItem(index, { nombre: e.target.value })}
                     className="input-field !py-1.5 col-span-2"
                   />
                   <input
                     type="number"
                     value={item.cantidad}
                     min={0}
-                    onChange={(e) => actualizarItem(idx, { cantidad: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => actualizarItem(index, { cantidad: parseNonNegativeInteger(e.target.value) })}
                     className="input-field !py-1.5"
                   />
                   <input
                     type="text"
                     value={item.categoria}
-                    onChange={(e) => actualizarItem(idx, { categoria: e.target.value })}
+                    onChange={(e) => actualizarItem(index, { categoria: e.target.value })}
                     className="input-field !py-1.5"
                   />
                 </div>
@@ -182,15 +161,13 @@ export default function EscanearTicketPage() {
           <div className="flex gap-2">
             <button
               onClick={handleConfirmar}
-              disabled={confirmando || items.every((i) => !i.incluir)}
+              disabled={confirmando || items.every((item) => !item.incluir)}
               className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {confirmando ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Confirmar e importar al stock
             </button>
-            <button onClick={() => setItems([])} className="btn-secondary">
-              Cancelar
-            </button>
+            <button onClick={() => setItems([])} className="btn-secondary">Cancelar</button>
           </div>
         </div>
       )}

@@ -54,7 +54,7 @@ instalarlo.
 
 - **Backend**: Python + Flask (OOP, clases base, DRY)
 - **BD**: SQLite (zero config)
-- **Frontend**: HTML + CSS + JavaScript vanilla (singletons: DOM, API)
+- **Frontend**: Next.js 16 + React 19 + TypeScript (App Router, hooks y componentes reutilizables)
 - **OCR**: Tesseract (local)
 - **Deploy**: Docker
 
@@ -66,7 +66,7 @@ instalarlo.
 |-----------|------|
 | Backend | Python 3.9+ + Flask |
 | BD | SQLite3 |
-| Frontend | JavaScript vanilla (sin frameworks) |
+| Frontend | Next.js 16 + React 19 + TypeScript |
 | OCR | Tesseract |
 | Container | Docker + Docker Compose |
 | Testing | pytest (backend), Jest (frontend) |
@@ -103,11 +103,12 @@ instalarlo.
 - ✅ Respuestas JSON estandarizadas via `APIResponse`
 - ✅ -35% líneas promedio por ruta
 
-### ⚠️ Fase 3: Frontend OOP (parcial - documentación desactualizada)
-- ✅ Singletons globales `window.DOM`, `window.API` con métodos centralizados (`static/core/`)
-- ✅ Algunos módulos extraídos como managers independientes (`static/modules/drawer-listas.js`, `form-builder.js`, `ui-components.js`, `tickets-manager.js`)
-- ⚠️ `app.js` sigue siendo un orquestador todavía grande; la extracción del flujo OCR a `tickets-manager.js` reduce parte del acoplamiento, pero aún faltan más managers del plan histórico
-- ✅ Tests con Jest para los módulos ya extraídos
+### ✅ Fase 3: Frontend actual alineado con Next.js
+- ✅ Nueva UI en `app/dashboard/*` sobre Next.js/React/TypeScript
+- ✅ Contratos y tipos compartidos en `lib/types.ts`
+- ✅ Hooks reutilizables para stock, compra, listas y ajustes (`hooks/useStockPage.ts`, `useShoppingPage.ts`, `useListsPage.ts`, `useSettingsPage.ts`)
+- ✅ Utilidades de sesión/errores y componentes compartidos para feedback homogéneo (`lib/session.ts`, `lib/error-utils.ts`, `components/shared/StatusMessage.tsx`)
+- ➡️ La siguiente fase natural pasa a ser ampliar cobertura y regresiones del frontend
 
 ---
 
@@ -122,10 +123,13 @@ pip install -r requirements.txt
 # Run
 python run.py
 
-# Tests
+# Tests backend
 pytest tests/
 
-# Lint
+# Build frontend Next.js
+npm run build
+
+# Lint backend
 black stockhogar/
 flake8 stockhogar/
 ```
@@ -167,10 +171,10 @@ rm data/stock.db && docker compose restart
 |------|-----------|--------|----------|
 | **Fase 1** | Infraestructura OOP | ✅ 100% | Clases base, singletons, documentación |
 | **Fase 2** | Backend (Python) | ✅ 100% | 10/10 rutas refactorizadas, -35% líneas |
-| **Fase 3** | Frontend (JavaScript) | ⚠️ Parcial | Singletons `DOM`/`API` + 4 módulos extraídos (`drawer-listas.js`, `form-builder.js`, `ui-components.js`, `tickets-manager.js`); `app.js` sigue centralizando gran parte de la lógica |
-| **Fase 4** | Tests Backend | ⏳ Pendiente | pytest coverage (bonus) |
+| **Fase 3** | Frontend (Next.js) | ✅ Base modular | Tipos compartidos, hooks por dominio, utilidades comunes y páginas críticas simplificadas |
+| **Fase 4** | Tests y cobertura | ⏳ Siguiente fase | Reforzar regresiones frontend/backend y medir cobertura |
 
-Ver detalle de por qué la Fase 3 está marcada como parcial en la sección "Fase 3: Frontend OOP" más arriba.
+La siguiente iteración recomendada es consolidar la Fase 4: tests de regresión, cobertura y validación end-to-end de la nueva UI.
 
 ---
 

@@ -62,96 +62,83 @@ DataConverter.articulo_lista_to_dict(row)
 
 ---
 
-## Frontend: JavaScript OOP
+## Frontend: Next.js + React + TypeScript
 
-### DOM Manager - Centralización de Selectores
+La interfaz activa vive en `app/` y usa **App Router**. Next actúa como capa
+web del frontend y reescribe `/api/:path*` hacia el backend Flask, de modo que
+el navegador sigue trabajando sobre el mismo origen y reutiliza las cookies de
+sesión sin CORS manual.
 
-**`stockhogar/static/core/dom-manager.js`**
+### Estructura principal
 
-Problema antes:
-```javascript
-const btnTema = document.getElementById('btnTema');
-const btnCategorias = document.getElementById('btnCategorias');
-// ... 100+ líneas de selectores sueltos
+```text
+app/
+├── dashboard/
+│   ├── layout.tsx          # Shell autenticado + navegación
+│   ├── page.tsx            # Stock
+│   ├── shopping/page.tsx   # Lista de compra
+│   ├── listas/page.tsx     # Gestión/compartición de listas
+│   ├── ticket/page.tsx     # OCR y confirmación de tickets
+│   ├── historial/page.tsx  # Consumo + catálogo aprendido
+│   └── settings/page.tsx   # Preferencias de usuario
+├── layout.tsx
+└── page.tsx
+
+components/
+├── dashboard/              # Presentación reutilizable (cards, badges, búsqueda)
+└── shared/                 # ProtectedRoute, StatusMessage, etc.
+
+hooks/
+├── useAuth.ts
+├── useActiveListSelection.ts
+├── useStockPage.ts
+├── useShoppingPage.ts
+├── useListsPage.ts
+└── useSettingsPage.ts
+
+lib/
+├── api.ts                  # Cliente HTTP + CSRF + contratos de endpoints
+├── error-utils.ts          # Normalización de errores y parseo numérico
+├── session.ts              # Flujos de sesión (logout + redirect)
+├── types.ts                # Tipos compartidos de dominio/frontend
+└── utils.ts
 ```
 
-Solución:
-```javascript
-// window.DOM es un singleton accesible globalmente
-window.DOM.btnTema        // → elemento #btnTema
-window.DOM.btnCategorias  // → elemento #btnCategorias
-window.DOM.vistaStock     // → elemento #vistaStock
+### API client centralizado
 
-// Con caching automático + helpers
-window.DOM.toggle(elemento)
-window.DOM.toggleClass(elemento, 'activo')
-window.DOM.clearCache()   // Si el DOM se recarga
-```
+**`lib/api.ts`** concentra:
+- obtención y cacheo del token CSRF
+- `fetch` con `credentials: 'include'`
+- retry único ante CSRF caducado
+- contratos por dominio (`productos`, `listas`, `articulosLista`, `tickets`, etc.)
 
-Beneficios:
-- Si un ID cambia, **solo cambias aquí**
-- Caching automático de búsquedas
-- Acceso consistente a todos los elementos
+Eso evita repetir `fetch`, cabeceras y manejo básico de errores en cada página.
 
-### API Client - Cliente HTTP Centralizado
+### Hooks por dominio
 
-**`stockhogar/static/core/api-client.js`**
+Cada flujo crítico del dashboard delega su estado y sus acciones a un hook:
 
-Antes:
-```javascript
-fetch('/api/productos')
-  .then(res => {
-    if (res.status === 401) window.location.href = '/login';
-    if (!res.ok) throw new Error('Error');
-    return res.json();
-  })
-  // ... repetido 50 veces
-```
+- **`useStockPage`**: bootstrap de lista activa, productos, categorías y formulario de stock
+- **`useShoppingPage`**: carga, alta, edición y marcado de artículos de compra
+- **`useListsPage`**: selección de lista activa, compartición y permisos
+- **`useSettingsPage`**: tema, idioma y cierre de sesión
+- **`useActiveListSelection`**: persistencia local de la lista activa en `localStorage`
 
-Después:
-```javascript
-// window.API es un singleton
-window.API.obtenerProductos()
-window.API.crearProducto({ nombre: 'Leche', ... })
-window.API.actualizarProducto(id, { cantidad: 5 })
-window.API.borrarProducto(id)
+Patrón buscado: la página renderiza, el hook coordina datos/acciones, y `lib/`
+contiene contratos/utilidades transversales.
 
-// Manejo de errores centralizado
-try {
-  const productos = await window.API.obtenerProductos();
-} catch (error) {
-  if (error.isAuthError) { /* sesión expirada */ }
-  if (error.isNetworkError) { /* sin conexión */ }
-  if (error.isNotFound) { /* 404 */ }
-}
-```
+### Componentes compartidos
 
-Beneficios:
-- **Un único lugar** para cambiar manejo de errores
-- **Timeout automático**
-- **Sesión 401 → login automático**
-- **Error handling unificado**
+- **`components/dashboard/*`**: piezas visuales pequeñas reutilizables
+- **`components/shared/StatusMessage.tsx`**: feedback homogéneo para error, warning, success e info
+- **`components/shared/ProtectedRoute.tsx`**: guard de autenticación del dashboard
 
-### Módulos Funcionales
+### Estado de la migración
 
-**`stockhogar/static/modules/`** - Componentes OOP:
-
-```javascript
-class ProductosManager extends EventTarget {
-  constructor() {
-    this.api = window.API;
-    this.dom = window.DOM;
-  }
-  
-  async cargar() { ... }
-  async crear(datos) { ... }
-  async actualizar(id, datos) { ... }
-}
-
-// Uso
-window.productosManager = new ProductosManager();
-window.productosManager.cargar();
-```
+La documentación histórica sobre `stockhogar/static/` y `app.js` se conserva
+solo como referencia de la UI previa. La base activa para nuevas features,
+refactors y tests del frontend es la de **Next.js/React/TypeScript** descrita
+arriba.
 
 ---
 
