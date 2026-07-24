@@ -22,8 +22,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         })
         const datos = response.ok ? await response.json() : null
 
-        if (!datos || !datos.usuario) {
-          router.push('/')
+        if (!response.ok || !datos?.usuario) {
+          router.replace('/')
           return
         }
 

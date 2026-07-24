@@ -30,13 +30,27 @@ interface Categoria {
   icono: string
 }
 
-const FORM_VACIO = {
+interface FormularioProducto {
+  nombre: string
+  categoria: string
+  cantidad: number | ''
+  stock_minimo: number | ''
+  unidad: string
+}
+
+const FORM_VACIO: FormularioProducto = {
   nombre: '',
   categoria: 'Otros',
   cantidad: 1,
   stock_minimo: 1,
   unidad: 'ud',
   dias_aviso: 7,
+}
+
+function parseNumeroInput(value: string, fallback: number): number | '' {
+  if (value === '') return ''
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 export default function StockPage() {
@@ -47,7 +61,7 @@ export default function StockPage() {
   const [showForm, setShowForm] = useState(false)
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [formData, setFormData] = useState(FORM_VACIO)
+  const [formData, setFormData] = useState<FormularioProducto>(FORM_VACIO)
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false)
   const [nuevaCategoria, setNuevaCategoria] = useState('')
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
@@ -111,12 +125,15 @@ export default function StockPage() {
     e.preventDefault()
     try {
       setError('')
+      const cantidadFinal = formData.cantidad === '' ? 0 : Number(formData.cantidad)
+      const stockMinimoFinal = formData.stock_minimo === '' ? 1 : Number(formData.stock_minimo)
+
       if (editandoId) {
         await productosApi.actualizar(editandoId, {
           nombre: formData.nombre,
           categoria: formData.categoria,
-          cantidad: formData.cantidad,
-          stock_minimo: formData.stock_minimo,
+          cantidad: cantidadFinal,
+          stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
         })
@@ -124,8 +141,8 @@ export default function StockPage() {
         await productosApi.crear({
           nombre: formData.nombre,
           categoria: formData.categoria,
-          cantidad: formData.cantidad,
-          stock_minimo: formData.stock_minimo,
+          cantidad: cantidadFinal,
+          stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
         })
@@ -404,7 +421,12 @@ export default function StockPage() {
                   id="prod-cantidad"
                   type="number"
                   value={formData.cantidad}
-                  onChange={(e) => setFormData({ ...formData, cantidad: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      cantidad: parseNumeroInput(e.target.value, 0),
+                    })
+                  }
                   min="0"
                   className="input-field"
                   inputMode="numeric"
@@ -417,7 +439,12 @@ export default function StockPage() {
                   id="prod-minimo"
                   type="number"
                   value={formData.stock_minimo}
-                  onChange={(e) => setFormData({ ...formData, stock_minimo: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      stock_minimo: parseNumeroInput(e.target.value, 1),
+                    })
+                  }
                   min="0"
                   className="input-field"
                   inputMode="numeric"

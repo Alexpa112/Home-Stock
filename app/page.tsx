@@ -70,8 +70,13 @@ export default function Home() {
       } else {
         await auth.registrar(usuario, password)
       }
-      // Delay para que la cookie de sesión quede guardada antes de navegar
-      setTimeout(() => { window.location.href = '/dashboard' }, 300)
+
+      const estado = await auth.estado()
+      if (!estado?.usuario) {
+        throw new Error('No se pudo confirmar la sesión iniciada')
+      }
+
+      window.location.href = '/dashboard'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión con el servidor')
     } finally {
@@ -82,58 +87,131 @@ export default function Home() {
   const resetForm = () => { setIsLogin(!isLogin); setError(''); setUsuario(''); setPassword('') }
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center px-4 bg-background overflow-hidden">
-      <BgPattern />
-
-      <div className="relative z-10 w-full max-w-sm">
-        <div className="bg-card rounded-3xl p-8 shadow-2xl space-y-6">
-
-          {/* Cabecera */}
-          <div className="text-center space-y-1">
-            <p className="text-3xl font-bold text-foreground">🏠 Dreame!</p>
-            <p className="text-sm text-muted-foreground">
-              {isLogin ? 'Inicia sesión para continuar.' : 'Crea tu cuenta para empezar.'}
+    <main className="min-h-screen flex flex-col bg-background text-foreground">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm">
+                <Package className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dreame!</h1>
+                <p className="text-sm text-muted-foreground">Inventario del Hogar</p>
+              </div>
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Gestiona tu inventario del hogar y lista de compra de forma inteligente
             </p>
           </div>
 
-          {/* Formulario */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <label htmlFor="l-usr" className="block text-sm font-medium">Usuario</label>
-              <input
-                id="l-usr"
-                type="text"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-                placeholder="Tu usuario"
-                className="input-field bg-muted border-transparent"
-                required
-                disabled={loading}
-                autoCapitalize="none"
-                autoCorrect="off"
-              />
+          <div className="mb-8 grid grid-cols-3 gap-2">
+            <div className="rounded-lg border border-border bg-card p-3 text-center shadow-sm">
+              <Package className="mx-auto mb-1 h-5 w-5 text-accent" />
+              <p className="text-xs font-medium text-foreground">Stock</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-3 text-center shadow-sm">
+              <ShoppingCart className="mx-auto mb-1 h-5 w-5 text-accent" />
+              <p className="text-xs font-medium text-foreground">Compras</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-3 text-center shadow-sm">
+              <Zap className="mx-auto mb-1 h-5 w-5 text-accent" />
+              <p className="text-xs font-medium text-foreground">Rápido</p>
+            </div>
+          </div>
+
+          <div className="card mb-4">
+            <div className="mb-4 text-center">
+              <h2 className="text-lg font-semibold text-foreground">
+                {isLogin ? 'Inicia sesión' : 'Crea tu cuenta'}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isLogin ? 'Accede a tu inventario y listas' : 'Regístrate para empezar'}
+              </p>
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="l-pwd" className="block text-sm font-medium">Contraseña</label>
-              <input
-                id="l-pwd"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Tu contraseña"
-                className="input-field bg-muted border-transparent"
-                required
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">Usuario</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={usuario}
+                    onChange={(e) => setUsuario(e.target.value)}
+                    placeholder="tu_usuario"
+                    className="input-field pl-10"
+                    required
+                    disabled={loading}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">Contraseña</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="input-field pl-10"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
                 disabled={loading}
-              />
+                className="btn-primary w-full gap-2"
+              >
+                {loading ? 'Procesando...' : isLogin ? 'Iniciar Sesión' : 'Registrarse'}
+                {!loading && <ArrowRight className="h-4 w-4" />}
+              </button>
+            </form>
+
+            <div className="my-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">o</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
+            <div className="space-y-2">
+              <a href="/auth/google" className="btn-secondary w-full gap-2">
+                <Mail className="h-4 w-4" />
+                Continuar con Google
+              </a>
+              <a href="/auth/apple" className="btn-secondary w-full gap-2">
+                <Mail className="h-4 w-4" />
+                Continuar con Apple
+              </a>
+            </div>
+          </div>
 
-            {error && (
-              <p className="text-sm text-error">{error}</p>
-            )}
-
-            <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? 'Procesando...' : isLogin ? 'Entrar' : 'Registrarse'}
+          <div className="text-center">
+            <p className="mb-2 text-sm text-muted-foreground">
+              {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
+            </p>
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin)
+                setError('')
+                setUsuario('')
+                setPassword('')
+              }}
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              {isLogin ? 'Regístrate' : 'Inicia Sesión'}
             </button>
           </form>
 
