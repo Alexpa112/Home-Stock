@@ -199,6 +199,8 @@ export default function StockPage() {
     return ''
   }
 
+  const getCantidadClass = (item: Producto) => (isLowStock(item) ? 'text-stock-critical' : 'text-accent')
+
   // Filtrar items por búsqueda
   const filteredItems = items.filter((item) => {
     const matchesQuery =
@@ -414,7 +416,7 @@ export default function StockPage() {
                   className="input-field"
                   inputMode="numeric"
                 />
-                <p className="mt-2 text-xs text-muted-foreground">Cuando la cantidad llegue a este valor o baje más, quedará marcado para reponer.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Cuando la cantidad llegue a este valor o baje más, quedará marcado para reponer. Usa 0 si solo quieres avisar al agotarse.</p>
               </div>
             </div>
 
@@ -426,7 +428,7 @@ export default function StockPage() {
                   value={formData.dias_aviso}
                   onChange={(e) => {
                     const nextValue = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, dias_aviso: Math.max(1, Number.isNaN(nextValue) ? 1 : nextValue) })
+                    setFormData({ ...formData, dias_aviso: Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue) })
                   }}
                   min="1"
                   className="input-field"
@@ -563,7 +565,7 @@ export default function StockPage() {
                 <div className="space-y-2 text-sm mt-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-muted-foreground">Stock mínimo</span>
-                    <span className={`font-semibold ${isLowStock(item) ? 'text-red-600 dark:text-red-300' : 'text-foreground'}`}>
+                    <span className={`font-semibold ${isLowStock(item) ? 'text-stock-critical' : 'text-foreground'}`}>
                       {item.stock_minimo} {item.unidad}
                     </span>
                   </div>
@@ -603,7 +605,7 @@ export default function StockPage() {
                     >
                       -
                     </button>
-                    <span className={`text-lg font-bold w-10 text-center ${isLowStock(item) ? 'text-red-600 dark:text-red-300' : 'text-accent'}`}>
+                    <span className={`text-lg font-bold w-10 text-center ${getCantidadClass(item)}`}>
                       {item.cantidad}
                     </span>
                     <button

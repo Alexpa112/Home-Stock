@@ -138,4 +138,8 @@
   .status-badge-info {
     @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200;
   }
+
+  .text-stock-critical {
+    @apply text-red-600 dark:text-red-300;
+  }
 }
