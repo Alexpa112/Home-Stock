@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Moon, Sun, LogOut, AlertCircle, Globe } from 'lucide-react'
+import { Moon, Sun, LogOut, AlertCircle, Globe, History } from 'lucide-react'
+import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 
 export default function SettingsPage() {
   const [darkMode, setDarkMode] = useState(false)
   const [user, setUser] = useState<{ usuario?: string; email?: string | null }>({})
+  const [confirmandoLogout, setConfirmandoLogout] = useState(false)
   const [error, setError] = useState('')
   // idiomas.disponibles() devuelve un diccionario {codigo: {nombre, nativo}},
   // no un array (ver stockhogar/translator.py:obtener_idiomas).
@@ -80,14 +82,13 @@ export default function SettingsPage() {
   }
 
   const handleLogout = async () => {
-    if (!confirm('¿Cerrar sesión?')) return
-
+    if (!confirmandoLogout) { setConfirmandoLogout(true); return }
     try {
       await auth.logout()
       window.location.href = '/'
-    } catch (err) {
+    } catch {
       setError('Error al cerrar sesión')
-      console.error(err)
+      setConfirmandoLogout(false)
     }
   }
 
@@ -153,7 +154,8 @@ export default function SettingsPage() {
               className={`relative inline-flex items-center h-8 w-14 rounded-full transition-colors min-h-[44px] min-w-[44px] justify-center ${
                 darkMode ? 'bg-accent' : 'bg-muted'
               }`}
-              aria-label="Toggle dark mode"
+              aria-label={darkMode ? 'Desactivar modo oscuro' : 'Activar modo oscuro'}
+              aria-pressed={darkMode}
             >
               <div
                 className={`absolute left-1 w-6 h-6 bg-white rounded-full transition-transform ${
@@ -175,7 +177,9 @@ export default function SettingsPage() {
           <Globe className="w-5 h-5 text-accent" /> Idioma
         </h2>
         <div className="border-t border-border pt-4 space-y-2">
+          <label htmlFor="sel-idioma" className="sr-only">Idioma de la interfaz</label>
           <select
+            id="sel-idioma"
             value={idiomaActual}
             onChange={(e) => cambiarIdioma(e.target.value)}
             className="input-field"
@@ -192,20 +196,51 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Historial — acceso directo ya que no está en el tab bar móvil */}
+      <Link
+        href="/dashboard/historial"
+        className="card flex items-center gap-3 hover:bg-muted transition-colors"
+      >
+        <History className="w-5 h-5 text-accent shrink-0" />
+        <div>
+          <p className="font-medium">Historial de consumo</p>
+          <p className="text-sm text-muted-foreground">Ver los productos más consumidos y el catálogo aprendido</p>
+        </div>
+      </Link>
+
       {/* Danger Zone */}
       <div className="card space-y-4 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30">
         <h2 className="text-lg font-semibold text-red-700 dark:text-red-300">Zona de Riesgo</h2>
 
-        <div className="border-t border-red-200 dark:border-red-900 pt-4">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors min-h-[44px]"
-          >
-            <LogOut className="w-5 h-5" />
-            Cerrar Sesión
-          </button>
-
-          <p className="text-sm text-red-600 dark:text-red-400 mt-3 text-center">
+        <div className="border-t border-red-200 dark:border-red-900 pt-4 space-y-2">
+          {confirmandoLogout ? (
+            <div className="space-y-2">
+              <p className="text-sm text-center text-red-700 dark:text-red-300 font-medium">¿Seguro que quieres cerrar sesión?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors min-h-[44px]"
+                >
+                  <LogOut className="w-4 h-4" /> Sí, cerrar sesión
+                </button>
+                <button
+                  onClick={() => setConfirmandoLogout(false)}
+                  className="flex-1 flex items-center justify-center px-4 py-3 bg-muted rounded-xl font-medium transition-colors min-h-[44px]"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors min-h-[44px]"
+            >
+              <LogOut className="w-5 h-5" />
+              Cerrar Sesión
+            </button>
+          )}
+          <p className="text-sm text-red-600 dark:text-red-400 text-center">
             Se cerrará tu sesión en este dispositivo
           </p>
         </div>

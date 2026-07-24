@@ -76,13 +76,15 @@ export default function HistorialPage() {
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <TrendingDown className="w-5 h-5 text-accent" /> Más consumido
           </h2>
-          <div className="flex gap-1">
+          <div className="flex gap-1 bg-muted p-1 rounded-xl">
             {RANGOS.map((r) => (
               <button
                 key={r.dias}
                 onClick={() => cambiarRango(r.dias)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  dias === r.dias ? 'bg-accent text-accent-foreground' : 'bg-muted text-foreground hover:bg-border'
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-h-[36px] ${
+                  dias === r.dias
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {r.label}
@@ -100,14 +102,14 @@ export default function HistorialPage() {
         ) : (
           <div className="space-y-3">
             {porProducto.map((p, i) => (
-              <div key={i} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{p.nombre}</span>
-                  <span className="text-muted-foreground">{p.consumo} ud.</span>
+              <div key={i} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm gap-2">
+                  <span className="font-medium truncate">{p.icono ? `${p.icono} ` : ''}{p.nombre}</span>
+                  <span className="text-muted-foreground tabular-nums shrink-0 font-medium">{p.consumo}</span>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-accent rounded-full"
+                    className="h-full bg-accent rounded-full transition-all duration-500"
                     style={{ width: `${Math.max(4, (p.consumo / maxConsumo) * 100)}%` }}
                   />
                 </div>
