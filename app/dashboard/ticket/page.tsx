@@ -8,6 +8,16 @@ import { tickets } from '@/lib/api'
 import { getErrorMessage, parseNonNegativeInteger } from '@/lib/error-utils'
 import type { TicketItem, TicketWarning } from '@/lib/types'
 
+interface TicketAnalysisResponse {
+  items?: TicketItem[]
+  advertencias?: TicketWarning[]
+}
+
+interface TicketConfirmResponse {
+  creados: number
+  actualizados: number
+}
+
 export default function EscanearTicketPage() {
   const [analizando, setAnalizando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
@@ -25,7 +35,7 @@ export default function EscanearTicketPage() {
     setAnalizando(true)
 
     try {
-      const data: any = await tickets.analizar(file)
+      const data = await tickets.analizar(file) as TicketAnalysisResponse
       setItems((data.items || []).map((item: TicketItem) => ({ ...item, incluir: true })))
       setAdvertencias(data.advertencias || [])
       if ((data.items || []).length === 0) {
@@ -50,7 +60,7 @@ export default function EscanearTicketPage() {
     try {
       setConfirmando(true)
       setError('')
-      const data: any = await tickets.confirmar(
+      const data = await tickets.confirmar(
         seleccionados.map((item) => ({
           nombre: item.nombre,
           cantidad: item.cantidad,
@@ -58,7 +68,7 @@ export default function EscanearTicketPage() {
           categoria: item.categoria,
           producto_id: item.producto_id,
         }))
-      )
+      ) as TicketConfirmResponse
       setResultado(data)
       setItems([])
     } catch (err) {

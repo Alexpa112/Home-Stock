@@ -1,11 +1,15 @@
 'use client'
 
-import { BookOpen, TrendingDown } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { BookOpen, TrendingDown } from 'lucide-react'
 import { StatusMessage } from '@/components/shared/StatusMessage'
 import { consumo as consumoApi, historial as historialApi } from '@/lib/api'
 import { getErrorMessage } from '@/lib/error-utils'
 import type { ArticuloCatalogo, ProductoConsumo } from '@/lib/types'
+
+interface ConsumoResponse {
+  por_producto?: ProductoConsumo[]
+}
 
 const RANGOS = [
   { dias: 7, label: '7 días' },
@@ -22,14 +26,17 @@ export default function HistorialPage() {
 
   useEffect(() => {
     void cargarConsumo(dias)
-    historialApi.listar().then((data: any) => setCatalogo(Array.isArray(data) ? data : [])).catch(() => {})
+    void historialApi
+      .listar()
+      .then((data) => setCatalogo(Array.isArray(data) ? (data as ArticuloCatalogo[]) : []))
+      .catch((err) => setError(getErrorMessage(err, 'Error al cargar el catálogo aprendido')))
   }, [])
 
   const cargarConsumo = async (rango: number) => {
     try {
       setLoading(true)
       setError('')
-      const data: any = await consumoApi.resumen(rango)
+      const data = await consumoApi.resumen(rango) as ConsumoResponse
       setPorProducto(data.por_producto || [])
     } catch (err) {
       setError(getErrorMessage(err))

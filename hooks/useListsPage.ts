@@ -4,8 +4,22 @@ import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { listas as listasApi, permisos } from '@/lib/api'
 import { getErrorMessage } from '@/lib/error-utils'
-import type { Lista, MiembroLista } from '@/lib/types'
 import { useActiveListSelection } from '@/hooks/useActiveListSelection'
+import type { Lista, MiembroLista } from '@/lib/types'
+
+interface ListasResponse {
+  propias?: Lista[]
+  compartidas?: Lista[]
+}
+
+interface MiembrosResponse {
+  propietario: { nombre_usuario: string } | null
+  miembros: MiembroLista[]
+}
+
+interface BusquedaUsuariosResponse {
+  usuarios: { id: number; nombre_usuario: string; email: string | null }[]
+}
 
 export function useListsPage() {
   const [propias, setPropias] = useState<Lista[]>([])
@@ -31,7 +45,7 @@ export function useListsPage() {
     try {
       setLoading(true)
       setError('')
-      const data: any = await listasApi.listar()
+      const data = await listasApi.listar() as ListasResponse
       setPropias(data.propias || [])
       setCompartidas(data.compartidas || [])
     } catch (err) {
@@ -46,7 +60,7 @@ export function useListsPage() {
 
     try {
       setError('')
-      const nueva: any = await listasApi.crear(nuevoNombre.trim())
+      const nueva = await listasApi.crear(nuevoNombre.trim()) as Lista
       setNuevoNombre('')
       await cargar()
       await seleccionarLista(nueva.id)
@@ -114,7 +128,7 @@ export function useListsPage() {
     setBusqueda('')
 
     try {
-      const data: any = await permisos.miembros(listaId)
+      const data = await permisos.miembros(listaId) as MiembrosResponse
       setPropietario(data.propietario)
       setMiembros(data.miembros || [])
     } catch (err) {
@@ -130,7 +144,7 @@ export function useListsPage() {
     }
 
     try {
-      const data: any = await permisos.buscarUsuarios(query.trim())
+      const data = await permisos.buscarUsuarios(query.trim()) as BusquedaUsuariosResponse
       setResultados(data.usuarios || [])
     } catch {
       setResultados([])
@@ -178,7 +192,6 @@ export function useListsPage() {
     busqueda,
     buscarUsuarios,
     cambiarNivel,
-    cargar,
     compartidas,
     compartiendoId,
     compartirCon,
@@ -199,7 +212,6 @@ export function useListsPage() {
     resultados,
     salirLista,
     seleccionarLista,
-    setBusqueda,
     setCompartiendoId,
     setNivelNuevo,
     setNombreEditado,

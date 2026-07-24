@@ -3,8 +3,13 @@
 import { useEffect, useState } from 'react'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { getErrorMessage } from '@/lib/error-utils'
-import { logoutAndRedirect } from '@/lib/session'
 import { useAuth } from '@/hooks/useAuth'
+import { logoutAndRedirect } from '@/lib/session'
+
+interface IdiomasResponse {
+  idiomas?: Record<string, { nombre: string; nativo: string }>
+  actual?: string
+}
 
 export function useSettingsPage() {
   const { user, loading: userLoading } = useAuth()
@@ -16,13 +21,14 @@ export function useSettingsPage() {
   useEffect(() => {
     setDarkMode(document.documentElement.classList.contains('dark'))
 
-    idiomasApi
+    void idiomasApi
       .disponibles()
-      .then((data: any) => {
-        setIdiomasDisponibles(data.idiomas || {})
-        setIdiomaActual(data.actual || 'es')
+      .then((data) => {
+        const idiomas = data as IdiomasResponse
+        setIdiomasDisponibles(idiomas.idiomas || {})
+        setIdiomaActual(idiomas.actual || 'es')
       })
-      .catch(() => {})
+      .catch((err) => setError(getErrorMessage(err, 'Error al cargar idiomas')))
   }, [])
 
   useEffect(() => {

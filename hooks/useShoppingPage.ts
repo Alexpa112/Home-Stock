@@ -6,6 +6,11 @@ import { articulosLista, categorias as categoriasApi } from '@/lib/api'
 import { getErrorMessage, parsePositiveInteger } from '@/lib/error-utils'
 import type { ArticuloLista, ArticuloListaFormData, Categoria } from '@/lib/types'
 
+interface ArticulosResponse {
+  pendientes?: ArticuloLista[]
+  completados?: ArticuloLista[]
+}
+
 export function useShoppingPage() {
   const [pendientes, setPendientes] = useState<ArticuloLista[]>([])
   const [completados, setCompletados] = useState<ArticuloLista[]>([])
@@ -20,14 +25,17 @@ export function useShoppingPage() {
 
   useEffect(() => {
     void loadItems()
-    categoriasApi.listar().then((data: any) => setCategorias(Array.isArray(data) ? data : [])).catch(() => {})
+    void categoriasApi
+      .listar()
+      .then((data) => setCategorias(Array.isArray(data) ? (data as Categoria[]) : []))
+      .catch((err) => setError(getErrorMessage(err, 'Error cargando categorías')))
   }, [])
 
   const loadItems = async () => {
     try {
       setLoading(true)
       setError('')
-      const data: any = await articulosLista.listar()
+      const data = await articulosLista.listar() as ArticulosResponse
       setPendientes(data?.pendientes || [])
       setCompletados(data?.completados || [])
     } catch (err) {

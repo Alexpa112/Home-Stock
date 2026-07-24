@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { categorias as categoriasApi, listas as listasApi, productos as productosApi } from '@/lib/api'
 import { getErrorMessage, parseNonNegativeInteger, parsePositiveInteger } from '@/lib/error-utils'
-import type { Categoria, Producto, ProductoFormData } from '@/lib/types'
+import type { Categoria, Lista, Producto, ProductoFormData } from '@/lib/types'
 
 const EMPTY_FORM: ProductoFormData = {
   nombre: '',
@@ -13,6 +13,11 @@ const EMPTY_FORM: ProductoFormData = {
   stock_minimo: 1,
   dias_aviso: 30,
   unidad: 'ud',
+}
+
+interface ListasDashboardResponse {
+  propias?: Lista[]
+  compartidas?: Lista[]
 }
 
 export type FiltroStock = 'todos' | 'bajo-stock' | 'caducidad'
@@ -39,14 +44,14 @@ export function useStockPage() {
       setLoading(true)
       setError('')
 
-      const listasData: any = await listasApi.listar()
+      const listasData = await listasApi.listar() as ListasDashboardResponse
       if ((listasData.propias?.length || 0) === 0 && (listasData.compartidas?.length || 0) === 0) {
         await listasApi.crear('Mi lista')
       }
 
       const [productosData, categoriasData] = await Promise.all([
-        productosApi.listar(),
-        categoriasApi.listar(),
+        productosApi.listar() as Promise<Producto[]>,
+        categoriasApi.listar() as Promise<Categoria[]>,
       ])
 
       setItems(Array.isArray(productosData) ? productosData : [])
@@ -125,7 +130,7 @@ export function useStockPage() {
       setError('')
       await categoriasApi.crear(nuevaCategoria.trim())
       setNuevaCategoria('')
-      const categoriasData: any = await categoriasApi.listar()
+      const categoriasData = await categoriasApi.listar() as Categoria[]
       setCategorias(Array.isArray(categoriasData) ? categoriasData : [])
     } catch (err) {
       setError(getErrorMessage(err, 'Error al crear la categoría'))
@@ -136,7 +141,7 @@ export function useStockPage() {
     try {
       setError('')
       await categoriasApi.eliminar(id)
-      const categoriasData: any = await categoriasApi.listar()
+      const categoriasData = await categoriasApi.listar() as Categoria[]
       setCategorias(Array.isArray(categoriasData) ? categoriasData : [])
     } catch (err) {
       setError(getErrorMessage(err, 'Error al eliminar la categoría (puede estar en uso)'))
@@ -182,7 +187,6 @@ export function useStockPage() {
   return {
     categorias,
     cerrarFormulario,
-    crearCategoria,
     eliminarCategoria,
     eliminarProducto,
     error,
@@ -201,7 +205,6 @@ export function useStockPage() {
     abrirNuevo,
     ajustarCantidad,
     editandoId,
-    guardarProducto,
     searchQuery,
     setFiltroActivo,
     setFormData,
