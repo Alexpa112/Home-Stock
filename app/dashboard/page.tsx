@@ -200,6 +200,15 @@ export default function StockPage() {
   }
 
   const getCantidadClass = (item: Producto) => (isLowStock(item) ? 'text-stock-critical' : 'text-accent')
+  const parseEnteroNoNegativo = (value: string) => {
+    const nextValue = parseInt(value, 10)
+    return Number.isNaN(nextValue) ? 0 : Math.max(0, nextValue)
+  }
+
+  const parseEnteroPositivo = (value: string) => {
+    const nextValue = parseInt(value, 10)
+    return Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue)
+  }
 
   // Filtrar items por búsqueda
   const filteredItems = items.filter((item) => {
@@ -408,15 +417,12 @@ export default function StockPage() {
                 <input
                   type="number"
                   value={formData.stock_minimo}
-                  onChange={(e) => {
-                    const nextValue = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, stock_minimo: Number.isNaN(nextValue) ? 0 : Math.max(0, nextValue) })
-                  }}
+                  onChange={(e) => setFormData({ ...formData, stock_minimo: parseEnteroNoNegativo(e.target.value) })}
                   min="0"
                   className="input-field"
                   inputMode="numeric"
                 />
-                <p className="mt-2 text-xs text-muted-foreground">Cuando la cantidad llegue a este valor o baje más, quedará marcado para reponer. Usa 0 si solo quieres avisar al agotarse.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Cuando la cantidad llegue a este valor o baje más, quedará marcado para reponer. Usa 0 si solo quieres avisar cuando se agote.</p>
               </div>
             </div>
 
@@ -426,10 +432,7 @@ export default function StockPage() {
                 <input
                   type="number"
                   value={formData.dias_aviso}
-                  onChange={(e) => {
-                    const nextValue = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, dias_aviso: Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue) })
-                  }}
+                  onChange={(e) => setFormData({ ...formData, dias_aviso: parseEnteroPositivo(e.target.value) })}
                   min="1"
                   className="input-field"
                   inputMode="numeric"
@@ -437,7 +440,7 @@ export default function StockPage() {
                 <p className="mt-2 text-xs text-muted-foreground">Si pasan estos días sin actualizar el producto, se marcará para revisar caducidad.</p>
               </div>
               <div className="panel-info flex flex-col justify-center">
-                <p className="font-semibold">Diferencia clave</p>
+                <p className="font-semibold">¿Qué significa cada estado?</p>
                 <p className="text-sm leading-6">
                   <strong>Bajo stock</strong> significa reponer. <strong>Revisar caducidad</strong> significa comprobar estado/fecha del producto.
                 </p>
