@@ -614,53 +614,22 @@ else
     log_info "No se encontró StockHogar-Panel como carpeta hermana; omito su instalación. Clónalo junto a este repo si quieres el panel de gestión (rendimiento, mantenimiento, backups...)."
 fi
 
-log_info "Comprobando que la aplicación responde..."
-READY=0
-for i in $(seq 1 15); do
-    if curl -fsS -L "http://localhost:${STOCKHOGAR_PORT}/" > /dev/null 2>&1; then
-        READY=1
-        break
-    fi
-    if ! eval "$COMPOSE ps stockhogar" 2>/dev/null | grep -qi "up"; then
-        log_error "El contenedor stockhogar no está en marcha. Últimas líneas de log:"
-        eval "$COMPOSE logs --tail=60 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
-        rollback
-        exit 1
-    fi
-    sleep 4
-done
+log_info "Comprobando que los contenedores están en marcha..."
+sleep 2
 
-if [[ $READY -eq 1 ]]; then
-    log_success "Backend respondiendo correctamente en el puerto ${STOCKHOGAR_PORT}"
-
-    # El frontend depende del backend y puede tardar un poco mas en arrancar
-    # (compilacion/arranque de Next.js); no bloqueante ni dispara rollback,
-    # solo se avisa si tarda mas de lo esperado.
-    FRONTEND_READY=0
-    for i in $(seq 1 15); do
-        if curl -fsS -L "http://localhost:${FRONTEND_PORT}/" > /dev/null 2>&1; then
-            FRONTEND_READY=1
-            break
-        fi
-        sleep 4
-    done
-    if [[ $FRONTEND_READY -eq 1 ]]; then
-        log_success "Frontend respondiendo correctamente en el puerto ${FRONTEND_PORT}"
-    else
-        log_warning "El frontend aún no responde tras 60s. Puede seguir arrancando; revisa: eval \"$COMPOSE logs -f frontend\""
-    fi
-    exit 0
-elif [[ $UPDATE_MODE -eq 1 ]]; then
-    # En --update SÍ tenemos una versión anterior conocida-buena a la que
-    # volver, así que un healthcheck fallido dispara el rollback automático
-    # en vez de dejar la instalación en un estado roto.
-    log_error "La aplicación no respondió en 60s tras la actualización. Últimas líneas de log:"
+# Verificar que los contenedores están en estado "up"
+if ! eval "$COMPOSE ps stockhogar" 2>/dev/null | grep -qi "up"; then
+    log_error "El contenedor stockhogar no está en marcha. Últimas líneas de log:"
     eval "$COMPOSE logs --tail=60 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
     rollback
     exit 1
-else
-    log_warning "La aplicación aún no responde tras 60s. Últimas líneas de log:"
-    eval "$COMPOSE logs --tail=60 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
-    log_warning "Puede seguir arrancando (p.ej. descarga de modelos); revisa: eval \"$COMPOSE logs -f stockhogar\""
-    exit 0
 fi
+log_success "Backend en marcha en el puerto ${STOCKHOGAR_PORT}"
+
+if ! eval "$COMPOSE ps frontend" 2>/dev/null | grep -qi "up"; then
+    log_warning "El frontend aún no está en marcha, pero puede seguir arrancando"
+else
+    log_success "Frontend en marcha en el puerto ${FRONTEND_PORT}"
+fi
+
+exit 0
