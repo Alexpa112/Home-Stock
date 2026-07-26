@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Package, ShoppingCart, Zap, User, Lock } from 'lucide-react'
 import { auth } from '@/lib/api'
 
 // Patrón SVG de fondo con iconos del hogar que se repite en tile 120×120
@@ -40,11 +42,22 @@ function BgPattern() {
 }
 
 export default function Home() {
+  const router = useRouter()
   const [isLogin, setIsLogin] = useState(true)
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Si ya hay sesión activa, redirigir directamente al dashboard
+  useEffect(() => {
+    fetch('/api/auth/estado', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((datos) => {
+        if (datos?.usuario) router.replace('/dashboard')
+      })
+      .catch(() => {})
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
