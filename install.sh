@@ -89,7 +89,7 @@ rollback() {
 
     if [[ -n "${IMAGE_NAME:-}" ]] && $DOCKER image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
         if $DOCKER tag "${IMAGE_NAME}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 \
-           && $COMPOSE up -d --force-recreate >> "$LOG_FILE" 2>&1; then
+           && eval "$COMPOSE up -d --force-recreate" >> "$LOG_FILE" 2>&1; then
             log_warning "Imagen Docker revertida a la versión anterior y contenedor recreado."
         else
             log_error "El rollback de la imagen Docker también falló; revisa $LOG_FILE manualmente."
@@ -119,9 +119,9 @@ handle_error() {
     local line="$1" code="$2"
     log_error "Fallo en la línea $line (código $code)"
     log_error "Log completo: $LOG_FILE"
-    if [[ -n "${COMPOSE:-}" ]] && $COMPOSE ps &> /dev/null; then
+    if [[ -n "${COMPOSE:-}" ]] && eval "$COMPOSE ps" &> /dev/null; then
         log_error "Últimas líneas de los contenedores (para diagnóstico):"
-        $COMPOSE logs --tail=60 2>&1 | tee -a "$LOG_FILE" || true
+        eval "$COMPOSE logs --tail=60" 2>&1 | tee -a "$LOG_FILE" || true
     fi
     rollback
     exit 1
@@ -304,23 +304,50 @@ step_start "Detectar Docker Compose"
 ################################################################################
 
 COMPOSE=""
-if $DOCKER compose version &> /dev/null; then
+COMPOSE_CMD=""
+
+# Intenta v2 (plugin)
+if command -v docker &> /dev/null && $DOCKER compose version &> /dev/null; then
+    COMPOSE_CMD="compose"
     COMPOSE="$DOCKER compose"
     log_success "Docker Compose (plugin v2): $($DOCKER compose version --short 2>/dev/null)"
+# Intenta v1 (binario independiente)
 elif check_cmd docker-compose; then
+    COMPOSE_CMD="compose-bin"
     COMPOSE="docker-compose"
     log_warning "Usando docker-compose v1 (binario independiente). Se recomienda migrar al plugin v2."
+# Intenta instalar v2 si no está disponible
 else
-    log_info "Instalando el plugin docker-compose-plugin vía apt..."
+    log_info "Docker Compose no detectado. Instalando docker-compose-plugin..."
     retry $SUDO apt-get update -qq
-    if retry $SUDO apt-get install -y -qq docker-compose-plugin; then
-        COMPOSE="$DOCKER compose"
-        log_success "Docker Compose (plugin v2) instalado"
+    if retry $SUDO apt-get install -y -qq docker-compose-plugin 2>&1 | tee -a "$LOG_FILE"; then
+        # Revalidar que funciona después de instalar
+        if $DOCKER compose version &> /dev/null; then
+            COMPOSE_CMD="compose"
+            COMPOSE="$DOCKER compose"
+            log_success "Docker Compose (plugin v2) instalado: $($DOCKER compose version --short 2>/dev/null)"
+        else
+            log_error "Docker Compose se instaló pero no responde. Revisa: $DOCKER compose version"
+            exit 1
+        fi
     else
         log_error "No se pudo instalar docker-compose-plugin."
-        log_error "Instálalo manualmente: https://docs.docker.com/compose/install/linux/"
+        log_error "Intenta manualmente: $SUDO apt-get install docker-compose-plugin"
+        log_error "O descargalo desde: https://docs.docker.com/compose/install/linux/"
         exit 1
     fi
+fi
+
+if [[ -z "$COMPOSE" ]]; then
+    log_error "No se encontró ni pudo instalar Docker Compose (v1 o v2)."
+    exit 1
+fi
+
+# Validar que compose realmente funciona
+if ! eval "$COMPOSE version" &> /dev/null; then
+    log_error "Docker Compose detectado pero no responde: $COMPOSE"
+    log_error "Intenta manualmente: $COMPOSE version"
+    exit 1
 fi
 
 step_end
@@ -468,7 +495,7 @@ fi
 # este proyecto (p.ej. otro servicio, u otra instalación de StockHogar), avisamos
 # ahora en vez de dejar que 'compose up' falle de forma confusa más tarde.
 if check_cmd ss && ss -ltn 2>/dev/null | grep -q ":${STOCKHOGAR_PORT} "; then
-    if ! $COMPOSE ps 2>/dev/null | grep -q .; then
+    if ! eval "$COMPOSE ps" 2>/dev/null | grep -q .; then
         log_error "El puerto ${STOCKHOGAR_PORT} ya está en uso por otro proceso y no hay contenedores de" \
                    "este proyecto corriendo todavía. Cambia STOCKHOGAR_PORT en .env o libera el puerto."
         exit 1
@@ -486,7 +513,7 @@ step_end
 step_start "Validar configuración de Docker Compose"
 ################################################################################
 
-if ! $COMPOSE config -q 2>>"$LOG_FILE"; then
+if ! eval "$COMPOSE config -q" 2>>"$LOG_FILE"; then
     log_error "docker-compose.yml (o el .env) no es válido. Revisa el log:"
     tail -n 30 "$LOG_FILE"
     exit 1
@@ -499,17 +526,19 @@ step_end
 step_start "Construir imagen"
 ################################################################################
 
-IMAGE_NAME="$($COMPOSE config --images 2>/dev/null | head -1)"
-if [[ -n "$IMAGE_NAME" ]] && $DOCKER image inspect "$IMAGE_NAME" &> /dev/null; then
-    run $DOCKER tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
-    log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback por si hay que revertir"
+IMAGE_NAME=""
+if IMAGE_NAME="$(eval "$COMPOSE config --images" 2>/dev/null | head -1)"; then
+    if [[ -n "$IMAGE_NAME" ]] && $DOCKER image inspect "$IMAGE_NAME" &> /dev/null; then
+        run $DOCKER tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
+        log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback por si hay que revertir"
+    fi
 else
-    log_info "No hay imagen anterior (primera instalación); no hay nada que respaldar todavía"
+    log_info "No se pudo obtener la imagen (primera instalación); se continúa igualmente"
 fi
 
 log_info "Construyendo imagen Docker (puede tardar varios minutos)..."
 log_info "Se descargan también los modelos de traducción (Argos Translate); requiere conexión a internet."
-retry $COMPOSE build
+eval "retry $COMPOSE build" >> "$LOG_FILE" 2>&1 || { log_error "docker compose build falló"; exit 1; }
 
 step_end
 
@@ -517,11 +546,16 @@ step_end
 step_start "Iniciar contenedores"
 ################################################################################
 
-run $COMPOSE up -d --remove-orphans
+log_info "\$ $COMPOSE up -d --remove-orphans"
+if ! eval "$COMPOSE up -d --remove-orphans" >> "$LOG_FILE" 2>&1; then
+    log_error "Comando falló: $COMPOSE up -d --remove-orphans"
+    log_error "Log completo: $LOG_FILE"
+    exit 1
+fi
 
 log_info "Esperando a que el contenedor arranque..."
 sleep 5
-$COMPOSE ps | tee -a "$LOG_FILE"
+eval "$COMPOSE ps" | tee -a "$LOG_FILE"
 
 step_end
 
@@ -587,9 +621,9 @@ for i in $(seq 1 15); do
         READY=1
         break
     fi
-    if ! $COMPOSE ps stockhogar 2>/dev/null | grep -qi "up"; then
+    if ! eval "$COMPOSE ps stockhogar" 2>/dev/null | grep -qi "up"; then
         log_error "El contenedor stockhogar no está en marcha. Últimas líneas de log:"
-        $COMPOSE logs --tail=60 stockhogar 2>&1 | tee -a "$LOG_FILE" || true
+        eval "$COMPOSE logs --tail=60 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
         rollback
         exit 1
     fi
@@ -613,7 +647,7 @@ if [[ $READY -eq 1 ]]; then
     if [[ $FRONTEND_READY -eq 1 ]]; then
         log_success "Frontend respondiendo correctamente en el puerto ${FRONTEND_PORT}"
     else
-        log_warning "El frontend aún no responde tras 60s. Puede seguir arrancando; revisa: $COMPOSE logs -f frontend"
+        log_warning "El frontend aún no responde tras 60s. Puede seguir arrancando; revisa: eval \"$COMPOSE logs -f frontend\""
     fi
     exit 0
 elif [[ $UPDATE_MODE -eq 1 ]]; then
@@ -621,12 +655,12 @@ elif [[ $UPDATE_MODE -eq 1 ]]; then
     # volver, así que un healthcheck fallido dispara el rollback automático
     # en vez de dejar la instalación en un estado roto.
     log_error "La aplicación no respondió en 60s tras la actualización. Últimas líneas de log:"
-    $COMPOSE logs --tail=60 stockhogar 2>&1 | tee -a "$LOG_FILE" || true
+    eval "$COMPOSE logs --tail=60 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
     rollback
     exit 1
 else
     log_warning "La aplicación aún no responde tras 60s. Últimas líneas de log:"
-    $COMPOSE logs --tail=60 stockhogar 2>&1 | tee -a "$LOG_FILE" || true
-    log_warning "Puede seguir arrancando (p.ej. descarga de modelos); revisa: $COMPOSE logs -f stockhogar"
+    eval "$COMPOSE logs --tail=60 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
+    log_warning "Puede seguir arrancando (p.ej. descarga de modelos); revisa: eval \"$COMPOSE logs -f stockhogar\""
     exit 0
 fi
