@@ -192,11 +192,23 @@ export default function StockPage() {
   }
 
   const handleAjustarCantidad = async (id: number, delta: number) => {
+    const itemIndex = items.findIndex(i => i.id === id)
+    if (itemIndex === -1) return
+
+    const itemAnterior = items[itemIndex]
+    const cantidadNueva = Math.max(0, itemAnterior.cantidad + delta)
+
+    setItems(prev => prev.map((item, i) =>
+      i === itemIndex ? { ...item, cantidad: cantidadNueva } : item
+    ))
+    setError('')
+
     try {
-      setError('')
       await productosApi.actualizar(id, { delta })
-      await bootstrap()
     } catch (err) {
+      setItems(prev => prev.map((item, i) =>
+        i === itemIndex ? itemAnterior : item
+      ))
       const message = err instanceof Error ? err.message : 'Error al actualizar cantidad'
       setError(message)
     }
