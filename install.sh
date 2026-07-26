@@ -253,8 +253,8 @@ done
 if [[ $APT_UPDATE_NEEDED -eq 1 ]]; then
     log_info "Actualizando apt-get e instalando dependencias faltantes..."
     retry $SUDO apt-get update -qq
-    [[ ! check_cmd curl ]] && retry $SUDO apt-get install -y -qq curl
-    [[ ! check_cmd git ]] && retry $SUDO apt-get install -y -qq git
+    check_cmd curl || retry $SUDO apt-get install -y -qq curl
+    check_cmd git || retry $SUDO apt-get install -y -qq git
 fi
 log_success "curl y git disponibles"
 
