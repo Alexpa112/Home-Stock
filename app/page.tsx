@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Package, ShoppingCart, Zap, User, Lock } from 'lucide-react'
+import { Package, ShoppingCart, Zap, User, Lock, ArrowRight, Mail } from 'lucide-react'
 import { auth } from '@/lib/api'
 
 // Patrón SVG de fondo con iconos del hogar que se repite en tile 120×120
@@ -226,7 +226,7 @@ export default function Home() {
             >
               {isLogin ? 'Regístrate' : 'Inicia Sesión'}
             </button>
-          </form>
+          </div>
 
           {/* Toggle login/registro inline */}
           <p className="text-sm text-center text-muted-foreground">
