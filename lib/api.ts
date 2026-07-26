@@ -185,6 +185,10 @@ export const permisos = {
   compartir: (listaId: number, datos: { usuario?: string; email?: string; nivel?: 'ver' | 'editar' }) =>
     apiCall(`/api/listas/${listaId}/compartir`, { method: 'POST', body: JSON.stringify(datos) }),
 
+  // Generar enlace compartible público
+  generarEnlace: (listaId: number) =>
+    apiCall(`/api/listas/${listaId}/enlace-compartible`, { method: 'POST' }),
+
   actualizarPermiso: (listaId: number, usuarioId: number, nivel: 'ver' | 'editar') =>
     apiCall(`/api/listas/${listaId}/permisos/${usuarioId}`, { method: 'PATCH', body: JSON.stringify({ nivel }) }),
 
