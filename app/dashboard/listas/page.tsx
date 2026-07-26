@@ -187,7 +187,7 @@ export default function ListasPage() {
     if (!enlaceCompartible) return
     const asunto = `Te invito a la lista: ${enlaceCompartible.nombre_lista}`
     const cuerpo = `Hola! Quiero compartir mi lista "${enlaceCompartible.nombre_lista}" contigo.\n\nHaz clic aquí para aceptar:\n${enlaceCompartible.url}`
-    window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+    window.open(`mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`, '_blank')
   }
 
   const enviarPorWhatsApp = () => {
