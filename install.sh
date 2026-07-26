@@ -617,7 +617,7 @@ fi
 log_info "Comprobando que la aplicación responde..."
 READY=0
 for i in $(seq 1 15); do
-    if curl -fsS "http://localhost:${STOCKHOGAR_PORT}/" > /dev/null 2>&1; then
+    if curl -fsS -L "http://localhost:${STOCKHOGAR_PORT}/" > /dev/null 2>&1; then
         READY=1
         break
     fi
@@ -638,7 +638,7 @@ if [[ $READY -eq 1 ]]; then
     # solo se avisa si tarda mas de lo esperado.
     FRONTEND_READY=0
     for i in $(seq 1 15); do
-        if curl -fsS "http://localhost:${FRONTEND_PORT}/" > /dev/null 2>&1; then
+        if curl -fsS -L "http://localhost:${FRONTEND_PORT}/" > /dev/null 2>&1; then
             FRONTEND_READY=1
             break
         fi
