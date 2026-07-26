@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock, Grid3x3, List } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
+import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { productos as productosApi, categorias as categoriasApi, listas as listasApi, articulosLista } from '@/lib/api'
+import { useListPreferences } from '@/contexts/ListPreferencesContext'
 
 // Shape real: ver stockhogar/utils/converters.py DataConverter.producto_to_dict.
 // No hay fecha de caducidad absoluta; 'revisar_caducidad' es un booleano que el
@@ -54,6 +56,7 @@ function parseNumeroInput(value: string, fallback: number): number | '' {
 }
 
 export default function StockPage() {
+  const { preferences, updatePreferences } = useListPreferences()
   const [items, setItems] = useState<Producto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
@@ -119,6 +122,22 @@ export default function StockPage() {
       dias_aviso: item.dias_aviso,
     })
     setShowForm(true)
+  }
+
+  const getCategoryIcon = (categoryName: string | null) => {
+    if (!categoryName) return null
+    const cat = categorias.find((c) => c.nombre === categoryName)
+    return cat?.icono || null
+  }
+
+  const agruparPorCategoria = (itemsList: Producto[]) => {
+    const grupos: Record<string, Producto[]> = {}
+    itemsList.forEach((item) => {
+      const cat = item.categoria || 'Otros'
+      if (!grupos[cat]) grupos[cat] = []
+      grupos[cat].push(item)
+    })
+    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b))
   }
 
   const handleGuardar = async (e: React.FormEvent) => {
@@ -500,12 +519,21 @@ export default function StockPage() {
 
       {/* Search Bar */}
       {items.length > 0 && !loading && (
-        <div>
+        <div className="space-y-3">
           <SearchBar
             placeholder="Buscar por nombre o categoría..."
             value={searchQuery}
             onChange={setSearchQuery}
           />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={preferences.agrupar_categorias === 'on'}
+              onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
+              className="w-4 h-4 rounded"
+            />
+            <span className="text-sm font-medium">Agrupar por categoría</span>
+          </label>
         </div>
       )}
 
@@ -548,7 +576,7 @@ export default function StockPage() {
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
-                    <CategoryBadge category={item.categoria} />
+                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
@@ -659,3 +687,4 @@ export default function StockPage() {
     </div>
   )
 }
+
