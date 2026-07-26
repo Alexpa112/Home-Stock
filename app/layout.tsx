@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import RootLayoutClient from './RootLayoutClient'
 
 export const metadata: Metadata = {
   title: 'Dreame! - Inventario del Hogar',
@@ -46,7 +47,7 @@ export default function RootLayout({
             __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.add('light')}})()`,
           }}
         />
-        {children}
+        <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>
   )

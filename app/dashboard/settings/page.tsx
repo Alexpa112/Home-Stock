@@ -30,7 +30,7 @@ export default function SettingsPage() {
     idiomasApi
       .disponibles()
       .then((data: any) => {
-        setIdiomasDisponibles(data.idiomas || [])
+        setIdiomasDisponibles(data.idiomas || {})
         setIdiomaActual(data.actual || 'es')
       })
       .catch(() => {})
@@ -40,8 +40,14 @@ export default function SettingsPage() {
     setIdiomaActual(codigo)
     try {
       await idiomasApi.cambiar(codigo)
+      // Guardar preferencia localmente y recargar para aplicar traducc. a toda la app
+      localStorage.setItem('idioma_preferido', codigo)
+      setTimeout(() => {
+        window.location.reload()
+      }, 300)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar el idioma')
+      setIdiomaActual(idiomaActual) // Revertir en la UI si falla
     }
   }
 
@@ -186,7 +192,7 @@ export default function SettingsPage() {
           >
             {Object.entries(idiomasDisponibles).map(([codigo, info]) => (
               <option key={codigo} value={codigo}>
-                {info.nombre}
+                {info.nombre} - {info.nativo}
               </option>
             ))}
           </select>
