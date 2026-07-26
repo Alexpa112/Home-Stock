@@ -15,6 +15,9 @@
 # en un estado conocido (no a medias) y vuelca los logs relevantes.
 ################################################################################
 
+# Asegurar que el script tiene permisos de ejecución (soluciona problemas en clones)
+chmod +x "$0" 2>/dev/null || true
+
 set -Eeuo pipefail
 
 # --- Rutas: el script funciona sin importar desde dónde se invoque ----------
@@ -565,6 +568,7 @@ echo ""
 PANEL_DIR="$(cd "$SCRIPT_DIR/../StockHogar-Panel" 2>/dev/null && pwd || echo "")"
 if [[ -n "$PANEL_DIR" ]] && [[ -f "$PANEL_DIR/install.sh" ]]; then
     echo -e "${BLUE}=== Instalando también el Panel de Gestión del Servidor ===${NC}"
+    chmod +x "$PANEL_DIR/install.sh" 2>/dev/null || true
     if (cd "$PANEL_DIR" && bash ./install.sh "$SCRIPT_DIR"); then
         log_success "Panel de Gestión instalado (ver arriba la URL y la contraseña temporal)"
         log_info "Para que arranque solo con la Raspberry Pi: cd \"$PANEL_DIR\" && ./install.sh --systemd"
