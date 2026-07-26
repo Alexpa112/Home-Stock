@@ -52,10 +52,12 @@ def estado():
     tema_preferido = "auto"
     idioma_preferido = "es"
     teclado_virtual_activo = "on"
+    vista_lista_compra = "lista"
+    agrupar_categorias = "off"
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
         fila = db.execute(
-            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo FROM usuarios WHERE id = ?",
+            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         if fila:
@@ -63,6 +65,8 @@ def estado():
             tema_preferido = fila["tema_preferido"]
             idioma_preferido = fila["idioma_preferido"]
             teclado_virtual_activo = fila["teclado_virtual_activo"]
+            vista_lista_compra = fila["vista_lista_compra"]
+            agrupar_categorias = fila["agrupar_categorias"]
     return APIResponse.success(
         {
             "necesita_setup": not hay_usuarios(db),
@@ -71,6 +75,8 @@ def estado():
             "tema_preferido": tema_preferido,
             "idioma_preferido": idioma_preferido,
             "teclado_virtual_activo": teclado_virtual_activo,
+            "vista_lista_compra": vista_lista_compra,
+            "agrupar_categorias": agrupar_categorias,
         }
     )
 
@@ -265,6 +271,35 @@ def cambiar_password():
     db.commit()
 
     return APIResponse.success({"mensaje": "Contraseña cambiada correctamente"})
+
+
+@bp.route("/api/auth/preferencias-listas", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def actualizar_preferencias_listas():
+    """Actualiza las preferencias de vista de listas (lista/recuadros) y agrupación por categorías."""
+    usuario_id = session.get("usuario_id")
+    datos = request.get_json(force=True) or {}
+
+    vista = (datos.get("vista_lista_compra") or "lista").strip().lower()
+    agrupar = (datos.get("agrupar_categorias") or "off").strip().lower()
+
+    if vista not in ("lista", "recuadros"):
+        return APIResponse.validacion("Vista no válida. Debe ser 'lista' o 'recuadros'")
+    if agrupar not in ("on", "off"):
+        return APIResponse.validacion("Agrupación no válida. Debe ser 'on' u 'off'")
+
+    db = get_db()
+    db.execute(
+        "UPDATE usuarios SET vista_lista_compra = ?, agrupar_categorias = ? WHERE id = ?",
+        (vista, agrupar, usuario_id)
+    )
+    db.commit()
+
+    return APIResponse.success({
+        "vista_lista_compra": vista,
+        "agrupar_categorias": agrupar
+    })
 
 
 @bp.route("/api/usuarios", methods=["GET"])

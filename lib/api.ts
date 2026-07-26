@@ -105,6 +105,9 @@ export const auth = {
 
   cambiarTema: (tema: 'light' | 'dark' | 'auto') =>
     apiCall('/api/auth/tema', { method: 'POST', body: JSON.stringify({ tema }) }),
+
+  actualizarPreferenciasListas: (datos: { vista_lista_compra?: 'lista' | 'recuadros'; agrupar_categorias?: 'on' | 'off' }) =>
+    apiCall('/api/auth/preferencias-listas', { method: 'POST', body: JSON.stringify(datos) }),
 }
 
 // ===== Listas (stockhogar/rutas/listas.py) =====
