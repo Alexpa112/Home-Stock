@@ -264,8 +264,12 @@ case "$ARCH" in
     *) log_warning "Arquitectura no probada: $ARCH; puede que no existan imágenes base compatibles" ;;
 esac
 
-MEMORY_MB="$(free -m 2>/dev/null | awk '/^Mem:/{print $2}' || echo "")"
-SWAP_MB="$(free -m 2>/dev/null | awk '/^Swap:/{print $2}' || echo "")"
+# Leído de /proc/meminfo y NO de `free`: la salida de `free` está traducida
+# (en un Raspbian en español la línea de swap es "Inter:", no "Swap:"), así que
+# parsearla daba 0MB de swap y disparaba un aviso de OOM falso.
+MEMORY_MB="$(awk '/^MemTotal:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "")"
+SWAP_MB="$(awk '/^SwapTotal:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "")"
+[[ -z "$SWAP_MB" ]] && SWAP_MB=0
 if [[ -n "$MEMORY_MB" ]]; then
     log_success "Memoria: ${MEMORY_MB}MB (swap: ${SWAP_MB:-0}MB)"
     # `next build` con webpack es lo que más RAM consume de todo el proceso.
@@ -374,12 +378,14 @@ step_end
 step_start "Detectar Docker Compose"
 ################################################################################
 
-# --progress=plain solo existe en Compose v2; en v1 el flag no se pasa.
-BUILD_FLAGS=()
+# `--progress plain` es un flag GLOBAL de Compose v2 (va antes del subcomando:
+# `docker compose --progress plain build`); ponerlo detrás de `build` funciona
+# pero imprime un aviso de deprecación. En v1 no existe y no se pasa.
+COMPOSE_FLAGS=()
 
 if "${DOCKER[@]}" compose version &> /dev/null; then
     COMPOSE=("${DOCKER[@]}" compose)
-    BUILD_FLAGS=(--progress=plain)
+    COMPOSE_FLAGS=(--progress plain)
     log_success "Docker Compose (plugin v2): $("${DOCKER[@]}" compose version --short 2>/dev/null)"
 elif check_cmd docker-compose; then
     COMPOSE=(docker-compose)
@@ -390,7 +396,7 @@ else
     retry $SUDO apt-get install -y -qq docker-compose-plugin
     if "${DOCKER[@]}" compose version &> /dev/null; then
         COMPOSE=("${DOCKER[@]}" compose)
-        BUILD_FLAGS=(--progress=plain)
+        COMPOSE_FLAGS=(--progress plain)
         log_success "Docker Compose (plugin v2) instalado: $("${DOCKER[@]}" compose version --short 2>/dev/null)"
     else
         log_error "No se pudo instalar Docker Compose. Manual: https://docs.docker.com/compose/install/linux/"
@@ -421,6 +427,25 @@ if [[ $MISSING -eq 1 ]]; then
     exit 1
 fi
 log_success "Proyecto verificado (incluye iconos PWA y manifest)"
+
+# Toda carpeta de fuentes importada con el alias "@/" tiene que estar copiada en
+# Dockerfile.frontend. Si falta, el build no falla al copiar: falla 7 minutos más
+# tarde con "Module not found", ya dentro de `next build`. Comprobarlo aquí
+# cuesta un segundo y evita ese viaje en balde.
+MISSING_COPY=""
+while read -r DIR; do
+    [[ -z "$DIR" || ! -d "$DIR" ]] && continue
+    grep -qE "^COPY +${DIR}(/\.)? +" Dockerfile.frontend || MISSING_COPY+=" $DIR"
+done < <(grep -rhoE "from '@/[a-zA-Z0-9_-]+/" app components contexts hooks lib 2>/dev/null \
+         | sed "s|from '@/||; s|/$||" | sort -u)
+
+if [[ -n "$MISSING_COPY" ]]; then
+    log_error "Dockerfile.frontend no copia estas carpetas, que sí se importan con '@/':${MISSING_COPY}"
+    log_error "El build de Next.js fallaría con \"Module not found\". Añade en Dockerfile.frontend:"
+    for DIR in $MISSING_COPY; do log_error "  COPY $DIR ./$DIR"; done
+    exit 1
+fi
+log_success "Dockerfile.frontend copia todas las carpetas que importa el alias '@/'"
 
 step_end
 
@@ -617,7 +642,7 @@ else
 
     BUILD_START=$SECONDS
     BUILD_OK=1
-    "${COMPOSE[@]}" build "${BUILD_FLAGS[@]+"${BUILD_FLAGS[@]}"}" 2>&1 | tee -a "$LOG_FILE" || BUILD_OK=0
+    "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" build 2>&1 | tee -a "$LOG_FILE" || BUILD_OK=0
 
     stop_heartbeat
 
