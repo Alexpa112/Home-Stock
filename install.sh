@@ -31,7 +31,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 STEPS_COMPLETED=0
-STEPS_TOTAL=12
+STEPS_TOTAL=11
 LOG_FILE="$SCRIPT_DIR/install.log"
 LOCK_FILE="$SCRIPT_DIR/.install.lock"
 : > "$LOG_FILE"
@@ -242,13 +242,20 @@ if [[ "$(id -u)" -ne 0 ]]; then
     SUDO="sudo"
 fi
 
+APT_UPDATE_NEEDED=0
 for c in curl git; do
     if ! check_cmd "$c"; then
-        log_info "Instalando $c..."
-        retry $SUDO apt-get update -qq
-        retry $SUDO apt-get install -y -qq "$c"
+        APT_UPDATE_NEEDED=1
+        break
     fi
 done
+
+if [[ $APT_UPDATE_NEEDED -eq 1 ]]; then
+    log_info "Actualizando apt-get e instalando dependencias faltantes..."
+    retry $SUDO apt-get update -qq
+    [[ ! check_cmd curl ]] && retry $SUDO apt-get install -y -qq curl
+    [[ ! check_cmd git ]] && retry $SUDO apt-get install -y -qq git
+fi
 log_success "curl y git disponibles"
 
 step_end
@@ -304,50 +311,24 @@ step_start "Detectar Docker Compose"
 ################################################################################
 
 COMPOSE=""
-COMPOSE_CMD=""
 
-# Intenta v2 (plugin)
-if command -v docker &> /dev/null && $DOCKER compose version &> /dev/null; then
-    COMPOSE_CMD="compose"
+# Orden de preferencia: v2 plugin > v1 binario > instalar v2
+if $DOCKER compose version &> /dev/null 2>&1; then
     COMPOSE="$DOCKER compose"
     log_success "Docker Compose (plugin v2): $($DOCKER compose version --short 2>/dev/null)"
-# Intenta v1 (binario independiente)
 elif check_cmd docker-compose; then
-    COMPOSE_CMD="compose-bin"
     COMPOSE="docker-compose"
     log_warning "Usando docker-compose v1 (binario independiente). Se recomienda migrar al plugin v2."
-# Intenta instalar v2 si no está disponible
 else
-    log_info "Docker Compose no detectado. Instalando docker-compose-plugin..."
-    retry $SUDO apt-get update -qq
-    if retry $SUDO apt-get install -y -qq docker-compose-plugin 2>&1 | tee -a "$LOG_FILE"; then
-        # Revalidar que funciona después de instalar
-        if $DOCKER compose version &> /dev/null; then
-            COMPOSE_CMD="compose"
-            COMPOSE="$DOCKER compose"
-            log_success "Docker Compose (plugin v2) instalado: $($DOCKER compose version --short 2>/dev/null)"
-        else
-            log_error "Docker Compose se instaló pero no responde. Revisa: $DOCKER compose version"
-            exit 1
-        fi
+    log_info "Instalando docker-compose-plugin..."
+    retry $SUDO apt-get install -y -qq docker-compose-plugin
+    if $DOCKER compose version &> /dev/null 2>&1; then
+        COMPOSE="$DOCKER compose"
+        log_success "Docker Compose (plugin v2) instalado: $($DOCKER compose version --short 2>/dev/null)"
     else
-        log_error "No se pudo instalar docker-compose-plugin."
-        log_error "Intenta manualmente: $SUDO apt-get install docker-compose-plugin"
-        log_error "O descargalo desde: https://docs.docker.com/compose/install/linux/"
+        log_error "No se pudo instalar docker-compose-plugin. Revisa: https://docs.docker.com/compose/install/linux/"
         exit 1
     fi
-fi
-
-if [[ -z "$COMPOSE" ]]; then
-    log_error "No se encontró ni pudo instalar Docker Compose (v1 o v2)."
-    exit 1
-fi
-
-# Validar que compose realmente funciona
-if ! eval "$COMPOSE version" &> /dev/null; then
-    log_error "Docker Compose detectado pero no responde: $COMPOSE"
-    log_error "Intenta manualmente: $COMPOSE version"
-    exit 1
 fi
 
 step_end
@@ -419,16 +400,14 @@ step_start "Backup de la base de datos"
 if [[ -f "data/stock.db" ]]; then
     TS="$(date +%Y%m%d-%H%M%S)"
     DB_BACKUP_FILE="data/backups/stock-${TS}.db"
-    cp "data/stock.db" "$DB_BACKUP_FILE"
-    if [[ ! -s "$DB_BACKUP_FILE" ]]; then
-        log_error "El backup de la base de datos quedó vacío o no se creó; se aborta antes de tocar los contenedores."
+    cp "data/stock.db" "$DB_BACKUP_FILE" && log_success "Backup: $DB_BACKUP_FILE" || {
+        log_error "No se pudo respaldar la BD; aborto."
         exit 1
-    fi
-    log_success "Backup creado: $DB_BACKUP_FILE"
-    # Nos quedamos con las 10 copias más recientes para no llenar el disco.
-    ls -1t data/backups/stock-*.db 2>/dev/null | tail -n +11 | xargs -r rm -f
+    }
+    # Limpiar backups viejos (mantener los 5 más recientes)
+    ls -1t data/backups/stock-*.db 2>/dev/null | tail -n +6 | xargs -r rm -f
 else
-    log_info "No hay base de datos previa; se creará una nueva al arrancar"
+    log_info "BD nueva (primera instalación)"
 fi
 
 step_end
@@ -548,88 +527,44 @@ step_start "Iniciar contenedores"
 
 log_info "\$ $COMPOSE up -d --remove-orphans"
 if ! eval "$COMPOSE up -d --remove-orphans" >> "$LOG_FILE" 2>&1; then
-    log_error "Comando falló: $COMPOSE up -d --remove-orphans"
-    log_error "Log completo: $LOG_FILE"
+    log_error "Fallo en compose up"
     exit 1
 fi
 
-log_info "Esperando a que el contenedor arranque..."
-sleep 5
+sleep 2
 eval "$COMPOSE ps" | tee -a "$LOG_FILE"
 
 step_end
 
 ################################################################################
-step_start "Instalación completada"
+step_start "Verificación y resumen"
 ################################################################################
-
-IP_ADDRESS=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
-IP_ADDRESS="${IP_ADDRESS:-localhost}"
-
-echo ""
-echo -e "${GREEN}================================================================${NC}"
-echo -e "${GREEN}  StockHogar instalado${NC}"
-echo -e "${GREEN}================================================================${NC}"
-echo ""
-FRONTEND_PORT="$(grep -m1 '^STOCKHOGAR_FRONTEND_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')"
-FRONTEND_PORT="${FRONTEND_PORT:-3000}"
-
-echo -e "  ${YELLOW}Acceso (frontend nuevo, Next.js):${NC}"
-echo -e "    Local:  http://localhost:${FRONTEND_PORT}"
-echo -e "    Red:    http://${IP_ADDRESS}:${FRONTEND_PORT}"
-echo ""
-echo -e "  ${YELLOW}Backend Flask (API, y frontend anterior en /):${NC}"
-echo -e "    Local:  http://localhost:${STOCKHOGAR_PORT}"
-echo -e "    Red:    http://${IP_ADDRESS}:${STOCKHOGAR_PORT}"
-echo ""
-
-echo -e "  ${YELLOW}Panel de gestión del servidor:${NC}"
-echo -e "    Es un proyecto aparte (StockHogar-Panel), con su propio instalador."
-echo -e "    Si lo tienes clonado como carpeta hermana de esta, instálalo con:"
-echo -e "      cd ../StockHogar-Panel && ./install.sh"
-echo ""
-echo -e "  ${YELLOW}Comandos útiles:${NC}"
-echo -e "    Logs:       $COMPOSE logs -f stockhogar"
-echo -e "    Detener:    $COMPOSE down"
-echo -e "    Reiniciar:  $COMPOSE restart"
-echo -e "    Actualizar: ./install.sh --update"
-echo ""
-
-# --- Panel de Gestión del Servidor: se instala solo si está disponible -----
-# Es un proyecto independiente (StockHogar-Panel), pero si está clonado como
-# carpeta hermana de este repo, aprovechamos para instalarlo automáticamente
-# aquí también, en vez de obligar a un segundo paso manual.
-PANEL_DIR="$(cd "$SCRIPT_DIR/../StockHogar-Panel" 2>/dev/null && pwd || echo "")"
-if [[ -n "$PANEL_DIR" ]] && [[ -f "$PANEL_DIR/install.sh" ]]; then
-    echo -e "${BLUE}=== Instalando también el Panel de Gestión del Servidor ===${NC}"
-    chmod +x "$PANEL_DIR/install.sh" 2>/dev/null || true
-    if (cd "$PANEL_DIR" && bash ./install.sh "$SCRIPT_DIR"); then
-        log_success "Panel de Gestión instalado (ver arriba la URL y la contraseña temporal)"
-        log_info "Para que arranque solo con la Raspberry Pi: cd \"$PANEL_DIR\" && ./install.sh --systemd"
-    else
-        log_warning "No se pudo instalar el panel automáticamente. Instálalo a mano: cd \"$PANEL_DIR\" && ./install.sh"
-    fi
-    echo ""
-else
-    log_info "No se encontró StockHogar-Panel como carpeta hermana; omito su instalación. Clónalo junto a este repo si quieres el panel de gestión (rendimiento, mantenimiento, backups...)."
-fi
-
-log_info "Comprobando que los contenedores están en marcha..."
-sleep 2
 
 # Verificar que los contenedores están en estado "up"
 if ! eval "$COMPOSE ps stockhogar" 2>/dev/null | grep -qi "up"; then
-    log_error "El contenedor stockhogar no está en marcha. Últimas líneas de log:"
-    eval "$COMPOSE logs --tail=60 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
+    log_error "Backend no está corriendo"
+    eval "$COMPOSE logs --tail=30 stockhogar" 2>&1 | tee -a "$LOG_FILE" || true
     rollback
     exit 1
 fi
-log_success "Backend en marcha en el puerto ${STOCKHOGAR_PORT}"
 
-if ! eval "$COMPOSE ps frontend" 2>/dev/null | grep -qi "up"; then
-    log_warning "El frontend aún no está en marcha, pero puede seguir arrancando"
-else
-    log_success "Frontend en marcha en el puerto ${FRONTEND_PORT}"
+log_success "Backend corriendo (puerto ${STOCKHOGAR_PORT})"
+eval "$COMPOSE ps frontend" 2>/dev/null | grep -qi "up" && log_success "Frontend corriendo (puerto ${FRONTEND_PORT})" || log_warning "Frontend arrancando..."
+
+# Mostrar URLs
+IP_ADDRESS=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+echo ""
+echo -e "${GREEN}✓ StockHogar ${UPDATE_MODE:+actualizado}${UPDATE_MODE:-instalado}${NC}"
+echo -e "  Frontend: ${YELLOW}http://localhost:${FRONTEND_PORT}${NC}  |  ${YELLOW}http://${IP_ADDRESS}:${FRONTEND_PORT}${NC}"
+echo -e "  Backend:  ${YELLOW}http://localhost:${STOCKHOGAR_PORT}${NC}  |  ${YELLOW}http://${IP_ADDRESS}:${STOCKHOGAR_PORT}${NC}"
+echo -e "  Logs:     ${YELLOW}docker compose logs -f stockhogar${NC}"
+echo ""
+
+# Panel de Gestión (opcional)
+if PANEL_DIR="$(cd "$SCRIPT_DIR/../StockHogar-Panel" 2>/dev/null && pwd)" && [[ -f "$PANEL_DIR/install.sh" ]]; then
+    log_info "Panel de Gestión disponible; instalando..."
+    (cd "$PANEL_DIR" && bash ./install.sh "$SCRIPT_DIR") 2>/dev/null || log_warning "Panel no se instaló (se puede hacer luego)"
 fi
 
+step_end
 exit 0
