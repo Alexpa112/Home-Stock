@@ -658,6 +658,16 @@ else
         log_info "Espacio libre de sobra (${ESPACIO_ANTES_MB}MB): se conserva la caché de builds anteriores"
     fi
 
+    # Pre-descarga con reintentos de las imágenes base: en la Pi la conexión a
+    # Docker Hub falla de vez en cuando a mitad de la descarga ("TLS handshake
+    # timeout", "context deadline exceeded"). Si eso pasa DENTRO de
+    # "compose build" se pierde el build entero (hasta 35 min); aquí solo se
+    # pierden unos segundos y `retry` ya reintenta con backoff exponencial.
+    for BASE_IMAGE in $(grep -hoE '^FROM [^ ]+' Dockerfile.raspbian Dockerfile.frontend | awk '{print $2}' | sort -u); do
+        log_info "Pre-descargando imagen base: $BASE_IMAGE"
+        retry "${DOCKER[@]}" pull "$BASE_IMAGE"
+    done
+
     log_info "Construyendo imágenes. En Raspberry Pi el build de Next.js tarda entre 15 y 60 minutos."
     log_info "La salida se muestra en vivo: mientras aparezcan líneas, NO está colgado."
 
