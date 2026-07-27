@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Moon, Sun, LogOut, AlertCircle, Globe, History } from 'lucide-react'
+import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers } from 'lucide-react'
 import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
+import { useListPreferences } from '@/contexts/ListPreferencesContext'
 
 export default function SettingsPage() {
+  const { preferences, updatePreferences } = useListPreferences()
   const [darkMode, setDarkMode] = useState(false)
   const [user, setUser] = useState<{ usuario?: string; email?: string | null }>({})
   const [confirmandoLogout, setConfirmandoLogout] = useState(false)
@@ -30,7 +32,7 @@ export default function SettingsPage() {
     idiomasApi
       .disponibles()
       .then((data: any) => {
-        setIdiomasDisponibles(data.idiomas || [])
+        setIdiomasDisponibles(data.idiomas || {})
         setIdiomaActual(data.actual || 'es')
       })
       .catch(() => {})
@@ -40,8 +42,14 @@ export default function SettingsPage() {
     setIdiomaActual(codigo)
     try {
       await idiomasApi.cambiar(codigo)
+      // Guardar preferencia localmente y recargar para aplicar traducc. a toda la app
+      localStorage.setItem('idioma_preferido', codigo)
+      setTimeout(() => {
+        window.location.reload()
+      }, 300)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar el idioma')
+      setIdiomaActual(idiomaActual) // Revertir en la UI si falla
     }
   }
 
@@ -186,13 +194,70 @@ export default function SettingsPage() {
           >
             {Object.entries(idiomasDisponibles).map(([codigo, info]) => (
               <option key={codigo} value={codigo}>
-                {info.nombre}
+                {info.nombre} - {info.nativo}
               </option>
             ))}
           </select>
           <p className="text-sm text-muted-foreground">
             Se guarda tu preferencia; los textos de esta nueva interfaz siguen en español por ahora.
           </p>
+        </div>
+      </div>
+
+      {/* Preferencias de Listas */}
+      <div className="card space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Layers className="w-5 h-5 text-accent" /> Preferencias de Listas
+        </h2>
+        <div className="border-t border-border pt-4 space-y-4">
+          <div>
+            <p className="text-sm text-muted-foreground mb-3">Vista de la lista de compra</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => updatePreferences({ vista_lista_compra: 'lista' })}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-colors text-sm font-medium ${
+                  preferences.vista_lista_compra === 'lista'
+                    ? 'bg-accent text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                <List className="w-4 h-4" /> Lista
+              </button>
+              <button
+                onClick={() => updatePreferences({ vista_lista_compra: 'recuadros' })}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-colors text-sm font-medium ${
+                  preferences.vista_lista_compra === 'recuadros'
+                    ? 'bg-accent text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                <Grid3x3 className="w-4 h-4" /> Recuadros
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <label className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Agrupar por categoría</p>
+                <p className="text-sm text-muted-foreground">En listas de compra y stock</p>
+              </div>
+              <button
+                onClick={() => updatePreferences({ agrupar_categorias: preferences.agrupar_categorias === 'on' ? 'off' : 'on' })}
+                className={`relative inline-flex items-center h-8 w-14 rounded-full transition-colors min-h-[44px] min-w-[44px] justify-center ${
+                  preferences.agrupar_categorias === 'on' ? 'bg-accent' : 'bg-muted'
+                }`}
+                aria-label="Agrupar por categoría"
+                aria-pressed={preferences.agrupar_categorias === 'on'}
+              >
+                <div
+                  className={`absolute left-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                    preferences.agrupar_categorias === 'on' ? 'translate-x-6' : ''
+                  }`}
+                />
+              </button>
+            </label>
+          </div>
         </div>
       </div>
 

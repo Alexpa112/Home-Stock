@@ -24,3 +24,5 @@ yarn-error.log
 *.pem
 .env.production.local
 .env*.local
+install.log
+.install.lock

@@ -1,8 +1,7 @@
-// Script de desarrollo (no se ejecuta en producción). Genera los PNG del
-// icono de la app (favicon, manifest, apple-touch-icon) a partir de
-// stockhogar/static/icons/favicon.svg, para máxima compatibilidad con
-// navegadores/plataformas que no soportan iconos SVG en el manifest o
-// en apple-touch-icon (iOS Safari, Android antiguos, etc).
+// Script de desarrollo (no se ejecuta en producción). Genera los PNG mínimos:
+// - icon-192.png, icon-512.png: PWA manifest (soportan SVG, pero algunos SO lo necesitan en PNG)
+// - icon-maskable-192.png, icon-maskable-512.png: PWA adaptive icons
+// - apple-touch-icon.png: iOS Safari (no soporta SVG en apple-touch-icon)
 //
 // Ejecutar con: node scripts/generar-iconos-png.js
 // cada vez que cambie el diseño del icono en favicon.svg.
@@ -16,15 +15,13 @@ const FUENTE_SVG = path.join(ICONS_DIR, "favicon.svg");
 
 const ACCENT = "#B5551A";
 
-// Icono "any": el mismo diseño a distintos tamaños, a sangre (sin margen extra).
-const TAMANOS_ANY = [16, 32, 48, 180, 192, 512];
-
-// Icono "maskable": el sistema recorta un círculo/superelipse desde el borde,
-// así que el contenido debe vivir en la "safe zone" central (~80% del lienzo).
+// Solo los tamaños realmente necesarios
+const TAMANOS_ANY = [192, 512];
 const TAMANOS_MASKABLE = [192, 512];
+const APPLE_TOUCH_TAMANO = 180; // iOS Safari standard
 
 function svgMaskable(tamano) {
-  const escala = 0.7; // deja margen de seguridad para el recorte del SO
+  const escala = 0.7;
   const offset = ((1 - escala) / 2) * 24;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${tamano}" height="${tamano}" viewBox="0 0 24 24">
 <rect width="24" height="24" fill="${ACCENT}"/>
@@ -41,29 +38,35 @@ function svgMaskable(tamano) {
 async function main() {
   const svgOriginal = fs.readFileSync(FUENTE_SVG, "utf8");
 
+  // PWA manifest icons (any purpose)
   for (const tamano of TAMANOS_ANY) {
     const salida = path.join(ICONS_DIR, `icon-${tamano}.png`);
     await sharp(Buffer.from(svgOriginal), { density: 384 })
       .resize(tamano, tamano)
       .png()
       .toFile(salida);
-    console.log(`Generado ${salida}`);
+    console.log(`✓ ${salida}`);
   }
 
+  // PWA adaptive icons (maskable purpose)
   for (const tamano of TAMANOS_MASKABLE) {
     const salida = path.join(ICONS_DIR, `icon-maskable-${tamano}.png`);
     await sharp(Buffer.from(svgMaskable(tamano)), { density: 384 })
       .resize(tamano, tamano)
       .png()
       .toFile(salida);
-    console.log(`Generado ${salida}`);
+    console.log(`✓ ${salida}`);
   }
 
-  // Favicon multiresolución para navegadores que no soportan SVG (Safari legacy).
-  fs.copyFileSync(path.join(ICONS_DIR, "icon-32.png"), path.join(ICONS_DIR, "favicon-32.png"));
-  fs.copyFileSync(path.join(ICONS_DIR, "icon-16.png"), path.join(ICONS_DIR, "favicon-16.png"));
-  fs.copyFileSync(path.join(ICONS_DIR, "icon-180.png"), path.join(ICONS_DIR, "apple-touch-icon.png"));
-  console.log("Copias de favicon-16/32.png y apple-touch-icon.png listas.");
+  // iOS Safari apple-touch-icon (required by iOS)
+  const appleTouchPath = path.join(ICONS_DIR, "apple-touch-icon.png");
+  await sharp(Buffer.from(svgOriginal), { density: 384 })
+    .resize(APPLE_TOUCH_TAMANO, APPLE_TOUCH_TAMANO)
+    .png()
+    .toFile(appleTouchPath);
+  console.log(`✓ ${appleTouchPath}`);
+
+  console.log("\n✓ Todos los iconos generados (solo necesarios para la app)");
 }
 
 main().catch((error) => {

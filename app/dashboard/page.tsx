@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock, Grid3x3, List } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
+import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { productos as productosApi, categorias as categoriasApi, listas as listasApi, articulosLista } from '@/lib/api'
+import { useListPreferences } from '@/contexts/ListPreferencesContext'
 
 // Shape real: ver stockhogar/utils/converters.py DataConverter.producto_to_dict.
 // No hay fecha de caducidad absoluta; 'revisar_caducidad' es un booleano que el
@@ -30,7 +32,15 @@ interface Categoria {
   icono: string
 }
 
-const FORM_VACIO = {
+interface FormularioProducto {
+  nombre: string
+  categoria: string
+  cantidad: number | ''
+  stock_minimo: number | ''
+  unidad: string
+}
+
+const FORM_VACIO: FormularioProducto = {
   nombre: '',
   categoria: 'Otros',
   cantidad: 1,
@@ -39,7 +49,14 @@ const FORM_VACIO = {
   dias_aviso: 7,
 }
 
+function parseNumeroInput(value: string, fallback: number): number | '' {
+  if (value === '') return ''
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 export default function StockPage() {
+  const { preferences, updatePreferences } = useListPreferences()
   const [items, setItems] = useState<Producto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +64,7 @@ export default function StockPage() {
   const [showForm, setShowForm] = useState(false)
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [formData, setFormData] = useState(FORM_VACIO)
+  const [formData, setFormData] = useState<FormularioProducto>(FORM_VACIO)
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false)
   const [nuevaCategoria, setNuevaCategoria] = useState('')
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
@@ -55,10 +72,27 @@ export default function StockPage() {
   const [añadiendoId, setAñadiendoId] = useState<number | null>(null)
   const [añadidoIds, setAñadidoIds] = useState<Set<number>>(new Set())
   const [confirmandoEliminarCatId, setConfirmandoEliminarCatId] = useState<number | null>(null)
+  const [modoVista, setModoVista] = useState<'lista' | 'grid'>('grid')
+  const [agruparPorCategoria, setAgruparPorCategoria] = useState(true)
 
   useEffect(() => {
+    // Cargar preferencias guardadas
+    const modoGuardado = localStorage.getItem('stock-modo-vista') as 'lista' | 'grid' | null
+    const agruparGuardado = localStorage.getItem('stock-agrupar-categoria')
+    if (modoGuardado) setModoVista(modoGuardado)
+    if (agruparGuardado !== null) setAgruparPorCategoria(agruparGuardado === 'true')
+
     bootstrap()
   }, [])
+
+  // Guardar preferencias cuando cambien
+  useEffect(() => {
+    localStorage.setItem('stock-modo-vista', modoVista)
+  }, [modoVista])
+
+  useEffect(() => {
+    localStorage.setItem('stock-agrupar-categoria', String(agruparPorCategoria))
+  }, [agruparPorCategoria])
 
   const bootstrap = async () => {
     try {
@@ -107,16 +141,35 @@ export default function StockPage() {
     setShowForm(true)
   }
 
+  const getCategoryIcon = (categoryName: string | null) => {
+    if (!categoryName) return null
+    const cat = categorias.find((c) => c.nombre === categoryName)
+    return cat?.icono || null
+  }
+
+  const agruparPorCategoria = (itemsList: Producto[]) => {
+    const grupos: Record<string, Producto[]> = {}
+    itemsList.forEach((item) => {
+      const cat = item.categoria || 'Otros'
+      if (!grupos[cat]) grupos[cat] = []
+      grupos[cat].push(item)
+    })
+    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b))
+  }
+
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setError('')
+      const cantidadFinal = formData.cantidad === '' ? 0 : Number(formData.cantidad)
+      const stockMinimoFinal = formData.stock_minimo === '' ? 1 : Number(formData.stock_minimo)
+
       if (editandoId) {
         await productosApi.actualizar(editandoId, {
           nombre: formData.nombre,
           categoria: formData.categoria,
-          cantidad: formData.cantidad,
-          stock_minimo: formData.stock_minimo,
+          cantidad: cantidadFinal,
+          stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
         })
@@ -124,8 +177,8 @@ export default function StockPage() {
         await productosApi.crear({
           nombre: formData.nombre,
           categoria: formData.categoria,
-          cantidad: formData.cantidad,
-          stock_minimo: formData.stock_minimo,
+          cantidad: cantidadFinal,
+          stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
         })
@@ -156,11 +209,23 @@ export default function StockPage() {
   }
 
   const handleAjustarCantidad = async (id: number, delta: number) => {
+    const itemIndex = items.findIndex(i => i.id === id)
+    if (itemIndex === -1) return
+
+    const itemAnterior = items[itemIndex]
+    const cantidadNueva = Math.max(0, itemAnterior.cantidad + delta)
+
+    setItems(prev => prev.map((item, i) =>
+      i === itemIndex ? { ...item, cantidad: cantidadNueva } : item
+    ))
+    setError('')
+
     try {
-      setError('')
       await productosApi.actualizar(id, { delta })
-      await bootstrap()
     } catch (err) {
+      setItems(prev => prev.map((item, i) =>
+        i === itemIndex ? itemAnterior : item
+      ))
       const message = err instanceof Error ? err.message : 'Error al actualizar cantidad'
       setError(message)
     }
@@ -254,38 +319,47 @@ export default function StockPage() {
         </button>
       </div>
 
-      {/* Stats — clicables como filtros rápidos */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Filtros compactos — opciones de filtrado rápido */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setFiltro('todos')}
           aria-label="Ver todos los artículos"
           aria-pressed={filtro === 'todos'}
-          className={`text-left rounded-2xl transition-all ${filtro === 'todos' ? 'ring-2 ring-accent' : 'opacity-80 hover:opacity-100'}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            filtro === 'todos'
+              ? 'bg-accent text-accent-foreground'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
         >
-          <StatsCard title="Artículos" value={stats.totalItems} icon={Package} color="blue" description="En stock" />
-        </button>
-        <button
-          onClick={() => setFiltro('todos')}
-          aria-label="Total de unidades en stock"
-          className="text-left rounded-2xl opacity-80 hover:opacity-100 transition-all"
-        >
-          <StatsCard title="Total" value={stats.totalQuantity} icon={TrendingUp} color="green" description="Unidades" />
+          📦 {stats.totalItems} artículos
         </button>
         <button
           onClick={() => setFiltro(filtro === 'bajo_minimo' ? 'todos' : 'bajo_minimo')}
-          aria-label={filtro === 'bajo_minimo' ? 'Quitar filtro de bajo mínimo' : 'Filtrar por bajo mínimo'}
+          aria-label={filtro === 'bajo_minimo' ? 'Quitar filtro de bajo stock' : 'Filtrar por bajo stock'}
           aria-pressed={filtro === 'bajo_minimo'}
-          className={`text-left rounded-2xl transition-all ${filtro === 'bajo_minimo' ? 'ring-2 ring-red-400' : 'opacity-80 hover:opacity-100'}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            filtro === 'bajo_minimo'
+              ? 'bg-red-500 text-white'
+              : stats.bajoMinimo > 0
+              ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-950/60'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
         >
-          <StatsCard title="Bajo mínimo" value={stats.bajoMinimo} icon={ShoppingCart} color="red" description="Reponer pronto" />
+          🛒 {stats.bajoMinimo} bajo stock
         </button>
         <button
           onClick={() => setFiltro(filtro === 'por_revisar' ? 'todos' : 'por_revisar')}
-          aria-label={filtro === 'por_revisar' ? 'Quitar filtro por revisar' : 'Filtrar artículos por revisar'}
+          aria-label={filtro === 'por_revisar' ? 'Quitar filtro de caducidad' : 'Filtrar por revisar caducidad'}
           aria-pressed={filtro === 'por_revisar'}
-          className={`text-left rounded-2xl transition-all ${filtro === 'por_revisar' ? 'ring-2 ring-yellow-400' : 'opacity-80 hover:opacity-100'}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            filtro === 'por_revisar'
+              ? 'bg-yellow-500 text-white'
+              : stats.porRevisar > 0
+              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300 hover:bg-yellow-200 dark:hover:bg-yellow-950/60'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
         >
-          <StatsCard title="Por revisar" value={stats.porRevisar} icon={Clock} color="yellow" description="Sin actualizar" />
+          ⏱️ {stats.porRevisar} caducados
         </button>
       </div>
 
@@ -404,7 +478,12 @@ export default function StockPage() {
                   id="prod-cantidad"
                   type="number"
                   value={formData.cantidad}
-                  onChange={(e) => setFormData({ ...formData, cantidad: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      cantidad: parseNumeroInput(e.target.value, 0),
+                    })
+                  }
                   min="0"
                   className="input-field"
                   inputMode="numeric"
@@ -417,7 +496,12 @@ export default function StockPage() {
                   id="prod-minimo"
                   type="number"
                   value={formData.stock_minimo}
-                  onChange={(e) => setFormData({ ...formData, stock_minimo: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      stock_minimo: parseNumeroInput(e.target.value, 1),
+                    })
+                  }
                   min="0"
                   className="input-field"
                   inputMode="numeric"
@@ -473,12 +557,50 @@ export default function StockPage() {
 
       {/* Search Bar */}
       {items.length > 0 && !loading && (
-        <div>
+        <div className="space-y-3">
           <SearchBar
             placeholder="Buscar por nombre o categoría..."
             value={searchQuery}
             onChange={setSearchQuery}
           />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={preferences.agrupar_categorias === 'on'}
+              onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
+              className="w-4 h-4 rounded"
+            />
+            <span className="text-sm font-medium">Agrupar por categoría</span>
+          </label>
+        </div>
+      )}
+
+      {/* Vista selector y opciones */}
+      {items.length > 0 && !loading && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setModoVista('lista')}
+              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'lista' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+              title="Vista de lista"
+            >
+              📋 Lista
+            </button>
+            <button
+              onClick={() => setModoVista('grid')}
+              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'grid' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+              title="Vista de grid"
+            >
+              ⊞ Grid
+            </button>
+          </div>
+          <button
+            onClick={() => setAgruparPorCategoria(!agruparPorCategoria)}
+            className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${agruparPorCategoria ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+            title={agruparPorCategoria ? 'Agrupar por categoría' : 'Sin agrupar'}
+          >
+            {agruparPorCategoria ? '📂 Agrupado' : '📄 Sin agrupar'}
+          </button>
         </div>
       )}
 
@@ -513,9 +635,21 @@ export default function StockPage() {
             <p className="text-muted-foreground">No se encontraron productos.</p>
           )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredItems.map((item) => (
+      ) : agruparPorCategoria ? (
+        // Vista agrupada por categoría
+        <div className="space-y-6">
+          {categorias.map((cat) => {
+            const productosCat = filteredItems.filter(item => item.categoria === cat.nombre)
+            if (productosCat.length === 0) return null
+            return (
+              <div key={cat.id}>
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <span className="text-2xl">{cat.icono}</span>
+                  {cat.nombre}
+                  <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} producto{productosCat.length !== 1 ? 's' : ''}</span>
+                </h2>
+                <div className={modoVista === 'lista' ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+                  {productosCat.map((item) => (
             <div key={item.id} className="card flex flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between gap-2 mb-3">
@@ -626,9 +760,130 @@ export default function StockPage() {
                 )}
               </div>
             </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        // Vista sin agrupar
+        <div className={modoVista === 'lista' ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+          {filteredItems.map((item) => (
+            <div key={item.id} className="card flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
+                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => abrirEdicion(item)}
+                      className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
+                      aria-label="Editar"
+                    >
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    {confirmandoId === item.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="px-2 h-10 flex items-center text-xs font-semibold text-white bg-red-500 rounded-xl transition-colors"
+                          aria-label="Confirmar eliminación"
+                        >
+                          Sí
+                        </button>
+                        <button
+                          onClick={() => setConfirmandoId(null)}
+                          className="px-2 h-10 flex items-center text-xs font-semibold text-foreground bg-muted rounded-xl transition-colors"
+                          aria-label="Cancelar"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                        aria-label="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {(item.cantidad <= item.stock_minimo || item.revisar_caducidad) && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {item.cantidad <= item.stock_minimo && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                        <ShoppingCart className="w-3 h-3" />
+                        Bajo mínimo
+                      </span>
+                    )}
+                    {item.revisar_caducidad && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+                        <Clock className="w-3 h-3" />
+                        Revisar
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-border mt-auto space-y-2">
+                {/* Cantidad +/- */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{item.unidad}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleAjustarCantidad(item.id, -1)}
+                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+                      aria-label="Restar uno"
+                      disabled={item.cantidad <= 0}
+                    >
+                      −
+                    </button>
+                    <span className={`text-xl font-bold w-10 text-center tabular-nums ${item.cantidad <= item.stock_minimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
+                      {item.cantidad}
+                    </span>
+                    <button
+                      onClick={() => handleAjustarCantidad(item.id, 1)}
+                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+                      aria-label="Sumar uno"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Acción rápida: añadir a compra si está bajo mínimo */}
+                {item.cantidad <= item.stock_minimo && (
+                  <button
+                    onClick={() => handleAñadirACompra(item)}
+                    disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
+                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+                      añadidoIds.has(item.id)
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                        : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
+                    }`}
+                  >
+                    {añadidoIds.has(item.id) ? (
+                      <>✓ Añadido a la compra</>
+                    ) : añadiendoId === item.id ? (
+                      <>Añadiendo...</>
+                    ) : (
+                      <><ShoppingCart className="w-3.5 h-3.5" /> Añadir a la compra</>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}
     </div>
   )
 }
+

@@ -11,28 +11,35 @@ o borrando el mismo fichero directamente - no hay ninguna llamada de codigo
 entre ambos proyectos.
 """
 import time
+import threading
 
 from ..config import DATA_DIR
 
 RUTA_FLAG = DATA_DIR / "mantenimiento.flag"
 
-# activo() se llama en el before_request de CADA peticion no estatica (ver
-# stockhogar/__init__.py): sin cachear, es un stat() de disco sincrono por
-# peticion aunque el flag solo lo cambie un proceso externo (el Panel de
-# Gestion) muy de vez en cuando. Con este TTL, a lo sumo se tarda
-# TTL_CACHE_SEGUNDOS en reaccionar a un cambio real, lo cual es aceptable
-# para una pantalla de mantenimiento (no es una comprobacion de seguridad
-# que deba ser instantanea).
-TTL_CACHE_SEGUNDOS = 3
-_cache = {"valor": None, "expira": 0.0}
+_cambio = threading.Condition()
+_estado_actual: bool = RUTA_FLAG.exists()
 
 
-def activo():
-    ahora = time.monotonic()
-    if _cache["valor"] is None or ahora >= _cache["expira"]:
-        _cache["valor"] = RUTA_FLAG.exists()
-        _cache["expira"] = ahora + TTL_CACHE_SEGUNDOS
-    return _cache["valor"]
+def _vigilar():
+    """Hilo daemon que comprueba el flag cada segundo y notifica a todos los
+    streams SSE en cuanto detecta un cambio, sin depender de peticiones HTTP."""
+    global _estado_actual
+    while True:
+        time.sleep(1)
+        nuevo = RUTA_FLAG.exists()
+        if nuevo != _estado_actual:
+            _estado_actual = nuevo
+            with _cambio:
+                _cambio.notify_all()
+
+
+_hilo = threading.Thread(target=_vigilar, daemon=True, name="mantenimiento-watcher")
+_hilo.start()
+
+
+def activo() -> bool:
+    return _estado_actual
 
 
 def mensaje():
@@ -40,3 +47,12 @@ def mensaje():
         return RUTA_FLAG.read_text(encoding="utf-8").strip()
     except OSError:
         return ""
+
+
+def esperar_cambio(timeout_s: float = 55.0) -> bool:
+    """Bloquea hasta que el estado de mantenimiento cambie o se agote el timeout.
+
+    Retorna True si hubo cambio, False si fue timeout. Usado por el endpoint SSE.
+    """
+    with _cambio:
+        return _cambio.wait(timeout=timeout_s)
