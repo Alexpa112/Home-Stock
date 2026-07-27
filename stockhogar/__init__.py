@@ -16,7 +16,7 @@ from .servicios import mantenimiento
 
 csrf = CSRFProtect()
 
-from .rutas import auth, articulos_lista, categorias, consumo, historial, listas, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios
+from .rutas import auth, articulos_lista, categorias, consumo, historial, listas, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios, version
 from .rutas.auth import RUTAS_PUBLICAS
 
 
@@ -98,6 +98,7 @@ def create_app():
     app.register_blueprint(tickets.bp)
     app.register_blueprint(ocr_tickets.bp)
     app.register_blueprint(consumo.bp)
+    app.register_blueprint(version.bp)
 
     @app.before_request
     def comprobar_mantenimiento():
