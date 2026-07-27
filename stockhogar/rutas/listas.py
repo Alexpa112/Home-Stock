@@ -55,6 +55,7 @@ def listar_listas():
     return APIResponse.success({
         "propias": [DataConverter.lista_to_dict(l, usuario_id, include_detalles=True) for l in propias],
         "compartidas": [DataConverter.lista_to_dict(l, usuario_id, include_detalles=True) for l in compartidas],
+        "lista_actual_id": session.get("lista_actual_id"),
     })
 
 
@@ -190,6 +191,14 @@ def eliminar_lista(lista_id):
 
     db.execute("DELETE FROM listas WHERE id = ?", (lista_id,))
     db.commit()
+
+    # Si era la lista activa, limpiarla de sesion (mismo motivo que en
+    # salir_lista): si no, el usuario se queda "viendo" una lista que ya
+    # no existe hasta que seleccione otra a mano.
+    if session.get("lista_actual_id") == lista_id:
+        session.pop("lista_actual_id", None)
+        session.modified = True
+
     return APIResponse.success()
 
 

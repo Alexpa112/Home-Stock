@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut, AlertCircle, Copy, Mail, MessageCircle } from 'lucide-react'
 import { listas as listasApi, permisos } from '@/lib/api'
+import { useHogar } from '@/contexts/HogarContext'
 
 interface Lista {
   id: number
@@ -26,6 +27,7 @@ interface Miembro {
 const CLAVE_LISTA_ACTIVA = 'stockhogar-lista-activa-ui'
 
 export default function ListasPage() {
+  const { seleccionar: seleccionarHogar, refrescar: refrescarHogar } = useHogar()
   const [propias, setPropias] = useState<Lista[]>([])
   const [compartidas, setCompartidas] = useState<Lista[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,7 +88,7 @@ export default function ListasPage() {
   const handleSeleccionar = async (id: number) => {
     try {
       setError('')
-      await listasApi.seleccionar(id)
+      await seleccionarHogar(id)
       setListaActivaId(id)
       localStorage.setItem(CLAVE_LISTA_ACTIVA, String(id))
     } catch (err) {
@@ -125,6 +127,7 @@ export default function ListasPage() {
         localStorage.removeItem(CLAVE_LISTA_ACTIVA)
       }
       await cargar()
+      await refrescarHogar()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar la lista')
     }
@@ -141,6 +144,7 @@ export default function ListasPage() {
         localStorage.removeItem(CLAVE_LISTA_ACTIVA)
       }
       await cargar()
+      await refrescarHogar()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al salir de la lista')
     }

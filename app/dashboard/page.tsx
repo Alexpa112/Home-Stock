@@ -6,7 +6,7 @@ import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
-import { productos as productosApi, categorias as categoriasApi, listas as listasApi, articulosLista } from '@/lib/api'
+import { productos as productosApi, categorias as categoriasApi, articulosLista } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 
 // Shape real: ver stockhogar/utils/converters.py DataConverter.producto_to_dict.
@@ -99,15 +99,9 @@ export default function StockPage() {
       setLoading(true)
       setError('')
 
-      // Una cuenta recien creada no tiene ninguna lista todavia; sin una
-      // lista activa en sesion, el backend rechaza crear productos (403).
-      // Si no hay ninguna lista propia ni compartida, se crea una por
-      // defecto (crear() la deja seleccionada automaticamente en sesion).
-      const listasData: any = await listasApi.listar()
-      if ((listasData.propias?.length || 0) === 0 && (listasData.compartidas?.length || 0) === 0) {
-        await listasApi.crear('Mi lista')
-      }
-
+      // La seleccion de hogar/lista activa ahora es obligatoria antes de
+      // llegar aqui (ver components/shared/SeleccionHogar.tsx), asi que ya
+      // no hace falta crear una lista de emergencia en este punto.
       const [productosData, categoriasData] = await Promise.all([
         productosApi.listar(),
         categoriasApi.listar(),
@@ -290,6 +284,222 @@ export default function StockPage() {
     porRevisar: items.filter((item) => item.revisar_caducidad).length,
     bajoMinimo: items.filter((item) => item.cantidad <= item.stock_minimo).length,
   }
+
+  // Vista "Grid": tarjeta con toda la info a la vista, pensada para pantallas
+  // anchas o para explorar el inventario con calma.
+  const renderProductoGrid = (item: Producto) => (
+    <div key={item.id} className="card flex flex-col justify-between">
+      <div>
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
+            <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => abrirEdicion(item)}
+              className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
+              aria-label="Editar"
+            >
+              <Pencil className="w-4 h-4 text-muted-foreground" />
+            </button>
+            {confirmandoId === item.id ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleDeleteItem(item.id)}
+                  className="px-2 h-10 flex items-center text-xs font-semibold text-white bg-red-500 rounded-xl transition-colors"
+                  aria-label="Confirmar eliminación"
+                >
+                  Sí
+                </button>
+                <button
+                  onClick={() => setConfirmandoId(null)}
+                  className="px-2 h-10 flex items-center text-xs font-semibold text-foreground bg-muted rounded-xl transition-colors"
+                  aria-label="Cancelar"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleDeleteItem(item.id)}
+                className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                aria-label="Eliminar"
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {(item.cantidad <= item.stock_minimo || item.revisar_caducidad) && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {item.cantidad <= item.stock_minimo && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                <ShoppingCart className="w-3 h-3" />
+                Bajo mínimo
+              </span>
+            )}
+            {item.revisar_caducidad && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+                <Clock className="w-3 h-3" />
+                Revisar
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="pt-3 border-t border-border mt-auto space-y-2">
+        {/* Cantidad +/- */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{item.unidad}</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleAjustarCantidad(item.id, -1)}
+              className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+              aria-label="Restar uno"
+              disabled={item.cantidad <= 0}
+            >
+              −
+            </button>
+            <span className={`text-xl font-bold w-10 text-center tabular-nums ${item.cantidad <= item.stock_minimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
+              {item.cantidad}
+            </span>
+            <button
+              onClick={() => handleAjustarCantidad(item.id, 1)}
+              className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+              aria-label="Sumar uno"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* Acción rápida: añadir a compra si está bajo mínimo */}
+        {item.cantidad <= item.stock_minimo && (
+          <button
+            onClick={() => handleAñadirACompra(item)}
+            disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
+            className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+              añadidoIds.has(item.id)
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
+            }`}
+          >
+            {añadidoIds.has(item.id) ? (
+              <>✓ Añadido a la compra</>
+            ) : añadiendoId === item.id ? (
+              <>Añadiendo...</>
+            ) : (
+              <><ShoppingCart className="w-3.5 h-3.5" /> Añadir a la compra</>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
+  // Vista "Lista": fila compacta al estilo Bring! — icono, nombre y
+  // cantidad en una sola línea, pensada para revisar el inventario rápido.
+  const renderProductoLista = (item: Producto) => {
+    const icono = getCategoryIcon(item.categoria)
+    const bajoMinimo = item.cantidad <= item.stock_minimo
+    return (
+      <div key={item.id} className="card !p-3 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+          {icono ? (
+            <IconRenderer name={icono} className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <Package className="w-5 h-5 text-muted-foreground" />
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-foreground truncate">{item.nombre}</p>
+            {bajoMinimo && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Bajo mínimo" />}
+            {item.revisar_caducidad && <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" title="Revisar caducidad" />}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">{item.categoria} · {item.unidad}</p>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => handleAjustarCantidad(item.id, -1)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-base font-medium"
+            aria-label="Restar uno"
+            disabled={item.cantidad <= 0}
+          >
+            −
+          </button>
+          <span className={`text-base font-bold w-7 text-center tabular-nums ${bajoMinimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
+            {item.cantidad}
+          </span>
+          <button
+            onClick={() => handleAjustarCantidad(item.id, 1)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-base font-medium"
+            aria-label="Sumar uno"
+          >
+            +
+          </button>
+        </div>
+
+        {bajoMinimo && (
+          <button
+            onClick={() => handleAñadirACompra(item)}
+            disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
+            className={`w-9 h-9 flex items-center justify-center rounded-lg shrink-0 transition-all active:scale-95 ${
+              añadidoIds.has(item.id)
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
+            }`}
+            aria-label="Añadir a la compra"
+            title="Añadir a la compra"
+          >
+            <ShoppingCart className="w-4 h-4" />
+          </button>
+        )}
+
+        <button
+          onClick={() => abrirEdicion(item)}
+          className="w-9 h-9 flex items-center justify-center hover:bg-muted rounded-lg transition-colors shrink-0"
+          aria-label="Editar"
+        >
+          <Pencil className="w-4 h-4 text-muted-foreground" />
+        </button>
+
+        {confirmandoId === item.id ? (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => handleDeleteItem(item.id)}
+              className="px-2 h-9 flex items-center text-xs font-semibold text-white bg-red-500 rounded-lg transition-colors"
+              aria-label="Confirmar eliminación"
+            >
+              Sí
+            </button>
+            <button
+              onClick={() => setConfirmandoId(null)}
+              className="px-2 h-9 flex items-center text-xs font-semibold text-foreground bg-muted rounded-lg transition-colors"
+              aria-label="Cancelar"
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => handleDeleteItem(item.id)}
+            className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors shrink-0"
+            aria-label="Eliminar"
+          >
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  const renderProducto = (item: Producto) => (modoVista === 'lista' ? renderProductoLista(item) : renderProductoGrid(item))
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
@@ -638,119 +848,8 @@ export default function StockPage() {
                   {cat.nombre}
                   <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} producto{productosCat.length !== 1 ? 's' : ''}</span>
                 </h2>
-                <div className={modoVista === 'lista' ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
-                  {productosCat.map((item) => (
-            <div key={item.id} className="card flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
-                    <CategoryBadge category={item.categoria} />
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => abrirEdicion(item)}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
-                      aria-label="Editar"
-                    >
-                      <Pencil className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    {confirmandoId === item.id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="px-2 h-10 flex items-center text-xs font-semibold text-white bg-red-500 rounded-xl transition-colors"
-                          aria-label="Confirmar eliminación"
-                        >
-                          Sí
-                        </button>
-                        <button
-                          onClick={() => setConfirmandoId(null)}
-                          className="px-2 h-10 flex items-center text-xs font-semibold text-foreground bg-muted rounded-xl transition-colors"
-                          aria-label="Cancelar"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                        aria-label="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {(item.cantidad <= item.stock_minimo || item.revisar_caducidad) && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {item.cantidad <= item.stock_minimo && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
-                        <ShoppingCart className="w-3 h-3" />
-                        Bajo mínimo
-                      </span>
-                    )}
-                    {item.revisar_caducidad && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
-                        <Clock className="w-3 h-3" />
-                        Revisar
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-3 border-t border-border mt-auto space-y-2">
-                {/* Cantidad +/- */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{item.unidad}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleAjustarCantidad(item.id, -1)}
-                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-                      aria-label="Restar uno"
-                      disabled={item.cantidad <= 0}
-                    >
-                      −
-                    </button>
-                    <span className={`text-xl font-bold w-10 text-center tabular-nums ${item.cantidad <= item.stock_minimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
-                      {item.cantidad}
-                    </span>
-                    <button
-                      onClick={() => handleAjustarCantidad(item.id, 1)}
-                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-                      aria-label="Sumar uno"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {/* Acción rápida: añadir a compra si está bajo mínimo */}
-                {item.cantidad <= item.stock_minimo && (
-                  <button
-                    onClick={() => handleAñadirACompra(item)}
-                    disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
-                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
-                      añadidoIds.has(item.id)
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                        : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
-                    }`}
-                  >
-                    {añadidoIds.has(item.id) ? (
-                      <>✓ Añadido a la compra</>
-                    ) : añadiendoId === item.id ? (
-                      <>Añadiendo...</>
-                    ) : (
-                      <><ShoppingCart className="w-3.5 h-3.5" /> Añadir a la compra</>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-                  ))}
+                <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+                  {productosCat.map(renderProducto)}
                 </div>
               </div>
             )
@@ -758,119 +857,8 @@ export default function StockPage() {
         </div>
       ) : (
         // Vista sin agrupar
-        <div className={modoVista === 'lista' ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
-          {filteredItems.map((item) => (
-            <div key={item.id} className="card flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
-                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => abrirEdicion(item)}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
-                      aria-label="Editar"
-                    >
-                      <Pencil className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    {confirmandoId === item.id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="px-2 h-10 flex items-center text-xs font-semibold text-white bg-red-500 rounded-xl transition-colors"
-                          aria-label="Confirmar eliminación"
-                        >
-                          Sí
-                        </button>
-                        <button
-                          onClick={() => setConfirmandoId(null)}
-                          className="px-2 h-10 flex items-center text-xs font-semibold text-foreground bg-muted rounded-xl transition-colors"
-                          aria-label="Cancelar"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                        aria-label="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {(item.cantidad <= item.stock_minimo || item.revisar_caducidad) && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {item.cantidad <= item.stock_minimo && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
-                        <ShoppingCart className="w-3 h-3" />
-                        Bajo mínimo
-                      </span>
-                    )}
-                    {item.revisar_caducidad && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
-                        <Clock className="w-3 h-3" />
-                        Revisar
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-3 border-t border-border mt-auto space-y-2">
-                {/* Cantidad +/- */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{item.unidad}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleAjustarCantidad(item.id, -1)}
-                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-                      aria-label="Restar uno"
-                      disabled={item.cantidad <= 0}
-                    >
-                      −
-                    </button>
-                    <span className={`text-xl font-bold w-10 text-center tabular-nums ${item.cantidad <= item.stock_minimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
-                      {item.cantidad}
-                    </span>
-                    <button
-                      onClick={() => handleAjustarCantidad(item.id, 1)}
-                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-                      aria-label="Sumar uno"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {/* Acción rápida: añadir a compra si está bajo mínimo */}
-                {item.cantidad <= item.stock_minimo && (
-                  <button
-                    onClick={() => handleAñadirACompra(item)}
-                    disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
-                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
-                      añadidoIds.has(item.id)
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                        : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
-                    }`}
-                  >
-                    {añadidoIds.has(item.id) ? (
-                      <>✓ Añadido a la compra</>
-                    ) : añadiendoId === item.id ? (
-                      <>Añadiendo...</>
-                    ) : (
-                      <><ShoppingCart className="w-3.5 h-3.5" /> Añadir a la compra</>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+          {filteredItems.map(renderProducto)}
         </div>
       )}
     </div>

@@ -26,6 +26,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         const datosIdioma = await respuestaIdioma.json()
         const idiomaActual = datosIdioma.idioma || 'es'
         setIdioma(idiomaActual)
+        document.documentElement.lang = idiomaActual
 
         // Cargar todas las traducciones para ese idioma
         const respuestaTraducciones = await fetch(`/api/idiomas/todos/${idiomaActual}`, { credentials: 'include' })
@@ -45,11 +46,17 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     return traducciones[clave] || clave
   }
 
-  const cambiarIdioma = (nuevoIdioma: string) => {
-    setIdioma(nuevoIdioma)
-    localStorage.setItem('idioma_preferido', nuevoIdioma)
-    // Recargar para aplicar las nuevas traducciones
-    window.location.reload()
+  const cambiarIdioma = async (nuevoIdioma: string) => {
+    try {
+      const respuesta = await fetch(`/api/idiomas/todos/${nuevoIdioma}`, { credentials: 'include' })
+      const datos = await respuesta.json()
+      setTraducciones(datos.traducciones || {})
+      setIdioma(nuevoIdioma)
+      document.documentElement.lang = nuevoIdioma
+      localStorage.setItem('idioma_preferido', nuevoIdioma)
+    } catch (err) {
+      console.error('Error cambiando idioma:', err)
+    }
   }
 
   return (

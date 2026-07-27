@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { CheckCircle2, AlertCircle, Loader } from 'lucide-react'
 import { permisos } from '@/lib/api'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 export default function AceptarInvitacionPage() {
   const params = useParams<{ codigo: string }>()
   const router = useRouter()
+  const { t } = useTranslation()
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando')
   const [mensaje, setMensaje] = useState('')
 
@@ -19,11 +21,11 @@ export default function AceptarInvitacionPage() {
     const aceptar = async () => {
       try {
         const datos: any = await permisos.aceptarInvitacion(params.codigo)
-        setMensaje(datos.mensaje || '¡Invitación aceptada!')
+        setMensaje(datos.mensaje || t('invitacion_aceptada_titulo'))
         setEstado('ok')
         setTimeout(() => router.push('/dashboard/listas'), 1500)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Error aceptando la invitación'
+        const msg = err instanceof Error ? err.message : t('error_no_se_pudo_aceptar_invitacion')
         if (msg.toLowerCase().includes('no has iniciado sesión')) {
           window.location.href = `/?next=/aceptar-invitacion/${params.codigo}`
           return
@@ -42,21 +44,21 @@ export default function AceptarInvitacionPage() {
         {estado === 'cargando' && (
           <>
             <Loader className="w-10 h-10 mx-auto animate-spin text-accent" />
-            <p>Aceptando invitación...</p>
+            <p>{t('aceptando_invitacion')}</p>
           </>
         )}
         {estado === 'ok' && (
           <>
             <CheckCircle2 className="w-10 h-10 mx-auto text-green-500" />
             <p>{mensaje}</p>
-            <p className="text-sm text-muted-foreground">Redirigiendo a tus listas...</p>
+            <p className="text-sm text-muted-foreground">{t('redirigiendo_a_tus_listas')}</p>
           </>
         )}
         {estado === 'error' && (
           <>
             <AlertCircle className="w-10 h-10 mx-auto text-red-500" />
             <p>{mensaje}</p>
-            <a href="/dashboard" className="text-accent hover:underline text-sm">Ir al dashboard</a>
+            <a href="/dashboard" className="text-accent hover:underline text-sm">{t('ir_al_dashboard')}</a>
           </>
         )}
       </div>
