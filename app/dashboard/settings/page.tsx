@@ -574,7 +574,7 @@ export default function SettingsPage() {
       {/* Info */}
       <div className="text-center py-6 text-sm text-muted-foreground border-t border-border">
         <p>Dreame! v2.0 • Inventario del Hogar</p>
-        <p className="text-xs mt-1">© 2024 Todos los derechos reservados</p>
+        <p className="text-xs mt-1">© 2026 Todos los derechos reservados</p>
       </div>
     </div>
   )

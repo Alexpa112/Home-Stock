@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Package, ShoppingCart, Zap, User, Lock, ArrowRight, Mail } from 'lucide-react'
+import { Package, User, Lock, ArrowRight } from 'lucide-react'
 import { auth } from '@/lib/api'
 
 // Patrón SVG de fondo con iconos del hogar que se repite en tile 120×120
@@ -118,21 +118,6 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mb-8 grid grid-cols-3 gap-2">
-            <div className="rounded-lg border border-border bg-card p-3 text-center shadow-sm">
-              <Package className="mx-auto mb-1 h-5 w-5 text-accent" />
-              <p className="text-xs font-medium text-foreground">Stock</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-3 text-center shadow-sm">
-              <ShoppingCart className="mx-auto mb-1 h-5 w-5 text-accent" />
-              <p className="text-xs font-medium text-foreground">Compras</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-3 text-center shadow-sm">
-              <Zap className="mx-auto mb-1 h-5 w-5 text-accent" />
-              <p className="text-xs font-medium text-foreground">Rápido</p>
-            </div>
-          </div>
-
           <div className="card mb-4">
             <div className="mb-4 text-center">
               <h2 className="text-lg font-semibold text-foreground">
@@ -194,41 +179,9 @@ export default function Home() {
               </button>
             </form>
 
-            <div className="my-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">o</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="space-y-2">
-              <a href="/auth/google" className="btn-secondary w-full gap-2">
-                <Mail className="h-4 w-4" />
-                Continuar con Google
-              </a>
-              <a href="/auth/apple" className="btn-secondary w-full gap-2">
-                <Mail className="h-4 w-4" />
-                Continuar con Apple
-              </a>
-            </div>
           </div>
 
-          <div className="text-center">
-            <p className="mb-2 text-sm text-muted-foreground">
-              {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
-            </p>
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin)
-                setError('')
-                setUsuario('')
-                setPassword('')
-              }}
-              className="text-sm font-medium text-accent hover:underline"
-            >
-              {isLogin ? 'Regístrate' : 'Inicia Sesión'}
-            </button>
-          </div>
-
-          {/* Toggle login/registro inline */}
+          {/* Toggle login/registro */}
           <p className="text-sm text-center text-muted-foreground">
             {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}{' '}
             <button onClick={resetForm} className="font-semibold text-accent hover:underline">
