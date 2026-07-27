@@ -105,13 +105,14 @@ trap on_interrupt INT TERM
 # error tonto del propio script).
 CONTAINERS_TOUCHED=0
 ROLLBACK_DONE=0
+IMAGE_NAMES_BACKED_UP=()
 rollback() {
     [[ "$ROLLBACK_DONE" -eq 1 ]] && return 0
     [[ "$CONTAINERS_TOUCHED" -eq 0 ]] && return 0
     ROLLBACK_DONE=1
     log_warning "Iniciando rollback automático a la versión anterior..."
 
-    if [[ "${#IMAGE_NAMES_BACKED_UP[@]:-0}" -gt 0 ]]; then
+    if [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -gt 0 ]]; then
         RETAG_OK=1
         for IMAGE_NAME in "${IMAGE_NAMES_BACKED_UP[@]}"; do
             if "${DOCKER[@]}" image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
