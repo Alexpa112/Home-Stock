@@ -106,8 +106,17 @@ export const auth = {
   cambiarTema: (tema: 'light' | 'dark' | 'auto') =>
     apiCall('/api/auth/tema', { method: 'POST', body: JSON.stringify({ tema }) }),
 
+  cambiarPassword: (password_actual: string, password_nueva: string, password_confirmacion: string) =>
+    apiCall('/api/auth/cambiar-password', {
+      method: 'POST',
+      body: JSON.stringify({ password_actual, password_nueva, password_confirmacion }),
+    }),
+
   actualizarPreferenciasListas: (datos: { vista_lista_compra?: 'lista' | 'recuadros'; agrupar_categorias?: 'on' | 'off' }) =>
     apiCall('/api/auth/preferencias-listas', { method: 'POST', body: JSON.stringify(datos) }),
+
+  eliminarCuenta: (usuarioId: number) =>
+    apiCall(`/api/usuarios/${usuarioId}`, { method: 'DELETE' }),
 }
 
 // ===== Listas (stockhogar/rutas/listas.py) =====
