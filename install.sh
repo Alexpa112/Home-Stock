@@ -696,7 +696,14 @@ else
     mapfile -t SERVICES < <("${COMPOSE[@]}" config --services 2>/dev/null)
     for SERVICE in "${SERVICES[@]}"; do
         log_info "Construyendo servicio: $SERVICE"
-        "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" build "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
+        # BUILDX_NO_DEFAULT_ATTESTATIONS=1: por defecto Buildx genera además
+        # un "attestation manifest" de provenance/SBOM por imagen, que exige
+        # 2-3 escrituras extra al registro local. Irrelevante para un
+        # despliegue de un solo nodo y, en el almacenamiento lento de la Pi,
+        # esas escrituras se llevaban entre 15 y 50s extra por imagen (visto
+        # en install.log: 12.8s + 14.5s solo en la del frontend).
+        BUILDX_NO_DEFAULT_ATTESTATIONS=1 \
+            "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" build "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
     done
 
     stop_heartbeat
