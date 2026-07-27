@@ -121,4 +121,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # peticiones (p.ej. los botones +/- de stock) se quedaban en cola y el proxy
 # delante de la app acababa devolviendo 502. Con hilos, el resto de peticiones
 # se siguen atendiendo en paralelo dentro del mismo worker mientras el OCR corre.
-CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - run:app"]
+CMD ["sh", "-c", "gunicorn --factory --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - stockhogar:create_app"]

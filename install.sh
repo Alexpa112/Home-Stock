@@ -111,12 +111,17 @@ rollback() {
     ROLLBACK_DONE=1
     log_warning "Iniciando rollback automático a la versión anterior..."
 
-    if [[ -n "${IMAGE_NAME:-}" ]] && "${DOCKER[@]}" image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
-        if "${DOCKER[@]}" tag "${IMAGE_NAME}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 \
-           && "${COMPOSE[@]}" up -d --force-recreate >> "$LOG_FILE" 2>&1; then
-            log_warning "Imagen Docker revertida a la versión anterior y contenedores recreados."
+    if [[ "${#IMAGE_NAMES_BACKED_UP[@]:-0}" -gt 0 ]]; then
+        RETAG_OK=1
+        for IMAGE_NAME in "${IMAGE_NAMES_BACKED_UP[@]}"; do
+            if "${DOCKER[@]}" image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
+                "${DOCKER[@]}" tag "${IMAGE_NAME}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 || RETAG_OK=0
+            fi
+        done
+        if [[ "$RETAG_OK" -eq 1 ]] && "${COMPOSE[@]}" up -d --force-recreate >> "$LOG_FILE" 2>&1; then
+            log_warning "Imágenes Docker revertidas a la versión anterior y contenedores recreados."
         else
-            log_error "El rollback de la imagen Docker también falló; revisa $LOG_FILE manualmente."
+            log_error "El rollback de las imágenes Docker también falló; revisa $LOG_FILE manualmente."
         fi
     else
         log_warning "No había una imagen anterior guardada para revertir (probablemente es la primera instalación)."
@@ -613,28 +618,44 @@ step_start "Construir imágenes"
 if [[ "$BUILD_MODE" -eq 0 ]]; then
     log_info "--no-build: se omite la construcción y se reutiliza la imagen actual"
 else
-    # Guardamos la imagen anterior de cada servicio como :rollback para poder
-    # volver atrás si el arranque falla.
-    IMAGE_NAME="$("${COMPOSE[@]}" config --images 2>/dev/null | head -1 || true)"
-    if [[ -n "$IMAGE_NAME" ]] && "${DOCKER[@]}" image inspect "$IMAGE_NAME" &> /dev/null; then
-        CONTAINERS_TOUCHED=1
-        run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
-        log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback"
-    else
+    # Guardamos la imagen anterior de CADA servicio (backend y frontend) como
+    # :rollback para poder volver atrás si el arranque falla. Antes solo se
+    # respaldaba la primera imagen de la lista ("head -1"): si luego fallaba
+    # el build de la otra, esa quedaba sin respaldo y el rollback la dejaba
+    # con la versión nueva (rota) en vez de revertirla también.
+    mapfile -t IMAGE_NAMES < <("${COMPOSE[@]}" config --images 2>/dev/null)
+    IMAGE_NAMES_BACKED_UP=()
+    if [[ "${#IMAGE_NAMES[@]}" -eq 0 ]]; then
         log_info "No hay imagen anterior que respaldar (primera instalación)"
+    else
+        for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
+            if "${DOCKER[@]}" image inspect "$IMAGE_NAME" &> /dev/null; then
+                CONTAINERS_TOUCHED=1
+                run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
+                IMAGE_NAMES_BACKED_UP+=("$IMAGE_NAME")
+                log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback"
+            fi
+        done
+        [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -eq 0 ]] && log_info "No hay imagen anterior que respaldar (primera instalación)"
     fi
 
-    # Limpieza automática antes de compilar: cada build (sobre todo con
-    # --no-cache) deja capas e imágenes intermedias que ya no sirven, y sin
-    # esto se acumulan en el disco de forma invisible con cada actualización
-    # hasta acercarse al umbral de "Espacio libre" comprobado más arriba. Sin
-    # -a: nunca borra imágenes con tag (incluida la de ":rollback" de justo
-    # encima) ni volúmenes, así que jamás toca datos de usuario.
-    log_info "Liberando espacio de Docker antes de compilar (imágenes/caché sin usar)..."
+    # Limpieza automática antes de compilar, pero SOLO si el disco anda justo:
+    # "docker system prune -f" no distingue caché útil de basura y se lleva
+    # por delante toda la caché de capas de builds anteriores (apt-get, npm
+    # ci...), convirtiendo cada actualización en una reconstrucción completa
+    # de ~35 min en vez de una incremental de pocos minutos. Sin -a: nunca
+    # borra imágenes con tag (incluida ":rollback") ni volúmenes, así que
+    # jamás toca datos de usuario.
+    UMBRAL_LIMPIEZA_MB=2000
     ESPACIO_ANTES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
-    "${DOCKER[@]}" system prune -f >> "$LOG_FILE" 2>&1 || true
-    ESPACIO_DESPUES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
-    log_success "Espacio libre en disco: ${ESPACIO_ANTES_MB}MB -> ${ESPACIO_DESPUES_MB}MB"
+    if [[ "$ESPACIO_ANTES_MB" -lt "$UMBRAL_LIMPIEZA_MB" ]]; then
+        log_info "Espacio libre bajo (${ESPACIO_ANTES_MB}MB): liberando imágenes/caché de Docker sin usar..."
+        "${DOCKER[@]}" system prune -f >> "$LOG_FILE" 2>&1 || true
+        ESPACIO_DESPUES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
+        log_success "Espacio libre en disco: ${ESPACIO_ANTES_MB}MB -> ${ESPACIO_DESPUES_MB}MB"
+    else
+        log_info "Espacio libre de sobra (${ESPACIO_ANTES_MB}MB): se conserva la caché de builds anteriores"
+    fi
 
     log_info "Construyendo imágenes. En Raspberry Pi el build de Next.js tarda entre 15 y 60 minutos."
     log_info "La salida se muestra en vivo: mientras aparezcan líneas, NO está colgado."
