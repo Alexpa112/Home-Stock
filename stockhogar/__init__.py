@@ -3,6 +3,7 @@ Dreame! - aplicacion ligera para llevar el inventario de productos de casa.
 Backend con Flask + SQLite, pensado para correr en una Raspberry Pi 3.
 """
 import logging
+import time
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
@@ -109,7 +110,7 @@ def create_app():
         if mantenimiento.activo():
             if request.path.startswith("/api/"):
                 return jsonify({"error": "La aplicación está en mantenimiento", "mantenimiento": True}), 503
-            return render_template("mantenimiento.html", mensaje=mantenimiento.mensaje()), 503
+            return render_template("mantenimiento.html", mensaje=mantenimiento.mensaje(), now=int(time.time())), 503
         return None
 
     @app.before_request

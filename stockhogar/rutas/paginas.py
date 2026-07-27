@@ -83,19 +83,18 @@ def mantenimiento_stream():
     No requiere sesión (también llega a usuarios no logueados en la pantalla de
     mantenimiento) ni CSRF (GET de solo lectura con EventSource).
     """
-    estado_inicial = mantenimiento.activo()
-
     def generar():
-        # Heartbeat inicial para que el navegador sepa que la conexión está viva.
-        yield "data: ok\n\n"
+        ultimo = mantenimiento.activo()
+        # Estado inicial al conectar: el cliente sabe desde el primer byte
+        # si ya está en mantenimiento o no.
+        yield f"event: mantenimiento\ndata: {'activo' if ultimo else 'inactivo'}\n\n"
         while True:
-            # Bloquea ~55 s o hasta que el estado cambie.
+            # Bloquea ~55 s o hasta que activo() detecte un cambio y haga notify_all.
             mantenimiento.esperar_cambio(timeout_s=55.0)
-            activo_ahora = mantenimiento.activo()
-            if activo_ahora:
-                yield "event: mantenimiento\ndata: activo\n\n"
-            else:
-                yield "event: mantenimiento\ndata: inactivo\n\n"
+            ahora = mantenimiento.activo()
+            if ahora != ultimo:
+                ultimo = ahora
+                yield f"event: mantenimiento\ndata: {'activo' if ahora else 'inactivo'}\n\n"
 
     return Response(
         stream_with_context(generar()),

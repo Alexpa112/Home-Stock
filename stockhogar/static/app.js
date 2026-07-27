@@ -115,6 +115,10 @@ const vacio = document.getElementById("vacio");
 const buscador = document.getElementById("buscador");
 const filtros = document.getElementById("filtros");
 const fab = document.getElementById("btnAbrirModal");
+
+// Modo de vista: lista o grid
+let modoVista = localStorage.getItem("stockhogar-modo-vista") || "lista";
+const vistaStockEl = document.getElementById("vistaStock");
 const modalFondo = document.getElementById("modal");
 const form = document.getElementById("formProducto");
 const botonesEnviarProducto = [
@@ -531,19 +535,40 @@ async function cargarCategorias() {
 function renderFiltros() {
   const categoriaPrevia = categoriaActiva;
   const textoTodas = (window.i18n && window.i18n.t('todas')) || "Todas";
-  filtros.innerHTML = `<button class="chip activo" data-cat="todas">${textoTodas}</button>`;
+
+  filtros.innerHTML = "";
+  filtros.className = "filtros filtros-grid";
+
+  // Botón "Todas"
+  const btnTodas = document.createElement("button");
+  btnTodas.className = "filtro-card activo";
+  btnTodas.dataset.cat = "todas";
+  btnTodas.innerHTML = `
+    <div class="filtro-icono">📦</div>
+    <div class="filtro-label">${textoTodas}</div>
+  `;
+  filtros.appendChild(btnTodas);
+
+  // Botones por categoría
   for (const cat of categorias) {
     const btnCat = document.createElement("button");
-    btnCat.className = "chip";
+    btnCat.className = "filtro-card";
     btnCat.dataset.cat = cat.nombre;
-    btnCat.innerHTML = `${renderIcono(cat.icono)} ${escapeHtml(cat.nombre)}`;
+    const countCat = productos.filter(p => p.categoria === cat.nombre).length;
+    btnCat.innerHTML = `
+      <div class="filtro-icono">${renderIcono(cat.icono)}</div>
+      <div class="filtro-label">${escapeHtml(cat.nombre)}</div>
+      <div class="filtro-count">${countCat}</div>
+    `;
     filtros.appendChild(btnCat);
   }
+
   categoriaActiva = "todas";
   if (categoriaPrevia !== "todas" && categorias.some((c) => c.nombre === categoriaPrevia)) {
     categoriaActiva = categoriaPrevia;
   }
-  filtros.querySelectorAll(".chip").forEach((c) => {
+
+  filtros.querySelectorAll(".filtro-card").forEach((c) => {
     c.classList.toggle("activo", c.dataset.cat === categoriaActiva);
   });
 }
@@ -764,8 +789,46 @@ function render() {
   lista.innerHTML = "";
   vacio.hidden = filtrados.length !== 0;
 
+  if (filtrados.length === 0) {
+    return;
+  }
+
+  // Agrupar por categoría
+  const porCategoria = {};
   for (const p of filtrados) {
-    lista.appendChild(crearTarjeta(p));
+    const cat = p.categoria || "Otros";
+    if (!porCategoria[cat]) porCategoria[cat] = [];
+    porCategoria[cat].push(p);
+  }
+
+  // Ordenar categorías
+  const categoriasOrdenadas = Object.keys(porCategoria).sort((a, b) => {
+    const catA = categorias.find(c => c.nombre === a);
+    const catB = categorias.find(c => c.nombre === b);
+    if (!catA && !catB) return a.localeCompare(b, "es");
+    if (!catA) return 1;
+    if (!catB) return -1;
+    return a.localeCompare(b, "es");
+  });
+
+  // Renderizar por categoría
+  lista.className = "lista lista-" + modoVista;
+  for (const cat of categoriasOrdenadas) {
+    // Encabezado de categoría
+    const headerCat = document.createElement("div");
+    headerCat.className = "categoria-header";
+    const icono = categorias.find(c => c.nombre === cat)?.icono || "h-folder";
+    const nombreTrad = (window.i18n && window.i18n.t(window.i18n.claveCategoria(cat))) || cat;
+    headerCat.innerHTML = `<span class="cat-icon">${renderIcono(icono)}</span><span class="cat-name">${escapeHtml(nombreTrad)}</span>`;
+    lista.appendChild(headerCat);
+
+    // Contenedor de productos para esta categoría
+    const contenedorCat = document.createElement("div");
+    contenedorCat.className = modoVista === "lista" ? "categoria-lista" : "categoria-grid";
+    for (const p of porCategoria[cat]) {
+      contenedorCat.appendChild(crearTarjeta(p));
+    }
+    lista.appendChild(contenedorCat);
   }
 }
 
@@ -1022,6 +1085,19 @@ form.addEventListener("submit", async (e) => {
 btnCancelar.addEventListener("click", cerrarModal);
 habilitarBottomSheet(modalFondo, modalFondo.querySelector(".modal"), cerrarModal);
 
+// Botón para cambiar modo vista
+const btnModoVista = document.getElementById("btnModoVista");
+function cambiarModoVista() {
+  modoVista = modoVista === "lista" ? "grid" : "lista";
+  localStorage.setItem("stockhogar-modo-vista", modoVista);
+  btnModoVista.textContent = modoVista === "lista" ? "📋" : "⊞";
+  render();
+}
+if (btnModoVista) {
+  btnModoVista.textContent = modoVista === "lista" ? "📋" : "⊞";
+  btnModoVista.addEventListener("click", cambiarModoVista);
+}
+
 buscador.addEventListener(
   "input",
   debounce((e) => {
@@ -1031,10 +1107,10 @@ buscador.addEventListener(
 );
 
 filtros.addEventListener("click", (e) => {
-  const btn = e.target.closest(".chip");
+  const btn = e.target.closest(".filtro-card");
   if (!btn) return;
   categoriaActiva = btn.dataset.cat;
-  filtros.querySelectorAll(".chip").forEach((c) => c.classList.remove("activo"));
+  filtros.querySelectorAll(".filtro-card").forEach((c) => c.classList.remove("activo"));
   btn.classList.add("activo");
   render();
 });

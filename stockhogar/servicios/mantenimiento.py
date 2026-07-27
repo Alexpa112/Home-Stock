@@ -17,24 +17,29 @@ from ..config import DATA_DIR
 
 RUTA_FLAG = DATA_DIR / "mantenimiento.flag"
 
-TTL_CACHE_SEGUNDOS = 3
-_cache = {"valor": None, "expira": 0.0}
-
-# Condición para notificar a los streams SSE en cuanto cambie el estado.
 _cambio = threading.Condition()
+_estado_actual: bool = RUTA_FLAG.exists()
 
 
-def activo():
-    ahora = time.monotonic()
-    if _cache["valor"] is None or ahora >= _cache["expira"]:
+def _vigilar():
+    """Hilo daemon que comprueba el flag cada segundo y notifica a todos los
+    streams SSE en cuanto detecta un cambio, sin depender de peticiones HTTP."""
+    global _estado_actual
+    while True:
+        time.sleep(1)
         nuevo = RUTA_FLAG.exists()
-        if nuevo != _cache["valor"] and _cache["valor"] is not None:
-            # El estado cambió: despertar a todos los streams SSE suscritos.
+        if nuevo != _estado_actual:
+            _estado_actual = nuevo
             with _cambio:
                 _cambio.notify_all()
-        _cache["valor"] = nuevo
-        _cache["expira"] = ahora + TTL_CACHE_SEGUNDOS
-    return _cache["valor"]
+
+
+_hilo = threading.Thread(target=_vigilar, daemon=True, name="mantenimiento-watcher")
+_hilo.start()
+
+
+def activo() -> bool:
+    return _estado_actual
 
 
 def mensaje():
@@ -47,8 +52,7 @@ def mensaje():
 def esperar_cambio(timeout_s: float = 55.0) -> bool:
     """Bloquea hasta que el estado de mantenimiento cambie o se agote el timeout.
 
-    Retorna True si hubo cambio, False si fue timeout. Usado por el endpoint SSE
-    para mantener la conexión abierta y empujar el evento al instante.
+    Retorna True si hubo cambio, False si fue timeout. Usado por el endpoint SSE.
     """
     with _cambio:
         return _cambio.wait(timeout=timeout_s)

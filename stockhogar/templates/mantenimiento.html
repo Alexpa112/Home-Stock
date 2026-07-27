@@ -61,7 +61,7 @@
 <body>
 <div class="pantalla-mantenimiento">
   <div class="tarjeta-mantenimiento">
-    <img class="escena-obras" src="{{ url_for('static', filename='icons/mantenimiento.gif') }}" alt="" width="640" height="440">
+    <img class="escena-obras" src="{{ url_for('static', filename='icons/mantenimiento.gif') }}?v={{ now }}" alt="" width="640" height="440">
     <div class="contenido">
       <h1 data-i18n="mantenimiento_titulo">En Tareas De Mantenimiento, Volveremos Pronto</h1>
       <p data-i18n="mantenimiento_texto">Volveremos en unos minutos.</p>
@@ -73,18 +73,35 @@
 </div>
 <script src="{{ url_for('static', filename='i18n.js') }}"></script>
 <script>
-  // Comprueba periodicamente si el mantenimiento ha terminado y recarga
-  // la pagina en automatico para que el usuario no tenga que hacerlo a mano.
-  setInterval(async () => {
-    try {
-      const res = await fetch(window.location.href, { cache: "no-store" });
-      if (res.status !== 503) {
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error("Error comprobando el estado de mantenimiento:", error);
+  // SSE: recibe el evento "inactivo" al instante cuando el panel desactiva
+  // el mantenimiento y recarga la pagina automaticamente.
+  (function () {
+    var intentos = 0;
+    function conectar() {
+      var fuente = new EventSource("/api/mantenimiento/stream");
+      fuente.addEventListener("mantenimiento", function (e) {
+        if (e.data === "inactivo") {
+          window.location.reload();
+        }
+      });
+      fuente.onerror = function () {
+        fuente.close();
+        var espera = Math.min(5000 * Math.pow(2, intentos), 60000);
+        intentos++;
+        setTimeout(conectar, espera);
+      };
     }
-  }, 10000);
+    if (typeof EventSource !== "undefined") {
+      conectar();
+    }
+    // Respaldo por si el navegador no soporta SSE o la red corta conexiones largas.
+    setInterval(async function () {
+      try {
+        var res = await fetch(window.location.href, { cache: "no-store" });
+        if (res.status !== 503) window.location.reload();
+      } catch (_) {}
+    }, 15000);
+  })();
 </script>
 </body>
 </html>
