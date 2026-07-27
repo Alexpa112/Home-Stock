@@ -55,10 +55,27 @@ export default function StockPage() {
   const [añadiendoId, setAñadiendoId] = useState<number | null>(null)
   const [añadidoIds, setAñadidoIds] = useState<Set<number>>(new Set())
   const [confirmandoEliminarCatId, setConfirmandoEliminarCatId] = useState<number | null>(null)
+  const [modoVista, setModoVista] = useState<'lista' | 'grid'>('grid')
+  const [agruparPorCategoria, setAgruparPorCategoria] = useState(true)
 
   useEffect(() => {
+    // Cargar preferencias guardadas
+    const modoGuardado = localStorage.getItem('stock-modo-vista') as 'lista' | 'grid' | null
+    const agruparGuardado = localStorage.getItem('stock-agrupar-categoria')
+    if (modoGuardado) setModoVista(modoGuardado)
+    if (agruparGuardado !== null) setAgruparPorCategoria(agruparGuardado === 'true')
+
     bootstrap()
   }, [])
+
+  // Guardar preferencias cuando cambien
+  useEffect(() => {
+    localStorage.setItem('stock-modo-vista', modoVista)
+  }, [modoVista])
+
+  useEffect(() => {
+    localStorage.setItem('stock-agrupar-categoria', String(agruparPorCategoria))
+  }, [agruparPorCategoria])
 
   const bootstrap = async () => {
     try {
@@ -482,6 +499,35 @@ export default function StockPage() {
         </div>
       )}
 
+      {/* Vista selector y opciones */}
+      {items.length > 0 && !loading && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setModoVista('lista')}
+              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'lista' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+              title="Vista de lista"
+            >
+              📋 Lista
+            </button>
+            <button
+              onClick={() => setModoVista('grid')}
+              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'grid' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+              title="Vista de grid"
+            >
+              ⊞ Grid
+            </button>
+          </div>
+          <button
+            onClick={() => setAgruparPorCategoria(!agruparPorCategoria)}
+            className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${agruparPorCategoria ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+            title={agruparPorCategoria ? 'Agrupar por categoría' : 'Sin agrupar'}
+          >
+            {agruparPorCategoria ? '📂 Agrupado' : '📄 Sin agrupar'}
+          </button>
+        </div>
+      )}
+
       {/* Stock List */}
       {loading ? (
         <div className="text-center py-12">
@@ -513,8 +559,140 @@ export default function StockPage() {
             <p className="text-muted-foreground">No se encontraron productos.</p>
           )}
         </div>
+      ) : agruparPorCategoria ? (
+        // Vista agrupada por categoría
+        <div className="space-y-6">
+          {categorias.map((cat) => {
+            const productosCat = filteredItems.filter(item => item.categoria === cat.nombre)
+            if (productosCat.length === 0) return null
+            return (
+              <div key={cat.id}>
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <span className="text-2xl">{cat.icono}</span>
+                  {cat.nombre}
+                  <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} producto{productosCat.length !== 1 ? 's' : ''}</span>
+                </h2>
+                <div className={modoVista === 'lista' ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+                  {productosCat.map((item) => (
+            <div key={item.id} className="card flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
+                    <CategoryBadge category={item.categoria} />
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => abrirEdicion(item)}
+                      className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
+                      aria-label="Editar"
+                    >
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    {confirmandoId === item.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="px-2 h-10 flex items-center text-xs font-semibold text-white bg-red-500 rounded-xl transition-colors"
+                          aria-label="Confirmar eliminación"
+                        >
+                          Sí
+                        </button>
+                        <button
+                          onClick={() => setConfirmandoId(null)}
+                          className="px-2 h-10 flex items-center text-xs font-semibold text-foreground bg-muted rounded-xl transition-colors"
+                          aria-label="Cancelar"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                        aria-label="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {(item.cantidad <= item.stock_minimo || item.revisar_caducidad) && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {item.cantidad <= item.stock_minimo && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                        <ShoppingCart className="w-3 h-3" />
+                        Bajo mínimo
+                      </span>
+                    )}
+                    {item.revisar_caducidad && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+                        <Clock className="w-3 h-3" />
+                        Revisar
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-border mt-auto space-y-2">
+                {/* Cantidad +/- */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{item.unidad}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleAjustarCantidad(item.id, -1)}
+                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+                      aria-label="Restar uno"
+                      disabled={item.cantidad <= 0}
+                    >
+                      −
+                    </button>
+                    <span className={`text-xl font-bold w-10 text-center tabular-nums ${item.cantidad <= item.stock_minimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
+                      {item.cantidad}
+                    </span>
+                    <button
+                      onClick={() => handleAjustarCantidad(item.id, 1)}
+                      className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+                      aria-label="Sumar uno"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Acción rápida: añadir a compra si está bajo mínimo */}
+                {item.cantidad <= item.stock_minimo && (
+                  <button
+                    onClick={() => handleAñadirACompra(item)}
+                    disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
+                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+                      añadidoIds.has(item.id)
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                        : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
+                    }`}
+                  >
+                    {añadidoIds.has(item.id) ? (
+                      <>✓ Añadido a la compra</>
+                    ) : añadiendoId === item.id ? (
+                      <>Añadiendo...</>
+                    ) : (
+                      <><ShoppingCart className="w-3.5 h-3.5" /> Añadir a la compra</>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        // Vista sin agrupar
+        <div className={modoVista === 'lista' ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
           {filteredItems.map((item) => (
             <div key={item.id} className="card flex flex-col justify-between">
               <div>
