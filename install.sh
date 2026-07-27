@@ -624,6 +624,18 @@ else
         log_info "No hay imagen anterior que respaldar (primera instalación)"
     fi
 
+    # Limpieza automática antes de compilar: cada build (sobre todo con
+    # --no-cache) deja capas e imágenes intermedias que ya no sirven, y sin
+    # esto se acumulan en el disco de forma invisible con cada actualización
+    # hasta acercarse al umbral de "Espacio libre" comprobado más arriba. Sin
+    # -a: nunca borra imágenes con tag (incluida la de ":rollback" de justo
+    # encima) ni volúmenes, así que jamás toca datos de usuario.
+    log_info "Liberando espacio de Docker antes de compilar (imágenes/caché sin usar)..."
+    ESPACIO_ANTES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
+    "${DOCKER[@]}" system prune -f >> "$LOG_FILE" 2>&1 || true
+    ESPACIO_DESPUES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
+    log_success "Espacio libre en disco: ${ESPACIO_ANTES_MB}MB -> ${ESPACIO_DESPUES_MB}MB"
+
     log_info "Construyendo imágenes. En Raspberry Pi el build de Next.js tarda entre 15 y 60 minutos."
     log_info "La salida se muestra en vivo: mientras aparezcan líneas, NO está colgado."
 
