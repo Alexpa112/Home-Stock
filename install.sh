@@ -684,9 +684,20 @@ else
       done ) &
     HEARTBEAT_PID=$!
 
+    # Se construye UN servicio detrás de otro, nunca los dos a la vez: por
+    # defecto "compose build" usa buildx bake y compila backend y frontend en
+    # paralelo, y en una Raspberry Pi de 4 núcleos / <1GB RAM eso satura la CPU
+    # (load average >7) y hace saltar el swap. Bajo esa carga hasta las
+    # descargas de Docker Hub fallan por timeout (no es un problema de red:
+    # el propio daemon no tiene CPU para atender el handshake TLS a tiempo).
+    # Construir en serie deja cada build con la máquina para él solo.
     BUILD_START=$SECONDS
     BUILD_OK=1
-    "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" build 2>&1 | tee -a "$LOG_FILE" || BUILD_OK=0
+    mapfile -t SERVICES < <("${COMPOSE[@]}" config --services 2>/dev/null)
+    for SERVICE in "${SERVICES[@]}"; do
+        log_info "Construyendo servicio: $SERVICE"
+        "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" build "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
+    done
 
     stop_heartbeat
 
