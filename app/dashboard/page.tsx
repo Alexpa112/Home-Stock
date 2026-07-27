@@ -147,16 +147,6 @@ export default function StockPage() {
     return cat?.icono || null
   }
 
-  const agruparPorCategoria = (itemsList: Producto[]) => {
-    const grupos: Record<string, Producto[]> = {}
-    itemsList.forEach((item) => {
-      const cat = item.categoria || 'Otros'
-      if (!grupos[cat]) grupos[cat] = []
-      grupos[cat].push(item)
-    })
-    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b))
-  }
-
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
