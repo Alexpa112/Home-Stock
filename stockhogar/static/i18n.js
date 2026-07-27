@@ -371,21 +371,43 @@ class TranslationManager {
    * Configura el selector de idioma en la UI
    */
   configurarSelectorIdioma() {
+    // Selector principal en ajustes
     const selector = document.getElementById('selector-idioma');
-    if (!selector) {
-      console.warn('⚠️ Selector de idioma no encontrado en el HTML');
-      return;
+    if (selector) {
+      // Establecer valor actual
+      selector.value = this.idiomaActual;
+
+      // Agregar listener de cambio
+      selector.addEventListener('change', (e) => {
+        this.cambiarIdioma(e.target.value);
+      });
+
+      console.log('✅ Selector de idioma (ajustes) configurado');
+    } else {
+      console.warn('⚠️ Selector de idioma (#selector-idioma) no encontrado en el HTML');
     }
 
-    // Establecer valor actual
-    selector.value = this.idiomaActual;
+    // Selector secundario en modal de región
+    const selectorRegion = document.getElementById('selectIdioma');
+    if (selectorRegion) {
+      // Establecer valor actual
+      selectorRegion.value = this.idiomaActual;
 
-    // Agregar listener de cambio
-    selector.addEventListener('change', (e) => {
-      this.cambiarIdioma(e.target.value);
+      // Agregar listener de cambio
+      selectorRegion.addEventListener('change', (e) => {
+        this.cambiarIdioma(e.target.value);
+      });
+
+      console.log('✅ Selector de idioma (región) configurado');
+    } else {
+      console.warn('⚠️ Selector de idioma (#selectIdioma) no encontrado en el HTML');
+    }
+
+    // Escuchar cambios de idioma para sincronizar ambos selectores
+    window.addEventListener('idioma-cambiado', (e) => {
+      if (selector) selector.value = e.detail.idioma;
+      if (selectorRegion) selectorRegion.value = e.detail.idioma;
     });
-
-    console.log('✅ Selector de idioma configurado');
   }
 }
 
