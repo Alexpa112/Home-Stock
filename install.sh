@@ -411,8 +411,8 @@ step_start "Verificar estructura del proyecto"
 ################################################################################
 
 MISSING=0
-for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" "run.py" \
-            "stockhogar/static/manifest.json" "stockhogar/static/icons/sprite.svg" "stockhogar/static/icons/icon-192.png" \
+for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" \
+            "public/manifest.json" "public/icon.png" \
             "Dockerfile.frontend" "package.json" "next.config.mjs"; do
     if [[ ! -f "$FILE" ]]; then
         log_error "Falta: $FILE"
@@ -422,8 +422,8 @@ done
 
 if [[ $MISSING -eq 1 ]]; then
     log_error "Estructura del proyecto incompleta. ¿Se ejecutó el script dentro del repo clonado?"
-    log_error "Los iconos y el sprite se generan en desarrollo ('node scripts/generar-sprite-iconos.js'" \
-              "y 'node scripts/generar-iconos-png.js') y deben estar ya commiteados; este script no los genera."
+    log_error "Los iconos y el manifest PWA viven en 'public/' (frontend Next.js)" \
+              "y deben estar ya commiteados; este script no los genera."
     exit 1
 fi
 log_success "Proyecto verificado (incluye iconos PWA y manifest)"
