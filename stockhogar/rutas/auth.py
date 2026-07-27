@@ -22,6 +22,7 @@ RUTAS_PUBLICAS = {
     "paginas.service_worker",
     "paginas.log_client_error",
     "paginas.csrf_token",
+    "paginas.mantenimiento_stream",
     "idiomas.obtener_todas_traducciones",
     "static",
 }

@@ -1,11 +1,12 @@
 """Ruta de la pagina principal (SPA)."""
 import logging
-from flask import Blueprint, render_template, session, redirect, url_for, request, current_app, send_from_directory
+from flask import Blueprint, render_template, session, redirect, url_for, request, current_app, send_from_directory, Response, stream_with_context
 from flask_wtf.csrf import generate_csrf
 
 from .. import csrf
 from ..api import manejo_errores, APIResponse
 from ..db import get_db
+from ..servicios import mantenimiento
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,40 @@ def csrf_token():
     Next.js separada del backend): sin esto no hay forma de rellenar la
     cabecera X-CSRFToken que exige Flask-WTF en toda petición mutable."""
     return APIResponse.success({"csrf_token": generate_csrf()})
+
+
+@bp.route("/api/mantenimiento/stream")
+@csrf.exempt
+def mantenimiento_stream():
+    """SSE: mantiene la conexión abierta y emite un evento en cuanto el estado
+    de mantenimiento cambie. El cliente JS se suscribe al arrancar y así recibe
+    el aviso al instante, sin esperar el polling de 60 s.
+
+    No requiere sesión (también llega a usuarios no logueados en la pantalla de
+    mantenimiento) ni CSRF (GET de solo lectura con EventSource).
+    """
+    estado_inicial = mantenimiento.activo()
+
+    def generar():
+        # Heartbeat inicial para que el navegador sepa que la conexión está viva.
+        yield "data: ok\n\n"
+        while True:
+            # Bloquea ~55 s o hasta que el estado cambie.
+            mantenimiento.esperar_cambio(timeout_s=55.0)
+            activo_ahora = mantenimiento.activo()
+            if activo_ahora:
+                yield "event: mantenimiento\ndata: activo\n\n"
+            else:
+                yield "event: mantenimiento\ndata: inactivo\n\n"
+
+    return Response(
+        stream_with_context(generar()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @bp.route("/api/log/client", methods=["POST"])

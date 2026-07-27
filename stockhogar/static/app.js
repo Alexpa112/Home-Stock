@@ -34,11 +34,40 @@ window.fetch = async (input, init = {}) => {
   return res;
 };
 
-// El antes-de-cada-peticion del servidor bloquea llamadas nuevas al activar el
-// modo mantenimiento, pero si el usuario se queda quieto en una pantalla sin
-// pedir nada no se entera. Comprobamos el estado cada minuto (y al recuperar
-// el foco) para sacarlo aunque no esté interactuando con la app.
+// Recibe el aviso de mantenimiento al instante mediante SSE. Si la conexión
+// se corta (error de red, servidor reiniciado), reconecta con backoff para
+// no martillar el servidor. El polling de 60 s queda como respaldo por si
+// el navegador no soporta EventSource.
 function iniciarComprobacionMantenimiento() {
+  let fuente = null;
+  let intentos = 0;
+
+  function conectar() {
+    fuente = new EventSource("/api/mantenimiento/stream");
+
+    fuente.addEventListener("mantenimiento", (e) => {
+      if (e.data === "activo") {
+        window.location.reload();
+      }
+    });
+
+    fuente.onopen = () => { intentos = 0; };
+
+    fuente.onerror = () => {
+      fuente.close();
+      // Backoff exponencial: 5 s, 10 s, 20 s … hasta 120 s.
+      const espera = Math.min(5000 * Math.pow(2, intentos), 120000);
+      intentos++;
+      setTimeout(conectar, espera);
+    };
+  }
+
+  if (typeof EventSource !== "undefined") {
+    conectar();
+  }
+
+  // Respaldo: polling cada 60 s (cubre navegadores sin EventSource o redes
+  // que cierran conexiones largas antes de que llegue el evento SSE).
   const comprobar = () => {
     if (document.visibilityState === "hidden") return;
     fetch("/api/auth/estado", { headers: { "X-Comprobacion-Mantenimiento": "1" } }).catch(() => {});

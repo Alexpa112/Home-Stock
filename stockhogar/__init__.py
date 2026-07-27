@@ -104,7 +104,7 @@ def create_app():
         # El flag de mantenimiento lo activa/desactiva el Panel de Gestion del
         # Servidor (proyecto independiente) escribiendo/borrando el mismo
         # fichero (data/mantenimiento.flag); esta app solo lo respeta.
-        if (request.endpoint or "") == "static":
+        if (request.endpoint or "") in ("static", "paginas.mantenimiento_stream"):
             return None
         if mantenimiento.activo():
             if request.path.startswith("/api/"):
