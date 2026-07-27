@@ -271,38 +271,47 @@ export default function StockPage() {
         </button>
       </div>
 
-      {/* Stats — clicables como filtros rápidos */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Filtros compactos — opciones de filtrado rápido */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setFiltro('todos')}
           aria-label="Ver todos los artículos"
           aria-pressed={filtro === 'todos'}
-          className={`text-left rounded-2xl transition-all ${filtro === 'todos' ? 'ring-2 ring-accent' : 'opacity-80 hover:opacity-100'}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            filtro === 'todos'
+              ? 'bg-accent text-accent-foreground'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
         >
-          <StatsCard title="Artículos" value={stats.totalItems} icon={Package} color="blue" description="En stock" />
-        </button>
-        <button
-          onClick={() => setFiltro('todos')}
-          aria-label="Total de unidades en stock"
-          className="text-left rounded-2xl opacity-80 hover:opacity-100 transition-all"
-        >
-          <StatsCard title="Total" value={stats.totalQuantity} icon={TrendingUp} color="green" description="Unidades" />
+          📦 {stats.totalItems} artículos
         </button>
         <button
           onClick={() => setFiltro(filtro === 'bajo_minimo' ? 'todos' : 'bajo_minimo')}
-          aria-label={filtro === 'bajo_minimo' ? 'Quitar filtro de bajo mínimo' : 'Filtrar por bajo mínimo'}
+          aria-label={filtro === 'bajo_minimo' ? 'Quitar filtro de bajo stock' : 'Filtrar por bajo stock'}
           aria-pressed={filtro === 'bajo_minimo'}
-          className={`text-left rounded-2xl transition-all ${filtro === 'bajo_minimo' ? 'ring-2 ring-red-400' : 'opacity-80 hover:opacity-100'}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            filtro === 'bajo_minimo'
+              ? 'bg-red-500 text-white'
+              : stats.bajoMinimo > 0
+              ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-950/60'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
         >
-          <StatsCard title="Bajo mínimo" value={stats.bajoMinimo} icon={ShoppingCart} color="red" description="Reponer pronto" />
+          🛒 {stats.bajoMinimo} bajo stock
         </button>
         <button
           onClick={() => setFiltro(filtro === 'por_revisar' ? 'todos' : 'por_revisar')}
-          aria-label={filtro === 'por_revisar' ? 'Quitar filtro por revisar' : 'Filtrar artículos por revisar'}
+          aria-label={filtro === 'por_revisar' ? 'Quitar filtro de caducidad' : 'Filtrar por revisar caducidad'}
           aria-pressed={filtro === 'por_revisar'}
-          className={`text-left rounded-2xl transition-all ${filtro === 'por_revisar' ? 'ring-2 ring-yellow-400' : 'opacity-80 hover:opacity-100'}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            filtro === 'por_revisar'
+              ? 'bg-yellow-500 text-white'
+              : stats.porRevisar > 0
+              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300 hover:bg-yellow-200 dark:hover:bg-yellow-950/60'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
         >
-          <StatsCard title="Por revisar" value={stats.porRevisar} icon={Clock} color="yellow" description="Sin actualizar" />
+          ⏱️ {stats.porRevisar} caducados
         </button>
       </div>
 

@@ -1,5 +1,5 @@
-"""Alta del primer usuario, login, logout y gestion de usuarios."""
-from flask import Blueprint, render_template, request, session
+"""Autenticación: login, registro, logout y gestión de usuarios."""
+from flask import Blueprint, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
@@ -11,7 +11,6 @@ bp = Blueprint("auth", __name__)
 # Endpoints accesibles sin haber iniciado sesion (usados por el guardian
 # global en __init__.py).
 RUTAS_PUBLICAS = {
-    "auth.pagina_login",
     "auth.estado",
     "auth.login",
     "auth.registrar",
@@ -19,12 +18,10 @@ RUTAS_PUBLICAS = {
     "oauth.oauth_google_callback",
     "oauth.oauth_apple",
     "oauth.oauth_apple_callback",
-    "paginas.service_worker",
     "paginas.log_client_error",
     "paginas.csrf_token",
     "paginas.mantenimiento_stream",
     "idiomas.obtener_todas_traducciones",
-    "static",
 }
 
 
@@ -34,15 +31,6 @@ def hay_usuarios(db):
 
 def usuario_actual():
     return session.get("usuario")
-
-
-@bp.route("/login")
-def pagina_login():
-    next_url = request.args.get("next", "")
-    # Solo permitir rutas internas relativas para evitar open-redirect.
-    if not next_url.startswith("/") or next_url.startswith("//"):
-        next_url = ""
-    return render_template("login.html", modo_setup=not hay_usuarios(get_db()), next_url=next_url)
 
 
 @bp.route("/api/auth/estado")

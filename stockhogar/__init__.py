@@ -1,13 +1,12 @@
 """
-Dreame! - aplicacion ligera para llevar el inventario de productos de casa.
-Backend con Flask + SQLite, pensado para correr en una Raspberry Pi 3.
+StockHogar - aplicación para gestión de inventario del hogar.
+Backend con Flask + SQLite, frontend con Next.js.
 """
 import logging
-import time
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
-from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, g, jsonify, redirect, request, session, url_for
 from flask.sessions import SecureCookieSessionInterface
 from flask_wtf.csrf import CSRFProtect, CSRFError
 
@@ -105,12 +104,12 @@ def create_app():
         # El flag de mantenimiento lo activa/desactiva el Panel de Gestion del
         # Servidor (proyecto independiente) escribiendo/borrando el mismo
         # fichero (data/mantenimiento.flag); esta app solo lo respeta.
-        if (request.endpoint or "") in ("static", "paginas.mantenimiento_stream"):
+        # El frontend Next.js se suscribe a /api/mantenimiento/stream para
+        # mostrar la pantalla de mantenimiento.
+        if (request.endpoint or "") in ("paginas.mantenimiento_stream",):
             return None
         if mantenimiento.activo():
-            if request.path.startswith("/api/"):
-                return jsonify({"error": "La aplicación está en mantenimiento", "mantenimiento": True}), 503
-            return render_template("mantenimiento.html", mensaje=mantenimiento.mensaje(), now=int(time.time())), 503
+            return jsonify({"error": "La aplicación está en mantenimiento", "mantenimiento": True}), 503
         return None
 
     @app.before_request
@@ -120,11 +119,9 @@ def create_app():
         if not session.get("usuario"):
             if request.path.startswith("/api/"):
                 return jsonify({"error": "No has iniciado sesión"}), 401
-            # Preservar la página solicitada (p.ej. un enlace de invitación a
-            # una lista compartida) para retomarla justo después de iniciar
-            # sesión, en vez de perderla y acabar en la home genérica.
-            next_url = request.full_path.rstrip("?")
-            return redirect(url_for("auth.pagina_login", next=next_url))
+            # El frontend Next.js maneja la pantalla de login.
+            # Redirigimos al usuario no autenticado hacia /
+            return redirect("/")
         return None
 
     db.init_db()
