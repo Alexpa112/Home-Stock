@@ -1,5 +1,7 @@
 'use client'
 
+import { IconRenderer } from './IconRenderer'
+
 // Paleta fija para categorías predefinidas; para el resto se genera un color
 // determinista a partir del nombre para que sea consistente entre renders.
 const CATEGORY_STYLES: Record<string, string> = {
@@ -29,14 +31,16 @@ function hashIndex(str: string, len: number) {
 
 interface CategoryBadgeProps {
   category: string
+  icon?: string | null
 }
 
-export function CategoryBadge({ category }: CategoryBadgeProps) {
+export function CategoryBadge({ category, icon }: CategoryBadgeProps) {
   const cls = CATEGORY_STYLES[category]
     ?? FALLBACK_PALETTES[hashIndex(category, FALLBACK_PALETTES.length)]
 
   return (
-    <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-md ${cls}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md ${cls}`}>
+      {icon && <IconRenderer name={icon} className="w-3 h-3" />}
       {category}
     </span>
   )

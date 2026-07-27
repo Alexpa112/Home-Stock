@@ -264,6 +264,47 @@ def revocar_acceso(lista_id, usuario_id):
     return APIResponse.success({"mensaje": "Acceso revocado"})
 
 
+@bp.route("/<int:lista_id>/enlace-compartible", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def generar_enlace_compartible(lista_id):
+    """Generar un enlace compartible para una lista."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+
+    # Verificar propietario
+    lista = db.execute(
+        "SELECT usuario_propietario_id, nombre FROM listas WHERE id = ?",
+        (lista_id,)
+    ).fetchone()
+
+    if not lista or lista["usuario_propietario_id"] != usuario_id:
+        return APIResponse.no_permitido()
+
+    # Generar código
+    codigo = secrets.token_urlsafe(24)
+    fecha_expiracion = (datetime.now() + timedelta(days=30)).isoformat(timespec="seconds")
+
+    # Guardar invitación (sin email destino = enlace público)
+    db.execute(
+        """INSERT INTO invitaciones_lista
+           (lista_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (lista_id, "", "editar", codigo, ahora(), fecha_expiracion)
+    )
+    db.commit()
+
+    # Construir URL del enlace
+    url_base = request.host_url.rstrip("/")
+    url_compartible = f"{url_base}/aceptar-invitacion/{codigo}"
+
+    return APIResponse.success({
+        "codigo": codigo,
+        "url": url_compartible,
+        "nombre_lista": lista["nombre"]
+    })
+
+
 @bp.route("/aceptar-invitacion/<codigo>", methods=["POST"])
 @requerir_sesion
 @manejo_errores

@@ -14,8 +14,13 @@ RUN if [ -f pnpm-lock.yaml ]; then \
         npm ci; \
     fi
 
+# OJO: cada carpeta de fuentes de primer nivel que se importe con el alias "@/"
+# tiene que estar copiada aquí. Si falta una, "next build" no falla al copiar,
+# falla 7 minutos después con "Module not found: Can't resolve '@/...'".
+# install.sh comprueba esta correspondencia antes de arrancar el build.
 COPY app ./app
 COPY components ./components
+COPY contexts ./contexts
 COPY hooks ./hooks
 COPY lib ./lib
 COPY public ./public

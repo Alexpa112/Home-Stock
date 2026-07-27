@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock, Grid3x3, List } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
+import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { productos as productosApi, categorias as categoriasApi, listas as listasApi, articulosLista } from '@/lib/api'
+import { useListPreferences } from '@/contexts/ListPreferencesContext'
 
 // Shape real: ver stockhogar/utils/converters.py DataConverter.producto_to_dict.
 // No hay fecha de caducidad absoluta; 'revisar_caducidad' es un booleano que el
@@ -30,7 +32,15 @@ interface Categoria {
   icono: string
 }
 
-const FORM_VACIO = {
+interface FormularioProducto {
+  nombre: string
+  categoria: string
+  cantidad: number | ''
+  stock_minimo: number | ''
+  unidad: string
+}
+
+const FORM_VACIO: FormularioProducto = {
   nombre: '',
   categoria: 'Otros',
   cantidad: 1,
@@ -39,7 +49,14 @@ const FORM_VACIO = {
   dias_aviso: 7,
 }
 
+function parseNumeroInput(value: string, fallback: number): number | '' {
+  if (value === '') return ''
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 export default function StockPage() {
+  const { preferences, updatePreferences } = useListPreferences()
   const [items, setItems] = useState<Producto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +64,7 @@ export default function StockPage() {
   const [showForm, setShowForm] = useState(false)
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [formData, setFormData] = useState(FORM_VACIO)
+  const [formData, setFormData] = useState<FormularioProducto>(FORM_VACIO)
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false)
   const [nuevaCategoria, setNuevaCategoria] = useState('')
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
@@ -124,16 +141,35 @@ export default function StockPage() {
     setShowForm(true)
   }
 
+  const getCategoryIcon = (categoryName: string | null) => {
+    if (!categoryName) return null
+    const cat = categorias.find((c) => c.nombre === categoryName)
+    return cat?.icono || null
+  }
+
+  const agruparPorCategoria = (itemsList: Producto[]) => {
+    const grupos: Record<string, Producto[]> = {}
+    itemsList.forEach((item) => {
+      const cat = item.categoria || 'Otros'
+      if (!grupos[cat]) grupos[cat] = []
+      grupos[cat].push(item)
+    })
+    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b))
+  }
+
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setError('')
+      const cantidadFinal = formData.cantidad === '' ? 0 : Number(formData.cantidad)
+      const stockMinimoFinal = formData.stock_minimo === '' ? 1 : Number(formData.stock_minimo)
+
       if (editandoId) {
         await productosApi.actualizar(editandoId, {
           nombre: formData.nombre,
           categoria: formData.categoria,
-          cantidad: formData.cantidad,
-          stock_minimo: formData.stock_minimo,
+          cantidad: cantidadFinal,
+          stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
         })
@@ -141,8 +177,8 @@ export default function StockPage() {
         await productosApi.crear({
           nombre: formData.nombre,
           categoria: formData.categoria,
-          cantidad: formData.cantidad,
-          stock_minimo: formData.stock_minimo,
+          cantidad: cantidadFinal,
+          stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
         })
@@ -173,11 +209,23 @@ export default function StockPage() {
   }
 
   const handleAjustarCantidad = async (id: number, delta: number) => {
+    const itemIndex = items.findIndex(i => i.id === id)
+    if (itemIndex === -1) return
+
+    const itemAnterior = items[itemIndex]
+    const cantidadNueva = Math.max(0, itemAnterior.cantidad + delta)
+
+    setItems(prev => prev.map((item, i) =>
+      i === itemIndex ? { ...item, cantidad: cantidadNueva } : item
+    ))
+    setError('')
+
     try {
-      setError('')
       await productosApi.actualizar(id, { delta })
-      await bootstrap()
     } catch (err) {
+      setItems(prev => prev.map((item, i) =>
+        i === itemIndex ? itemAnterior : item
+      ))
       const message = err instanceof Error ? err.message : 'Error al actualizar cantidad'
       setError(message)
     }
@@ -430,7 +478,12 @@ export default function StockPage() {
                   id="prod-cantidad"
                   type="number"
                   value={formData.cantidad}
-                  onChange={(e) => setFormData({ ...formData, cantidad: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      cantidad: parseNumeroInput(e.target.value, 0),
+                    })
+                  }
                   min="0"
                   className="input-field"
                   inputMode="numeric"
@@ -443,7 +496,12 @@ export default function StockPage() {
                   id="prod-minimo"
                   type="number"
                   value={formData.stock_minimo}
-                  onChange={(e) => setFormData({ ...formData, stock_minimo: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      stock_minimo: parseNumeroInput(e.target.value, 1),
+                    })
+                  }
                   min="0"
                   className="input-field"
                   inputMode="numeric"
@@ -499,12 +557,21 @@ export default function StockPage() {
 
       {/* Search Bar */}
       {items.length > 0 && !loading && (
-        <div>
+        <div className="space-y-3">
           <SearchBar
             placeholder="Buscar por nombre o categoría..."
             value={searchQuery}
             onChange={setSearchQuery}
           />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={preferences.agrupar_categorias === 'on'}
+              onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
+              className="w-4 h-4 rounded"
+            />
+            <span className="text-sm font-medium">Agrupar por categoría</span>
+          </label>
         </div>
       )}
 
@@ -708,7 +775,7 @@ export default function StockPage() {
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
-                    <CategoryBadge category={item.categoria} />
+                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
@@ -819,3 +886,4 @@ export default function StockPage() {
     </div>
   )
 }
+

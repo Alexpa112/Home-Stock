@@ -166,7 +166,7 @@ def oauth_google_callback():
         session["usuario_id"] = usuario_id
         session.permanent = True
 
-        return redirect("/")
+        return redirect(f"{APP_URL}/dashboard")
 
     except requests.RequestException:
         logging.getLogger(__name__).exception("Error en autenticación Google")
@@ -294,7 +294,7 @@ def oauth_apple_callback():
         session["usuario_id"] = usuario_id
         session.permanent = True
 
-        return redirect("/")
+        return redirect(f"{APP_URL}/dashboard")
 
     except Exception:
         logging.getLogger(__name__).exception("Error en autenticación Apple")

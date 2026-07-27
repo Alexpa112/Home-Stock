@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut, AlertCircle } from 'lucide-react'
+import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut, AlertCircle, Copy, Mail, MessageCircle } from 'lucide-react'
 import { listas as listasApi, permisos } from '@/lib/api'
 
 interface Lista {
@@ -45,6 +45,9 @@ export default function ListasPage() {
   const [busqueda, setBusqueda] = useState('')
   const [resultados, setResultados] = useState<{ id: number; nombre_usuario: string; email: string | null }[]>([])
   const [nivelNuevo, setNivelNuevo] = useState<'ver' | 'editar'>('editar')
+  const [enlaceCompartible, setEnlaceCompartible] = useState<{ url: string; codigo: string; nombre_lista: string } | null>(null)
+  const [cargandoEnlace, setCargandoEnlace] = useState(false)
+  const [copiado, setCopiado] = useState(false)
 
   useEffect(() => {
     cargar()
@@ -147,6 +150,7 @@ export default function ListasPage() {
     setCompartiendoId(listaId)
     setResultados([])
     setBusqueda('')
+    setEnlaceCompartible(null)
     try {
       const data: any = await permisos.miembros(listaId)
       setPropietario(data.propietario)
@@ -154,6 +158,43 @@ export default function ListasPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar miembros')
     }
+  }
+
+  const generarEnlace = async (listaId: number) => {
+    setCargandoEnlace(true)
+    try {
+      const data: any = await permisos.generarEnlace(listaId)
+      setEnlaceCompartible(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al generar enlace')
+    } finally {
+      setCargandoEnlace(false)
+    }
+  }
+
+  const copiarEnlace = async () => {
+    if (!enlaceCompartible) return
+    try {
+      await navigator.clipboard.writeText(enlaceCompartible.url)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      setError('Error al copiar el enlace')
+    }
+  }
+
+  const enviarPorMail = () => {
+    if (!enlaceCompartible) return
+    const asunto = `Te invito a la lista: ${enlaceCompartible.nombre_lista}`
+    const cuerpo = `Hola! Quiero compartir mi lista "${enlaceCompartible.nombre_lista}" contigo.\n\nHaz clic aquí para aceptar:\n${enlaceCompartible.url}`
+    window.open(`mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`, '_blank')
+  }
+
+  const enviarPorWhatsApp = () => {
+    if (!enlaceCompartible) return
+    const mensaje = `Hola! Quiero compartir mi lista "${enlaceCompartible.nombre_lista}" contigo. 📱\n\n${enlaceCompartible.url}`
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
+    window.open(url, '_blank')
   }
 
   const buscarUsuarios = async (q: string) => {
@@ -353,13 +394,60 @@ export default function ListasPage() {
 
       {/* Panel de compartir */}
       {compartiendoId !== null && (
-        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[9999] p-4">
           <div className="bg-card rounded-xl w-full max-w-md p-4 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Compartir lista</h2>
               <button onClick={() => setCompartiendoId(null)} className="p-1 hover:bg-muted rounded">
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Enlace compartible */}
+            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Enlace compartible</h3>
+              {enlaceCompartible ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 bg-background rounded px-2 py-1">
+                    <input
+                      type="text"
+                      value={enlaceCompartible.url}
+                      readOnly
+                      className="flex-1 bg-transparent text-xs font-mono outline-none"
+                    />
+                    <button
+                      onClick={copiarEnlace}
+                      className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                      title="Copiar enlace"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={enviarPorMail}
+                      className="btn-secondary flex-1 flex items-center justify-center gap-1 text-xs"
+                    >
+                      <Mail className="w-3.5 h-3.5" /> Email
+                    </button>
+                    <button
+                      onClick={enviarPorWhatsApp}
+                      className="btn-secondary flex-1 flex items-center justify-center gap-1 text-xs"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                    </button>
+                  </div>
+                  {copiado && <p className="text-xs text-green-600 dark:text-green-400 text-center">✓ Enlace copiado</p>}
+                </div>
+              ) : (
+                <button
+                  onClick={() => generarEnlace(compartiendoId)}
+                  disabled={cargandoEnlace}
+                  className="btn-primary w-full text-sm disabled:opacity-50"
+                >
+                  {cargandoEnlace ? 'Generando...' : 'Generar enlace'}
+                </button>
+              )}
             </div>
 
             <div>
