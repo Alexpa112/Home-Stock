@@ -8,6 +8,7 @@ import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { productos as productosApi, categorias as categoriasApi, articulosLista } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 // Shape real: ver stockhogar/utils/converters.py DataConverter.producto_to_dict.
 // No hay fecha de caducidad absoluta; 'revisar_caducidad' es un booleano que el
@@ -57,6 +58,7 @@ function parseNumeroInput(value: string, fallback: number): number | '' {
 
 export default function StockPage() {
   const { preferences, updatePreferences } = useListPreferences()
+  const { t } = useTranslation()
   const [items, setItems] = useState<Producto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,7 +111,7 @@ export default function StockPage() {
       setItems(Array.isArray(productosData) ? productosData : [])
       setCategorias(Array.isArray(categoriasData) ? categoriasData : [])
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error de conexión'
+      const message = err instanceof Error ? err.message : t('error_conexion_titulo')
       setError(message)
     } finally {
       setLoading(false)
@@ -171,7 +173,7 @@ export default function StockPage() {
       setEditandoId(null)
       await bootstrap()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al guardar el producto'
+      const message = err instanceof Error ? err.message : t('err_guardar_cambios')
       setError(message)
     }
   }
@@ -187,7 +189,7 @@ export default function StockPage() {
       await productosApi.eliminar(id)
       await bootstrap()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al eliminar producto'
+      const message = err instanceof Error ? err.message : t('err_eliminar_producto')
       setError(message)
     }
   }
@@ -210,7 +212,7 @@ export default function StockPage() {
       setItems(prev => prev.map((item, i) =>
         i === itemIndex ? itemAnterior : item
       ))
-      const message = err instanceof Error ? err.message : 'Error al actualizar cantidad'
+      const message = err instanceof Error ? err.message : t('err_actualizar_cantidad')
       setError(message)
     }
   }
@@ -225,7 +227,7 @@ export default function StockPage() {
       const categoriasData: any = await categoriasApi.listar()
       setCategorias(Array.isArray(categoriasData) ? categoriasData : [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la categoría')
+      setError(err instanceof Error ? err.message : t('err_crear_categoria'))
     }
   }
 
@@ -238,7 +240,7 @@ export default function StockPage() {
       const categoriasData: any = await categoriasApi.listar()
       setCategorias(Array.isArray(categoriasData) ? categoriasData : [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar la categoría (puede estar en uso)')
+      setError(err instanceof Error ? err.message : t('err_eliminar_categoria_uso'))
     }
   }
 
@@ -299,7 +301,7 @@ export default function StockPage() {
             <button
               onClick={() => abrirEdicion(item)}
               className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
-              aria-label="Editar"
+              aria-label={t('editar')}
             >
               <Pencil className="w-4 h-4 text-muted-foreground" />
             </button>
@@ -308,23 +310,23 @@ export default function StockPage() {
                 <button
                   onClick={() => handleDeleteItem(item.id)}
                   className="px-2 h-10 flex items-center text-xs font-semibold text-white bg-red-500 rounded-xl transition-colors"
-                  aria-label="Confirmar eliminación"
+                  aria-label={t('aria_confirmar_eliminacion')}
                 >
-                  Sí
+                  {t('si')}
                 </button>
                 <button
                   onClick={() => setConfirmandoId(null)}
                   className="px-2 h-10 flex items-center text-xs font-semibold text-foreground bg-muted rounded-xl transition-colors"
-                  aria-label="Cancelar"
+                  aria-label={t('cancelar')}
                 >
-                  No
+                  {t('no')}
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => handleDeleteItem(item.id)}
                 className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                aria-label="Eliminar"
+                aria-label={t('eliminar')}
               >
                 <Trash2 className="w-4 h-4 text-red-500" />
               </button>
@@ -337,13 +339,13 @@ export default function StockPage() {
             {item.cantidad <= item.stock_minimo && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
                 <ShoppingCart className="w-3 h-3" />
-                Bajo mínimo
+                {t('bajo_minimo')}
               </span>
             )}
             {item.revisar_caducidad && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
                 <Clock className="w-3 h-3" />
-                Revisar
+                {t('revisar')}
               </span>
             )}
           </div>
@@ -358,7 +360,7 @@ export default function StockPage() {
             <button
               onClick={() => handleAjustarCantidad(item.id, -1)}
               className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-              aria-label="Restar uno"
+              aria-label={t('aria_restar_uno')}
               disabled={item.cantidad <= 0}
             >
               −
@@ -369,7 +371,7 @@ export default function StockPage() {
             <button
               onClick={() => handleAjustarCantidad(item.id, 1)}
               className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-              aria-label="Sumar uno"
+              aria-label={t('aria_sumar_uno')}
             >
               +
             </button>
@@ -388,11 +390,11 @@ export default function StockPage() {
             }`}
           >
             {añadidoIds.has(item.id) ? (
-              <>✓ Añadido a la compra</>
+              <>✓ {t('añadido_a_la_compra')}</>
             ) : añadiendoId === item.id ? (
-              <>Añadiendo...</>
+              <>{t('añadiendo')}</>
             ) : (
-              <><ShoppingCart className="w-3.5 h-3.5" /> Añadir a la compra</>
+              <><ShoppingCart className="w-3.5 h-3.5" /> {t('añadir_a_la_compra')}</>
             )}
           </button>
         )}
@@ -418,8 +420,8 @@ export default function StockPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <p className="font-medium text-foreground truncate">{item.nombre}</p>
-            {bajoMinimo && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Bajo mínimo" />}
-            {item.revisar_caducidad && <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" title="Revisar caducidad" />}
+            {bajoMinimo && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title={t('bajo_minimo')} />}
+            {item.revisar_caducidad && <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" title={t('revisar_caducidad')} />}
           </div>
           <p className="text-xs text-muted-foreground truncate">{item.categoria} · {item.unidad}</p>
         </div>
@@ -428,7 +430,7 @@ export default function StockPage() {
           <button
             onClick={() => handleAjustarCantidad(item.id, -1)}
             className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-base font-medium"
-            aria-label="Restar uno"
+            aria-label={t('aria_restar_uno')}
             disabled={item.cantidad <= 0}
           >
             −
@@ -439,7 +441,7 @@ export default function StockPage() {
           <button
             onClick={() => handleAjustarCantidad(item.id, 1)}
             className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-base font-medium"
-            aria-label="Sumar uno"
+            aria-label={t('aria_sumar_uno')}
           >
             +
           </button>
@@ -454,8 +456,8 @@ export default function StockPage() {
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                 : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
             }`}
-            aria-label="Añadir a la compra"
-            title="Añadir a la compra"
+            aria-label={t('añadir_a_la_compra')}
+            title={t('añadir_a_la_compra')}
           >
             <ShoppingCart className="w-4 h-4" />
           </button>
@@ -464,7 +466,7 @@ export default function StockPage() {
         <button
           onClick={() => abrirEdicion(item)}
           className="w-9 h-9 flex items-center justify-center hover:bg-muted rounded-lg transition-colors shrink-0"
-          aria-label="Editar"
+          aria-label={t('editar')}
         >
           <Pencil className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -474,23 +476,23 @@ export default function StockPage() {
             <button
               onClick={() => handleDeleteItem(item.id)}
               className="px-2 h-9 flex items-center text-xs font-semibold text-white bg-red-500 rounded-lg transition-colors"
-              aria-label="Confirmar eliminación"
+              aria-label={t('aria_confirmar_eliminacion')}
             >
-              Sí
+              {t('si')}
             </button>
             <button
               onClick={() => setConfirmandoId(null)}
               className="px-2 h-9 flex items-center text-xs font-semibold text-foreground bg-muted rounded-lg transition-colors"
-              aria-label="Cancelar"
+              aria-label={t('cancelar')}
             >
-              No
+              {t('no')}
             </button>
           </div>
         ) : (
           <button
             onClick={() => handleDeleteItem(item.id)}
             className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors shrink-0"
-            aria-label="Eliminar"
+            aria-label={t('eliminar')}
           >
             <Trash2 className="w-4 h-4 text-red-500" />
           </button>
@@ -506,16 +508,16 @@ export default function StockPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Mi Stock</h1>
-          <p className="text-muted-foreground mt-1">Gestiona tu inventario del hogar</p>
+          <h1 className="text-2xl lg:text-3xl font-bold">{t('mi_stock')}</h1>
+          <p className="text-muted-foreground mt-1">{t('subtitulo_stock')}</p>
         </div>
         <button
           onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
           className="btn-primary flex items-center gap-2 min-h-[44px]"
         >
           <Plus className="w-5 h-5" />
-          <span className="hidden sm:inline">Añadir Producto</span>
-          <span className="sm:hidden">Añadir</span>
+          <span className="hidden sm:inline">{t('añadir_producto')}</span>
+          <span className="sm:hidden">{t('añadir')}</span>
         </button>
       </div>
 
@@ -523,7 +525,7 @@ export default function StockPage() {
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setFiltro('todos')}
-          aria-label="Ver todos los artículos"
+          aria-label={t('aria_ver_todos_articulos')}
           aria-pressed={filtro === 'todos'}
           className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
             filtro === 'todos'
@@ -531,11 +533,11 @@ export default function StockPage() {
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          📦 {stats.totalItems} artículos
+          📦 {stats.totalItems} {t('articulos')}
         </button>
         <button
           onClick={() => setFiltro(filtro === 'bajo_minimo' ? 'todos' : 'bajo_minimo')}
-          aria-label={filtro === 'bajo_minimo' ? 'Quitar filtro de bajo stock' : 'Filtrar por bajo stock'}
+          aria-label={filtro === 'bajo_minimo' ? t('aria_quitar_filtro_bajo_stock') : t('aria_filtrar_bajo_stock')}
           aria-pressed={filtro === 'bajo_minimo'}
           className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
             filtro === 'bajo_minimo'
@@ -545,11 +547,11 @@ export default function StockPage() {
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          🛒 {stats.bajoMinimo} bajo stock
+          🛒 {stats.bajoMinimo} {t('bajo_stock')}
         </button>
         <button
           onClick={() => setFiltro(filtro === 'por_revisar' ? 'todos' : 'por_revisar')}
-          aria-label={filtro === 'por_revisar' ? 'Quitar filtro de caducidad' : 'Filtrar por revisar caducidad'}
+          aria-label={filtro === 'por_revisar' ? t('aria_quitar_filtro_caducidad') : t('aria_filtrar_revisar_caducidad')}
           aria-pressed={filtro === 'por_revisar'}
           className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
             filtro === 'por_revisar'
@@ -559,7 +561,7 @@ export default function StockPage() {
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          ⏱️ {stats.porRevisar} caducados
+          ⏱️ {stats.porRevisar} {t('caducados')}
         </button>
       </div>
 
@@ -567,14 +569,14 @@ export default function StockPage() {
       {filtro === 'bajo_minimo' && stats.bajoMinimo > 0 && (
         <div className="flex items-center justify-between gap-3 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl">
           <p className="text-sm text-red-700 dark:text-red-300 font-medium">
-            {stats.bajoMinimo} {stats.bajoMinimo === 1 ? 'producto bajo' : 'productos bajos'} de stock mínimo
+            {stats.bajoMinimo} {stats.bajoMinimo === 1 ? t('producto_bajo_stock_minimo_uno') : t('producto_bajo_stock_minimo_varios')}
           </p>
           <button
             onClick={handleAñadirTodosACompra}
             className="shrink-0 flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors active:scale-95"
           >
             <ShoppingCart className="w-4 h-4" />
-            Añadir todos
+            {t('añadir_todos')}
           </button>
         </div>
       )}
@@ -583,13 +585,13 @@ export default function StockPage() {
       {showForm && (
         <div className="card space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">{editandoId ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+            <h2 className="text-lg font-semibold">{editandoId ? t('editar_producto') : t('nuevo_producto')}</h2>
             <button
               type="button"
               onClick={() => setGestionandoCategorias(!gestionandoCategorias)}
               className="text-sm text-accent hover:underline flex items-center gap-1"
             >
-              <Tags className="w-4 h-4" /> Categorías
+              <Tags className="w-4 h-4" /> {t('categorias')}
             </button>
           </div>
 
@@ -599,14 +601,14 @@ export default function StockPage() {
                 {categorias.map((cat) => (
                   confirmandoEliminarCatId === cat.id ? (
                     <span key={cat.id} className="flex items-center gap-1 px-2 py-1 bg-card rounded-full text-xs border border-red-300 dark:border-red-700">
-                      <span className="text-red-600 dark:text-red-400 mr-0.5">¿Eliminar?</span>
-                      <button type="button" onClick={() => handleEliminarCategoria(cat.id)} className="px-1.5 py-0.5 text-white bg-red-500 rounded-md font-medium">Sí</button>
-                      <button type="button" onClick={() => setConfirmandoEliminarCatId(null)} className="px-1.5 py-0.5 bg-muted rounded-md font-medium">No</button>
+                      <span className="text-red-600 dark:text-red-400 mr-0.5">{t('eliminar_pregunta')}</span>
+                      <button type="button" onClick={() => handleEliminarCategoria(cat.id)} className="px-1.5 py-0.5 text-white bg-red-500 rounded-md font-medium">{t('si')}</button>
+                      <button type="button" onClick={() => setConfirmandoEliminarCatId(null)} className="px-1.5 py-0.5 bg-muted rounded-md font-medium">{t('no')}</button>
                     </span>
                   ) : (
                     <span key={cat.id} className="flex items-center gap-1 px-2 py-1 bg-card rounded-full text-xs border border-border">
                       {cat.nombre}
-                      <button type="button" onClick={() => handleEliminarCategoria(cat.id)} aria-label={`Eliminar ${cat.nombre}`}>
+                      <button type="button" onClick={() => handleEliminarCategoria(cat.id)} aria-label={`${t('eliminar')} ${cat.nombre}`}>
                         <X className="w-3 h-3 text-red-500" />
                       </button>
                     </span>
@@ -618,23 +620,23 @@ export default function StockPage() {
                   type="text"
                   value={nuevaCategoria}
                   onChange={(e) => setNuevaCategoria(e.target.value)}
-                  placeholder="Nueva categoría"
+                  placeholder={t('nueva_categoria')}
                   className="input-field !py-1.5 flex-1"
                 />
-                <button type="submit" className="btn-secondary !py-1.5">Añadir</button>
+                <button type="submit" className="btn-secondary !py-1.5">{t('añadir')}</button>
               </form>
             </div>
           )}
 
           <form onSubmit={handleGuardar} className="space-y-4">
             <div>
-              <label htmlFor="prod-nombre" className="block text-sm font-medium mb-2">Nombre</label>
+              <label htmlFor="prod-nombre" className="block text-sm font-medium mb-2">{t('nombre')}</label>
               <input
                 id="prod-nombre"
                 type="text"
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="ej: Leche, Arroz, Detergente..."
+                placeholder={t('placeholder_ej_producto')}
                 className="input-field"
                 required
                 inputMode="text"
@@ -643,7 +645,7 @@ export default function StockPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="prod-categoria" className="block text-sm font-medium mb-2">Categoría</label>
+                <label htmlFor="prod-categoria" className="block text-sm font-medium mb-2">{t('categoria')}</label>
                 <select
                   id="prod-categoria"
                   value={formData.categoria}
@@ -659,7 +661,7 @@ export default function StockPage() {
               </div>
 
               <div>
-                <label htmlFor="prod-unidad" className="block text-sm font-medium mb-2">Unidad</label>
+                <label htmlFor="prod-unidad" className="block text-sm font-medium mb-2">{t('unidad')}</label>
                 <input
                   id="prod-unidad"
                   type="text"
@@ -673,7 +675,7 @@ export default function StockPage() {
             {/* En móvil: 2 cols arriba + 1 col abajo; en sm+: 3 cols */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
-                <label htmlFor="prod-cantidad" className="block text-sm font-medium mb-1.5">Cantidad</label>
+                <label htmlFor="prod-cantidad" className="block text-sm font-medium mb-1.5">{t('cantidad')}</label>
                 <input
                   id="prod-cantidad"
                   type="number"
@@ -691,7 +693,7 @@ export default function StockPage() {
               </div>
 
               <div>
-                <label htmlFor="prod-minimo" className="block text-sm font-medium mb-1.5">Stock mínimo</label>
+                <label htmlFor="prod-minimo" className="block text-sm font-medium mb-1.5">{t('stock_minimo')}</label>
                 <input
                   id="prod-minimo"
                   type="number"
@@ -710,7 +712,7 @@ export default function StockPage() {
 
               <div className="col-span-2 sm:col-span-1">
                 <label htmlFor="prod-dias" className="block text-sm font-medium mb-1.5">
-                  Días sin actualizar para avisar
+                  {t('dias_sin_actualizar_para_avisar')}
                 </label>
                 <input
                   id="prod-dias"
@@ -727,7 +729,7 @@ export default function StockPage() {
 
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1">
-                {editandoId ? 'Guardar cambios' : 'Guardar'}
+                {editandoId ? t('guardar_cambios') : t('guardar')}
               </button>
               <button
                 type="button"
@@ -737,7 +739,7 @@ export default function StockPage() {
                 }}
                 className="btn-secondary flex-1"
               >
-                Cancelar
+                {t('cancelar')}
               </button>
             </div>
           </form>
@@ -749,7 +751,7 @@ export default function StockPage() {
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">Error</p>
+            <p className="font-medium">{t('error')}</p>
             <p className="text-sm">{error}</p>
           </div>
         </div>
@@ -759,7 +761,7 @@ export default function StockPage() {
       {items.length > 0 && !loading && (
         <div className="space-y-3">
           <SearchBar
-            placeholder="Buscar por nombre o categoría..."
+            placeholder={t('placeholder_buscar_nombre_categoria')}
             value={searchQuery}
             onChange={setSearchQuery}
           />
@@ -770,7 +772,7 @@ export default function StockPage() {
               onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
               className="w-4 h-4 rounded"
             />
-            <span className="text-sm font-medium">Agrupar por categoría</span>
+            <span className="text-sm font-medium">{t('agrupar_por_categoria')}</span>
           </label>
         </div>
       )}
@@ -782,24 +784,24 @@ export default function StockPage() {
             <button
               onClick={() => setModoVista('lista')}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'lista' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
-              title="Vista de lista"
+              title={t('titulo_vista_lista')}
             >
-              📋 Lista
+              📋 {t('vista_lista')}
             </button>
             <button
               onClick={() => setModoVista('grid')}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'grid' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
-              title="Vista de grid"
+              title={t('titulo_vista_grid')}
             >
-              ⊞ Grid
+              ⊞ {t('grid')}
             </button>
           </div>
           <button
             onClick={() => setAgruparPorCategoria(!agruparPorCategoria)}
             className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${agruparPorCategoria ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
-            title={agruparPorCategoria ? 'Agrupar por categoría' : 'Sin agrupar'}
+            title={agruparPorCategoria ? t('agrupar_por_categoria') : t('sin_agrupar')}
           >
-            {agruparPorCategoria ? '📂 Agrupado' : '📄 Sin agrupar'}
+            {agruparPorCategoria ? `📂 ${t('agrupado')}` : `📄 ${t('sin_agrupar')}`}
           </button>
         </div>
       )}
@@ -807,32 +809,32 @@ export default function StockPage() {
       {/* Stock List */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Cargando inventario...</p>
+          <p className="text-muted-foreground">{t('cargando_inventario')}</p>
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">No hay productos en el inventario</p>
+          <p className="text-muted-foreground mb-4">{t('no_hay_productos_inventario')}</p>
           <button
             onClick={abrirNuevo}
             className="btn-primary inline-flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            Añadir el Primer Producto
+            {t('añadir_primer_producto')}
           </button>
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 space-y-2">
           {searchQuery ? (
             <>
-              <p className="text-muted-foreground">Sin resultados para <strong>«{searchQuery}»</strong></p>
-              <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">Limpiar búsqueda</button>
+              <p className="text-muted-foreground">{t('sin_resultados_para')} <strong>«{searchQuery}»</strong></p>
+              <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">{t('limpiar_busqueda')}</button>
             </>
           ) : filtro === 'bajo_minimo' ? (
-            <p className="text-muted-foreground">¡Todo en orden! No hay productos bajo el mínimo.</p>
+            <p className="text-muted-foreground">{t('todo_en_orden_sin_bajo_minimo')}</p>
           ) : filtro === 'por_revisar' ? (
-            <p className="text-muted-foreground">No hay productos pendientes de revisión.</p>
+            <p className="text-muted-foreground">{t('no_hay_productos_pendientes_revision')}</p>
           ) : (
-            <p className="text-muted-foreground">No se encontraron productos.</p>
+            <p className="text-muted-foreground">{t('no_se_encontraron_productos')}</p>
           )}
         </div>
       ) : agruparPorCategoria ? (
@@ -846,7 +848,7 @@ export default function StockPage() {
                 <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <span className="text-2xl">{cat.icono}</span>
                   {cat.nombre}
-                  <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} producto{productosCat.length !== 1 ? 's' : ''}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} {productosCat.length !== 1 ? t('producto_plural') : t('producto_singular')}</span>
                 </h2>
                 <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
                   {productosCat.map(renderProducto)}

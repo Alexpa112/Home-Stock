@@ -7,6 +7,7 @@ import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { articulosLista, categorias as categoriasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 interface ArticuloLista {
   id: number
@@ -28,6 +29,7 @@ interface Categoria {
 
 export default function ShoppingPage() {
   const { preferences, updatePreferences } = useListPreferences()
+  const { t } = useTranslation()
   const [pendientes, setPendientes] = useState<ArticuloLista[]>([])
   const [completados, setCompletados] = useState<ArticuloLista[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -57,7 +59,7 @@ export default function ShoppingPage() {
       setPendientes(data?.pendientes || [])
       setCompletados(data?.completados || [])
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error de conexión'
+      const message = err instanceof Error ? err.message : t('error_conexion_titulo')
       setError(message)
     } finally {
       setLoading(false)
@@ -76,7 +78,7 @@ export default function ShoppingPage() {
       setShowForm(false)
       await loadItems()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al añadir artículo'
+      const message = err instanceof Error ? err.message : t('err_anadir_articulo')
       setError(message)
     }
   }
@@ -91,7 +93,7 @@ export default function ShoppingPage() {
       }
       await loadItems()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al actualizar'
+      const message = err instanceof Error ? err.message : t('err_actualizar')
       setError(message)
     }
   }
@@ -107,7 +109,7 @@ export default function ShoppingPage() {
       await articulosLista.eliminar(id)
       await loadItems()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al eliminar'
+      const message = err instanceof Error ? err.message : t('err_eliminar_articulo')
       setError(message)
     }
   }
@@ -125,7 +127,7 @@ export default function ShoppingPage() {
       setEditandoId(null)
       await loadItems()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al editar el artículo')
+      setError(err instanceof Error ? err.message : t('err_editar_articulo'))
     }
   }
 
@@ -169,7 +171,7 @@ export default function ShoppingPage() {
             ? 'hover:bg-muted'
             : 'hover:bg-green-50 dark:hover:bg-green-950'
         }`}
-        aria-label={isCompleted ? `Restaurar ${item.nombre}` : `Marcar ${item.nombre} como comprado`}
+        aria-label={isCompleted ? t('aria_restaurar_producto').replace('{nombre}', item.nombre) : t('aria_marcar_comprado_producto').replace('{nombre}', item.nombre)}
       >
         {isCompleted ? (
           <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -200,14 +202,14 @@ export default function ShoppingPage() {
             <button
               onClick={() => guardarEdicion(item.id)}
               className="btn-primary flex-1 flex items-center justify-center gap-2"
-              aria-label="Guardar"
+              aria-label={t('guardar')}
             >
-              <Check className="w-4 h-4" /> Guardar
+              <Check className="w-4 h-4" /> {t('guardar')}
             </button>
             <button
               onClick={() => setEditandoId(null)}
               className="btn-secondary px-3"
-              aria-label="Cancelar edición"
+              aria-label={t('aria_cancelar_edicion')}
             >
               ✕
             </button>
@@ -223,7 +225,7 @@ export default function ShoppingPage() {
             {item.origen === 'auto' && !isCompleted && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
                 <AlertTriangle className="w-3 h-3" />
-                Stock bajo
+                {t('stock_bajo')}
               </span>
             )}
           </div>
@@ -235,7 +237,7 @@ export default function ShoppingPage() {
         <button
           onClick={() => iniciarEdicion(item)}
           className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
-          aria-label="Editar"
+          aria-label={t('editar')}
         >
           <Pencil className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -247,20 +249,20 @@ export default function ShoppingPage() {
             onClick={() => handleDeleteItem(item.id)}
             className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl"
           >
-            Sí
+            {t('si')}
           </button>
           <button
             onClick={() => setConfirmandoId(null)}
             className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl"
           >
-            No
+            {t('no')}
           </button>
         </div>
       ) : (
         <button
           onClick={() => handleDeleteItem(item.id)}
           className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
-          aria-label="Eliminar"
+          aria-label={t('eliminar')}
         >
           <Trash2 className="w-4 h-4 text-red-500" />
         </button>
@@ -272,14 +274,14 @@ export default function ShoppingPage() {
     <div className="space-y-6">
       {searchQuery && filteredPendingItems.length === 0 && filteredBoughtItems.length === 0 && (
         <div className="text-center py-8 space-y-2">
-          <p className="text-muted-foreground">Sin resultados para <strong>«{searchQuery}»</strong></p>
-          <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">Limpiar búsqueda</button>
+          <p className="text-muted-foreground">{t('sin_resultados_para')} <strong>«{searchQuery}»</strong></p>
+          <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">{t('limpiar_busqueda')}</button>
         </div>
       )}
 
       {filteredPendingItems.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold">Pendientes ({filteredPendingItems.length})</h2>
+          <h2 className="text-lg font-semibold">{t('pendientes_contador')} ({filteredPendingItems.length})</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredPendingItems.map((item) => (
               <div
@@ -305,19 +307,19 @@ export default function ShoppingPage() {
                     onClick={() => handleToggleBought(item.id, true)}
                     className="flex-1 btn-primary text-xs flex items-center justify-center gap-1"
                   >
-                    <Check className="w-3 h-3" /> Comprado
+                    <Check className="w-3 h-3" /> {t('comprado')}
                   </button>
                   <button
                     onClick={() => iniciarEdicion(item)}
                     className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
-                    aria-label="Editar"
+                    aria-label={t('editar')}
                   >
                     <Pencil className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <button
                     onClick={() => handleDeleteItem(item.id)}
                     className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                    aria-label="Eliminar"
+                    aria-label={t('eliminar')}
                   >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
@@ -330,7 +332,7 @@ export default function ShoppingPage() {
 
       {filteredBoughtItems.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-muted-foreground">Comprados ({filteredBoughtItems.length})</h2>
+          <h2 className="text-lg font-semibold text-muted-foreground">{t('comprados_contador')} ({filteredBoughtItems.length})</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredBoughtItems.map((item) => (
               <div
@@ -351,12 +353,12 @@ export default function ShoppingPage() {
                     onClick={() => handleToggleBought(item.id, false)}
                     className="flex-1 btn-secondary text-xs"
                   >
-                    Restaurar
+                    {t('restaurar')}
                   </button>
                   <button
                     onClick={() => handleDeleteItem(item.id)}
                     className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                    aria-label="Eliminar"
+                    aria-label={t('eliminar')}
                   >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
@@ -374,9 +376,9 @@ export default function ShoppingPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Lista de Compra</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold">{t('lista_compra')}</h1>
           <p className="text-muted-foreground mt-1">
-            {pendientes.length} artículos pendientes
+            {pendientes.length} {t('articulos_pendientes')}
           </p>
         </div>
         <button
@@ -384,8 +386,8 @@ export default function ShoppingPage() {
           className="btn-primary flex items-center gap-2 min-h-[44px]"
         >
           <Plus className="w-5 h-5" />
-          <span className="hidden sm:inline">Añadir Artículo</span>
-          <span className="sm:hidden">Añadir</span>
+          <span className="hidden sm:inline">{t('añadir_articulo')}</span>
+          <span className="sm:hidden">{t('añadir')}</span>
         </button>
       </div>
 
@@ -400,8 +402,8 @@ export default function ShoppingPage() {
                   ? 'bg-accent text-white'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
-              title="Vista de lista"
-              aria-label="Vista de lista"
+              title={t('titulo_vista_lista')}
+              aria-label={t('titulo_vista_lista')}
             >
               <List className="w-5 h-5" />
             </button>
@@ -412,8 +414,8 @@ export default function ShoppingPage() {
                   ? 'bg-accent text-white'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
-              title="Vista de recuadros"
-              aria-label="Vista de recuadros"
+              title={t('titulo_vista_recuadros')}
+              aria-label={t('titulo_vista_recuadros')}
             >
               <Grid3x3 className="w-5 h-5" />
             </button>
@@ -425,7 +427,7 @@ export default function ShoppingPage() {
               onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
               className="w-4 h-4 rounded"
             />
-            <span className="text-sm font-medium">Agrupar por categoría</span>
+            <span className="text-sm font-medium">{t('agrupar_por_categoria')}</span>
           </label>
         </div>
       )}
@@ -433,16 +435,16 @@ export default function ShoppingPage() {
       {/* Add Form */}
       {showForm && (
         <div className="card space-y-4">
-          <h2 className="text-lg font-semibold">Nuevo Artículo</h2>
+          <h2 className="text-lg font-semibold">{t('nuevo_articulo')}</h2>
           <form onSubmit={handleAddItem} className="space-y-4">
             <div>
-              <label htmlFor="art-nombre" className="block text-sm font-medium mb-2">Artículo</label>
+              <label htmlFor="art-nombre" className="block text-sm font-medium mb-2">{t('articulo')}</label>
               <input
                 id="art-nombre"
                 type="text"
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="ej: Leche, Pan, Detergente..."
+                placeholder={t('placeholder_ej_articulo')}
                 className="input-field"
                 required
                 inputMode="text"
@@ -451,7 +453,7 @@ export default function ShoppingPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="art-categoria" className="block text-sm font-medium mb-2">Categoría</label>
+                <label htmlFor="art-categoria" className="block text-sm font-medium mb-2">{t('categoria')}</label>
                 <select
                   id="art-categoria"
                   value={formData.categoria}
@@ -467,7 +469,7 @@ export default function ShoppingPage() {
               </div>
 
               <div>
-                <label htmlFor="art-cantidad" className="block text-sm font-medium mb-2">Cantidad</label>
+                <label htmlFor="art-cantidad" className="block text-sm font-medium mb-2">{t('cantidad')}</label>
                 <input
                   id="art-cantidad"
                   type="number"
@@ -482,14 +484,14 @@ export default function ShoppingPage() {
 
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1">
-                Guardar
+                {t('guardar')}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
                 className="btn-secondary flex-1"
               >
-                Cancelar
+                {t('cancelar')}
               </button>
             </div>
           </form>
@@ -500,7 +502,7 @@ export default function ShoppingPage() {
       {items.length > 0 && !loading && (
         <div>
           <SearchBar
-            placeholder="Buscar por nombre o categoría..."
+            placeholder={t('placeholder_buscar_nombre_categoria')}
             value={searchQuery}
             onChange={setSearchQuery}
           />
@@ -512,7 +514,7 @@ export default function ShoppingPage() {
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">Error</p>
+            <p className="font-medium">{t('error')}</p>
             <p className="text-sm">{error}</p>
           </div>
         </div>
@@ -521,17 +523,17 @@ export default function ShoppingPage() {
       {/* Loading */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Cargando lista de compra...</p>
+          <p className="text-muted-foreground">{t('cargando_lista_compra')}</p>
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">La lista está vacía</p>
+          <p className="text-muted-foreground mb-4">{t('lista_vacia')}</p>
           <button
             onClick={() => setShowForm(true)}
             className="btn-primary inline-flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            Crear Mi Primera Compra
+            {t('crear_primera_compra')}
           </button>
         </div>
       ) : preferences.vista_lista_compra === 'recuadros' ? (
@@ -541,7 +543,7 @@ export default function ShoppingPage() {
           {/* Pending Items */}
           {filteredPendingItems.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">Pendientes ({filteredPendingItems.length})</h2>
+              <h2 className="text-lg font-semibold">{t('pendientes_contador')} ({filteredPendingItems.length})</h2>
               {preferences.agrupar_categorias === 'on' ? (
                 <div className="space-y-4">
                   {agruparPorCategoria(filteredPendingItems).map(([categoria, items]) => (
@@ -567,15 +569,15 @@ export default function ShoppingPage() {
           {/* Sin resultados de búsqueda */}
           {searchQuery && filteredPendingItems.length === 0 && filteredBoughtItems.length === 0 && (
             <div className="text-center py-8 space-y-2">
-              <p className="text-muted-foreground">Sin resultados para <strong>«{searchQuery}»</strong></p>
-              <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">Limpiar búsqueda</button>
+              <p className="text-muted-foreground">{t('sin_resultados_para')} <strong>«{searchQuery}»</strong></p>
+              <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">{t('limpiar_busqueda')}</button>
             </div>
           )}
 
           {/* Bought Items */}
           {filteredBoughtItems.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-muted-foreground">Comprados ({filteredBoughtItems.length})</h2>
+              <h2 className="text-lg font-semibold text-muted-foreground">{t('comprados_contador')} ({filteredBoughtItems.length})</h2>
               {preferences.agrupar_categorias === 'on' ? (
                 <div className="space-y-4">
                   {agruparPorCategoria(filteredBoughtItems).map(([categoria, items]) => (

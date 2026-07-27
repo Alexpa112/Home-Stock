@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut, AlertCircle, Copy, Mail, MessageCircle } from 'lucide-react'
 import { listas as listasApi, permisos } from '@/lib/api'
 import { useHogar } from '@/contexts/HogarContext'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 interface Lista {
   id: number
@@ -28,6 +29,7 @@ const CLAVE_LISTA_ACTIVA = 'stockhogar-lista-activa-ui'
 
 export default function ListasPage() {
   const { seleccionar: seleccionarHogar, refrescar: refrescarHogar } = useHogar()
+  const { t } = useTranslation()
   const [propias, setPropias] = useState<Lista[]>([])
   const [compartidas, setCompartidas] = useState<Lista[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,7 +67,7 @@ export default function ListasPage() {
       setPropias(data.propias || [])
       setCompartidas(data.compartidas || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error de conexión')
+      setError(err instanceof Error ? err.message : t('error_conexion_titulo'))
     } finally {
       setLoading(false)
     }
@@ -81,7 +83,7 @@ export default function ListasPage() {
       await cargar()
       handleSeleccionar(nueva.id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la lista')
+      setError(err instanceof Error ? err.message : t('err_error_al_crear_lista'))
     }
   }
 
@@ -92,7 +94,7 @@ export default function ListasPage() {
       setListaActivaId(id)
       localStorage.setItem(CLAVE_LISTA_ACTIVA, String(id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al seleccionar la lista')
+      setError(err instanceof Error ? err.message : t('err_seleccionar_lista'))
     }
   }
 
@@ -112,7 +114,7 @@ export default function ListasPage() {
       setRenombrandoId(null)
       await cargar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al renombrar la lista')
+      setError(err instanceof Error ? err.message : t('err_renombrar_lista'))
     }
   }
 
@@ -129,7 +131,7 @@ export default function ListasPage() {
       await cargar()
       await refrescarHogar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar la lista')
+      setError(err instanceof Error ? err.message : t('err_eliminar_lista'))
     }
   }
 
@@ -146,7 +148,7 @@ export default function ListasPage() {
       await cargar()
       await refrescarHogar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al salir de la lista')
+      setError(err instanceof Error ? err.message : t('err_error_al_salir_lista'))
     }
   }
 
@@ -160,7 +162,7 @@ export default function ListasPage() {
       setPropietario(data.propietario)
       setMiembros(data.miembros || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar miembros')
+      setError(err instanceof Error ? err.message : t('err_error_al_cargar_miembros'))
     }
   }
 
@@ -170,7 +172,7 @@ export default function ListasPage() {
       const data: any = await permisos.generarEnlace(listaId)
       setEnlaceCompartible(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al generar enlace')
+      setError(err instanceof Error ? err.message : t('err_generar_enlace'))
     } finally {
       setCargandoEnlace(false)
     }
@@ -183,20 +185,20 @@ export default function ListasPage() {
       setCopiado(true)
       setTimeout(() => setCopiado(false), 2000)
     } catch {
-      setError('Error al copiar el enlace')
+      setError(t('err_copiar_enlace'))
     }
   }
 
   const enviarPorMail = () => {
     if (!enlaceCompartible) return
-    const asunto = `Te invito a la lista: ${enlaceCompartible.nombre_lista}`
-    const cuerpo = `Hola! Quiero compartir mi lista "${enlaceCompartible.nombre_lista}" contigo.\n\nHaz clic aquí para aceptar:\n${enlaceCompartible.url}`
+    const asunto = t('email_asunto_invitacion_lista').replace('{nombre}', enlaceCompartible.nombre_lista)
+    const cuerpo = t('email_cuerpo_invitacion_lista').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
     window.open(`mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`, '_blank')
   }
 
   const enviarPorWhatsApp = () => {
     if (!enlaceCompartible) return
-    const mensaje = `Hola! Quiero compartir mi lista "${enlaceCompartible.nombre_lista}" contigo. 📱\n\n${enlaceCompartible.url}`
+    const mensaje = t('whatsapp_mensaje_compartir_lista').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
   }
@@ -224,7 +226,7 @@ export default function ListasPage() {
       setBusqueda('')
       setResultados([])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al compartir')
+      setError(err instanceof Error ? err.message : t('err_compartir'))
     }
   }
 
@@ -234,7 +236,7 @@ export default function ListasPage() {
       await permisos.actualizarPermiso(compartiendoId, usuarioId, nivel)
       await abrirCompartir(compartiendoId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar el permiso')
+      setError(err instanceof Error ? err.message : t('err_error_al_actualizar_permiso'))
     }
   }
 
@@ -246,7 +248,7 @@ export default function ListasPage() {
       await permisos.revocar(compartiendoId, usuarioId)
       await abrirCompartir(compartiendoId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al quitar el acceso')
+      setError(err instanceof Error ? err.message : t('err_error_al_revocar_acceso'))
     }
   }
 
@@ -274,7 +276,7 @@ export default function ListasPage() {
               {esPropia && (
                 <button
                   onClick={() => iniciarRenombrar(lista)}
-                  aria-label={`Renombrar lista ${lista.nombre}`}
+                  aria-label={t('aria_renombrar_lista').replace('{nombre}', lista.nombre)}
                   className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
@@ -284,12 +286,12 @@ export default function ListasPage() {
           )}
           {lista.descripcion && <p className="text-sm text-muted-foreground">{lista.descripcion}</p>}
           <p className="text-xs text-muted-foreground mt-1">
-            {esPropia ? 'Propietario' : `Compartida (${lista.mi_rol === 'editar' ? 'puedes editar' : 'solo ver'})`}
+            {esPropia ? t('propietario_rol') : (lista.mi_rol === 'editar' ? t('compartida_puedes_editar') : t('compartida_solo_ver'))}
           </p>
         </div>
         {listaActivaId === lista.id && (
           <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 flex-shrink-0">
-            <Check className="w-4 h-4" /> Activa
+            <Check className="w-4 h-4" /> {t('activa')}
           </span>
         )}
       </div>
@@ -299,23 +301,23 @@ export default function ListasPage() {
           disabled={listaActivaId === lista.id}
           className="btn-secondary flex-1 disabled:opacity-50"
         >
-          {listaActivaId === lista.id ? 'Ya activa' : 'Usar esta lista'}
+          {listaActivaId === lista.id ? t('ya_activa') : t('usar_esta_lista')}
         </button>
         {esPropia ? (
           <>
             <button onClick={() => abrirCompartir(lista.id)} className="btn-primary flex items-center gap-1.5 px-3">
-              <Users className="w-4 h-4" /> Compartir
+              <Users className="w-4 h-4" /> {t('compartir')}
             </button>
             {confirmandoEliminarId === lista.id ? (
               <div className="flex gap-1">
-                <button onClick={() => handleEliminarLista(lista.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">Eliminar</button>
-                <button onClick={() => setConfirmandoEliminarId(null)} className="px-3 h-11 text-xs font-semibold bg-muted rounded-xl">No</button>
+                <button onClick={() => handleEliminarLista(lista.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('eliminar')}</button>
+                <button onClick={() => setConfirmandoEliminarId(null)} className="px-3 h-11 text-xs font-semibold bg-muted rounded-xl">{t('no')}</button>
               </div>
             ) : (
               <button
                 onClick={() => handleEliminarLista(lista.id)}
                 className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                aria-label="Eliminar lista"
+                aria-label={t('eliminar_lista')}
               >
                 <Trash2 className="w-4 h-4 text-red-500" />
               </button>
@@ -324,15 +326,15 @@ export default function ListasPage() {
         ) : (
           confirmandoSalirId === lista.id ? (
             <div className="flex gap-1">
-              <button onClick={() => handleSalirLista(lista.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">Salir</button>
-              <button onClick={() => setConfirmandoSalirId(null)} className="px-3 h-11 text-xs font-semibold bg-muted rounded-xl">No</button>
+              <button onClick={() => handleSalirLista(lista.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('salir')}</button>
+              <button onClick={() => setConfirmandoSalirId(null)} className="px-3 h-11 text-xs font-semibold bg-muted rounded-xl">{t('no')}</button>
             </div>
           ) : (
             <button
               onClick={() => handleSalirLista(lista.id)}
               className="btn-secondary flex items-center gap-1.5 text-red-600 dark:text-red-400"
             >
-              <LogOut className="w-4 h-4" /> Salir
+              <LogOut className="w-4 h-4" /> {t('salir')}
             </button>
           )
         )}
@@ -343,9 +345,9 @@ export default function ListasPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">Mis Listas</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('mis_listas')}</h1>
         <p className="text-muted-foreground mt-1">
-          La lista "activa" es la que ves en Stock y en la Lista de la Compra
+          {t('subtitulo_mis_listas')}
         </p>
       </div>
 
@@ -353,45 +355,45 @@ export default function ListasPage() {
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">Error</p>
+            <p className="font-medium">{t('error')}</p>
             <p className="text-sm">{error}</p>
           </div>
         </div>
       )}
 
       <form onSubmit={handleCrear} className="card flex gap-2">
-        <label htmlFor="lista-nombre" className="sr-only">Nombre de la nueva lista</label>
+        <label htmlFor="lista-nombre" className="sr-only">{t('nombre_nueva_lista')}</label>
         <input
           id="lista-nombre"
           type="text"
           value={nuevoNombre}
           onChange={(e) => setNuevoNombre(e.target.value)}
-          placeholder="Nombre de la nueva lista"
+          placeholder={t('nombre_nueva_lista')}
           className="input-field flex-1"
         />
         <button type="submit" className="btn-primary flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Crear
+          <Plus className="w-4 h-4" /> {t('crear')}
         </button>
       </form>
 
       {loading ? (
-        <p className="text-center text-muted-foreground py-8">Cargando listas...</p>
+        <p className="text-center text-muted-foreground py-8">{t('cargando_listas')}</p>
       ) : (
         <>
           {propias.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">Propias</h2>
+              <h2 className="text-lg font-semibold">{t('propias')}</h2>
               <div className="grid gap-3">{propias.map((l) => renderLista(l, true))}</div>
             </div>
           )}
           {compartidas.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">Compartidas conmigo</h2>
+              <h2 className="text-lg font-semibold">{t('compartidas_conmigo')}</h2>
               <div className="grid gap-3">{compartidas.map((l) => renderLista(l, false))}</div>
             </div>
           )}
           {propias.length === 0 && compartidas.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">Aún no tienes ninguna lista. Crea la primera arriba.</p>
+            <p className="text-center text-muted-foreground py-8">{t('sin_listas_crea_una_nueva')}</p>
           )}
         </>
       )}
@@ -401,7 +403,7 @@ export default function ListasPage() {
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[9999] p-4">
           <div className="bg-card rounded-xl w-full max-w-md p-4 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Compartir lista</h2>
+              <h2 className="text-lg font-semibold">{t('compartir_lista')}</h2>
               <button onClick={() => setCompartiendoId(null)} className="p-1 hover:bg-muted rounded">
                 <X className="w-5 h-5" />
               </button>
@@ -409,7 +411,7 @@ export default function ListasPage() {
 
             {/* Enlace compartible */}
             <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Enlace compartible</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">{t('enlace_compartible_titulo')}</h3>
               {enlaceCompartible ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 bg-background rounded px-2 py-1">
@@ -422,7 +424,7 @@ export default function ListasPage() {
                     <button
                       onClick={copiarEnlace}
                       className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
-                      title="Copiar enlace"
+                      title={t('copiar_enlace')}
                     >
                       <Copy className="w-4 h-4" />
                     </button>
@@ -432,7 +434,7 @@ export default function ListasPage() {
                       onClick={enviarPorMail}
                       className="btn-secondary flex-1 flex items-center justify-center gap-1 text-xs"
                     >
-                      <Mail className="w-3.5 h-3.5" /> Email
+                      <Mail className="w-3.5 h-3.5" /> {t('email')}
                     </button>
                     <button
                       onClick={enviarPorWhatsApp}
@@ -441,7 +443,7 @@ export default function ListasPage() {
                       <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                     </button>
                   </div>
-                  {copiado && <p className="text-xs text-green-600 dark:text-green-400 text-center">✓ Enlace copiado</p>}
+                  {copiado && <p className="text-xs text-green-600 dark:text-green-400 text-center">✓ {t('enlace_copiado_portapapeles')}</p>}
                 </div>
               ) : (
                 <button
@@ -449,18 +451,18 @@ export default function ListasPage() {
                   disabled={cargandoEnlace}
                   className="btn-primary w-full text-sm disabled:opacity-50"
                 >
-                  {cargandoEnlace ? 'Generando...' : 'Generar enlace'}
+                  {cargandoEnlace ? t('generando') : t('generar_enlace_compartible')}
                 </button>
               )}
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-2">Con acceso</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">{t('con_acceso')}</h3>
               <div className="space-y-2">
                 {propietario && (
                   <div className="flex items-center justify-between text-sm">
-                    <span>{propietario.nombre_usuario} (tú)</span>
-                    <span className="text-muted-foreground">Propietario</span>
+                    <span>{propietario.nombre_usuario} {t('tu_suffix')}</span>
+                    <span className="text-muted-foreground">{t('propietario_rol')}</span>
                   </div>
                 )}
                 {miembros.map((m) => (
@@ -472,16 +474,16 @@ export default function ListasPage() {
                         onChange={(e) => cambiarNivel(m.id, e.target.value as 'ver' | 'editar')}
                         className="input-field !py-1 !px-2 text-xs"
                       >
-                        <option value="ver">Solo ver</option>
-                        <option value="editar">Puede editar</option>
+                        <option value="ver">{t('permiso_ver')}</option>
+                        <option value="editar">{t('puede_editar')}</option>
                       </select>
                       {confirmandoRevocarId === m.id ? (
                         <div className="flex gap-1">
-                          <button onClick={() => quitarAcceso(m.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-lg">Quitar</button>
-                          <button onClick={() => setConfirmandoRevocarId(null)} className="px-2 h-8 text-xs bg-muted rounded-lg">No</button>
+                          <button onClick={() => quitarAcceso(m.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-lg">{t('quitar')}</button>
+                          <button onClick={() => setConfirmandoRevocarId(null)} className="px-2 h-8 text-xs bg-muted rounded-lg">{t('no')}</button>
                         </div>
                       ) : (
-                        <button onClick={() => quitarAcceso(m.id)} className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg" aria-label="Quitar acceso">
+                        <button onClick={() => quitarAcceso(m.id)} className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg" aria-label={t('aria_quitar_acceso')}>
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
                       )}
@@ -489,19 +491,19 @@ export default function ListasPage() {
                   </div>
                 ))}
                 {miembros.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Nadie más tiene acceso todavía.</p>
+                  <p className="text-xs text-muted-foreground">{t('nadie_tiene_acceso')}</p>
                 )}
               </div>
             </div>
 
             <div className="border-t border-border pt-4 space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Añadir usuario</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">{t('añadir_usuario')}</h3>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={busqueda}
                   onChange={(e) => buscarUsuarios(e.target.value)}
-                  placeholder="Nombre de usuario o email (min. 2 letras)"
+                  placeholder={t('placeholder_usuario_o_email')}
                   className="input-field flex-1"
                 />
                 <select
@@ -509,8 +511,8 @@ export default function ListasPage() {
                   onChange={(e) => setNivelNuevo(e.target.value as 'ver' | 'editar')}
                   className="input-field w-32"
                 >
-                  <option value="editar">Editar</option>
-                  <option value="ver">Ver</option>
+                  <option value="editar">{t('editar')}</option>
+                  <option value="ver">{t('ver')}</option>
                 </select>
               </div>
               {resultados.length > 0 && (

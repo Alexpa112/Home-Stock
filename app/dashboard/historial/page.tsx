@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { TrendingDown, BookOpen } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi } from '@/lib/api'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 interface ProductoConsumo {
   nombre: string
@@ -18,13 +19,10 @@ interface ArticuloCatalogo {
   cantidad_defecto: number | null
 }
 
-const RANGOS = [
-  { dias: 7, label: '7 días' },
-  { dias: 30, label: '30 días' },
-  { dias: 90, label: '90 días' },
-]
+const RANGOS = [7, 30, 90]
 
 export default function HistorialPage() {
+  const { t } = useTranslation()
   const [dias, setDias] = useState(30)
   const [porProducto, setPorProducto] = useState<ProductoConsumo[]>([])
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
@@ -63,8 +61,8 @@ export default function HistorialPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">Historial</h1>
-        <p className="text-muted-foreground mt-1">Consumo de tu lista activa y catálogo de artículos aprendidos</p>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('historial')}</h1>
+        <p className="text-muted-foreground mt-1">{t('subtitulo_historial')}</p>
       </div>
 
       {error && (
@@ -74,30 +72,30 @@ export default function HistorialPage() {
       <div className="card space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <TrendingDown className="w-5 h-5 text-accent" /> Más consumido
+            <TrendingDown className="w-5 h-5 text-accent" /> {t('mas_consumido')}
           </h2>
           <div className="flex gap-1 bg-muted p-1 rounded-xl">
             {RANGOS.map((r) => (
               <button
-                key={r.dias}
-                onClick={() => cambiarRango(r.dias)}
+                key={r}
+                onClick={() => cambiarRango(r)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-h-[36px] ${
-                  dias === r.dias
+                  dias === r
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {r.label}
+                {t('n_dias').replace('{n}', String(r))}
               </button>
             ))}
           </div>
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Cargando...</p>
+          <p className="text-sm text-muted-foreground">{t('cargando')}</p>
         ) : porProducto.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Sin consumo registrado en este periodo (baja la cantidad de algún producto en Stock para que aparezca aquí).
+            {t('sin_consumo_registrado')}
           </p>
         ) : (
           <div className="space-y-3">
@@ -121,10 +119,10 @@ export default function HistorialPage() {
 
       <div className="card space-y-3">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-accent" /> Catálogo aprendido ({catalogo.length})
+          <BookOpen className="w-5 h-5 text-accent" /> {t('catalogo_aprendido')} ({catalogo.length})
         </h2>
         <p className="text-sm text-muted-foreground">
-          Artículos que la app recuerda (icono, categoría, unidad habitual) para sugerirlos automáticamente.
+          {t('descripcion_catalogo_aprendido')}
         </p>
         {catalogo.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto">
