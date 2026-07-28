@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Clock, Grid3x3, List } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
-import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { productos as productosApi, categorias as categoriasApi, articulosLista } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -288,103 +287,99 @@ export default function StockPage() {
     bajoMinimo: items.filter((item) => item.cantidad <= item.stock_minimo).length,
   }
 
-  // Vista "Grid": tarjeta con toda la info a la vista, pensada para pantallas
-  // anchas o para explorar el inventario con calma.
-  const renderProductoGrid = (item: Producto) => (
-    <div key={item.id} className="card flex flex-col justify-between">
-      <div>
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground line-clamp-2 mb-1">{item.nombre}</h3>
-            <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => abrirEdicion(item)}
-              className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
-              aria-label={t('editar')}
-            >
-              <Pencil className="w-4 h-4 text-muted-foreground" />
-            </button>
-            {confirmandoId === item.id ? (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleDeleteItem(item.id)}
-                  className="px-2 h-10 flex items-center text-xs font-semibold text-white bg-red-500 rounded-xl transition-colors"
-                  aria-label={t('aria_confirmar_eliminacion')}
-                >
-                  {t('si')}
-                </button>
-                <button
-                  onClick={() => setConfirmandoId(null)}
-                  className="px-2 h-10 flex items-center text-xs font-semibold text-foreground bg-muted rounded-xl transition-colors"
-                  aria-label={t('cancelar')}
-                >
-                  {t('no')}
-                </button>
-              </div>
+  // Vista "Grid": recuadro compacto al estilo Bring! — icono, nombre y la
+  // cantidad solo si es distinta de 1 (si es 1, sobra: es el caso normal).
+  // Tocar el recuadro abre la edición completa (incluye eliminar);
+  // el ajuste +/- rápido y "añadir a la compra" quedan como acciones
+  // secundarias discretas, sin competir visualmente con icono+nombre+cantidad.
+  const renderProductoGrid = (item: Producto) => {
+    const icono = getCategoryIcon(item.categoria)
+    const bajoMinimo = item.cantidad <= item.stock_minimo
+    return (
+      <div key={item.id} className="card !p-2.5 flex flex-col items-center text-center gap-1.5 relative">
+        <button
+          onClick={() => abrirEdicion(item)}
+          className="absolute inset-0 rounded-2xl"
+          aria-label={`${t('editar')} ${item.nombre}`}
+        />
+
+        <div className="relative pointer-events-none">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+            {icono ? (
+              <IconRenderer name={icono} className="w-7 h-7 text-muted-foreground" />
             ) : (
-              <button
-                onClick={() => handleDeleteItem(item.id)}
-                className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                aria-label={t('eliminar')}
-              >
-                <Trash2 className="w-4 h-4 text-red-500" />
-              </button>
+              <Package className="w-7 h-7 text-muted-foreground" />
             )}
           </div>
-        </div>
-
-        {(item.cantidad <= item.stock_minimo || item.revisar_caducidad) && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {item.cantidad <= item.stock_minimo && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
-                <ShoppingCart className="w-3 h-3" />
-                {t('bajo_minimo')}
-              </span>
-            )}
-            {item.revisar_caducidad && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
-                <Clock className="w-3 h-3" />
-                {t('revisar')}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="pt-3 border-t border-border mt-auto space-y-2">
-        {/* Cantidad +/- */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">{item.unidad}</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => handleAjustarCantidad(item.id, -1)}
-              className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-              aria-label={t('aria_restar_uno')}
-              disabled={item.cantidad <= 0}
+          {item.cantidad !== 1 && (
+            <span
+              className={`absolute -bottom-1.5 -right-1.5 min-w-[1.375rem] h-5.5 px-1 flex items-center justify-center rounded-full text-xs font-bold tabular-nums border-2 border-card ${
+                bajoMinimo ? 'bg-red-500 text-white' : 'bg-accent text-accent-foreground'
+              }`}
             >
-              −
-            </button>
-            <span className={`text-xl font-bold w-10 text-center tabular-nums ${item.cantidad <= item.stock_minimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
               {item.cantidad}
             </span>
-            <button
-              onClick={() => handleAjustarCantidad(item.id, 1)}
-              className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
-              aria-label={t('aria_sumar_uno')}
-            >
-              +
-            </button>
-          </div>
+          )}
+          {(bajoMinimo || item.revisar_caducidad) && (
+            <span
+              className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-card ${bajoMinimo ? 'bg-red-500' : 'bg-yellow-500'}`}
+              title={bajoMinimo ? t('bajo_minimo') : t('revisar_caducidad')}
+            />
+          )}
         </div>
 
-        {/* Acción rápida: añadir a compra si está bajo mínimo */}
-        {item.cantidad <= item.stock_minimo && (
+        <p className="font-medium text-foreground text-xs leading-tight line-clamp-2 pointer-events-none">{item.nombre}</p>
+
+        {/* Acciones secundarias: por encima del botón de edición a pantalla completa */}
+        <div className="relative flex items-center gap-1 pt-0.5">
+          <button
+            onClick={() => handleAjustarCantidad(item.id, -1)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-sm font-medium"
+            aria-label={t('aria_restar_uno')}
+            disabled={item.cantidad <= 0}
+          >
+            −
+          </button>
+          <button
+            onClick={() => handleAjustarCantidad(item.id, 1)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-sm font-medium"
+            aria-label={t('aria_sumar_uno')}
+          >
+            +
+          </button>
+          {confirmandoId === item.id ? (
+            <>
+              <button
+                onClick={() => handleDeleteItem(item.id)}
+                className="px-1.5 h-7 flex items-center text-xs font-semibold text-white bg-red-500 rounded-lg transition-colors"
+                aria-label={t('aria_confirmar_eliminacion')}
+              >
+                {t('si')}
+              </button>
+              <button
+                onClick={() => setConfirmandoId(null)}
+                className="px-1.5 h-7 flex items-center text-xs font-semibold text-foreground bg-muted rounded-lg transition-colors"
+                aria-label={t('cancelar')}
+              >
+                {t('no')}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => handleDeleteItem(item.id)}
+              className="w-7 h-7 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
+              aria-label={t('eliminar')}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            </button>
+          )}
+        </div>
+
+        {bajoMinimo && (
           <button
             onClick={() => handleAñadirACompra(item)}
             disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
-            className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+            className={`relative w-full flex items-center justify-center gap-1 py-1 rounded-lg text-[0.65rem] font-semibold transition-all active:scale-95 ${
               añadidoIds.has(item.id)
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                 : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
@@ -395,13 +390,13 @@ export default function StockPage() {
             ) : añadiendoId === item.id ? (
               <>{t('añadiendo')}</>
             ) : (
-              <><ShoppingCart className="w-3.5 h-3.5" /> {t('añadir_a_la_compra')}</>
+              <><ShoppingCart className="w-3 h-3" /> {t('añadir_a_la_compra')}</>
             )}
           </button>
         )}
       </div>
-    </div>
-  )
+    )
+  }
 
   // Vista "Lista": fila compacta al estilo Bring! — icono, nombre y
   // cantidad en una sola línea, pensada para revisar el inventario rápido.
@@ -851,7 +846,7 @@ export default function StockPage() {
                   {cat.nombre}
                   <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} {productosCat.length !== 1 ? t('producto_plural') : t('producto_singular')}</span>
                 </h2>
-                <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+                <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3'}>
                   {productosCat.map(renderProducto)}
                 </div>
               </div>
@@ -860,7 +855,7 @@ export default function StockPage() {
         </div>
       ) : (
         // Vista sin agrupar
-        <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+        <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3'}>
           {filteredItems.map(renderProducto)}
         </div>
       )}
