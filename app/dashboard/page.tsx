@@ -39,6 +39,7 @@ interface FormularioProducto {
   cantidad: number | ''
   stock_minimo: number | ''
   unidad: string
+  dias_aviso: number
 }
 
 const FORM_VACIO: FormularioProducto = {
