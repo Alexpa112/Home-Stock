@@ -3,10 +3,12 @@
 # StockHogar - Instalador Docker (Raspberry Pi / Debian / Ubuntu)
 #
 # Uso:
-#   ./install.sh            Instala o actualiza StockHogar
-#   ./install.sh --update   Además hace `git pull --ff-only` antes de reconstruir
-#   ./install.sh --no-build Reinicia contenedores sin reconstruir la imagen
-#   ./install.sh --help     Muestra esta ayuda
+#   ./install.sh              Instala o actualiza StockHogar
+#   ./install.sh --update     Además hace `git pull --ff-only` antes de reconstruir
+#   ./install.sh --reinstall  Descarta cambios locales (git reset --hard al remoto)
+#                             y reconstruye TODO sin caché (--no-cache)
+#   ./install.sh --no-build   Reinicia contenedores sin reconstruir la imagen
+#   ./install.sh --help       Muestra esta ayuda
 #
 # Seguro de re-ejecutar: no pisa un .env existente (y lo respalda antes de
 # tocarlo), hace backup de la base de datos antes de reconstruir contenedores,
@@ -232,26 +234,36 @@ wait_healthy() {
 
 usage() {
     cat <<EOF
-Uso: ./install.sh [--update] [--no-build] [--help]
+Uso: ./install.sh [--update] [--reinstall] [--no-build] [--help]
 
   (sin flags)  Instala o reconstruye StockHogar en este directorio.
   --update     Además hace 'git pull --ff-only' antes de reconstruir.
+  --reinstall  Descarta cambios locales ('git reset --hard' contra el remoto de
+               la rama actual) y reconstruye TODAS las imágenes sin caché
+               (--no-cache). No toca data/, .env ni uploads/ (fuera de git).
   --no-build   No reconstruye la imagen; solo recrea los contenedores (rápido).
+               Se ignora si se combina con --reinstall.
   --help       Muestra esta ayuda y sale.
 EOF
 }
 
 UPDATE_MODE=0
+REINSTALL_MODE=0
 BUILD_MODE=1
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --update)    UPDATE_MODE=1 ;;
-        --no-build)  BUILD_MODE=0 ;;
-        --help|-h)   usage; exit 0 ;;
+        --update)     UPDATE_MODE=1 ;;
+        --reinstall)  REINSTALL_MODE=1 ;;
+        --no-build)   BUILD_MODE=0 ;;
+        --help|-h)    usage; exit 0 ;;
         *) log_error "Opción desconocida: $1"; usage; exit 1 ;;
     esac
     shift
 done
+if [[ "$REINSTALL_MODE" -eq 1 ]] && [[ "$BUILD_MODE" -eq 0 ]]; then
+    log_warning "--no-build se ignora junto a --reinstall (--reinstall siempre reconstruye sin caché)"
+    BUILD_MODE=1
+fi
 
 ################################################################################
 step_start "Detectar sistema y recursos"
@@ -289,12 +301,18 @@ if [[ -n "$MEMORY_MB" ]]; then
 fi
 
 FREE_DISK_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo "")"
+# --reinstall (--no-cache) reconstruye TODAS las capas de golpe en vez de
+# reutilizar las que ya existen, así que necesita bastante más margen temporal.
+DISK_MIN_MB=800; DISK_RECOMENDADO_MB=2048
+if [[ "$REINSTALL_MODE" -eq 1 ]]; then
+    DISK_MIN_MB=2048; DISK_RECOMENDADO_MB=4096
+fi
 if [[ -n "$FREE_DISK_MB" ]]; then
-    if [[ "$FREE_DISK_MB" -lt 800 ]]; then
-        log_error "Espacio libre: ${FREE_DISK_MB}MB. Insuficiente para construir la imagen. Libera espacio y reintenta."
+    if [[ "$FREE_DISK_MB" -lt "$DISK_MIN_MB" ]]; then
+        log_error "Espacio libre: ${FREE_DISK_MB}MB. Insuficiente para construir la imagen (mínimo ${DISK_MIN_MB}MB). Libera espacio y reintenta."
         exit 1
-    elif [[ "$FREE_DISK_MB" -lt 2048 ]]; then
-        log_warning "Espacio libre: ${FREE_DISK_MB}MB (recomendado 2GB+ para construir con margen)"
+    elif [[ "$FREE_DISK_MB" -lt "$DISK_RECOMENDADO_MB" ]]; then
+        log_warning "Espacio libre: ${FREE_DISK_MB}MB (recomendado ${DISK_RECOMENDADO_MB}MB+ para construir con margen)"
     else
         log_success "Espacio libre en disco: ${FREE_DISK_MB}MB"
     fi
@@ -459,7 +477,19 @@ step_end
 step_start "Actualizar código (git pull)"
 ################################################################################
 
-if [[ $UPDATE_MODE -eq 1 ]]; then
+if [[ $REINSTALL_MODE -eq 1 ]]; then
+    if [[ -d .git ]]; then
+        PREV_GIT_COMMIT="$(git rev-parse HEAD)"
+        log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
+        RAMA_ACTUAL="$(git rev-parse --abbrev-ref HEAD)"
+        log_warning "--reinstall: se descartará cualquier cambio local de código (git reset --hard)"
+        run git fetch --all
+        run git reset --hard "origin/${RAMA_ACTUAL}"
+        log_success "Código reinstalado desde origin/${RAMA_ACTUAL} a $(git rev-parse --short HEAD)"
+    else
+        log_warning "No es un repositorio git; se omite git fetch/reset"
+    fi
+elif [[ $UPDATE_MODE -eq 1 ]]; then
     if [[ -d .git ]]; then
         if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
             log_error "Hay cambios locales sin commitear; 'git pull --ff-only' podría fallar o perder trabajo."
@@ -476,7 +506,7 @@ if [[ $UPDATE_MODE -eq 1 ]]; then
         log_warning "No es un repositorio git; se omite git pull"
     fi
 else
-    log_info "Modo instalación (usa --update para además hacer git pull)"
+    log_info "Modo instalación (usa --update para además hacer git pull, o --reinstall para descartar cambios locales)"
 fi
 
 step_end
@@ -691,6 +721,12 @@ else
     # descargas de Docker Hub fallan por timeout (no es un problema de red:
     # el propio daemon no tiene CPU para atender el handshake TLS a tiempo).
     # Construir en serie deja cada build con la máquina para él solo.
+    BUILD_ARGS=(build)
+    if [[ "$REINSTALL_MODE" -eq 1 ]]; then
+        BUILD_ARGS+=(--no-cache)
+        log_info "--reinstall: build SIN CACHÉ (recompila todo desde cero, más lento)"
+    fi
+
     BUILD_START=$SECONDS
     BUILD_OK=1
     mapfile -t SERVICES < <("${COMPOSE[@]}" config --services 2>/dev/null)
@@ -703,7 +739,7 @@ else
         # esas escrituras se llevaban entre 15 y 50s extra por imagen (visto
         # en install.log: 12.8s + 14.5s solo en la del frontend).
         BUILDX_NO_DEFAULT_ATTESTATIONS=1 \
-            "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" build "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
+            "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" "${BUILD_ARGS[@]}" "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
     done
 
     stop_heartbeat
@@ -769,7 +805,10 @@ step_start "Resumen"
 
 IP_ADDRESS="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 IP_ADDRESS="${IP_ADDRESS:-localhost}"
-[[ "$UPDATE_MODE" -eq 1 ]] && ACTION="actualizado" || ACTION="instalado"
+if [[ "$REINSTALL_MODE" -eq 1 ]]; then ACTION="reinstalado desde cero"
+elif [[ "$UPDATE_MODE" -eq 1 ]]; then ACTION="actualizado"
+else ACTION="instalado"
+fi
 
 echo ""
 echo -e "${GREEN}================================================================${NC}"
