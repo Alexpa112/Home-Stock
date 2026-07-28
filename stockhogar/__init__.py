@@ -109,7 +109,16 @@ def create_app():
         # mostrar la pantalla de mantenimiento.
         if (request.endpoint or "") in ("paginas.mantenimiento_stream",):
             return None
-        if mantenimiento.activo():
+        # El HEALTHCHECK de Docker (curl a "/" desde dentro del propio
+        # contenedor, ver Dockerfile) y el `wait_healthy` de install.sh usan
+        # esta misma ruta. El Panel activa mantenimiento ANTES de invocar
+        # install.sh y solo lo desactiva al terminar, así que sin esta
+        # excepcion el healthcheck jamas pasaria durante un despliegue
+        # lanzado desde el panel: siempre veria 503 y forzaria un rollback
+        # aunque la app estuviera perfectamente sana. El trafico real nunca
+        # llega como 127.0.0.1/::1 (pasa por la red de Docker o el proxy),
+        # asi que esto no abre la app en mantenimiento a usuarios reales.
+        if mantenimiento.activo() and request.remote_addr not in ("127.0.0.1", "::1"):
             return jsonify({"error": "La aplicación está en mantenimiento", "mantenimiento": True}), 503
         return None
 
