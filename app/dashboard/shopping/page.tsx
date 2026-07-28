@@ -270,6 +270,82 @@ export default function ShoppingPage() {
     </div>
   )
 
+  // Tile al estilo Bring!: icono, nombre y cantidad solo si es distinta de 1.
+  // Tocar el tile marca comprado/restaurado; editar y eliminar quedan como
+  // acciones secundarias discretas debajo, igual que en Stock.
+  const renderItemGridTile = (item: ArticuloLista, isCompleted: boolean = false) => {
+    const icono = getCategoryIcon(item.categoria)
+    return (
+      <div key={item.id} className={`card !p-2.5 flex flex-col items-center text-center gap-1.5 relative ${isCompleted ? 'opacity-60' : ''}`}>
+        <button
+          onClick={() => handleToggleBought(item.id, !isCompleted)}
+          className="absolute inset-0 rounded-2xl"
+          aria-label={isCompleted ? t('aria_restaurar_producto').replace('{nombre}', item.nombre) : t('aria_marcar_comprado_producto').replace('{nombre}', item.nombre)}
+        />
+
+        <div className="relative pointer-events-none">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+            {icono ? (
+              <IconRenderer name={icono} className="w-7 h-7 text-muted-foreground" />
+            ) : isCompleted ? (
+              <CheckCircle2 className="w-7 h-7 text-green-500" />
+            ) : (
+              <Circle className="w-7 h-7 text-muted-foreground" />
+            )}
+          </div>
+          {item.cantidad !== 1 && (
+            <span className="absolute -bottom-1.5 -right-1.5 min-w-[1.375rem] h-5.5 px-1 flex items-center justify-center rounded-full text-xs font-bold tabular-nums border-2 border-card bg-accent text-accent-foreground">
+              {item.cantidad}
+            </span>
+          )}
+          {item.origen === 'auto' && !isCompleted && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-orange-500 border-2 border-card" title={t('stock_bajo')} />
+          )}
+        </div>
+
+        <p className={`font-medium text-foreground text-xs leading-tight line-clamp-2 pointer-events-none ${isCompleted ? 'line-through' : ''}`}>
+          {item.nombre}
+        </p>
+
+        <div className="relative flex items-center gap-1 pt-0.5">
+          <button
+            onClick={() => iniciarEdicion(item)}
+            className="w-7 h-7 flex items-center justify-center hover:bg-muted rounded-lg transition-colors"
+            aria-label={t('editar')}
+          >
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          {confirmandoId === item.id ? (
+            <>
+              <button
+                onClick={() => handleDeleteItem(item.id)}
+                className="px-1.5 h-7 flex items-center text-xs font-semibold text-white bg-red-500 rounded-lg transition-colors"
+                aria-label={t('aria_confirmar_eliminacion')}
+              >
+                {t('si')}
+              </button>
+              <button
+                onClick={() => setConfirmandoId(null)}
+                className="px-1.5 h-7 flex items-center text-xs font-semibold text-foreground bg-muted rounded-lg transition-colors"
+                aria-label={t('cancelar')}
+              >
+                {t('no')}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => handleDeleteItem(item.id)}
+              className="w-7 h-7 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
+              aria-label={t('eliminar')}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const renderVistaRecuadros = () => (
     <div className="space-y-6">
       {searchQuery && filteredPendingItems.length === 0 && filteredBoughtItems.length === 0 && (
@@ -282,50 +358,8 @@ export default function ShoppingPage() {
       {filteredPendingItems.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">{t('pendientes_contador')} ({filteredPendingItems.length})</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredPendingItems.map((item) => (
-              <div
-                key={item.id}
-                className="card p-4 flex flex-col justify-between"
-              >
-                <div className="flex-1">
-                  <div className="flex items-start gap-2 mb-2">
-                    <p className="font-medium text-foreground flex-1">
-                      {item.nombre}
-                      {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
-                    </p>
-                    {item.origen === 'auto' && (
-                      <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                    )}
-                  </div>
-                  {item.categoria && (
-                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
-                  )}
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => handleToggleBought(item.id, true)}
-                    className="flex-1 btn-primary text-xs flex items-center justify-center gap-1"
-                  >
-                    <Check className="w-3 h-3" /> {t('comprado')}
-                  </button>
-                  <button
-                    onClick={() => iniciarEdicion(item)}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
-                    aria-label={t('editar')}
-                  >
-                    <Pencil className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                    aria-label={t('eliminar')}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+            {filteredPendingItems.map((item) => renderItemGridTile(item, false))}
           </div>
         </div>
       )}
@@ -333,38 +367,8 @@ export default function ShoppingPage() {
       {filteredBoughtItems.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-muted-foreground">{t('comprados_contador')} ({filteredBoughtItems.length})</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredBoughtItems.map((item) => (
-              <div
-                key={item.id}
-                className="card p-4 opacity-60 flex flex-col justify-between"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-foreground line-through mb-2">
-                    {item.nombre}
-                    {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
-                  </p>
-                  {item.categoria && (
-                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
-                  )}
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => handleToggleBought(item.id, false)}
-                    className="flex-1 btn-secondary text-xs"
-                  >
-                    {t('restaurar')}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                    aria-label={t('eliminar')}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+            {filteredBoughtItems.map((item) => renderItemGridTile(item, true))}
           </div>
         </div>
       )}
