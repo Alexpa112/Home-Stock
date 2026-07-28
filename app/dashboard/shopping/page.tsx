@@ -5,8 +5,13 @@ import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTr
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
-import { articulosLista, categorias as categoriasApi } from '@/lib/api'
+import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
+import { getCached, setCached, prefetch } from '@/lib/dataCache'
+import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
+
+const CACHE_KEY_ARTICULOS = 'shopping:articulos'
+const CACHE_KEY_CATEGORIAS = 'stock:categorias'
 
 interface ArticuloLista {
   id: number
@@ -28,10 +33,11 @@ interface Categoria {
 
 export default function ShoppingPage() {
   const { preferences, updatePreferences } = useListPreferences()
-  const [pendientes, setPendientes] = useState<ArticuloLista[]>([])
-  const [completados, setCompletados] = useState<ArticuloLista[]>([])
-  const [categorias, setCategorias] = useState<Categoria[]>([])
-  const [loading, setLoading] = useState(true)
+  const cachedArticulos = getCached<{ pendientes: ArticuloLista[]; completados: ArticuloLista[] }>(CACHE_KEY_ARTICULOS)
+  const [pendientes, setPendientes] = useState<ArticuloLista[]>(cachedArticulos?.pendientes || [])
+  const [completados, setCompletados] = useState<ArticuloLista[]>(cachedArticulos?.completados || [])
+  const [categorias, setCategorias] = useState<Categoria[]>(() => getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
+  const [loading, setLoading] = useState(cachedArticulos === undefined)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -46,16 +52,26 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     loadItems()
-    categoriasApi.listar().then((data: any) => setCategorias(Array.isArray(data) ? data : [])).catch(() => {})
+    categoriasApi.listar().then((data: any) => {
+      const categoriasArr = Array.isArray(data) ? data : []
+      setCategorias(categoriasArr)
+      setCached(CACHE_KEY_CATEGORIAS, categoriasArr)
+    }).catch(() => {})
+
+    // Precargar el stock en segundo plano para que, si el usuario navega
+    // ahi despues, ya este disponible al instante.
+    prefetch('stock:productos', () => productosApi.listar())
   }, [])
 
   const loadItems = async () => {
     try {
-      setLoading(true)
       setError('')
       const data: any = await articulosLista.listar()
-      setPendientes(data?.pendientes || [])
-      setCompletados(data?.completados || [])
+      const pendientesArr = data?.pendientes || []
+      const completadosArr = data?.completados || []
+      setPendientes(pendientesArr)
+      setCompletados(completadosArr)
+      setCached(CACHE_KEY_ARTICULOS, { pendientes: pendientesArr, completados: completadosArr })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error de conexión'
       setError(message)
@@ -520,9 +536,7 @@ export default function ShoppingPage() {
 
       {/* Loading */}
       {loading ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Cargando lista de compra...</p>
-        </div>
+        <SkeletonCards />
       ) : items.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">La lista está vacía</p>

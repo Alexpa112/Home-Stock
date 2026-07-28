@@ -8,6 +8,11 @@ import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { productos as productosApi, categorias as categoriasApi, listas as listasApi, articulosLista } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
+import { getCached, setCached, prefetch } from '@/lib/dataCache'
+import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
+
+const CACHE_KEY_PRODUCTOS = 'stock:productos'
+const CACHE_KEY_CATEGORIAS = 'stock:categorias'
 
 // Shape real: ver stockhogar/utils/converters.py DataConverter.producto_to_dict.
 // No hay fecha de caducidad absoluta; 'revisar_caducidad' es un booleano que el
@@ -57,9 +62,9 @@ function parseNumeroInput(value: string, fallback: number): number | '' {
 
 export default function StockPage() {
   const { preferences, updatePreferences } = useListPreferences()
-  const [items, setItems] = useState<Producto[]>([])
-  const [categorias, setCategorias] = useState<Categoria[]>([])
-  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState<Producto[]>(() => getCached<Producto[]>(CACHE_KEY_PRODUCTOS) || [])
+  const [categorias, setCategorias] = useState<Categoria[]>(() => getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
+  const [loading, setLoading] = useState(() => getCached<Producto[]>(CACHE_KEY_PRODUCTOS) === undefined)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editandoId, setEditandoId] = useState<number | null>(null)
@@ -96,24 +101,36 @@ export default function StockPage() {
 
   const bootstrap = async () => {
     try {
-      setLoading(true)
       setError('')
 
-      // Una cuenta recien creada no tiene ninguna lista todavia; sin una
-      // lista activa en sesion, el backend rechaza crear productos (403).
-      // Si no hay ninguna lista propia ni compartida, se crea una por
-      // defecto (crear() la deja seleccionada automaticamente en sesion).
-      const listasData: any = await listasApi.listar()
-      if ((listasData.propias?.length || 0) === 0 && (listasData.compartidas?.length || 0) === 0) {
-        await listasApi.crear('Mi lista')
-      }
-
-      const [productosData, categoriasData] = await Promise.all([
-        productosApi.listar(),
+      // Caso normal (ya hay una lista seleccionada en sesion): las tres
+      // peticiones van en paralelo desde el primer instante, sin esperas
+      // en cascada. Solo en el caso raro de una cuenta recien creada sin
+      // ninguna lista (ni propia ni compartida) hace falta crear una antes
+      // de poder pedir productos/categorias (el backend devuelve 403 sin
+      // lista activa); en ese caso se reintenta tras crearla.
+      const [listasData, productosData, categoriasData]: [any, any, any] = await Promise.all([
+        listasApi.listar(),
+        productosApi.listar().catch(() => null),
         categoriasApi.listar(),
       ])
-      setItems(Array.isArray(productosData) ? productosData : [])
-      setCategorias(Array.isArray(categoriasData) ? categoriasData : [])
+
+      let productosFinal = productosData
+      if ((listasData.propias?.length || 0) === 0 && (listasData.compartidas?.length || 0) === 0) {
+        await listasApi.crear('Mi lista')
+        productosFinal = await productosApi.listar()
+      }
+
+      const productosArr = Array.isArray(productosFinal) ? productosFinal : []
+      const categoriasArr = Array.isArray(categoriasData) ? categoriasData : []
+      setItems(productosArr)
+      setCategorias(categoriasArr)
+      setCached(CACHE_KEY_PRODUCTOS, productosArr)
+      setCached(CACHE_KEY_CATEGORIAS, categoriasArr)
+
+      // Precargar la lista de la compra en segundo plano para que, si el
+      // usuario navega ahi despues, ya este disponible al instante.
+      prefetch('shopping:articulos', () => articulosLista.listar())
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error de conexión'
       setError(message)
@@ -145,16 +162,6 @@ export default function StockPage() {
     if (!categoryName) return null
     const cat = categorias.find((c) => c.nombre === categoryName)
     return cat?.icono || null
-  }
-
-  const agruparPorCategoria = (itemsList: Producto[]) => {
-    const grupos: Record<string, Producto[]> = {}
-    itemsList.forEach((item) => {
-      const cat = item.categoria || 'Otros'
-      if (!grupos[cat]) grupos[cat] = []
-      grupos[cat].push(item)
-    })
-    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b))
   }
 
   const handleGuardar = async (e: React.FormEvent) => {
@@ -606,9 +613,7 @@ export default function StockPage() {
 
       {/* Stock List */}
       {loading ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Cargando inventario...</p>
-        </div>
+        <SkeletonCards />
       ) : items.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">No hay productos en el inventario</p>
