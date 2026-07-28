@@ -777,8 +777,12 @@ step_start "Verificar que la aplicación responde"
 
 # Esperas ACOTADAS usando el HEALTHCHECK que ya definen los Dockerfiles (que sí
 # acepta el 302 de la raíz). Nunca un bucle infinito.
-log_info "Esperando a que el backend esté healthy (máx. 90s)..."
-if wait_healthy stockhogar 90; then
+# 90s no bastaba en esta Raspberry Pi: tras un rebuild, la CPU sigue ocupada
+# exportando capas de Docker y el backend tarda en dejar de devolver 503,
+# provocando rollbacks automáticos sobre una imagen que en realidad estaba
+# bien (visto dos veces en producción, se recuperaba solo a los 90-120s).
+log_info "Esperando a que el backend esté healthy (máx. 180s)..."
+if wait_healthy stockhogar 180; then
     log_success "Backend healthy en el puerto ${STOCKHOGAR_PORT}"
 else
     log_error "El backend no llegó a estado healthy. Últimas líneas de log:"
