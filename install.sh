@@ -58,15 +58,15 @@ DOCKER=()
 COMPOSE=()
 
 # --- Bloqueo: evita que dos ejecuciones se pisen (cron + manual, doble clic) -
-if [[ -e "$LOCK_FILE" ]]; then
-    OTHER_PID="$(cat "$LOCK_FILE" 2>/dev/null || echo "")"
-    if [[ -n "$OTHER_PID" ]] && kill -0 "$OTHER_PID" 2>/dev/null; then
-        log_error "Ya hay una instalación en curso (PID $OTHER_PID). Espera a que termine o borra $LOCK_FILE si sabes que quedó huérfana."
-        exit 1
-    fi
-    log_warning "Se encontró un lock huérfano de una ejecución anterior; se ignora y se continúa."
+# flock (no el viejo check-then-write de PID) para que el propio kernel
+# resuelva la carrera: dos procesos pueden pasar el `[[ -e "$LOCK_FILE" ]]`
+# a la vez, `flock` no.
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    log_error "Ya hay una instalación en curso. Espera a que termine o revisa $LOCK_FILE."
+    exit 1
 fi
-echo "$$" > "$LOCK_FILE"
+echo "$$" >&200
 
 HEARTBEAT_PID=""
 stop_heartbeat() {
