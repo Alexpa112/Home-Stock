@@ -1,5 +1,6 @@
 """Rutas para escanear tickets de compra y volcarlos al stock."""
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -15,12 +16,35 @@ from ..servicios.stock import crear_producto_nuevo, sumar_stock, lista_actual_co
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
-EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp"}
+EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp", "pdf"}
 TAMANO_MAXIMO_MB = 10
 
 
 def _extension_permitida(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in EXTENSIONES_PERMITIDAS
+
+
+def _convertir_pdf_a_imagen(ruta_pdf):
+    """Convierte la primera pagina de un PDF a PNG con Poppler (pdftoppm).
+
+    Se usa el binario de sistema en vez de una libreria Python (p.ej.
+    PyMuPDF) porque poppler-utils tiene paquete Debian nativo para
+    armv7l/aarch64 (Raspberry Pi); las alternativas Python no siempre
+    publican wheels para armv7l y forzarian compilar desde fuente.
+    """
+    prefijo = ruta_pdf + "_pagina"
+    try:
+        resultado = subprocess.run(
+            ["pdftoppm", "-png", "-r", "300", "-singlefile", ruta_pdf, prefijo],
+            capture_output=True, timeout=30
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+    ruta_png = prefijo + ".png"
+    if resultado.returncode != 0 or not os.path.exists(ruta_png):
+        return None
+    return ruta_png
 
 
 @bp.route("/analizar", methods=["POST"])
@@ -42,14 +66,22 @@ def analizar_ticket():
             traducir("err_archivo_muy_grande").replace("{mb}", str(TAMANO_MAXIMO_MB))
         )
 
-    sufijo = Path(archivo.filename).suffix or ".jpg"
+    sufijo = Path(archivo.filename).suffix.lower() or ".jpg"
     tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
     tmp.close()
+    ruta_png_pdf = None
     try:
         archivo.save(tmp.name)
 
+        ruta_imagen = tmp.name
+        if sufijo == ".pdf":
+            ruta_png_pdf = _convertir_pdf_a_imagen(tmp.name)
+            if not ruta_png_pdf:
+                return APIResponse.error("err_procesando_ticket", 500)
+            ruta_imagen = ruta_png_pdf
+
         # Extraer texto con OCR (Tesseract)
-        texto_ocr = ticket_ocr.extraer_texto(tmp.name)
+        texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
 
         # Procesar con sistema v2 (inteligente, sin IA)
         proc = ProcesadorTicketsV2()
@@ -70,6 +102,8 @@ def analizar_ticket():
         return APIResponse.error("err_interno_generico", 500)
     finally:
         os.unlink(tmp.name)
+        if ruta_png_pdf and os.path.exists(ruta_png_pdf):
+            os.unlink(ruta_png_pdf)
 
     return APIResponse.success(respuesta)
 

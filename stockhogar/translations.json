@@ -512,7 +512,7 @@
     "err_no_detecto_producto_imagen": "No se detectó ningún producto en la imagen. Prueba con una foto más nítida y bien encuadrada.",
     "ticket_importado_resumen": "Ticket importado: {creados} producto(s) nuevo(s), {actualizados} actualizado(s).",
     "ver_stock": "Ver stock",
-    "jpg_png_hasta_10mb": "JPG, PNG, hasta 10 MB",
+    "jpg_png_hasta_10mb": "JPG, PNG o PDF, hasta 10 MB",
     "analizando_ticket_ocr": "Analizando ticket (OCR)... puede tardar un poco",
     "productos_detectados_contador": "{n} producto(s) detectado(s)",
     "deseleccionar_todos": "Deseleccionar todos",
@@ -568,7 +568,9 @@
     "err_editar_articulo": "Error al editar el artículo",
     "email_asunto_invitacion_lista": "Te invito a la lista: {nombre}",
     "email_cuerpo_invitacion_lista": "Hola! Quiero compartir mi lista \"{nombre}\" contigo.\n\nHaz clic aquí para aceptar:\n{enlace}",
-    "whatsapp_mensaje_compartir_lista": "Hola! Quiero compartir mi lista \"{nombre}\" contigo. 📱\n\n{enlace}"
+    "whatsapp_mensaje_compartir_lista": "Hola! Quiero compartir mi lista \"{nombre}\" contigo. 📱\n\n{enlace}",
+    "hacer_foto_boton": "Hacer foto",
+    "subir_archivo_boton": "Subir archivo"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1083,7 +1085,7 @@
     "err_no_detecto_producto_imagen": "Non se detectou ningún produto na imaxe. Proba cunha foto máis nítida e ben encadrada.",
     "ticket_importado_resumen": "Ticket importado: {creados} produto(s) novo(s), {actualizados} actualizado(s).",
     "ver_stock": "Ver stock",
-    "jpg_png_hasta_10mb": "JPG, PNG, ata 10 MB",
+    "jpg_png_hasta_10mb": "JPG, PNG ou PDF, ata 10 MB",
     "analizando_ticket_ocr": "Analizando o ticket (OCR)... pode tardar un pouco",
     "productos_detectados_contador": "{n} produto(s) detectado(s)",
     "deseleccionar_todos": "Deseleccionar todos",
@@ -1139,7 +1141,9 @@
     "err_editar_articulo": "Erro ao editar o artigo",
     "email_asunto_invitacion_lista": "Convídote á lista: {nombre}",
     "email_cuerpo_invitacion_lista": "Ola! Quero compartir a miña lista \"{nombre}\" contigo.\n\nPreme aquí para aceptar:\n{enlace}",
-    "whatsapp_mensaje_compartir_lista": "Ola! Quero compartir a miña lista \"{nombre}\" contigo. 📱\n\n{enlace}"
+    "whatsapp_mensaje_compartir_lista": "Ola! Quero compartir a miña lista \"{nombre}\" contigo. 📱\n\n{enlace}",
+    "hacer_foto_boton": "Facer foto",
+    "subir_archivo_boton": "Subir ficheiro"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -1654,7 +1658,7 @@
     "err_no_detecto_producto_imagen": "No products were detected in the image. Try a sharper, better-framed photo.",
     "ticket_importado_resumen": "Receipt imported: {creados} new product(s), {actualizados} updated.",
     "ver_stock": "View stock",
-    "jpg_png_hasta_10mb": "JPG, PNG, up to 10 MB",
+    "jpg_png_hasta_10mb": "JPG, PNG or PDF, up to 10 MB",
     "analizando_ticket_ocr": "Analyzing receipt (OCR)... this may take a moment",
     "productos_detectados_contador": "{n} product(s) detected",
     "deseleccionar_todos": "Deselect all",
@@ -1710,7 +1714,9 @@
     "err_editar_articulo": "Error editing the item",
     "email_asunto_invitacion_lista": "I invite you to the list: {nombre}",
     "email_cuerpo_invitacion_lista": "Hi! I want to share my list \"{nombre}\" with you.\n\nClick here to accept:\n{enlace}",
-    "whatsapp_mensaje_compartir_lista": "Hi! I want to share my list \"{nombre}\" with you. 📱\n\n{enlace}"
+    "whatsapp_mensaje_compartir_lista": "Hi! I want to share my list \"{nombre}\" with you. 📱\n\n{enlace}",
+    "hacer_foto_boton": "Take photo",
+    "subir_archivo_boton": "Upload file"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -2225,7 +2231,7 @@
     "err_no_detecto_producto_imagen": "Nenhum produto foi detectado na imagem. Tente uma foto mais nítida e bem enquadrada.",
     "ticket_importado_resumen": "Talão importado: {creados} produto(s) novo(s), {actualizados} atualizado(s).",
     "ver_stock": "Ver estoque",
-    "jpg_png_hasta_10mb": "JPG, PNG, até 10 MB",
+    "jpg_png_hasta_10mb": "JPG, PNG ou PDF, até 10 MB",
     "analizando_ticket_ocr": "Analisando talão (OCR)... pode demorar um pouco",
     "productos_detectados_contador": "{n} produto(s) detectado(s)",
     "deseleccionar_todos": "Desmarcar todos",
@@ -2281,7 +2287,9 @@
     "err_editar_articulo": "Erro ao editar o item",
     "email_asunto_invitacion_lista": "Convido você para a lista: {nombre}",
     "email_cuerpo_invitacion_lista": "Olá! Quero compartilhar minha lista \"{nombre}\" com você.\n\nClique aqui para aceitar:\n{enlace}",
-    "whatsapp_mensaje_compartir_lista": "Olá! Quero compartilhar minha lista \"{nombre}\" com você. 📱\n\n{enlace}"
+    "whatsapp_mensaje_compartir_lista": "Olá! Quero compartilhar minha lista \"{nombre}\" com você. 📱\n\n{enlace}",
+    "hacer_foto_boton": "Tirar foto",
+    "subir_archivo_boton": "Enviar arquivo"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -2796,7 +2804,7 @@
     "err_no_detecto_producto_imagen": "Aucun produit n'a été détecté dans l'image. Essayez une photo plus nette et bien cadrée.",
     "ticket_importado_resumen": "Ticket importé : {creados} nouveau(x) produit(s), {actualizados} mis à jour.",
     "ver_stock": "Voir le stock",
-    "jpg_png_hasta_10mb": "JPG, PNG, jusqu'à 10 Mo",
+    "jpg_png_hasta_10mb": "JPG, PNG ou PDF, jusqu'à 10 Mo",
     "analizando_ticket_ocr": "Analyse du ticket (OCR)... cela peut prendre un moment",
     "productos_detectados_contador": "{n} produit(s) détecté(s)",
     "deseleccionar_todos": "Tout désélectionner",
@@ -2852,7 +2860,9 @@
     "err_editar_articulo": "Erreur lors de la modification de l'article",
     "email_asunto_invitacion_lista": "Je t'invite à la liste : {nombre}",
     "email_cuerpo_invitacion_lista": "Salut ! Je veux partager ma liste \"{nombre}\" avec toi.\n\nClique ici pour accepter :\n{enlace}",
-    "whatsapp_mensaje_compartir_lista": "Salut ! Je veux partager ma liste \"{nombre}\" avec toi. 📱\n\n{enlace}"
+    "whatsapp_mensaje_compartir_lista": "Salut ! Je veux partager ma liste \"{nombre}\" avec toi. 📱\n\n{enlace}",
+    "hacer_foto_boton": "Prendre une photo",
+    "subir_archivo_boton": "Importer un fichier"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -3367,7 +3377,7 @@
     "err_no_detecto_producto_imagen": "Non è stato rilevato alcun prodotto nell'immagine. Prova con una foto più nitida e ben inquadrata.",
     "ticket_importado_resumen": "Scontrino importato: {creados} nuovo/i prodotto/i, {actualizados} aggiornato/i.",
     "ver_stock": "Vedi scorte",
-    "jpg_png_hasta_10mb": "JPG, PNG, fino a 10 MB",
+    "jpg_png_hasta_10mb": "JPG, PNG o PDF, fino a 10 MB",
     "analizando_ticket_ocr": "Analisi dello scontrino (OCR)... potrebbe richiedere un po'",
     "productos_detectados_contador": "{n} prodotto/i rilevato/i",
     "deseleccionar_todos": "Deseleziona tutti",
@@ -3423,7 +3433,9 @@
     "err_editar_articulo": "Errore nella modifica dell'articolo",
     "email_asunto_invitacion_lista": "Ti invito alla lista: {nombre}",
     "email_cuerpo_invitacion_lista": "Ciao! Voglio condividere la mia lista \"{nombre}\" con te.\n\nClicca qui per accettare:\n{enlace}",
-    "whatsapp_mensaje_compartir_lista": "Ciao! Voglio condividere la mia lista \"{nombre}\" con te. 📱\n\n{enlace}"
+    "whatsapp_mensaje_compartir_lista": "Ciao! Voglio condividere la mia lista \"{nombre}\" con te. 📱\n\n{enlace}",
+    "hacer_foto_boton": "Scatta foto",
+    "subir_archivo_boton": "Carica file"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -3938,7 +3950,7 @@
     "err_no_detecto_producto_imagen": "Es wurde kein Produkt im Bild erkannt. Versuche es mit einem schärferen, besser ausgerichteten Foto.",
     "ticket_importado_resumen": "Beleg importiert: {creados} neue(s) Produkt(e), {actualizados} aktualisiert.",
     "ver_stock": "Bestand ansehen",
-    "jpg_png_hasta_10mb": "JPG, PNG, bis zu 10 MB",
+    "jpg_png_hasta_10mb": "JPG, PNG oder PDF, bis 10 MB",
     "analizando_ticket_ocr": "Beleg wird analysiert (OCR)... das kann etwas dauern",
     "productos_detectados_contador": "{n} Produkt(e) erkannt",
     "deseleccionar_todos": "Alle abwählen",
@@ -3994,6 +4006,8 @@
     "err_editar_articulo": "Fehler beim Bearbeiten des Artikels",
     "email_asunto_invitacion_lista": "Ich lade dich zur Liste ein: {nombre}",
     "email_cuerpo_invitacion_lista": "Hallo! Ich möchte meine Liste \"{nombre}\" mit dir teilen.\n\nKlicke hier, um anzunehmen:\n{enlace}",
-    "whatsapp_mensaje_compartir_lista": "Hallo! Ich möchte meine Liste \"{nombre}\" mit dir teilen. 📱\n\n{enlace}"
+    "whatsapp_mensaje_compartir_lista": "Hallo! Ich möchte meine Liste \"{nombre}\" mit dir teilen. 📱\n\n{enlace}",
+    "hacer_foto_boton": "Foto aufnehmen",
+    "subir_archivo_boton": "Datei hochladen"
   }
 }

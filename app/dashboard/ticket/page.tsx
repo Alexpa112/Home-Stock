@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Camera, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
+import { Camera, FileUp, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
 import { tickets } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -101,18 +101,32 @@ export default function EscanearTicketPage() {
       )}
 
       {items.length === 0 && !analizando && (
-        <label className="card flex flex-col items-center justify-center gap-3 py-12 cursor-pointer border-2 border-dashed border-border hover:border-accent transition-colors">
-          <Camera className="w-10 h-10 text-muted-foreground" />
-          <span className="font-medium">{t('toca_para_foto')}</span>
+        <div className="card flex flex-col items-center justify-center gap-4 py-12 border-2 border-dashed border-border">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <label className="btn-primary flex items-center justify-center gap-2 cursor-pointer">
+              <Camera className="w-5 h-5" />
+              {t('hacer_foto_boton')}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp"
+                capture="environment"
+                className="hidden"
+                onChange={handleFile}
+              />
+            </label>
+            <label className="btn-secondary flex items-center justify-center gap-2 cursor-pointer">
+              <FileUp className="w-5 h-5" />
+              {t('subir_archivo_boton')}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,application/pdf"
+                className="hidden"
+                onChange={handleFile}
+              />
+            </label>
+          </div>
           <span className="text-xs text-muted-foreground">{t('jpg_png_hasta_10mb')}</span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp"
-            capture="environment"
-            className="hidden"
-            onChange={handleFile}
-          />
-        </label>
+        </div>
       )}
 
       {analizando && (
