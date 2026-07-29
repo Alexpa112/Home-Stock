@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Package, User, Lock, ArrowRight } from 'lucide-react'
 import { auth } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
@@ -42,9 +42,11 @@ function BgPattern() {
   )
 }
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { t } = useTranslation()
+  const destino = searchParams.get('next') || '/dashboard'
   const [isLogin, setIsLogin] = useState(true)
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
@@ -56,10 +58,10 @@ export default function Home() {
     fetch('/api/auth/estado', { credentials: 'include' })
       .then((r) => r.ok ? r.json() : null)
       .then((datos) => {
-        if (datos?.usuario) router.replace('/dashboard')
+        if (datos?.usuario) router.replace(destino)
       })
       .catch(() => {})
-  }, [router])
+  }, [router, destino])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,7 +93,7 @@ export default function Home() {
         throw new Error(t('err_sesion_no_confirmada'))
       }
 
-      window.location.href = '/dashboard'
+      window.location.href = destino
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
     } finally {
@@ -221,5 +223,13 @@ export default function Home() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   )
 }

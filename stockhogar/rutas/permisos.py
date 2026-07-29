@@ -5,6 +5,7 @@ from flask import Blueprint, request, session
 from datetime import datetime, timedelta
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..config import APP_URL
 from ..db import ahora, get_db
 from ..utils import Validator
 from ..servicios.email_service import EmailService
@@ -294,8 +295,9 @@ def generar_enlace_compartible(lista_id):
     )
     db.commit()
 
-    # Construir URL del enlace
-    url_base = request.host_url.rstrip("/")
+    # Construir URL del enlace (APP_URL, no request.host_url: detras de
+    # proxy/Docker el host de la peticion no es el dominio publico)
+    url_base = APP_URL.rstrip("/")
     url_compartible = f"{url_base}/aceptar-invitacion/{codigo}"
 
     return APIResponse.success({
