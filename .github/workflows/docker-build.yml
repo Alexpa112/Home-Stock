@@ -1,0 +1,32 @@
+name: Docker build
+
+on:
+  push:
+    branches: [dev2, produccion, main]
+  pull_request:
+    branches: [dev2, produccion, main]
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image (Dockerfile, x86_64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: stockhogar-backend:ci
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build frontend image (Dockerfile.frontend)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: false
+          tags: stockhogar-frontend:ci
