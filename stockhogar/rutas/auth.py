@@ -22,6 +22,7 @@ RUTAS_PUBLICAS = {
     "paginas.csrf_token",
     "paginas.mantenimiento_stream",
     "idiomas.obtener_todas_traducciones",
+    "idiomas.obtener_idioma",
 }
 
 

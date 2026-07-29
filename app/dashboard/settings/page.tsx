@@ -5,9 +5,11 @@ import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, 
 import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 export default function SettingsPage() {
   const { preferences, updatePreferences } = useListPreferences()
+  const { t, cambiarIdioma: aplicarIdiomaContexto } = useTranslation()
   const [darkMode, setDarkMode] = useState(false)
   const [user, setUser] = useState<{ usuario?: string; email?: string | null; id?: number }>({})
   const [confirmandoLogout, setConfirmandoLogout] = useState(false)
@@ -47,16 +49,14 @@ export default function SettingsPage() {
   }, [])
 
   const cambiarIdioma = async (codigo: string) => {
+    const idiomaAnterior = idiomaActual
     setIdiomaActual(codigo)
     try {
       await idiomasApi.cambiar(codigo)
-      localStorage.setItem('idioma_preferido', codigo)
-      setTimeout(() => {
-        window.location.reload()
-      }, 300)
+      await aplicarIdiomaContexto(codigo)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar el idioma')
-      setIdiomaActual(idiomaActual)
+      setError(err instanceof Error ? err.message : t('err_cambiar_idioma'))
+      setIdiomaActual(idiomaAnterior)
     }
   }
 
@@ -100,14 +100,14 @@ export default function SettingsPage() {
       await auth.logout()
       window.location.href = '/'
     } catch {
-      setError('Error al cerrar sesión')
+      setError(t('err_cerrar_sesion'))
       setConfirmandoLogout(false)
     }
   }
 
   const handleActualizarNombre = async () => {
     if (!nuevoNombre.trim()) {
-      setError('El nombre de usuario no puede estar vacío')
+      setError(t('err_nombre_usuario_vacio'))
       return
     }
     setCargandoNombre(true)
@@ -117,10 +117,10 @@ export default function SettingsPage() {
       await auth.actualizarPerfil({ nombre: nuevoNombre })
       setUser({ ...user, usuario: nuevoNombre })
       setEditandoNombre(false)
-      setExito('Nombre de usuario actualizado correctamente')
+      setExito(t('nombre_usuario_actualizado'))
       setTimeout(() => setExito(''), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar el nombre')
+      setError(err instanceof Error ? err.message : t('err_actualizar_nombre'))
     } finally {
       setCargandoNombre(false)
     }
@@ -128,15 +128,15 @@ export default function SettingsPage() {
 
   const handleCambiarPassword = async () => {
     if (!passwordActual || !passwordNueva || !passwordConfirmacion) {
-      setError('Todos los campos son obligatorios')
+      setError(t('err_campos_obligatorios'))
       return
     }
     if (passwordNueva !== passwordConfirmacion) {
-      setError('Las nuevas contraseñas no coinciden')
+      setError(t('error_contrasenas_no_coinciden'))
       return
     }
     if (passwordNueva.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres')
+      setError(t('err_password_min_8'))
       return
     }
     setCargandoPassword(true)
@@ -148,10 +148,10 @@ export default function SettingsPage() {
       setPasswordNueva('')
       setPasswordConfirmacion('')
       setEditandoPassword(false)
-      setExito('Contraseña cambiada correctamente')
+      setExito(t('password_cambiada_correctamente'))
       setTimeout(() => setExito(''), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar la contraseña')
+      setError(err instanceof Error ? err.message : t('err_cambiar_password'))
     } finally {
       setCargandoPassword(false)
     }
@@ -166,7 +166,7 @@ export default function SettingsPage() {
       await auth.eliminarCuenta(user.id)
       window.location.href = '/'
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar la cuenta')
+      setError(err instanceof Error ? err.message : t('err_eliminar_cuenta'))
       setConfirmandoEliminar(false)
       setCargandoEliminar(false)
     }
@@ -176,8 +176,8 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">Ajustes</h1>
-        <p className="text-muted-foreground mt-1">Personaliza tu experiencia</p>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('ajustes')}</h1>
+        <p className="text-muted-foreground mt-1">{t('subtitulo_ajustes')}</p>
       </div>
 
       {/* Error Message */}
@@ -185,7 +185,7 @@ export default function SettingsPage() {
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">Error</p>
+            <p className="font-medium">{t('error')}</p>
             <p className="text-sm">{error}</p>
           </div>
         </div>
@@ -201,11 +201,11 @@ export default function SettingsPage() {
 
       {/* Account Section */}
       <div className="card space-y-4">
-        <h2 className="text-lg font-semibold">Cuenta</h2>
+        <h2 className="text-lg font-semibold">{t('seccion_cuenta')}</h2>
 
         <div className="space-y-4 border-t border-border pt-4">
           <div>
-            <label className="text-sm text-muted-foreground">Usuario</label>
+            <label className="text-sm text-muted-foreground">{t('usuario')}</label>
             {editandoNombre ? (
               <div className="space-y-2 mt-2">
                 <input
@@ -213,7 +213,7 @@ export default function SettingsPage() {
                   value={nuevoNombre}
                   onChange={(e) => setNuevoNombre(e.target.value)}
                   className="input-field"
-                  placeholder="Nuevo nombre de usuario"
+                  placeholder={t('placeholder_nuevo_nombre_usuario')}
                 />
                 <div className="flex gap-2">
                   <button
@@ -221,7 +221,7 @@ export default function SettingsPage() {
                     disabled={cargandoNombre}
                     className="flex-1 px-3 py-2 bg-accent text-white rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
                   >
-                    {cargandoNombre ? 'Guardando...' : 'Guardar'}
+                    {cargandoNombre ? t('guardando') : t('guardar')}
                   </button>
                   <button
                     onClick={() => {
@@ -231,18 +231,18 @@ export default function SettingsPage() {
                     disabled={cargandoNombre}
                     className="flex-1 px-3 py-2 bg-muted rounded-lg font-medium transition-colors min-h-[44px]"
                   >
-                    Cancelar
+                    {t('cancelar')}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-between mt-1">
-                <p className="text-foreground font-medium">{user.usuario || 'Cargando...'}</p>
+                <p className="text-foreground font-medium">{user.usuario || t('cargando')}</p>
                 <button
                   onClick={() => setEditandoNombre(true)}
                   className="text-sm text-accent hover:underline"
                 >
-                  Editar
+                  {t('editar')}
                 </button>
               </div>
             )}
@@ -250,7 +250,7 @@ export default function SettingsPage() {
 
           {user.email && (
             <div>
-              <label className="text-sm text-muted-foreground">Correo Electrónico</label>
+              <label className="text-sm text-muted-foreground">{t('correo_electronico')}</label>
               <p className="text-foreground font-medium mt-1">{user.email}</p>
             </div>
           )}
@@ -261,20 +261,20 @@ export default function SettingsPage() {
               className="w-full flex items-center gap-2 px-4 py-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors font-medium min-h-[44px]"
             >
               <Lock className="w-4 h-4" />
-              Cambiar Contraseña
+              {t('btn_cambiar_password')}
             </button>
 
             {editandoPassword && (
               <div className="space-y-3 mt-4 pt-4 border-t border-border">
                 <div>
-                  <label className="text-sm text-muted-foreground">Contraseña Actual</label>
+                  <label className="text-sm text-muted-foreground">{t('password_actual')}</label>
                   <div className="relative mt-1">
                     <input
                       type={mostrarPassword.actual ? 'text' : 'password'}
                       value={passwordActual}
                       onChange={(e) => setPasswordActual(e.target.value)}
                       className="input-field pr-10"
-                      placeholder="Tu contraseña actual"
+                      placeholder={t('placeholder_tu_password_actual')}
                     />
                     <button
                       onClick={() => setMostrarPassword({ ...mostrarPassword, actual: !mostrarPassword.actual })}
@@ -287,14 +287,14 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Nueva Contraseña</label>
+                  <label className="text-sm text-muted-foreground">{t('password_nueva')}</label>
                   <div className="relative mt-1">
                     <input
                       type={mostrarPassword.nueva ? 'text' : 'password'}
                       value={passwordNueva}
                       onChange={(e) => setPasswordNueva(e.target.value)}
                       className="input-field pr-10"
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder={t('minimo_8_caracteres')}
                     />
                     <button
                       onClick={() => setMostrarPassword({ ...mostrarPassword, nueva: !mostrarPassword.nueva })}
@@ -307,14 +307,14 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Confirmar Nueva Contraseña</label>
+                  <label className="text-sm text-muted-foreground">{t('confirmar_nueva_password')}</label>
                   <div className="relative mt-1">
                     <input
                       type={mostrarPassword.confirmacion ? 'text' : 'password'}
                       value={passwordConfirmacion}
                       onChange={(e) => setPasswordConfirmacion(e.target.value)}
                       className="input-field pr-10"
-                      placeholder="Confirma tu nueva contraseña"
+                      placeholder={t('placeholder_confirma_contrasena')}
                     />
                     <button
                       onClick={() => setMostrarPassword({ ...mostrarPassword, confirmacion: !mostrarPassword.confirmacion })}
@@ -332,7 +332,7 @@ export default function SettingsPage() {
                     disabled={cargandoPassword}
                     className="flex-1 px-3 py-3 bg-accent text-white rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
                   >
-                    {cargandoPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
+                    {cargandoPassword ? t('cambiando') : t('btn_cambiar_password')}
                   </button>
                   <button
                     onClick={() => {
@@ -344,7 +344,7 @@ export default function SettingsPage() {
                     disabled={cargandoPassword}
                     className="flex-1 px-3 py-3 bg-muted rounded-lg font-medium transition-colors min-h-[44px]"
                   >
-                    Cancelar
+                    {t('cancelar')}
                   </button>
                 </div>
               </div>
@@ -355,7 +355,7 @@ export default function SettingsPage() {
 
       {/* Theme Section */}
       <div className="card space-y-4">
-        <h2 className="text-lg font-semibold">Apariencia</h2>
+        <h2 className="text-lg font-semibold">{t('seccion_apariencia')}</h2>
 
         <div className="border-t border-border pt-4">
           <div className="flex items-center justify-between mb-4 min-h-[44px]">
@@ -366,9 +366,9 @@ export default function SettingsPage() {
                 <Sun className="w-5 h-5 text-accent" />
               )}
               <div>
-                <p className="font-medium">Modo Oscuro</p>
+                <p className="font-medium">{t('modo_oscuro')}</p>
                 <p className="text-sm text-muted-foreground">
-                  {darkMode ? 'Activado' : 'Desactivado'}
+                  {darkMode ? t('activado') : t('desactivado')}
                 </p>
               </div>
             </div>
@@ -378,7 +378,7 @@ export default function SettingsPage() {
               className={`relative inline-flex items-center h-8 w-14 rounded-full transition-colors min-h-[44px] min-w-[44px] justify-center ${
                 darkMode ? 'bg-accent' : 'bg-muted'
               }`}
-              aria-label={darkMode ? 'Desactivar modo oscuro' : 'Activar modo oscuro'}
+              aria-label={darkMode ? t('aria_desactivar_modo_oscuro') : t('aria_activar_modo_oscuro')}
               aria-pressed={darkMode}
             >
               <div
@@ -390,7 +390,7 @@ export default function SettingsPage() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            El cambio de tema se aplica inmediatamente en toda la aplicación
+            {t('nota_tema_inmediato')}
           </p>
         </div>
       </div>
@@ -398,10 +398,10 @@ export default function SettingsPage() {
       {/* Idioma */}
       <div className="card space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Globe className="w-5 h-5 text-accent" /> Idioma
+          <Globe className="w-5 h-5 text-accent" /> {t('idioma')}
         </h2>
         <div className="border-t border-border pt-4 space-y-2">
-          <label htmlFor="sel-idioma" className="sr-only">Idioma de la interfaz</label>
+          <label htmlFor="sel-idioma" className="sr-only">{t('aria_idioma_interfaz')}</label>
           <select
             id="sel-idioma"
             value={idiomaActual}
@@ -410,12 +410,12 @@ export default function SettingsPage() {
           >
             {Object.entries(idiomasDisponibles).map(([codigo, info]) => (
               <option key={codigo} value={codigo}>
-                {info.nombre} - {info.nativo}
+                {info.nativo}
               </option>
             ))}
           </select>
           <p className="text-sm text-muted-foreground">
-            Se guarda tu preferencia; los textos de esta nueva interfaz siguen en español por ahora.
+            {t('nota_idioma_completo')}
           </p>
         </div>
       </div>
@@ -423,11 +423,11 @@ export default function SettingsPage() {
       {/* Preferencias de Listas */}
       <div className="card space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Layers className="w-5 h-5 text-accent" /> Preferencias de Listas
+          <Layers className="w-5 h-5 text-accent" /> {t('seccion_preferencias_listas')}
         </h2>
         <div className="border-t border-border pt-4 space-y-4">
           <div>
-            <p className="text-sm text-muted-foreground mb-3">Vista de la lista de compra</p>
+            <p className="text-sm text-muted-foreground mb-3">{t('vista_lista_compra_label')}</p>
             <div className="flex gap-2">
               <button
                 onClick={() => updatePreferences({ vista_lista_compra: 'lista' })}
@@ -437,7 +437,7 @@ export default function SettingsPage() {
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
-                <List className="w-4 h-4" /> Lista
+                <List className="w-4 h-4" /> {t('vista_lista')}
               </button>
               <button
                 onClick={() => updatePreferences({ vista_lista_compra: 'recuadros' })}
@@ -447,7 +447,7 @@ export default function SettingsPage() {
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
-                <Grid3x3 className="w-4 h-4" /> Recuadros
+                <Grid3x3 className="w-4 h-4" /> {t('recuadros')}
               </button>
             </div>
           </div>
@@ -455,15 +455,15 @@ export default function SettingsPage() {
           <div className="border-t border-border pt-4">
             <label className="flex items-center justify-between">
               <div>
-                <p className="font-medium">Agrupar por categoría</p>
-                <p className="text-sm text-muted-foreground">En listas de compra y stock</p>
+                <p className="font-medium">{t('agrupar_por_categoria')}</p>
+                <p className="text-sm text-muted-foreground">{t('en_listas_compra_y_stock')}</p>
               </div>
               <button
                 onClick={() => updatePreferences({ agrupar_categorias: preferences.agrupar_categorias === 'on' ? 'off' : 'on' })}
                 className={`relative inline-flex items-center h-8 w-14 rounded-full transition-colors min-h-[44px] min-w-[44px] justify-center ${
                   preferences.agrupar_categorias === 'on' ? 'bg-accent' : 'bg-muted'
                 }`}
-                aria-label="Agrupar por categoría"
+                aria-label={t('agrupar_por_categoria')}
                 aria-pressed={preferences.agrupar_categorias === 'on'}
               >
                 <div
@@ -484,33 +484,33 @@ export default function SettingsPage() {
       >
         <History className="w-5 h-5 text-accent shrink-0" />
         <div>
-          <p className="font-medium">Historial de consumo</p>
-          <p className="text-sm text-muted-foreground">Ver los productos más consumidos y el catálogo aprendido</p>
+          <p className="font-medium">{t('historial_consumo')}</p>
+          <p className="text-sm text-muted-foreground">{t('ver_productos_consumidos')}</p>
         </div>
       </Link>
 
       {/* Danger Zone */}
       <div className="card space-y-4 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30">
-        <h2 className="text-lg font-semibold text-red-700 dark:text-red-300">Zona de Riesgo</h2>
+        <h2 className="text-lg font-semibold text-red-700 dark:text-red-300">{t('zona_riesgo')}</h2>
 
         <div className="border-t border-red-200 dark:border-red-900 pt-4 space-y-4">
           {/* Logout */}
           <div>
             {confirmandoLogout ? (
               <div className="space-y-2">
-                <p className="text-sm text-center text-red-700 dark:text-red-300 font-medium">¿Seguro que quieres cerrar sesión?</p>
+                <p className="text-sm text-center text-red-700 dark:text-red-300 font-medium">{t('confirmar_cerrar_sesion_pregunta')}</p>
                 <div className="flex gap-2">
                   <button
                     onClick={handleLogout}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors min-h-[44px]"
                   >
-                    <LogOut className="w-4 h-4" /> Sí, cerrar sesión
+                    <LogOut className="w-4 h-4" /> {t('si_cerrar_sesion')}
                   </button>
                   <button
                     onClick={() => setConfirmandoLogout(false)}
                     className="flex-1 flex items-center justify-center px-4 py-3 bg-muted rounded-xl font-medium transition-colors min-h-[44px]"
                   >
-                    Cancelar
+                    {t('cancelar')}
                   </button>
                 </div>
               </div>
@@ -521,10 +521,10 @@ export default function SettingsPage() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors min-h-[44px]"
                 >
                   <LogOut className="w-5 h-5" />
-                  Cerrar Sesión
+                  {t('cerrar_sesion_titulo')}
                 </button>
                 <p className="text-sm text-red-600 dark:text-red-400 text-center mt-2">
-                  Se cerrará tu sesión en este dispositivo
+                  {t('nota_cerrar_sesion_dispositivo')}
                 </p>
               </>
             )}
@@ -534,7 +534,7 @@ export default function SettingsPage() {
             {confirmandoEliminar ? (
               <div className="space-y-2">
                 <p className="text-sm text-center text-red-700 dark:text-red-300 font-medium">
-                  ¿Estás seguro? Esta acción no puede deshacerse. Se eliminarán todos tus datos.
+                  {t('confirmar_eliminar_cuenta_pregunta')}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -542,14 +542,14 @@ export default function SettingsPage() {
                     disabled={cargandoEliminar}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50 min-h-[44px]"
                   >
-                    <Trash2 className="w-4 h-4" /> {cargandoEliminar ? 'Eliminando...' : 'Sí, eliminar cuenta'}
+                    <Trash2 className="w-4 h-4" /> {cargandoEliminar ? t('eliminando') : t('si_eliminar_cuenta')}
                   </button>
                   <button
                     onClick={() => setConfirmandoEliminar(false)}
                     disabled={cargandoEliminar}
                     className="flex-1 flex items-center justify-center px-4 py-3 bg-muted rounded-xl font-medium transition-colors min-h-[44px]"
                   >
-                    Cancelar
+                    {t('cancelar')}
                   </button>
                 </div>
               </div>
@@ -560,10 +560,10 @@ export default function SettingsPage() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors min-h-[44px]"
                 >
                   <Trash2 className="w-5 h-5" />
-                  Eliminar Cuenta
+                  {t('eliminar_cuenta_titulo')}
                 </button>
                 <p className="text-sm text-red-600 dark:text-red-400 text-center mt-2">
-                  Esta acción es irreversible. Se eliminarán permanentemente todos tus datos.
+                  {t('nota_eliminar_cuenta_irreversible')}
                 </p>
               </>
             )}
@@ -573,8 +573,8 @@ export default function SettingsPage() {
 
       {/* Info */}
       <div className="text-center py-6 text-sm text-muted-foreground border-t border-border">
-        <p>Dreame! v2.0 • Inventario del Hogar</p>
-        <p className="text-xs mt-1">© 2024 Todos los derechos reservados</p>
+        <p>Dreame! v2.0 • {t('subtitulo_app')}</p>
+        <p className="text-xs mt-1">{t('footer_copyright')}</p>
       </div>
     </div>
   )

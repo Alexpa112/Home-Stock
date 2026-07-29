@@ -7,6 +7,7 @@ import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
 
@@ -33,6 +34,7 @@ interface Categoria {
 
 export default function ShoppingPage() {
   const { preferences, updatePreferences } = useListPreferences()
+  const { t } = useTranslation()
   const cachedArticulos = getCached<{ pendientes: ArticuloLista[]; completados: ArticuloLista[] }>(CACHE_KEY_ARTICULOS)
   const [pendientes, setPendientes] = useState<ArticuloLista[]>(cachedArticulos?.pendientes || [])
   const [completados, setCompletados] = useState<ArticuloLista[]>(cachedArticulos?.completados || [])
@@ -73,7 +75,7 @@ export default function ShoppingPage() {
       setCompletados(completadosArr)
       setCached(CACHE_KEY_ARTICULOS, { pendientes: pendientesArr, completados: completadosArr })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error de conexión'
+      const message = err instanceof Error ? err.message : t('error_conexion_titulo')
       setError(message)
     } finally {
       setLoading(false)
@@ -92,7 +94,7 @@ export default function ShoppingPage() {
       setShowForm(false)
       await loadItems()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al añadir artículo'
+      const message = err instanceof Error ? err.message : t('err_anadir_articulo')
       setError(message)
     }
   }
@@ -107,7 +109,7 @@ export default function ShoppingPage() {
       }
       await loadItems()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al actualizar'
+      const message = err instanceof Error ? err.message : t('err_actualizar')
       setError(message)
     }
   }
@@ -123,7 +125,7 @@ export default function ShoppingPage() {
       await articulosLista.eliminar(id)
       await loadItems()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al eliminar'
+      const message = err instanceof Error ? err.message : t('err_eliminar_articulo')
       setError(message)
     }
   }
@@ -141,7 +143,7 @@ export default function ShoppingPage() {
       setEditandoId(null)
       await loadItems()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al editar el artículo')
+      setError(err instanceof Error ? err.message : t('err_editar_articulo'))
     }
   }
 
@@ -185,7 +187,7 @@ export default function ShoppingPage() {
             ? 'hover:bg-muted'
             : 'hover:bg-green-50 dark:hover:bg-green-950'
         }`}
-        aria-label={isCompleted ? `Restaurar ${item.nombre}` : `Marcar ${item.nombre} como comprado`}
+        aria-label={isCompleted ? t('aria_restaurar_producto').replace('{nombre}', item.nombre) : t('aria_marcar_comprado_producto').replace('{nombre}', item.nombre)}
       >
         {isCompleted ? (
           <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -216,14 +218,14 @@ export default function ShoppingPage() {
             <button
               onClick={() => guardarEdicion(item.id)}
               className="btn-primary flex-1 flex items-center justify-center gap-2"
-              aria-label="Guardar"
+              aria-label={t('guardar')}
             >
-              <Check className="w-4 h-4" /> Guardar
+              <Check className="w-4 h-4" /> {t('guardar')}
             </button>
             <button
               onClick={() => setEditandoId(null)}
               className="btn-secondary px-3"
-              aria-label="Cancelar edición"
+              aria-label={t('aria_cancelar_edicion')}
             >
               ✕
             </button>
@@ -239,7 +241,7 @@ export default function ShoppingPage() {
             {item.origen === 'auto' && !isCompleted && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
                 <AlertTriangle className="w-3 h-3" />
-                Stock bajo
+                {t('stock_bajo')}
               </span>
             )}
           </div>
@@ -251,7 +253,7 @@ export default function ShoppingPage() {
         <button
           onClick={() => iniciarEdicion(item)}
           className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
-          aria-label="Editar"
+          aria-label={t('editar')}
         >
           <Pencil className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -263,20 +265,20 @@ export default function ShoppingPage() {
             onClick={() => handleDeleteItem(item.id)}
             className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl"
           >
-            Sí
+            {t('si')}
           </button>
           <button
             onClick={() => setConfirmandoId(null)}
             className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl"
           >
-            No
+            {t('no')}
           </button>
         </div>
       ) : (
         <button
           onClick={() => handleDeleteItem(item.id)}
           className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
-          aria-label="Eliminar"
+          aria-label={t('eliminar')}
         >
           <Trash2 className="w-4 h-4 text-red-500" />
         </button>
@@ -284,101 +286,105 @@ export default function ShoppingPage() {
     </div>
   )
 
+  // Tile al estilo Bring!: icono, nombre y cantidad solo si es distinta de 1.
+  // Tocar el tile marca comprado/restaurado; editar y eliminar quedan como
+  // acciones secundarias discretas debajo, igual que en Stock.
+  const renderItemGridTile = (item: ArticuloLista, isCompleted: boolean = false) => {
+    const icono = getCategoryIcon(item.categoria)
+    return (
+      <div key={item.id} className={`card !p-2.5 flex flex-col items-center text-center gap-1.5 relative ${isCompleted ? 'opacity-60' : ''}`}>
+        <button
+          onClick={() => handleToggleBought(item.id, !isCompleted)}
+          className="absolute inset-0 rounded-2xl"
+          aria-label={isCompleted ? t('aria_restaurar_producto').replace('{nombre}', item.nombre) : t('aria_marcar_comprado_producto').replace('{nombre}', item.nombre)}
+        />
+
+        <div className="relative pointer-events-none">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+            {icono ? (
+              <IconRenderer name={icono} className="w-7 h-7 text-muted-foreground" />
+            ) : isCompleted ? (
+              <CheckCircle2 className="w-7 h-7 text-green-500" />
+            ) : (
+              <Circle className="w-7 h-7 text-muted-foreground" />
+            )}
+          </div>
+          {item.cantidad !== 1 && (
+            <span className="absolute -bottom-1.5 -right-1.5 min-w-[1.375rem] h-5.5 px-1 flex items-center justify-center rounded-full text-xs font-bold tabular-nums border-2 border-card bg-accent text-accent-foreground">
+              {item.cantidad}
+            </span>
+          )}
+          {item.origen === 'auto' && !isCompleted && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-orange-500 border-2 border-card" title={t('stock_bajo')} />
+          )}
+        </div>
+
+        <p className={`font-medium text-foreground text-xs leading-tight line-clamp-2 pointer-events-none ${isCompleted ? 'line-through' : ''}`}>
+          {item.nombre}
+        </p>
+
+        <div className="relative flex items-center gap-1 pt-0.5">
+          <button
+            onClick={() => iniciarEdicion(item)}
+            className="w-7 h-7 flex items-center justify-center hover:bg-muted rounded-lg transition-colors"
+            aria-label={t('editar')}
+          >
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          {confirmandoId === item.id ? (
+            <>
+              <button
+                onClick={() => handleDeleteItem(item.id)}
+                className="px-1.5 h-7 flex items-center text-xs font-semibold text-white bg-red-500 rounded-lg transition-colors"
+                aria-label={t('aria_confirmar_eliminacion')}
+              >
+                {t('si')}
+              </button>
+              <button
+                onClick={() => setConfirmandoId(null)}
+                className="px-1.5 h-7 flex items-center text-xs font-semibold text-foreground bg-muted rounded-lg transition-colors"
+                aria-label={t('cancelar')}
+              >
+                {t('no')}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => handleDeleteItem(item.id)}
+              className="w-7 h-7 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
+              aria-label={t('eliminar')}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const renderVistaRecuadros = () => (
     <div className="space-y-6">
       {searchQuery && filteredPendingItems.length === 0 && filteredBoughtItems.length === 0 && (
         <div className="text-center py-8 space-y-2">
-          <p className="text-muted-foreground">Sin resultados para <strong>«{searchQuery}»</strong></p>
-          <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">Limpiar búsqueda</button>
+          <p className="text-muted-foreground">{t('sin_resultados_para')} <strong>«{searchQuery}»</strong></p>
+          <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">{t('limpiar_busqueda')}</button>
         </div>
       )}
 
       {filteredPendingItems.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold">Pendientes ({filteredPendingItems.length})</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredPendingItems.map((item) => (
-              <div
-                key={item.id}
-                className="card p-4 flex flex-col justify-between"
-              >
-                <div className="flex-1">
-                  <div className="flex items-start gap-2 mb-2">
-                    <p className="font-medium text-foreground flex-1">
-                      {item.nombre}
-                      {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
-                    </p>
-                    {item.origen === 'auto' && (
-                      <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                    )}
-                  </div>
-                  {item.categoria && (
-                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
-                  )}
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => handleToggleBought(item.id, true)}
-                    className="flex-1 btn-primary text-xs flex items-center justify-center gap-1"
-                  >
-                    <Check className="w-3 h-3" /> Comprado
-                  </button>
-                  <button
-                    onClick={() => iniciarEdicion(item)}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
-                    aria-label="Editar"
-                  >
-                    <Pencil className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                    aria-label="Eliminar"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </button>
-                </div>
-              </div>
-            ))}
+          <h2 className="text-lg font-semibold">{t('pendientes_contador')} ({filteredPendingItems.length})</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+            {filteredPendingItems.map((item) => renderItemGridTile(item, false))}
           </div>
         </div>
       )}
 
       {filteredBoughtItems.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-muted-foreground">Comprados ({filteredBoughtItems.length})</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredBoughtItems.map((item) => (
-              <div
-                key={item.id}
-                className="card p-4 opacity-60 flex flex-col justify-between"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-foreground line-through mb-2">
-                    {item.nombre}
-                    {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
-                  </p>
-                  {item.categoria && (
-                    <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />
-                  )}
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => handleToggleBought(item.id, false)}
-                    className="flex-1 btn-secondary text-xs"
-                  >
-                    Restaurar
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                    aria-label="Eliminar"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </button>
-                </div>
-              </div>
-            ))}
+          <h2 className="text-lg font-semibold text-muted-foreground">{t('comprados_contador')} ({filteredBoughtItems.length})</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+            {filteredBoughtItems.map((item) => renderItemGridTile(item, true))}
           </div>
         </div>
       )}
@@ -390,9 +396,9 @@ export default function ShoppingPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Lista de Compra</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold">{t('lista_compra')}</h1>
           <p className="text-muted-foreground mt-1">
-            {pendientes.length} artículos pendientes
+            {pendientes.length} {t('articulos_pendientes')}
           </p>
         </div>
         <button
@@ -400,8 +406,8 @@ export default function ShoppingPage() {
           className="btn-primary flex items-center gap-2 min-h-[44px]"
         >
           <Plus className="w-5 h-5" />
-          <span className="hidden sm:inline">Añadir Artículo</span>
-          <span className="sm:hidden">Añadir</span>
+          <span className="hidden sm:inline">{t('añadir_articulo')}</span>
+          <span className="sm:hidden">{t('añadir')}</span>
         </button>
       </div>
 
@@ -416,8 +422,8 @@ export default function ShoppingPage() {
                   ? 'bg-accent text-white'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
-              title="Vista de lista"
-              aria-label="Vista de lista"
+              title={t('titulo_vista_lista')}
+              aria-label={t('titulo_vista_lista')}
             >
               <List className="w-5 h-5" />
             </button>
@@ -428,8 +434,8 @@ export default function ShoppingPage() {
                   ? 'bg-accent text-white'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
-              title="Vista de recuadros"
-              aria-label="Vista de recuadros"
+              title={t('titulo_vista_recuadros')}
+              aria-label={t('titulo_vista_recuadros')}
             >
               <Grid3x3 className="w-5 h-5" />
             </button>
@@ -441,7 +447,7 @@ export default function ShoppingPage() {
               onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
               className="w-4 h-4 rounded"
             />
-            <span className="text-sm font-medium">Agrupar por categoría</span>
+            <span className="text-sm font-medium">{t('agrupar_por_categoria')}</span>
           </label>
         </div>
       )}
@@ -449,16 +455,16 @@ export default function ShoppingPage() {
       {/* Add Form */}
       {showForm && (
         <div className="card space-y-4">
-          <h2 className="text-lg font-semibold">Nuevo Artículo</h2>
+          <h2 className="text-lg font-semibold">{t('nuevo_articulo')}</h2>
           <form onSubmit={handleAddItem} className="space-y-4">
             <div>
-              <label htmlFor="art-nombre" className="block text-sm font-medium mb-2">Artículo</label>
+              <label htmlFor="art-nombre" className="block text-sm font-medium mb-2">{t('articulo')}</label>
               <input
                 id="art-nombre"
                 type="text"
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="ej: Leche, Pan, Detergente..."
+                placeholder={t('placeholder_ej_articulo')}
                 className="input-field"
                 required
                 inputMode="text"
@@ -467,7 +473,7 @@ export default function ShoppingPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="art-categoria" className="block text-sm font-medium mb-2">Categoría</label>
+                <label htmlFor="art-categoria" className="block text-sm font-medium mb-2">{t('categoria')}</label>
                 <select
                   id="art-categoria"
                   value={formData.categoria}
@@ -483,7 +489,7 @@ export default function ShoppingPage() {
               </div>
 
               <div>
-                <label htmlFor="art-cantidad" className="block text-sm font-medium mb-2">Cantidad</label>
+                <label htmlFor="art-cantidad" className="block text-sm font-medium mb-2">{t('cantidad')}</label>
                 <input
                   id="art-cantidad"
                   type="number"
@@ -498,14 +504,14 @@ export default function ShoppingPage() {
 
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1">
-                Guardar
+                {t('guardar')}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
                 className="btn-secondary flex-1"
               >
-                Cancelar
+                {t('cancelar')}
               </button>
             </div>
           </form>
@@ -516,7 +522,7 @@ export default function ShoppingPage() {
       {items.length > 0 && !loading && (
         <div>
           <SearchBar
-            placeholder="Buscar por nombre o categoría..."
+            placeholder={t('placeholder_buscar_nombre_categoria')}
             value={searchQuery}
             onChange={setSearchQuery}
           />
@@ -528,7 +534,7 @@ export default function ShoppingPage() {
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">Error</p>
+            <p className="font-medium">{t('error')}</p>
             <p className="text-sm">{error}</p>
           </div>
         </div>
@@ -539,13 +545,13 @@ export default function ShoppingPage() {
         <SkeletonCards />
       ) : items.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">La lista está vacía</p>
+          <p className="text-muted-foreground mb-4">{t('lista_vacia')}</p>
           <button
             onClick={() => setShowForm(true)}
             className="btn-primary inline-flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            Crear Mi Primera Compra
+            {t('crear_primera_compra')}
           </button>
         </div>
       ) : preferences.vista_lista_compra === 'recuadros' ? (
@@ -555,7 +561,7 @@ export default function ShoppingPage() {
           {/* Pending Items */}
           {filteredPendingItems.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">Pendientes ({filteredPendingItems.length})</h2>
+              <h2 className="text-lg font-semibold">{t('pendientes_contador')} ({filteredPendingItems.length})</h2>
               {preferences.agrupar_categorias === 'on' ? (
                 <div className="space-y-4">
                   {agruparPorCategoria(filteredPendingItems).map(([categoria, items]) => (
@@ -581,15 +587,15 @@ export default function ShoppingPage() {
           {/* Sin resultados de búsqueda */}
           {searchQuery && filteredPendingItems.length === 0 && filteredBoughtItems.length === 0 && (
             <div className="text-center py-8 space-y-2">
-              <p className="text-muted-foreground">Sin resultados para <strong>«{searchQuery}»</strong></p>
-              <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">Limpiar búsqueda</button>
+              <p className="text-muted-foreground">{t('sin_resultados_para')} <strong>«{searchQuery}»</strong></p>
+              <button onClick={() => setSearchQuery('')} className="text-sm text-accent hover:underline">{t('limpiar_busqueda')}</button>
             </div>
           )}
 
           {/* Bought Items */}
           {filteredBoughtItems.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-muted-foreground">Comprados ({filteredBoughtItems.length})</h2>
+              <h2 className="text-lg font-semibold text-muted-foreground">{t('comprados_contador')} ({filteredBoughtItems.length})</h2>
               {preferences.agrupar_categorias === 'on' ? (
                 <div className="space-y-4">
                   {agruparPorCategoria(filteredBoughtItems).map(([categoria, items]) => (

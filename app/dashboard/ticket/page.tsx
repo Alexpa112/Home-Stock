@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Camera, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
 import { tickets } from '@/lib/api'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 // Shape real: ver stockhogar/servicios/ocr/procesador_tickets_v2.py:crear_respuesta_usuario
 interface ItemTicket {
@@ -18,6 +19,7 @@ interface ItemTicket {
 }
 
 export default function EscanearTicketPage() {
+  const { t } = useTranslation()
   const [analizando, setAnalizando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [items, setItems] = useState<ItemTicket[]>([])
@@ -37,10 +39,10 @@ export default function EscanearTicketPage() {
       setItems(conIncluir)
       setAdvertencias(data.advertencias || [])
       if ((data.items || []).length === 0) {
-        setError('No se detectó ningún producto en la imagen. Prueba con una foto más nítida y bien encuadrada.')
+        setError(t('err_no_detecto_producto_imagen'))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error analizando el ticket')
+      setError(err instanceof Error ? err.message : t('error_procesar'))
     } finally {
       setAnalizando(false)
       e.target.value = ''
@@ -69,7 +71,7 @@ export default function EscanearTicketPage() {
       setResultado(data)
       setItems([])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error importando los productos')
+      setError(err instanceof Error ? err.message : t('err_importando_productos'))
     } finally {
       setConfirmando(false)
     }
@@ -78,9 +80,9 @@ export default function EscanearTicketPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">Escanear Ticket</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('escanear_ticket_simple')}</h1>
         <p className="text-muted-foreground mt-1">
-          Haz una foto del ticket de compra y añade los productos al stock automáticamente
+          {t('subtitulo_escanear_ticket')}
         </p>
       </div>
 
@@ -93,16 +95,16 @@ export default function EscanearTicketPage() {
 
       {resultado && (
         <div className="p-4 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-200 rounded-lg text-sm">
-          Ticket importado: {resultado.creados} producto(s) nuevo(s), {resultado.actualizados} actualizado(s).{' '}
-          <a href="/dashboard" className="underline font-medium">Ver stock</a>
+          {t('ticket_importado_resumen').replace('{creados}', String(resultado.creados)).replace('{actualizados}', String(resultado.actualizados))}{' '}
+          <a href="/dashboard" className="underline font-medium">{t('ver_stock')}</a>
         </div>
       )}
 
       {items.length === 0 && !analizando && (
         <label className="card flex flex-col items-center justify-center gap-3 py-12 cursor-pointer border-2 border-dashed border-border hover:border-accent transition-colors">
           <Camera className="w-10 h-10 text-muted-foreground" />
-          <span className="font-medium">Toca para hacer una foto o elegir una imagen</span>
-          <span className="text-xs text-muted-foreground">JPG, PNG, hasta 10 MB</span>
+          <span className="font-medium">{t('toca_para_foto')}</span>
+          <span className="text-xs text-muted-foreground">{t('jpg_png_hasta_10mb')}</span>
           <input
             type="file"
             accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp"
@@ -116,7 +118,7 @@ export default function EscanearTicketPage() {
       {analizando && (
         <div className="card flex flex-col items-center justify-center gap-3 py-12">
           <Loader className="w-8 h-8 animate-spin text-accent" />
-          <span className="text-muted-foreground">Analizando ticket (OCR)... puede tardar un poco</span>
+          <span className="text-muted-foreground">{t('analizando_ticket_ocr')}</span>
         </div>
       )}
 
@@ -134,7 +136,7 @@ export default function EscanearTicketPage() {
       {items.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">{items.length} producto(s) detectado(s)</h2>
+            <h2 className="text-base font-semibold">{t('productos_detectados_contador').replace('{n}', String(items.length))}</h2>
             <button
               onClick={() => {
                 const todosIncluidos = items.every(i => i.incluir)
@@ -142,7 +144,7 @@ export default function EscanearTicketPage() {
               }}
               className="text-sm text-accent hover:underline font-medium"
             >
-              {items.every(i => i.incluir) ? 'Deseleccionar todos' : 'Seleccionar todos'}
+              {items.every(i => i.incluir) ? t('deseleccionar_todos') : t('seleccionar_todos')}
             </button>
           </div>
           <div className="space-y-2">
@@ -162,7 +164,7 @@ export default function EscanearTicketPage() {
                         ? 'bg-accent border-accent'
                         : 'border-border bg-card'
                     }`}
-                    aria-label={item.incluir ? 'Excluir producto' : 'Incluir producto'}
+                    aria-label={item.incluir ? t('aria_excluir_producto') : t('aria_incluir_producto')}
                   >
                     {item.incluir && <Check className="w-3.5 h-3.5 text-white" />}
                   </button>
@@ -183,14 +185,14 @@ export default function EscanearTicketPage() {
                         onChange={(e) => actualizarItem(idx, { cantidad: parseInt(e.target.value) || 0 })}
                         className="input-field"
                         inputMode="numeric"
-                        placeholder="Cantidad"
+                        placeholder={t('cantidad')}
                       />
                       <input
                         type="text"
                         value={item.categoria}
                         onChange={(e) => actualizarItem(idx, { categoria: e.target.value })}
                         className="input-field"
-                        placeholder="Categoría"
+                        placeholder={t('categoria')}
                       />
                     </div>
                   </div>
@@ -198,10 +200,10 @@ export default function EscanearTicketPage() {
                   <div className="flex-shrink-0 mt-1">
                     {item.producto_id ? (
                       <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
-                        <Check className="w-4 h-4" /> Conocido
+                        <Check className="w-4 h-4" /> {t('conocido')}
                       </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Nuevo</span>
+                      <span className="text-xs text-muted-foreground">{t('nuevo_badge')}</span>
                     )}
                   </div>
                 </div>
@@ -216,10 +218,10 @@ export default function EscanearTicketPage() {
               className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {confirmando ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Confirmar e importar al stock
+              {t('confirmar_e_importar_stock')}
             </button>
             <button onClick={() => setItems([])} className="btn-secondary">
-              Cancelar
+              {t('cancelar')}
             </button>
           </div>
         </div>

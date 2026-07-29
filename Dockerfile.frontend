@@ -36,7 +36,18 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # ahi solo se cargan bindings WASM, que Turbopack no puede usar, y el build
 # falla con "Turbopack is not supported on this platform". Webpack sí
 # funciona en todas las arquitecturas.
-RUN if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm run build -- --webpack; else npm run build -- --webpack; fi
+# NODE_OPTIONS=--unhandled-rejections=warn: Next.js ya no publica el binario
+# nativo de SWC para linux/arm (32-bit) desde la v13.2.5 en adelante. En su
+# lugar cae automaticamente al binding WASM (que sí funciona), pero un hilo
+# interno intenta ADEMÁS descargar el paquete nativo inexistente y esa
+# promesa rechazada sin capturar mata el proceso entero (Node aborta ante
+# cualquier unhandledRejection). Sin esta opción, el build siempre falla en
+# Raspberry Pi de 32-bit aunque el fallback WASM habría sido suficiente.
+RUN if [ -f pnpm-lock.yaml ]; then \
+        corepack enable && NODE_OPTIONS=--unhandled-rejections=warn pnpm run build -- --webpack; \
+    else \
+        NODE_OPTIONS=--unhandled-rejections=warn npm run build -- --webpack; \
+    fi
 
 FROM node:20-bookworm-slim
 WORKDIR /app

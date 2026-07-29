@@ -3,10 +3,12 @@
 # StockHogar - Instalador Docker (Raspberry Pi / Debian / Ubuntu)
 #
 # Uso:
-#   ./install.sh            Instala o actualiza StockHogar
-#   ./install.sh --update   Además hace `git pull --ff-only` antes de reconstruir
-#   ./install.sh --no-build Reinicia contenedores sin reconstruir la imagen
-#   ./install.sh --help     Muestra esta ayuda
+#   ./install.sh              Instala o actualiza StockHogar
+#   ./install.sh --update     Además hace `git pull --ff-only` antes de reconstruir
+#   ./install.sh --reinstall  Descarta cambios locales (git reset --hard al remoto)
+#                             y reconstruye TODO sin caché (--no-cache)
+#   ./install.sh --no-build   Reinicia contenedores sin reconstruir la imagen
+#   ./install.sh --help       Muestra esta ayuda
 #
 # Seguro de re-ejecutar: no pisa un .env existente (y lo respalda antes de
 # tocarlo), hace backup de la base de datos antes de reconstruir contenedores,
@@ -58,15 +60,15 @@ DOCKER=()
 COMPOSE=()
 
 # --- Bloqueo: evita que dos ejecuciones se pisen (cron + manual, doble clic) -
-if [[ -e "$LOCK_FILE" ]]; then
-    OTHER_PID="$(cat "$LOCK_FILE" 2>/dev/null || echo "")"
-    if [[ -n "$OTHER_PID" ]] && kill -0 "$OTHER_PID" 2>/dev/null; then
-        log_error "Ya hay una instalación en curso (PID $OTHER_PID). Espera a que termine o borra $LOCK_FILE si sabes que quedó huérfana."
-        exit 1
-    fi
-    log_warning "Se encontró un lock huérfano de una ejecución anterior; se ignora y se continúa."
+# flock (no el viejo check-then-write de PID) para que el propio kernel
+# resuelva la carrera: dos procesos pueden pasar el `[[ -e "$LOCK_FILE" ]]`
+# a la vez, `flock` no.
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    log_error "Ya hay una instalación en curso. Espera a que termine o revisa $LOCK_FILE."
+    exit 1
 fi
-echo "$$" > "$LOCK_FILE"
+echo "$$" >&200
 
 HEARTBEAT_PID=""
 stop_heartbeat() {
@@ -105,18 +107,24 @@ trap on_interrupt INT TERM
 # error tonto del propio script).
 CONTAINERS_TOUCHED=0
 ROLLBACK_DONE=0
+IMAGE_NAMES_BACKED_UP=()
 rollback() {
     [[ "$ROLLBACK_DONE" -eq 1 ]] && return 0
     [[ "$CONTAINERS_TOUCHED" -eq 0 ]] && return 0
     ROLLBACK_DONE=1
     log_warning "Iniciando rollback automático a la versión anterior..."
 
-    if [[ -n "${IMAGE_NAME:-}" ]] && "${DOCKER[@]}" image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
-        if "${DOCKER[@]}" tag "${IMAGE_NAME}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 \
-           && "${COMPOSE[@]}" up -d --force-recreate >> "$LOG_FILE" 2>&1; then
-            log_warning "Imagen Docker revertida a la versión anterior y contenedores recreados."
+    if [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -gt 0 ]]; then
+        RETAG_OK=1
+        for IMAGE_NAME in "${IMAGE_NAMES_BACKED_UP[@]}"; do
+            if "${DOCKER[@]}" image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
+                "${DOCKER[@]}" tag "${IMAGE_NAME}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 || RETAG_OK=0
+            fi
+        done
+        if [[ "$RETAG_OK" -eq 1 ]] && "${COMPOSE[@]}" up -d --force-recreate >> "$LOG_FILE" 2>&1; then
+            log_warning "Imágenes Docker revertidas a la versión anterior y contenedores recreados."
         else
-            log_error "El rollback de la imagen Docker también falló; revisa $LOG_FILE manualmente."
+            log_error "El rollback de las imágenes Docker también falló; revisa $LOG_FILE manualmente."
         fi
     else
         log_warning "No había una imagen anterior guardada para revertir (probablemente es la primera instalación)."
@@ -226,26 +234,36 @@ wait_healthy() {
 
 usage() {
     cat <<EOF
-Uso: ./install.sh [--update] [--no-build] [--help]
+Uso: ./install.sh [--update] [--reinstall] [--no-build] [--help]
 
   (sin flags)  Instala o reconstruye StockHogar en este directorio.
   --update     Además hace 'git pull --ff-only' antes de reconstruir.
+  --reinstall  Descarta cambios locales ('git reset --hard' contra el remoto de
+               la rama actual) y reconstruye TODAS las imágenes sin caché
+               (--no-cache). No toca data/, .env ni uploads/ (fuera de git).
   --no-build   No reconstruye la imagen; solo recrea los contenedores (rápido).
+               Se ignora si se combina con --reinstall.
   --help       Muestra esta ayuda y sale.
 EOF
 }
 
 UPDATE_MODE=0
+REINSTALL_MODE=0
 BUILD_MODE=1
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --update)    UPDATE_MODE=1 ;;
-        --no-build)  BUILD_MODE=0 ;;
-        --help|-h)   usage; exit 0 ;;
+        --update)     UPDATE_MODE=1 ;;
+        --reinstall)  REINSTALL_MODE=1 ;;
+        --no-build)   BUILD_MODE=0 ;;
+        --help|-h)    usage; exit 0 ;;
         *) log_error "Opción desconocida: $1"; usage; exit 1 ;;
     esac
     shift
 done
+if [[ "$REINSTALL_MODE" -eq 1 ]] && [[ "$BUILD_MODE" -eq 0 ]]; then
+    log_warning "--no-build se ignora junto a --reinstall (--reinstall siempre reconstruye sin caché)"
+    BUILD_MODE=1
+fi
 
 ################################################################################
 step_start "Detectar sistema y recursos"
@@ -283,12 +301,18 @@ if [[ -n "$MEMORY_MB" ]]; then
 fi
 
 FREE_DISK_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo "")"
+# --reinstall (--no-cache) reconstruye TODAS las capas de golpe en vez de
+# reutilizar las que ya existen, así que necesita bastante más margen temporal.
+DISK_MIN_MB=800; DISK_RECOMENDADO_MB=2048
+if [[ "$REINSTALL_MODE" -eq 1 ]]; then
+    DISK_MIN_MB=2048; DISK_RECOMENDADO_MB=4096
+fi
 if [[ -n "$FREE_DISK_MB" ]]; then
-    if [[ "$FREE_DISK_MB" -lt 800 ]]; then
-        log_error "Espacio libre: ${FREE_DISK_MB}MB. Insuficiente para construir la imagen. Libera espacio y reintenta."
+    if [[ "$FREE_DISK_MB" -lt "$DISK_MIN_MB" ]]; then
+        log_error "Espacio libre: ${FREE_DISK_MB}MB. Insuficiente para construir la imagen (mínimo ${DISK_MIN_MB}MB). Libera espacio y reintenta."
         exit 1
-    elif [[ "$FREE_DISK_MB" -lt 2048 ]]; then
-        log_warning "Espacio libre: ${FREE_DISK_MB}MB (recomendado 2GB+ para construir con margen)"
+    elif [[ "$FREE_DISK_MB" -lt "$DISK_RECOMENDADO_MB" ]]; then
+        log_warning "Espacio libre: ${FREE_DISK_MB}MB (recomendado ${DISK_RECOMENDADO_MB}MB+ para construir con margen)"
     else
         log_success "Espacio libre en disco: ${FREE_DISK_MB}MB"
     fi
@@ -411,8 +435,8 @@ step_start "Verificar estructura del proyecto"
 ################################################################################
 
 MISSING=0
-for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" "run.py" \
-            "stockhogar/static/manifest.json" "stockhogar/static/icons/sprite.svg" "stockhogar/static/icons/icon-192.png" \
+for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" \
+            "public/manifest.json" "public/icon.png" \
             "Dockerfile.frontend" "package.json" "next.config.mjs"; do
     if [[ ! -f "$FILE" ]]; then
         log_error "Falta: $FILE"
@@ -422,8 +446,8 @@ done
 
 if [[ $MISSING -eq 1 ]]; then
     log_error "Estructura del proyecto incompleta. ¿Se ejecutó el script dentro del repo clonado?"
-    log_error "Los iconos y el sprite se generan en desarrollo ('node scripts/generar-sprite-iconos.js'" \
-              "y 'node scripts/generar-iconos-png.js') y deben estar ya commiteados; este script no los genera."
+    log_error "Los iconos y el manifest PWA viven en 'public/' (frontend Next.js)" \
+              "y deben estar ya commiteados; este script no los genera."
     exit 1
 fi
 log_success "Proyecto verificado (incluye iconos PWA y manifest)"
@@ -453,7 +477,19 @@ step_end
 step_start "Actualizar código (git pull)"
 ################################################################################
 
-if [[ $UPDATE_MODE -eq 1 ]]; then
+if [[ $REINSTALL_MODE -eq 1 ]]; then
+    if [[ -d .git ]]; then
+        PREV_GIT_COMMIT="$(git rev-parse HEAD)"
+        log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
+        RAMA_ACTUAL="$(git rev-parse --abbrev-ref HEAD)"
+        log_warning "--reinstall: se descartará cualquier cambio local de código (git reset --hard)"
+        run git fetch --all
+        run git reset --hard "origin/${RAMA_ACTUAL}"
+        log_success "Código reinstalado desde origin/${RAMA_ACTUAL} a $(git rev-parse --short HEAD)"
+    else
+        log_warning "No es un repositorio git; se omite git fetch/reset"
+    fi
+elif [[ $UPDATE_MODE -eq 1 ]]; then
     if [[ -d .git ]]; then
         if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
             log_error "Hay cambios locales sin commitear; 'git pull --ff-only' podría fallar o perder trabajo."
@@ -470,7 +506,7 @@ if [[ $UPDATE_MODE -eq 1 ]]; then
         log_warning "No es un repositorio git; se omite git pull"
     fi
 else
-    log_info "Modo instalación (usa --update para además hacer git pull)"
+    log_info "Modo instalación (usa --update para además hacer git pull, o --reinstall para descartar cambios locales)"
 fi
 
 step_end
@@ -613,16 +649,54 @@ step_start "Construir imágenes"
 if [[ "$BUILD_MODE" -eq 0 ]]; then
     log_info "--no-build: se omite la construcción y se reutiliza la imagen actual"
 else
-    # Guardamos la imagen anterior de cada servicio como :rollback para poder
-    # volver atrás si el arranque falla.
-    IMAGE_NAME="$("${COMPOSE[@]}" config --images 2>/dev/null | head -1 || true)"
-    if [[ -n "$IMAGE_NAME" ]] && "${DOCKER[@]}" image inspect "$IMAGE_NAME" &> /dev/null; then
-        CONTAINERS_TOUCHED=1
-        run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
-        log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback"
-    else
+    # Guardamos la imagen anterior de CADA servicio (backend y frontend) como
+    # :rollback para poder volver atrás si el arranque falla. Antes solo se
+    # respaldaba la primera imagen de la lista ("head -1"): si luego fallaba
+    # el build de la otra, esa quedaba sin respaldo y el rollback la dejaba
+    # con la versión nueva (rota) en vez de revertirla también.
+    mapfile -t IMAGE_NAMES < <("${COMPOSE[@]}" config --images 2>/dev/null)
+    IMAGE_NAMES_BACKED_UP=()
+    if [[ "${#IMAGE_NAMES[@]}" -eq 0 ]]; then
         log_info "No hay imagen anterior que respaldar (primera instalación)"
+    else
+        for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
+            if "${DOCKER[@]}" image inspect "$IMAGE_NAME" &> /dev/null; then
+                CONTAINERS_TOUCHED=1
+                run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
+                IMAGE_NAMES_BACKED_UP+=("$IMAGE_NAME")
+                log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback"
+            fi
+        done
+        [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -eq 0 ]] && log_info "No hay imagen anterior que respaldar (primera instalación)"
     fi
+
+    # Limpieza automática antes de compilar, pero SOLO si el disco anda justo:
+    # "docker system prune -f" no distingue caché útil de basura y se lleva
+    # por delante toda la caché de capas de builds anteriores (apt-get, npm
+    # ci...), convirtiendo cada actualización en una reconstrucción completa
+    # de ~35 min en vez de una incremental de pocos minutos. Sin -a: nunca
+    # borra imágenes con tag (incluida ":rollback") ni volúmenes, así que
+    # jamás toca datos de usuario.
+    UMBRAL_LIMPIEZA_MB=2000
+    ESPACIO_ANTES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
+    if [[ "$ESPACIO_ANTES_MB" -lt "$UMBRAL_LIMPIEZA_MB" ]]; then
+        log_info "Espacio libre bajo (${ESPACIO_ANTES_MB}MB): liberando imágenes/caché de Docker sin usar..."
+        "${DOCKER[@]}" system prune -f >> "$LOG_FILE" 2>&1 || true
+        ESPACIO_DESPUES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
+        log_success "Espacio libre en disco: ${ESPACIO_ANTES_MB}MB -> ${ESPACIO_DESPUES_MB}MB"
+    else
+        log_info "Espacio libre de sobra (${ESPACIO_ANTES_MB}MB): se conserva la caché de builds anteriores"
+    fi
+
+    # Pre-descarga con reintentos de las imágenes base: en la Pi la conexión a
+    # Docker Hub falla de vez en cuando a mitad de la descarga ("TLS handshake
+    # timeout", "context deadline exceeded"). Si eso pasa DENTRO de
+    # "compose build" se pierde el build entero (hasta 35 min); aquí solo se
+    # pierden unos segundos y `retry` ya reintenta con backoff exponencial.
+    for BASE_IMAGE in $(grep -hoE '^FROM [^ ]+' Dockerfile.raspbian Dockerfile.frontend | awk '{print $2}' | sort -u); do
+        log_info "Pre-descargando imagen base: $BASE_IMAGE"
+        retry "${DOCKER[@]}" pull "$BASE_IMAGE"
+    done
 
     log_info "Construyendo imágenes. En Raspberry Pi el build de Next.js tarda entre 15 y 60 minutos."
     log_info "La salida se muestra en vivo: mientras aparezcan líneas, NO está colgado."
@@ -640,9 +714,33 @@ else
       done ) &
     HEARTBEAT_PID=$!
 
+    # Se construye UN servicio detrás de otro, nunca los dos a la vez: por
+    # defecto "compose build" usa buildx bake y compila backend y frontend en
+    # paralelo, y en una Raspberry Pi de 4 núcleos / <1GB RAM eso satura la CPU
+    # (load average >7) y hace saltar el swap. Bajo esa carga hasta las
+    # descargas de Docker Hub fallan por timeout (no es un problema de red:
+    # el propio daemon no tiene CPU para atender el handshake TLS a tiempo).
+    # Construir en serie deja cada build con la máquina para él solo.
+    BUILD_ARGS=(build)
+    if [[ "$REINSTALL_MODE" -eq 1 ]]; then
+        BUILD_ARGS+=(--no-cache)
+        log_info "--reinstall: build SIN CACHÉ (recompila todo desde cero, más lento)"
+    fi
+
     BUILD_START=$SECONDS
     BUILD_OK=1
-    "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" build 2>&1 | tee -a "$LOG_FILE" || BUILD_OK=0
+    mapfile -t SERVICES < <("${COMPOSE[@]}" config --services 2>/dev/null)
+    for SERVICE in "${SERVICES[@]}"; do
+        log_info "Construyendo servicio: $SERVICE"
+        # BUILDX_NO_DEFAULT_ATTESTATIONS=1: por defecto Buildx genera además
+        # un "attestation manifest" de provenance/SBOM por imagen, que exige
+        # 2-3 escrituras extra al registro local. Irrelevante para un
+        # despliegue de un solo nodo y, en el almacenamiento lento de la Pi,
+        # esas escrituras se llevaban entre 15 y 50s extra por imagen (visto
+        # en install.log: 12.8s + 14.5s solo en la del frontend).
+        BUILDX_NO_DEFAULT_ATTESTATIONS=1 \
+            "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" "${BUILD_ARGS[@]}" "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
+    done
 
     stop_heartbeat
 
@@ -679,8 +777,12 @@ step_start "Verificar que la aplicación responde"
 
 # Esperas ACOTADAS usando el HEALTHCHECK que ya definen los Dockerfiles (que sí
 # acepta el 302 de la raíz). Nunca un bucle infinito.
-log_info "Esperando a que el backend esté healthy (máx. 90s)..."
-if wait_healthy stockhogar 90; then
+# 90s no bastaba en esta Raspberry Pi: tras un rebuild, la CPU sigue ocupada
+# exportando capas de Docker y el backend tarda en dejar de devolver 503,
+# provocando rollbacks automáticos sobre una imagen que en realidad estaba
+# bien (visto dos veces en producción, se recuperaba solo a los 90-120s).
+log_info "Esperando a que el backend esté healthy (máx. 180s)..."
+if wait_healthy stockhogar 180; then
     log_success "Backend healthy en el puerto ${STOCKHOGAR_PORT}"
 else
     log_error "El backend no llegó a estado healthy. Últimas líneas de log:"
@@ -707,7 +809,10 @@ step_start "Resumen"
 
 IP_ADDRESS="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 IP_ADDRESS="${IP_ADDRESS:-localhost}"
-[[ "$UPDATE_MODE" -eq 1 ]] && ACTION="actualizado" || ACTION="instalado"
+if [[ "$REINSTALL_MODE" -eq 1 ]]; then ACTION="reinstalado desde cero"
+elif [[ "$UPDATE_MODE" -eq 1 ]]; then ACTION="actualizado"
+else ACTION="instalado"
+fi
 
 echo ""
 echo -e "${GREEN}================================================================${NC}"

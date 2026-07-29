@@ -81,27 +81,34 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 
 COPY . /app/
 
+# Los tres pasos de abajo (directorios, Argos Translate, verificación de
+# paquetes) van en un ÚNICO RUN a propósito: en el almacenamiento (SD/eMMC) de
+# una Raspberry Pi, crear una capa nueva tiene un coste fijo de decenas de
+# segundos casi independiente de lo que haga el comando (confirmado en
+# install.log: tres RUN triviales de ~1s de trabajo real tardaron 70s+52s+109s
+# = 231s solo en overhead de capa). Fusionarlos paga ese coste una vez.
+#
 # data/, logs/ y uploads/ ya se montan como volúmenes desde docker-compose.yml;
 # se crean aquí también para que el healthcheck y una ejecución sin compose
 # (docker run suelto) no fallen por directorios inexistentes.
-RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr
-
-# Descarga en build-time de los paquetes de idioma de Argos Translate
-# (es-en, en-es, en-fr, en-it, en-de, es-pt): requiere red durante el build,
-# pero así el contenedor queda funcional sin conexión desde el primer arranque
-# (importante en Raspberry Pi, donde la red puede ser lenta o intermitente).
-# ctranslate2 (dependencia de argostranslate) no publica binarios para armv7l
-# (ver requirements.txt), así que en esa arquitectura no está instalado y se
-# omite: traductor_auto.py ya cae automáticamente al diccionario propio.
-RUN if [ "$(uname -m)" = "armv7l" ]; then \
+#
+# Argos Translate (es-en, en-es, en-fr, en-it, en-de, es-pt) se descarga en
+# build-time (requiere red durante el build, pero deja el contenedor funcional
+# sin conexión desde el primer arranque). ctranslate2 (dependencia de
+# argostranslate) no publica binarios para armv7l (ver requirements.txt), así
+# que en esa arquitectura se omite y traductor_auto.py cae al diccionario
+# propio.
+#
+# La verificación final de imports/tesseract hace fallar el build aquí si
+# falta algún paquete crítico, en vez de fallar en producción al primer
+# request.
+RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr \
+    && if [ "$(uname -m)" = "armv7l" ]; then \
         echo "[INFO] armv7l: Argos Translate no soportado (sin ctranslate2), se omite. Traduccion automatica usara el diccionario de fallback."; \
     else \
         python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"; \
-    fi
-
-# Verificación en build-time: si falta algún paquete crítico, el build falla
-# aquí en vez de fallar en producción al primer request.
-RUN python3 -c "import flask, flask_wtf, cv2, pytesseract, fuzzywuzzy, gunicorn, platform, importlib; (importlib.import_module('argostranslate') if platform.machine() != 'armv7l' else None); print('[OK] Paquetes Python verificados')" \
+    fi \
+    && python3 -c "import flask, flask_wtf, cv2, pytesseract, fuzzywuzzy, gunicorn, platform, importlib; (importlib.import_module('argostranslate') if platform.machine() != 'armv7l' else None); print('[OK] Paquetes Python verificados')" \
     && tesseract --version | head -1 && echo "[OK] Tesseract instalado"
 
 EXPOSE 5000
@@ -121,4 +128,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # peticiones (p.ej. los botones +/- de stock) se quedaban en cola y el proxy
 # delante de la app acababa devolviendo 502. Con hilos, el resto de peticiones
 # se siguen atendiendo en paralelo dentro del mismo worker mientras el OCR corre.
-CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - run:app"]
+CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]

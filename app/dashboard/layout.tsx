@@ -4,29 +4,44 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Package, ShoppingCart, Settings, LogOut, ClipboardList, Camera, History } from 'lucide-react'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
+import { SeleccionHogar } from '@/components/shared/SeleccionHogar'
+import { HogarProvider, useHogar } from '@/contexts/HogarContext'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { auth } from '@/lib/api'
 
-// Bottom bar móvil: las 5 rutas más usadas
-const tabItems = [
-  { href: '/dashboard', label: 'Stock', icon: Package },
-  { href: '/dashboard/shopping', label: 'Compra', icon: ShoppingCart },
-  { href: '/dashboard/ticket', label: 'Escanear', icon: Camera },
-  { href: '/dashboard/listas', label: 'Listas', icon: ClipboardList },
-  { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
-]
-
-// Sidebar desktop: todas las rutas
-const sidebarItems = [
-  { href: '/dashboard', label: 'Stock', icon: Package },
-  { href: '/dashboard/shopping', label: 'Lista de compra', icon: ShoppingCart },
-  { href: '/dashboard/listas', label: 'Mis listas', icon: ClipboardList },
-  { href: '/dashboard/ticket', label: 'Escanear ticket', icon: Camera },
-  { href: '/dashboard/historial', label: 'Historial', icon: History },
-  { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
-]
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <HogarProvider>
+        <DashboardShell>{children}</DashboardShell>
+      </HogarProvider>
+    </ProtectedRoute>
+  )
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { hogarActivoId, loading } = useHogar()
+  const { t } = useTranslation()
+
+  // Bottom bar móvil: las 5 rutas más usadas
+  const tabItems = [
+    { href: '/dashboard', label: t('nav_stock'), icon: Package },
+    { href: '/dashboard/shopping', label: t('nav_compra'), icon: ShoppingCart },
+    { href: '/dashboard/ticket', label: t('nav_escanear'), icon: Camera },
+    { href: '/dashboard/listas', label: t('listas'), icon: ClipboardList },
+    { href: '/dashboard/settings', label: t('ajustes'), icon: Settings },
+  ]
+
+  // Sidebar desktop: todas las rutas
+  const sidebarItems = [
+    { href: '/dashboard', label: t('nav_stock'), icon: Package },
+    { href: '/dashboard/shopping', label: t('nav_lista_compra'), icon: ShoppingCart },
+    { href: '/dashboard/listas', label: t('mis_listas'), icon: ClipboardList },
+    { href: '/dashboard/ticket', label: t('escanear_ticket'), icon: Camera },
+    { href: '/dashboard/historial', label: t('historial'), icon: History },
+    { href: '/dashboard/settings', label: t('ajustes'), icon: Settings },
+  ]
 
   const handleLogout = async () => {
     try {
@@ -37,8 +52,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-muted border-t-accent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">{t('cargando')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hogarActivoId) {
+    return <SeleccionHogar />
+  }
+
   return (
-    <ProtectedRoute>
       <div className="min-h-screen bg-background text-foreground lg:flex lg:h-screen lg:overflow-hidden">
 
         {/* ── Sidebar desktop ── */}
@@ -82,7 +111,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 min-h-[44px]"
             >
               <LogOut className="w-4 h-4 shrink-0" />
-              Cerrar sesión
+              {t('cerrar_sesion')}
             </button>
           </div>
         </aside>
@@ -125,6 +154,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
       </div>
-    </ProtectedRoute>
   )
 }
