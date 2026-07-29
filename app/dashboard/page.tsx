@@ -102,6 +102,14 @@ export default function StockPage() {
     if (agruparGuardado !== null) setAgruparPorCategoria(agruparGuardado === 'true')
 
     bootstrap()
+
+    // Refresco periodico silencioso: otros operarios pueden modificar el
+    // stock desde otro dispositivo. No toca `loading` para no mostrar el
+    // skeleton de nuevo; simplemente reemplaza los datos en segundo plano.
+    const intervalo = setInterval(() => {
+      if (document.visibilityState === 'visible') bootstrap()
+    }, 60000)
+    return () => clearInterval(intervalo)
   }, [])
 
   // Guardar preferencias cuando cambien
@@ -202,7 +210,7 @@ export default function StockPage() {
       const stockMinimoFinal = formData.stock_minimo === '' ? 1 : Number(formData.stock_minimo)
 
       if (editandoId) {
-        await productosApi.actualizar(editandoId, {
+        const actualizado: any = await productosApi.actualizar(editandoId, {
           nombre: formData.nombre,
           categoria: formData.categoria,
           cantidad: cantidadFinal,
@@ -211,8 +219,9 @@ export default function StockPage() {
           dias_aviso: formData.dias_aviso,
           icono: formIcono,
         })
+        setItems(prev => prev.map(item => item.id === editandoId ? { ...item, ...actualizado } : item))
       } else {
-        await productosApi.crear({
+        const creado: any = await productosApi.crear({
           nombre: formData.nombre,
           categoria: formData.categoria,
           cantidad: cantidadFinal,
@@ -221,10 +230,10 @@ export default function StockPage() {
           dias_aviso: formData.dias_aviso,
           icono: formIcono,
         })
+        setItems(prev => [...prev, creado])
       }
       setShowForm(false)
       setEditandoId(null)
-      await bootstrap()
     } catch (err) {
       const message = err instanceof Error ? err.message : t('err_guardar_cambios')
       setError(message)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X } from 'lucide-react'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
@@ -59,9 +59,9 @@ export default function ShoppingPage() {
   })
   const [formIcono, setFormIcono] = useState<string | undefined>(undefined)
   const [formUnidad, setFormUnidad] = useState<string | undefined>(undefined)
-  const [editandoId, setEditandoId] = useState<number | null>(null)
-  const [edicion, setEdicion] = useState({ nombre: '', cantidad: 1 })
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
+  const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
+  const [edicionCompleta, setEdicionCompleta] = useState({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros' })
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [catalogoQuery, setCatalogoQuery] = useState('')
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
@@ -187,20 +187,65 @@ export default function ShoppingPage() {
     }
   }
 
-  const iniciarEdicion = (item: ArticuloLista) => {
-    setEditandoId(item.id)
-    setEdicion({ nombre: item.nombre, cantidad: item.cantidad })
+  const abrirModalEdicion = (item: ArticuloLista) => {
+    setModalEdicionId(item.id)
+    setEdicionCompleta({
+      nombre: item.nombre,
+      cantidad: item.cantidad,
+      unidad: item.unidad,
+      categoria: item.categoria || 'Otros',
+    })
   }
 
-  const guardarEdicion = async (id: number) => {
-    if (!edicion.nombre.trim()) return
+  const guardarEdicionCompleta = async () => {
+    if (modalEdicionId === null || !edicionCompleta.nombre.trim()) return
     try {
       setError('')
-      await articulosLista.actualizar(id, { nombre: edicion.nombre.trim(), cantidad: edicion.cantidad })
-      setEditandoId(null)
+      await articulosLista.actualizar(modalEdicionId, {
+        nombre: edicionCompleta.nombre.trim(),
+        cantidad: edicionCompleta.cantidad,
+        unidad: edicionCompleta.unidad,
+        categoria: edicionCompleta.categoria,
+      })
+      setModalEdicionId(null)
       await loadItems()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_editar_articulo'))
+    }
+  }
+
+  // Gesto de mantener pulsado: dispara abrirModalEdicion tras ~550ms y evita
+  // que el click posterior (mouseup/touchend) dispare la accion normal del
+  // elemento (marcar comprado, etc.). onClickCapture corta la propagacion
+  // hacia los botones hijos si el long-press ya se disparo.
+  const crearLongPress = (item: ArticuloLista) => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let triggered = false
+    const iniciar = () => {
+      triggered = false
+      timer = setTimeout(() => {
+        triggered = true
+        abrirModalEdicion(item)
+      }, 550)
+    }
+    const cancelar = () => {
+      if (timer) clearTimeout(timer)
+      timer = null
+    }
+    return {
+      onTouchStart: iniciar,
+      onTouchEnd: cancelar,
+      onTouchMove: cancelar,
+      onMouseDown: iniciar,
+      onMouseUp: cancelar,
+      onMouseLeave: cancelar,
+      onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+      onClickCapture: (e: React.MouseEvent) => {
+        if (triggered) {
+          e.stopPropagation()
+          e.preventDefault()
+        }
+      },
     }
   }
 
@@ -236,6 +281,7 @@ export default function ShoppingPage() {
     <div
       key={item.id}
       className={`card flex items-center justify-between gap-4 ${isCompleted ? 'opacity-60' : ''}`}
+      {...crearLongPress(item)}
     >
       <button
         onClick={() => handleToggleBought(item.id, !isCompleted)}
@@ -253,68 +299,29 @@ export default function ShoppingPage() {
         )}
       </button>
 
-      {editandoId === item.id ? (
-        <div className="flex-1 flex flex-col gap-2">
-          <input
-            type="text"
-            value={edicion.nombre}
-            onChange={(e) => setEdicion({ ...edicion, nombre: e.target.value })}
-            className="input-field"
-            autoFocus
-            inputMode="text"
-          />
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min={1}
-              value={edicion.cantidad}
-              onChange={(e) => setEdicion({ ...edicion, cantidad: parseInt(e.target.value) || 1 })}
-              className="input-field w-24"
-              inputMode="numeric"
-            />
-            <button
-              onClick={() => guardarEdicion(item.id)}
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
-              aria-label={t('guardar')}
-            >
-              <Check className="w-4 h-4" /> {t('guardar')}
-            </button>
-            <button
-              onClick={() => setEditandoId(null)}
-              className="btn-secondary px-3"
-              aria-label={t('aria_cancelar_edicion')}
-            >
-              ✕
-            </button>
-          </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <p className={`font-medium text-foreground ${isCompleted ? 'line-through' : ''}`}>
+            {item.nombre}
+            {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
+          </p>
+          {item.origen === 'auto' && !isCompleted && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+              <AlertTriangle className="w-3 h-3" />
+              {t('stock_bajo')}
+            </span>
+          )}
         </div>
-      ) : (
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <p className={`font-medium text-foreground ${isCompleted ? 'line-through' : ''}`}>
-              {item.nombre}
-              {item.cantidad > 1 && <span className="text-muted-foreground"> ×{item.cantidad}</span>}
-            </p>
-            {item.origen === 'auto' && !isCompleted && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
-                <AlertTriangle className="w-3 h-3" />
-                {t('stock_bajo')}
-              </span>
-            )}
-          </div>
-          {item.categoria && <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />}
-        </div>
-      )}
+        {item.categoria && <CategoryBadge category={item.categoria} icon={getCategoryIcon(item.categoria)} />}
+      </div>
 
-      {editandoId !== item.id && (
-        <button
-          onClick={() => iniciarEdicion(item)}
-          className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
-          aria-label={t('editar')}
-        >
-          <Pencil className="w-4 h-4 text-muted-foreground" />
-        </button>
-      )}
+      <button
+        onClick={() => abrirModalEdicion(item)}
+        className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
+        aria-label={t('editar')}
+      >
+        <Pencil className="w-4 h-4 text-muted-foreground" />
+      </button>
 
       {confirmandoId === item.id ? (
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -344,8 +351,8 @@ export default function ShoppingPage() {
   )
 
   // Tile al estilo Bring!: icono, nombre y cantidad solo si es distinta de 1.
-  // Tocar el tile marca comprado/restaurado; editar y eliminar quedan como
-  // acciones secundarias discretas debajo, igual que en Stock.
+  // Tocar el tile marca comprado/restaurado; mantener pulsado abre la modal
+  // de edicion completa (no hay botones de editar/eliminar en este modo).
   const renderItemGridTile = (item: ArticuloLista, isCompleted: boolean = false) => {
     const icono = getCategoryIcon(item.categoria)
     return (
@@ -354,6 +361,7 @@ export default function ShoppingPage() {
           onClick={() => handleToggleBought(item.id, !isCompleted)}
           className="absolute inset-0 rounded-2xl"
           aria-label={isCompleted ? t('aria_restaurar_producto').replace('{nombre}', item.nombre) : t('aria_marcar_comprado_producto').replace('{nombre}', item.nombre)}
+          {...crearLongPress(item)}
         />
 
         <div className="relative pointer-events-none">
@@ -379,42 +387,6 @@ export default function ShoppingPage() {
         <p className={`font-medium text-foreground text-xs leading-tight line-clamp-2 pointer-events-none ${isCompleted ? 'line-through' : ''}`}>
           {item.nombre}
         </p>
-
-        <div className="relative flex items-center gap-1 pt-0.5">
-          <button
-            onClick={() => iniciarEdicion(item)}
-            className="w-7 h-7 flex items-center justify-center hover:bg-muted rounded-lg transition-colors"
-            aria-label={t('editar')}
-          >
-            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-          {confirmandoId === item.id ? (
-            <>
-              <button
-                onClick={() => handleDeleteItem(item.id)}
-                className="px-1.5 h-7 flex items-center text-xs font-semibold text-white bg-red-500 rounded-lg transition-colors"
-                aria-label={t('aria_confirmar_eliminacion')}
-              >
-                {t('si')}
-              </button>
-              <button
-                onClick={() => setConfirmandoId(null)}
-                className="px-1.5 h-7 flex items-center text-xs font-semibold text-foreground bg-muted rounded-lg transition-colors"
-                aria-label={t('cancelar')}
-              >
-                {t('no')}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => handleDeleteItem(item.id)}
-              className="w-7 h-7 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
-              aria-label={t('eliminar')}
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-500" />
-            </button>
-          )}
-        </div>
       </div>
     )
   }
@@ -735,6 +707,93 @@ export default function ShoppingPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de edicion completa: se abre con mantener pulsado (grid y lista) */}
+      {modalEdicionId !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[9999] p-4">
+          <div className="bg-card rounded-xl w-full max-w-md p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">{t('editar_articulo')}</h2>
+              <button onClick={() => setModalEdicionId(null)} className="p-1 hover:bg-muted rounded" aria-label={t('aria_cancelar_edicion')}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                guardarEdicionCompleta()
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label htmlFor="edit-nombre" className="block text-sm font-medium mb-2">{t('articulo')}</label>
+                <input
+                  id="edit-nombre"
+                  type="text"
+                  value={edicionCompleta.nombre}
+                  onChange={(e) => setEdicionCompleta({ ...edicionCompleta, nombre: e.target.value })}
+                  className="input-field"
+                  autoFocus
+                  required
+                  inputMode="text"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="edit-categoria" className="block text-sm font-medium mb-2">{t('categoria')}</label>
+                  <select
+                    id="edit-categoria"
+                    value={edicionCompleta.categoria}
+                    onChange={(e) => setEdicionCompleta({ ...edicionCompleta, categoria: e.target.value })}
+                    className="input-field"
+                  >
+                    {categorias.map((cat) => (
+                      <option key={cat.id} value={cat.nombre}>
+                        {cat.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="edit-unidad" className="block text-sm font-medium mb-2">{t('unidad')}</label>
+                  <input
+                    id="edit-unidad"
+                    type="text"
+                    value={edicionCompleta.unidad}
+                    onChange={(e) => setEdicionCompleta({ ...edicionCompleta, unidad: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="edit-cantidad" className="block text-sm font-medium mb-2">{t('cantidad')}</label>
+                <input
+                  id="edit-cantidad"
+                  type="number"
+                  min={1}
+                  value={edicionCompleta.cantidad}
+                  onChange={(e) => setEdicionCompleta({ ...edicionCompleta, cantidad: parseInt(e.target.value) || 1 })}
+                  className="input-field"
+                  inputMode="numeric"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button type="submit" className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  <Check className="w-4 h-4" /> {t('guardar')}
+                </button>
+                <button type="button" onClick={() => setModalEdicionId(null)} className="btn-secondary flex-1">
+                  {t('cancelar')}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
