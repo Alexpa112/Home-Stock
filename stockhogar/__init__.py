@@ -13,6 +13,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from . import db, seguridad
 from .config import DIAS_SESION, USAR_COOKIE_SEGURA, LOG_FILE_PATH
 from .servicios import mantenimiento
+from .translator import traducir
 
 csrf = CSRFProtect()
 
@@ -73,6 +74,10 @@ def create_app():
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SECURE"] = USAR_COOKIE_SEGURA
+    # Limite de tamaño de subida (escaneo de tickets: imagen o PDF). Sin esto,
+    # Flask acepta peticiones de cualquier tamaño y un POST enorme puede agotar
+    # memoria/disco antes de que el codigo de la ruta llegue a validar nada.
+    app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
     app.session_interface = SessionInterfaceOmitible()
     app.teardown_appcontext(db.close_db)
 
@@ -83,6 +88,10 @@ def create_app():
         if request.path.startswith("/api/"):
             return jsonify({"error": "Token CSRF invalido o ausente"}), 400
         return e.description, 400
+
+    @app.errorhandler(413)
+    def archivo_demasiado_grande(e):
+        return jsonify({"error": traducir("err_archivo_demasiado_grande")}), 413
 
     app.register_blueprint(paginas.bp)
     app.register_blueprint(auth.bp)

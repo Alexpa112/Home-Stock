@@ -4,6 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
+from ..servicios import intentos_login
 from ..utils import Validator, DataConverter
 
 bp = Blueprint("auth", __name__)
@@ -109,6 +110,10 @@ def registrar():
 @bp.route("/api/auth/login", methods=["POST"])
 @manejo_errores
 def login():
+    ip = request.remote_addr or "desconocida"
+    if intentos_login.bloqueada(ip):
+        return APIResponse.error("err_demasiados_intentos_login", 429)
+
     datos = request.get_json(force=True) or {}
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
     password = datos.get("password") or ""
@@ -118,8 +123,10 @@ def login():
         "SELECT * FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
     ).fetchone()
     if fila is None or not check_password_hash(fila["password_hash"], password):
+        intentos_login.registrar_fallo(ip)
         return APIResponse.no_autorizado()
 
+    intentos_login.limpiar_exito(ip)
     session.permanent = True
     session["usuario"] = fila["nombre_usuario"]
     session["usuario_id"] = fila["id"]

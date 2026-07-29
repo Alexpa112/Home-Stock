@@ -28,6 +28,46 @@ const nextConfig = {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
           },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            // Sin uso de camara/microfono/geolocalizacion en la app (el
+            // escaneo de tickets usa <input type="file">, no getUserMedia):
+            // se desactivan explicitamente en vez de dejarlas disponibles
+            // por defecto para cualquier script que se cuele.
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()',
+          },
+          {
+            // Solo tiene efecto cuando se sirve por HTTPS (el tunel de
+            // Cloudflare hace la terminacion TLS); en HTTP local el
+            // navegador la ignora, así que es seguro tenerla siempre.
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains',
+          },
+          {
+            // 'unsafe-inline' en script-src: el anti-FOUC de app/layout.tsx
+            // usa dangerouslySetInnerHTML con un <script> inline (aplica el
+            // tema oscuro/claro antes del primer render). 'unsafe-eval' se
+            // deja por compatibilidad con el runtime de Next/webpack; si en
+            // el futuro se confirma que la build de produccion no lo
+            // necesita, se puede retirar para endurecer la politica.
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self'",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "object-src 'none'",
+            ].join('; '),
+          },
         ],
       },
       {
