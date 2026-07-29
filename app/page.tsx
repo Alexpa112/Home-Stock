@@ -52,6 +52,10 @@ function HomeContent() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [requiereCodigo, setRequiereCodigo] = useState(false)
+  const [codigo, setCodigo] = useState('')
+  const [reenviando, setReenviando] = useState(false)
+  const [reenviado, setReenviado] = useState(false)
 
   // Si ya hay sesión activa, redirigir directamente al dashboard
   useEffect(() => {
@@ -83,7 +87,12 @@ function HomeContent() {
 
     try {
       if (isLogin) {
-        await auth.login(usuario, password)
+        const respuesta: any = await auth.login(usuario, password)
+        if (respuesta?.requiere_codigo) {
+          setRequiereCodigo(true)
+          setLoading(false)
+          return
+        }
       } else {
         await auth.registrar(usuario, password)
       }
@@ -101,7 +110,39 @@ function HomeContent() {
     }
   }
 
-  const resetForm = () => { setIsLogin(!isLogin); setError(''); setUsuario(''); setPassword('') }
+  const handleVerificarCodigo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      await auth.verificarCodigo(codigo.trim())
+      const estado = await auth.estado()
+      if (!estado?.usuario) {
+        throw new Error(t('err_sesion_no_confirmada'))
+      }
+      window.location.href = destino
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReenviarCodigo = async () => {
+    setReenviando(true)
+    setError('')
+    try {
+      await auth.reenviarCodigo()
+      setReenviado(true)
+      setTimeout(() => setReenviado(false), 4000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
+    } finally {
+      setReenviando(false)
+    }
+  }
+
+  const resetForm = () => { setIsLogin(!isLogin); setError(''); setUsuario(''); setPassword(''); setRequiereCodigo(false); setCodigo('') }
 
   return (
     <main className="min-h-screen flex flex-col bg-background text-foreground">
@@ -125,13 +166,55 @@ function HomeContent() {
           <div className="card mb-4">
             <div className="mb-4 text-center">
               <h2 className="text-lg font-semibold text-foreground">
-                {isLogin ? t('titulo_login') : t('titulo_registro')}
+                {requiereCodigo ? t('titulo_verificacion_codigo') : isLogin ? t('titulo_login') : t('titulo_registro')}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {isLogin ? t('subtitulo_login') : t('subtitulo_registro')}
+                {requiereCodigo ? t('subtitulo_verificacion_codigo') : isLogin ? t('subtitulo_login') : t('subtitulo_registro')}
               </p>
             </div>
 
+            {requiereCodigo ? (
+              <form onSubmit={handleVerificarCodigo} className="space-y-4">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                  placeholder={t('placeholder_codigo')}
+                  className="input-field text-center text-lg tracking-[0.3em]"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  disabled={loading}
+                />
+
+                {error && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                    {error}
+                  </div>
+                )}
+                {reenviado && (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-200">
+                    {t('codigo_reenviado')}
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading} className="btn-primary w-full gap-2">
+                  {loading ? t('procesando') : t('btn_verificar_codigo')}
+                  {!loading && <ArrowRight className="h-4 w-4" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleReenviarCodigo}
+                  disabled={reenviando}
+                  className="w-full text-sm text-accent hover:underline"
+                >
+                  {t('reenviar_codigo')}
+                </button>
+              </form>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-foreground">{t('usuario')}</label>
@@ -182,9 +265,12 @@ function HomeContent() {
                 {!loading && <ArrowRight className="h-4 w-4" />}
               </button>
             </form>
+            )}
 
           </div>
 
+          {!requiereCodigo && (
+          <>
           {/* Toggle login/registro */}
           <p className="text-sm text-center text-muted-foreground">
             {isLogin ? t('no_tienes_cuenta') : t('ya_tienes_cuenta')}{' '}
@@ -219,6 +305,8 @@ function HomeContent() {
               <strong>{t('continuar_apple')}</strong>
             </a>
           </div>
+          </>
+          )}
 
         </div>
       </div>

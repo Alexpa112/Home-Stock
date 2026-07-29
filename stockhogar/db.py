@@ -311,6 +311,24 @@ def init_db():
         asegurar_columna(db, "usuarios", "teclado_virtual_activo", "TEXT NOT NULL DEFAULT 'on'")
         asegurar_columna(db, "usuarios", "vista_lista_compra", "TEXT NOT NULL DEFAULT 'lista'")
         asegurar_columna(db, "usuarios", "agrupar_categorias", "TEXT NOT NULL DEFAULT 'off'")
+        asegurar_columna(db, "usuarios", "doble_factor_activo", "INTEGER NOT NULL DEFAULT 0")
+
+        # Codigos de verificacion en dos pasos (login por email + codigo).
+        # Una fila por usuario (se sobrescribe en cada intento de login, no
+        # hace falta historial). En tabla en vez de en memoria porque gunicorn
+        # corre 2 workers (procesos separados, ver Dockerfile.raspbian): un
+        # dict en memoria dejaria el codigo solo visible para el worker que
+        # lo genero, y la peticion de verificacion podria caer en el otro.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS codigos_dos_factor (
+                usuario_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+                codigo_hash TEXT NOT NULL,
+                expira INTEGER NOT NULL,
+                intentos INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
 
         # Tabla para cuentas OAuth (Google, Apple)
         db.execute(

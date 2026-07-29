@@ -1,10 +1,15 @@
 """Autenticación: login, registro, logout y gestión de usuarios."""
+import hashlib
+import secrets
+import time
+
 from flask import Blueprint, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
 from ..servicios import intentos_login
+from ..servicios.email_service import EmailService
 from ..utils import Validator, DataConverter
 
 bp = Blueprint("auth", __name__)
@@ -15,6 +20,8 @@ RUTAS_PUBLICAS = {
     "auth.estado",
     "auth.login",
     "auth.registrar",
+    "auth.verificar_codigo_dos_pasos",
+    "auth.reenviar_codigo_dos_pasos",
     "oauth.oauth_google",
     "oauth.oauth_google_callback",
     "oauth.oauth_apple",
@@ -45,10 +52,11 @@ def estado():
     teclado_virtual_activo = "on"
     vista_lista_compra = "lista"
     agrupar_categorias = "off"
+    doble_factor_activo = False
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
         fila = db.execute(
-            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias FROM usuarios WHERE id = ?",
+            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias, doble_factor_activo FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         if fila:
@@ -58,6 +66,7 @@ def estado():
             teclado_virtual_activo = fila["teclado_virtual_activo"]
             vista_lista_compra = fila["vista_lista_compra"]
             agrupar_categorias = fila["agrupar_categorias"]
+            doble_factor_activo = bool(fila["doble_factor_activo"])
     return APIResponse.success(
         {
             "necesita_setup": not hay_usuarios(db),
@@ -68,6 +77,7 @@ def estado():
             "teclado_virtual_activo": teclado_virtual_activo,
             "vista_lista_compra": vista_lista_compra,
             "agrupar_categorias": agrupar_categorias,
+            "doble_factor_activo": doble_factor_activo,
         }
     )
 
@@ -127,10 +137,105 @@ def login():
         return APIResponse.no_autorizado()
 
     intentos_login.limpiar_exito(ip)
+
+    if fila["doble_factor_activo"] and fila["email"]:
+        _generar_y_enviar_codigo(db, fila["id"], fila["email"])
+        session["pendiente_2fa_usuario_id"] = fila["id"]
+        return APIResponse.success({"requiere_codigo": True})
+
     session.permanent = True
     session["usuario"] = fila["nombre_usuario"]
     session["usuario_id"] = fila["id"]
     return APIResponse.success({"usuario": fila["nombre_usuario"]})
+
+
+def _generar_y_enviar_codigo(db, usuario_id, email):
+    codigo = f"{secrets.randbelow(1_000_000):06d}"
+    db.execute(
+        "INSERT INTO codigos_dos_factor (usuario_id, codigo_hash, expira, intentos) VALUES (?, ?, ?, 0) "
+        "ON CONFLICT(usuario_id) DO UPDATE SET codigo_hash = excluded.codigo_hash, expira = excluded.expira, intentos = 0",
+        (usuario_id, _hash_codigo(codigo), int(time.time()) + DURACION_CODIGO_SEGUNDOS),
+    )
+    db.commit()
+    EmailService.enviar_codigo_verificacion(email, codigo)
+
+
+def _hash_codigo(codigo):
+    return hashlib.sha256(codigo.encode("utf-8")).hexdigest()
+
+
+DURACION_CODIGO_SEGUNDOS = 10 * 60
+MAX_INTENTOS_CODIGO = 5
+
+
+@bp.route("/api/auth/verificar-codigo", methods=["POST"])
+@manejo_errores
+def verificar_codigo_dos_pasos():
+    usuario_id = session.get("pendiente_2fa_usuario_id")
+    if usuario_id is None:
+        return APIResponse.no_autorizado()
+
+    datos = request.get_json(force=True) or {}
+    codigo = (datos.get("codigo") or "").strip()
+
+    db = get_db()
+    fila = db.execute(
+        "SELECT codigo_hash, expira, intentos FROM codigos_dos_factor WHERE usuario_id = ?", (usuario_id,)
+    ).fetchone()
+
+    if fila is None or fila["intentos"] >= MAX_INTENTOS_CODIGO or fila["expira"] < int(time.time()):
+        session.pop("pendiente_2fa_usuario_id", None)
+        return APIResponse.error("err_codigo_expirado", 400)
+
+    if _hash_codigo(codigo) != fila["codigo_hash"]:
+        db.execute("UPDATE codigos_dos_factor SET intentos = intentos + 1 WHERE usuario_id = ?", (usuario_id,))
+        db.commit()
+        return APIResponse.error("err_codigo_incorrecto", 400)
+
+    db.execute("DELETE FROM codigos_dos_factor WHERE usuario_id = ?", (usuario_id,))
+    db.commit()
+    usuario = db.execute("SELECT nombre_usuario FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+
+    session.pop("pendiente_2fa_usuario_id", None)
+    session.permanent = True
+    session["usuario"] = usuario["nombre_usuario"]
+    session["usuario_id"] = usuario_id
+    return APIResponse.success({"usuario": usuario["nombre_usuario"]})
+
+
+@bp.route("/api/auth/reenviar-codigo", methods=["POST"])
+@manejo_errores
+def reenviar_codigo_dos_pasos():
+    usuario_id = session.get("pendiente_2fa_usuario_id")
+    if usuario_id is None:
+        return APIResponse.no_autorizado()
+
+    db = get_db()
+    fila = db.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    if fila is None or not fila["email"]:
+        return APIResponse.no_autorizado()
+
+    _generar_y_enviar_codigo(db, usuario_id, fila["email"])
+    return APIResponse.success({"reenviado": True})
+
+
+@bp.route("/api/auth/doble-factor", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def cambiar_doble_factor():
+    usuario_id = session.get("usuario_id")
+    datos = request.get_json(force=True) or {}
+    activar = bool(datos.get("activo"))
+
+    db = get_db()
+    if activar:
+        fila = db.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+        if not fila or not fila["email"]:
+            return APIResponse.error("err_doble_factor_requiere_email", 400)
+
+    db.execute("UPDATE usuarios SET doble_factor_activo = ? WHERE id = ?", (int(activar), usuario_id))
+    db.commit()
+    return APIResponse.success({"doble_factor_activo": activar})
 
 
 @bp.route("/api/auth/logout", methods=["POST"])

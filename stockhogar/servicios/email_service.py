@@ -85,6 +85,34 @@ class EmailService:
             return False
 
     @staticmethod
+    def enviar_codigo_verificacion(email_destino: str, codigo: str) -> bool:
+        """Envía el código de verificación en dos pasos (login)."""
+        if not SMTP_USER or not SMTP_PASSWORD:
+            logger.warning("Email no configurado: SMTP_USER o SMTP_PASSWORD vacío")
+            return False
+
+        try:
+            asunto = f"Tu código de verificación de Dreame!: {codigo}"
+            cuerpo_html = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                    <h2>🔐 Verificación en dos pasos</h2>
+                    <p>Tu código de acceso es:</p>
+                    <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; margin: 16px 0;">{codigo}</p>
+                    <p style="color: #666; font-size: 14px;">Caduca en 10 minutos. Si no has intentado iniciar sesión, ignora este correo.</p>
+                </body>
+            </html>
+            """
+            return EmailService._enviar_smtp(
+                email_destino=email_destino,
+                asunto=asunto,
+                cuerpo_html=cuerpo_html,
+            )
+        except Exception as e:
+            logger.error(f"Error enviando código de verificación a {email_destino}: {str(e)}")
+            return False
+
+    @staticmethod
     def _traducir_nivel(nivel: str) -> str:
         """Traduce código de nivel a texto legible."""
         traducciones = {

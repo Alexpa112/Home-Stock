@@ -109,6 +109,14 @@ export const auth = {
   registrar: (usuario: string, password: string) =>
     apiCall('/api/auth/registrar', { method: 'POST', body: JSON.stringify({ usuario, password }) }),
 
+  verificarCodigo: (codigo: string) =>
+    apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) }),
+
+  reenviarCodigo: () => apiCall('/api/auth/reenviar-codigo', { method: 'POST' }),
+
+  cambiarDobleFactor: (activo: boolean) =>
+    apiCall('/api/auth/doble-factor', { method: 'POST', body: JSON.stringify({ activo }) }),
+
   logout: () => apiCall('/api/auth/logout', { method: 'POST' }),
 
   actualizarPerfil: (datos: { nombre?: string; password?: string }) =>

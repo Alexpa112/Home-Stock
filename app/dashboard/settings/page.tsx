@@ -12,6 +12,8 @@ export default function SettingsPage() {
   const { t, cambiarIdioma: aplicarIdiomaContexto } = useTranslation()
   const [darkMode, setDarkMode] = useState(false)
   const [user, setUser] = useState<{ usuario?: string; email?: string | null; id?: number }>({})
+  const [dobleFactorActivo, setDobleFactorActivo] = useState(false)
+  const [cargandoDobleFactor, setCargandoDobleFactor] = useState(false)
   const [confirmandoLogout, setConfirmandoLogout] = useState(false)
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
@@ -60,6 +62,19 @@ export default function SettingsPage() {
     }
   }
 
+  const cambiarDobleFactor = async (activo: boolean) => {
+    setCargandoDobleFactor(true)
+    setError('')
+    try {
+      await auth.cambiarDobleFactor(activo)
+      setDobleFactorActivo(activo)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_doble_factor_requiere_email'))
+    } finally {
+      setCargandoDobleFactor(false)
+    }
+  }
+
   const loadUser = async () => {
     try {
       const response = await fetch('/api/auth/estado', {
@@ -69,6 +84,7 @@ export default function SettingsPage() {
         const data = await response.json()
         setUser({ usuario: data.usuario, email: data.email, id: data.usuario_id })
         setNuevoNombre(data.usuario || '')
+        setDobleFactorActivo(!!data.doble_factor_activo)
 
         const pref = data.tema_preferido || 'auto'
         const aplicarOscuro =
@@ -254,6 +270,27 @@ export default function SettingsPage() {
               <p className="text-foreground font-medium mt-1">{user.email}</p>
             </div>
           )}
+
+          <div className="border-t border-border pt-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="font-medium">{t('doble_factor_titulo')}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {user.email ? t('doble_factor_descripcion') : t('err_doble_factor_requiere_email')}
+              </p>
+            </div>
+            <button
+              onClick={() => cambiarDobleFactor(!dobleFactorActivo)}
+              disabled={!user.email || cargandoDobleFactor}
+              role="switch"
+              aria-checked={dobleFactorActivo}
+              aria-label={t('doble_factor_titulo')}
+              className={`relative w-12 h-7 rounded-full transition-colors shrink-0 disabled:opacity-40 ${dobleFactorActivo ? 'bg-accent' : 'bg-muted'}`}
+            >
+              <span
+                className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${dobleFactorActivo ? 'translate-x-5' : ''}`}
+              />
+            </button>
+          </div>
 
           <div className="border-t border-border pt-4">
             <button
