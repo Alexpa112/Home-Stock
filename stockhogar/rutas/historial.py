@@ -6,7 +6,7 @@ usuario vaya creando, para poder sugerirlo automaticamente la proxima vez
 que se escriba un nombre parecido (en un producto o en la lista de la
 compra) y para poder navegarlo como catalogo al añadir a la lista.
 """
-from flask import Blueprint
+from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
@@ -61,3 +61,57 @@ def listar_historial():
         "FROM historial_articulos ORDER BY nombre COLLATE NOCASE",
     ).fetchall()
     return APIResponse.success([dict(fila) for fila in filas])
+
+
+@bp.route("/catalogo", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def buscar_catalogo():
+    """Catálogo de artículos para autocompletar/grid al añadir a una lista:
+    combina el historial estándar (compartido) con los artículos
+    personalizados del hogar de la lista activa (aislados por
+    usuario_propietario_id). Admite filtro opcional ?q=texto (LIKE)."""
+    db = get_db()
+    query = (request.args.get("q") or "").strip()
+    like = f"%{query}%"
+
+    if query:
+        estandar = db.execute(
+            "SELECT nombre, icono, categoria, unidad FROM historial_articulos "
+            "WHERE nombre LIKE ? COLLATE NOCASE ORDER BY nombre COLLATE NOCASE LIMIT 30",
+            (like,),
+        ).fetchall()
+    else:
+        estandar = db.execute(
+            "SELECT nombre, icono, categoria, unidad FROM historial_articulos "
+            "ORDER BY nombre COLLATE NOCASE LIMIT 30",
+        ).fetchall()
+
+    from ..servicios.stock import lista_actual_con_permiso
+
+    personalizados = []
+    lista_id = lista_actual_con_permiso(db, session)
+    if lista_id:
+        propietario = db.execute(
+            "SELECT usuario_propietario_id FROM listas WHERE id = ?", (lista_id,)
+        ).fetchone()
+        if propietario:
+            if query:
+                personalizados = db.execute(
+                    "SELECT nombre, icono, categoria, unidad FROM articulos_personalizados "
+                    "WHERE usuario_propietario_id = ? AND nombre LIKE ? COLLATE NOCASE "
+                    "ORDER BY nombre COLLATE NOCASE LIMIT 30",
+                    (propietario["usuario_propietario_id"], like),
+                ).fetchall()
+            else:
+                personalizados = db.execute(
+                    "SELECT nombre, icono, categoria, unidad FROM articulos_personalizados "
+                    "WHERE usuario_propietario_id = ? ORDER BY nombre COLLATE NOCASE LIMIT 30",
+                    (propietario["usuario_propietario_id"],),
+                ).fetchall()
+
+    resultado = (
+        [{**dict(fila), "origen": "estandar"} for fila in estandar]
+        + [{**dict(fila), "origen": "personalizado"} for fila in personalizados]
+    )
+    return APIResponse.success(resultado)

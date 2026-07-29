@@ -6,6 +6,7 @@ import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
+import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
@@ -32,6 +33,14 @@ interface Categoria {
   icono: string
 }
 
+interface ArticuloCatalogo {
+  nombre: string
+  icono: string | null
+  categoria: string | null
+  unidad: string | null
+  origen: 'estandar' | 'personalizado'
+}
+
 export default function ShoppingPage() {
   const { preferences, updatePreferences } = useListPreferences()
   const { t } = useTranslation()
@@ -48,9 +57,14 @@ export default function ShoppingPage() {
     categoria: 'Otros',
     cantidad: 1,
   })
+  const [formIcono, setFormIcono] = useState<string | undefined>(undefined)
+  const [formUnidad, setFormUnidad] = useState<string | undefined>(undefined)
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [edicion, setEdicion] = useState({ nombre: '', cantidad: 1 })
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
+  const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
+  const [catalogoQuery, setCatalogoQuery] = useState('')
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
 
   useEffect(() => {
     loadItems()
@@ -64,6 +78,13 @@ export default function ShoppingPage() {
     // ahi despues, ya este disponible al instante.
     prefetch('stock:productos', () => productosApi.listar())
   }, [])
+
+  useEffect(() => {
+    if (!showForm || catalogo.length > 0) return
+    buscarCatalogo().then((data: any) => {
+      setCatalogo(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+  }, [showForm])
 
   const loadItems = async () => {
     try {
@@ -89,15 +110,51 @@ export default function ShoppingPage() {
       await articulosLista.anadir(formData.nombre, {
         categoria: formData.categoria,
         cantidad: formData.cantidad,
+        icono: formIcono,
+        unidad: formUnidad,
       })
       setFormData({ nombre: '', categoria: formData.categoria, cantidad: 1 })
+      setFormIcono(undefined)
+      setFormUnidad(undefined)
       setShowForm(false)
+      setCatalogoQuery('')
       await loadItems()
     } catch (err) {
       const message = err instanceof Error ? err.message : t('err_anadir_articulo')
       setError(message)
     }
   }
+
+  // Añade directamente un artículo del catálogo (grid de "tocar para añadir").
+  const handleQuickAdd = async (item: ArticuloCatalogo) => {
+    try {
+      setError('')
+      await articulosLista.anadir(item.nombre, {
+        categoria: item.categoria || undefined,
+        icono: item.icono || undefined,
+        unidad: item.unidad || undefined,
+      })
+      await loadItems()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('err_anadir_articulo')
+      setError(message)
+    }
+  }
+
+  const seleccionarSugerencia = (item: ArticuloCatalogo) => {
+    setFormData({ ...formData, nombre: item.nombre, categoria: item.categoria || formData.categoria })
+    setFormIcono(item.icono || undefined)
+    setFormUnidad(item.unidad || undefined)
+    setMostrarSugerencias(false)
+  }
+
+  const sugerenciasNombre = formData.nombre.trim()
+    ? catalogo.filter((item) => item.nombre.toLowerCase().includes(formData.nombre.trim().toLowerCase())).slice(0, 6)
+    : []
+
+  const catalogoFiltrado = catalogo.filter((item) =>
+    item.nombre.toLowerCase().includes(catalogoQuery.toLowerCase())
+  )
 
   const handleToggleBought = async (id: number, marcarComprado: boolean) => {
     try {
@@ -456,19 +513,77 @@ export default function ShoppingPage() {
       {showForm && (
         <div className="card space-y-4">
           <h2 className="text-lg font-semibold">{t('nuevo_articulo')}</h2>
+          {catalogo.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t('elegir_del_catalogo')}</p>
+              <SearchBar
+                placeholder={t('buscar_en_catalogo')}
+                value={catalogoQuery}
+                onChange={setCatalogoQuery}
+              />
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-64 overflow-y-auto">
+                {catalogoFiltrado.map((item) => (
+                  <button
+                    key={`${item.origen}-${item.nombre}`}
+                    type="button"
+                    onClick={() => handleQuickAdd(item)}
+                    className="card !p-2 flex flex-col items-center text-center gap-1 hover:bg-muted transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                      {item.icono ? (
+                        <IconRenderer name={item.icono} className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <Plus className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-xs font-medium leading-tight line-clamp-2">{item.nombre}</p>
+                  </button>
+                ))}
+              </div>
+              {catalogoFiltrado.length === 0 && (
+                <p className="text-sm text-muted-foreground">{t('sin_coincidencias_catalogo')}</p>
+              )}
+            </div>
+          )}
+
           <form onSubmit={handleAddItem} className="space-y-4">
-            <div>
+            <div className="relative">
               <label htmlFor="art-nombre" className="block text-sm font-medium mb-2">{t('articulo')}</label>
               <input
                 id="art-nombre"
                 type="text"
                 value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, nombre: e.target.value })
+                  setFormIcono(undefined)
+                  setFormUnidad(undefined)
+                  setMostrarSugerencias(true)
+                }}
+                onFocus={() => setMostrarSugerencias(true)}
+                onBlur={() => setTimeout(() => setMostrarSugerencias(false), 150)}
                 placeholder={t('placeholder_ej_articulo')}
                 className="input-field"
                 required
                 inputMode="text"
+                autoComplete="off"
               />
+              {mostrarSugerencias && sugerenciasNombre.length > 0 && (
+                <ul className="absolute z-10 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                  {sugerenciasNombre.map((item) => (
+                    <li key={`${item.origen}-${item.nombre}`}>
+                      <button
+                        type="button"
+                        onMouseDown={() => seleccionarSugerencia(item)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted transition-colors"
+                      >
+                        {item.icono && <IconRenderer name={item.icono} className="w-4 h-4 text-muted-foreground" />}
+                        <span className="text-sm">{item.nombre}</span>
+                        {item.categoria && <span className="text-xs text-muted-foreground ml-auto">{item.categoria}</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -508,7 +623,10 @@ export default function ShoppingPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false)
+                  setCatalogoQuery('')
+                }}
                 className="btn-secondary flex-1"
               >
                 {t('cancelar')}

@@ -6,6 +6,7 @@ import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { productos as productosApi, categorias as categoriasApi, articulosLista } from '@/lib/api'
+import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
@@ -35,6 +36,14 @@ interface Categoria {
   id: number
   nombre: string
   icono: string
+}
+
+interface ArticuloCatalogo {
+  nombre: string
+  icono: string | null
+  categoria: string | null
+  unidad: string | null
+  origen: 'estandar' | 'personalizado'
 }
 
 interface FormularioProducto {
@@ -81,6 +90,9 @@ export default function StockPage() {
   const [confirmandoEliminarCatId, setConfirmandoEliminarCatId] = useState<number | null>(null)
   const [modoVista, setModoVista] = useState<'lista' | 'grid'>('grid')
   const [agruparPorCategoria, setAgruparPorCategoria] = useState(true)
+  const [formIcono, setFormIcono] = useState<string | undefined>(undefined)
+  const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
 
   useEffect(() => {
     // Cargar preferencias guardadas
@@ -100,6 +112,13 @@ export default function StockPage() {
   useEffect(() => {
     localStorage.setItem('stock-agrupar-categoria', String(agruparPorCategoria))
   }, [agruparPorCategoria])
+
+  useEffect(() => {
+    if (!showForm || catalogo.length > 0) return
+    buscarCatalogo().then((data: any) => {
+      setCatalogo(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+  }, [showForm])
 
   const bootstrap = async () => {
     try {
@@ -136,6 +155,7 @@ export default function StockPage() {
   const abrirNuevo = () => {
     setEditandoId(null)
     setFormData({ ...FORM_VACIO, categoria: categorias[0]?.nombre || 'Otros' })
+    setFormIcono(undefined)
     setShowForm(true)
   }
 
@@ -149,8 +169,24 @@ export default function StockPage() {
       unidad: item.unidad,
       dias_aviso: item.dias_aviso,
     })
+    setFormIcono(item.icono || undefined)
     setShowForm(true)
   }
+
+  const seleccionarSugerencia = (item: ArticuloCatalogo) => {
+    setFormData({
+      ...formData,
+      nombre: item.nombre,
+      categoria: item.categoria || formData.categoria,
+      unidad: item.unidad || formData.unidad,
+    })
+    setFormIcono(item.icono || undefined)
+    setMostrarSugerencias(false)
+  }
+
+  const sugerenciasNombre = formData.nombre.trim()
+    ? catalogo.filter((item) => item.nombre.toLowerCase().includes(formData.nombre.trim().toLowerCase())).slice(0, 6)
+    : []
 
   const getCategoryIcon = (categoryName: string | null) => {
     if (!categoryName) return null
@@ -173,6 +209,7 @@ export default function StockPage() {
           stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
+          icono: formIcono,
         })
       } else {
         await productosApi.crear({
@@ -182,6 +219,7 @@ export default function StockPage() {
           stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
           dias_aviso: formData.dias_aviso,
+          icono: formIcono,
         })
       }
       setShowForm(false)
@@ -640,18 +678,42 @@ export default function StockPage() {
           )}
 
           <form onSubmit={handleGuardar} className="space-y-4">
-            <div>
+            <div className="relative">
               <label htmlFor="prod-nombre" className="block text-sm font-medium mb-2">{t('nombre')}</label>
               <input
                 id="prod-nombre"
                 type="text"
                 value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, nombre: e.target.value })
+                  setFormIcono(undefined)
+                  setMostrarSugerencias(true)
+                }}
+                onFocus={() => setMostrarSugerencias(true)}
+                onBlur={() => setTimeout(() => setMostrarSugerencias(false), 150)}
                 placeholder={t('placeholder_ej_producto')}
                 className="input-field"
                 required
                 inputMode="text"
+                autoComplete="off"
               />
+              {mostrarSugerencias && sugerenciasNombre.length > 0 && (
+                <ul className="absolute z-10 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                  {sugerenciasNombre.map((item) => (
+                    <li key={`${item.origen}-${item.nombre}`}>
+                      <button
+                        type="button"
+                        onMouseDown={() => seleccionarSugerencia(item)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted transition-colors"
+                      >
+                        {item.icono && <IconRenderer name={item.icono} className="w-4 h-4 text-muted-foreground" />}
+                        <span className="text-sm">{item.nombre}</span>
+                        {item.categoria && <span className="text-xs text-muted-foreground ml-auto">{item.categoria}</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
