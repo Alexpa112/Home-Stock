@@ -6,6 +6,11 @@ from flask import g
 
 from .config import CATALOGO_DEFECTO, CATEGORIAS_DEFECTO, DB_PATH, DIAS_AVISO_DEFECTO
 
+try:
+    import fcntl  # No disponible en Windows; solo se usa en el contenedor Linux.
+except ImportError:
+    fcntl = None
+
 
 def ahora():
     return datetime.now().isoformat(timespec="seconds")
@@ -280,6 +285,33 @@ def _reparar_fk_articulos_personalizados_old(db):
 
 
 def init_db():
+    """Ejecuta las migraciones protegidas por un flock sobre un fichero aparte.
+
+    gunicorn arranca --workers 2 (procesos separados, ver el CMD de
+    Dockerfile.raspbian) y cada uno llama a create_app() -> init_db() al
+    bootear. Sin este lock, los dos ejecutan las mismas sentencias
+    'ALTER TABLE ... ADD COLUMN' casi a la vez contra el mismo fichero
+    SQLite; aunque hay un PRAGMA busy_timeout, se ha visto en produccion
+    (2026-07-29) que la sucesion de varias ALTER TABLE seguidas puede agotar
+    igualmente el timeout con "database is locked", tumbando el worker y
+    disparando el rollback automatico del deploy. Con el flock, el segundo
+    worker simplemente espera a que el primero termine las migraciones antes
+    de arrancar las suyas (que entonces son no-ops, las columnas ya existen).
+    """
+    if fcntl is None:
+        _init_db_impl()
+        return
+    lock_path = DB_PATH.parent / ".init_db.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            _init_db_impl()
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _init_db_impl():
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA busy_timeout = 5000")
