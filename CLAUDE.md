@@ -126,6 +126,16 @@ Si una tarea implica varios cambios relacionados:
 
 ---
 
+## 📌 REGLA 10: Tests
+
+Tras implementar cualquier funcionalidad nueva o modificar una existente:
+
+- Añade/actualiza tests en `tests/` que la cubran (pytest, aislados con `create_app()`/`test_client()`, sin depender de servidor externo ni de `data/stock.db` real).
+- Si un test queda obsoleto (rutas/funciones eliminadas), elimínalo en la misma tarea.
+- Verifica que toda la suite pasa (`python -m pytest tests/ -q`) antes de dar la tarea por terminada.
+
+---
+
 ## 📌 Duda
 
 Si una petición obliga a romper estas reglas, avísalo antes en lugar de cambiarlo en silencio.
