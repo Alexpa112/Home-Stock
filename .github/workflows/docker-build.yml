@@ -24,10 +24,18 @@ jobs:
         run: |
           docker run --rm -v "${{ github.workspace }}/tests/fixtures:/fixtures:ro" \
             stockhogar-backend:ci python3 -c "
+          import shutil
           from stockhogar.rutas.tickets import _convertir_pdf_a_imagen
           from stockhogar.integraciones import ticket_ocr
 
-          ruta_png = _convertir_pdf_a_imagen('/fixtures/ticket_ejemplo.pdf')
+          # /fixtures esta montado solo-lectura; igual que el endpoint real
+          # (que trabaja siempre sobre un tempfile propio), se copia a una
+          # ruta escribible antes de convertir, porque pdftoppm escribe el
+          # PNG de salida junto al PDF de entrada.
+          ruta_pdf = '/tmp/ticket_ejemplo.pdf'
+          shutil.copy('/fixtures/ticket_ejemplo.pdf', ruta_pdf)
+
+          ruta_png = _convertir_pdf_a_imagen(ruta_pdf)
           assert ruta_png, 'pdftoppm no genero la imagen'
           texto = ticket_ocr.extraer_texto(ruta_png)
           print('--- Texto OCR extraido ---')
