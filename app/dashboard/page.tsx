@@ -5,6 +5,7 @@ import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, Shoppi
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
+import { IconPicker } from '@/components/dashboard/IconPicker'
 import { productos as productosApi, categorias as categoriasApi, articulosLista } from '@/lib/api'
 import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -93,6 +94,7 @@ export default function StockPage() {
   const [formIcono, setFormIcono] = useState<string | undefined>(undefined)
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
+  const [mostrarIconPicker, setMostrarIconPicker] = useState(false)
 
   useEffect(() => {
     // Cargar preferencias guardadas
@@ -727,6 +729,23 @@ export default function StockPage() {
               )}
             </div>
 
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                {(formIcono || getCategoryIcon(formData.categoria)) ? (
+                  <IconRenderer name={formIcono || getCategoryIcon(formData.categoria)} className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <Package className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMostrarIconPicker(true)}
+                className="btn-secondary btn-sm"
+              >
+                {t('cambiar_icono')}
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="prod-categoria" className="block text-sm font-medium mb-2">{t('categoria')}</label>
@@ -944,6 +963,17 @@ export default function StockPage() {
         <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3'}>
           {filteredItems.map(renderProducto)}
         </div>
+      )}
+
+      {mostrarIconPicker && (
+        <IconPicker
+          valorActual={formIcono || getCategoryIcon(formData.categoria)}
+          onSeleccionar={(icono) => {
+            setFormIcono(icono)
+            setMostrarIconPicker(false)
+          }}
+          onCerrar={() => setMostrarIconPicker(false)}
+        />
       )}
     </div>
   )
