@@ -354,46 +354,45 @@ export default function StockPage() {
   // Tocar el recuadro abre la edición completa (incluye eliminar);
   // el ajuste +/- rápido y "añadir a la compra" quedan como acciones
   // secundarias discretas, sin competir visualmente con icono+nombre+cantidad.
+  // Vista "Grid" — ficha compacta: icono y nombre en fila (no apilados, sin
+  // insignias solapando el icono), stepper +/- siempre visible en su propia
+  // fila. El aviso de stock bajo es un borde izquierdo de color en vez de un
+  // punto sobre el icono, para no competir visualmente con él.
   const renderProductoGrid = (item: Producto) => {
     const icono = getCategoryIcon(item.categoria)
     const bajoMinimo = item.cantidad <= item.stock_minimo
     return (
-      <div key={item.id} className="card !p-2.5 flex flex-col items-center text-center gap-1.5 relative">
+      <div
+        key={item.id}
+        className={`card !p-2.5 flex flex-col gap-2 relative ${bajoMinimo ? 'border-l-4 !border-l-red-500' : ''}`}
+      >
         <button
           onClick={() => abrirEdicion(item)}
           className="absolute inset-0 rounded-2xl"
           aria-label={`${t('editar')} ${item.nombre}`}
         />
 
-        <div className="relative pointer-events-none">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-            {icono ? (
-              <IconRenderer name={icono} className="w-7 h-7 text-muted-foreground" />
-            ) : (
-              <Package className="w-7 h-7 text-muted-foreground" />
+        <div className="flex items-center gap-2 pointer-events-none">
+          <div className="relative shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+              {icono ? (
+                <IconRenderer name={icono} className="w-[1.15rem] h-[1.15rem] text-muted-foreground" />
+              ) : (
+                <Package className="w-[1.15rem] h-[1.15rem] text-muted-foreground" />
+              )}
+            </div>
+            {item.revisar_caducidad && (
+              <span
+                className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-yellow-500 border-2 border-card"
+                title={t('revisar_caducidad')}
+              />
             )}
           </div>
-          {item.cantidad !== 1 && (
-            <span
-              className={`absolute -bottom-1.5 -right-1.5 min-w-[1.375rem] h-5.5 px-1 flex items-center justify-center rounded-full text-xs font-bold tabular-nums border-2 border-card ${
-                bajoMinimo ? 'bg-red-500 text-white' : 'bg-accent text-accent-foreground'
-              }`}
-            >
-              {item.cantidad}
-            </span>
-          )}
-          {(bajoMinimo || item.revisar_caducidad) && (
-            <span
-              className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-card ${bajoMinimo ? 'bg-red-500' : 'bg-yellow-500'}`}
-              title={bajoMinimo ? t('bajo_minimo') : t('revisar_caducidad')}
-            />
-          )}
+          <p className="font-medium text-foreground text-xs leading-tight line-clamp-2 min-w-0">{item.nombre}</p>
         </div>
 
-        <p className="font-medium text-foreground text-xs leading-tight line-clamp-2 pointer-events-none">{item.nombre}</p>
-
-        {/* Acciones secundarias: por encima del botón de edición a pantalla completa */}
-        <div className="relative flex items-center gap-1 pt-0.5">
+        {/* Stepper: por encima del botón de edición a pantalla completa */}
+        <div className="relative flex items-center gap-1">
           <button
             onClick={() => handleAjustarCantidad(item.id, -1)}
             className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-sm font-medium"
@@ -402,6 +401,9 @@ export default function StockPage() {
           >
             −
           </button>
+          <span className={`flex-1 text-center text-sm font-bold tabular-nums ${bajoMinimo ? 'text-red-500' : 'text-foreground'}`}>
+            {item.cantidad}
+          </span>
           <button
             onClick={() => handleAjustarCantidad(item.id, 1)}
             className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-sm font-medium"

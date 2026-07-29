@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X } from 'lucide-react'
 import { SearchBar } from '@/components/dashboard/SearchBar'
-import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
+import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
 import { buscarCatalogo } from '@/lib/catalogo'
@@ -350,43 +350,48 @@ export default function ShoppingPage() {
     </div>
   )
 
-  // Tile al estilo Bring!: icono, nombre y cantidad solo si es distinta de 1.
-  // Tocar el tile marca comprado/restaurado; mantener pulsado abre la modal
-  // de edicion completa (no hay botones de editar/eliminar en este modo).
+  // Tile "color por categoría": el icono ocupa un bloque de color propio de
+  // la categoría (mismo criterio que CategoryBadge, así que un vistazo a
+  // colores agrupa igual que un vistazo a iconos), con nombre y cantidad en
+  // una franja inferior con scrim. Tocar el tile marca comprado/restaurado;
+  // mantener pulsado abre la modal de edición completa.
   const renderItemGridTile = (item: ArticuloLista, isCompleted: boolean = false) => {
     const icono = getCategoryIcon(item.categoria)
+    const gradiente = getCategoryTileGradient(item.categoria || 'Otros')
     return (
-      <div key={item.id} className={`card !p-2.5 flex flex-col items-center text-center gap-1.5 relative ${isCompleted ? 'opacity-60' : ''}`}>
+      <div
+        key={item.id}
+        className={`relative rounded-2xl overflow-hidden border border-border aspect-[10/11] flex flex-col justify-end transition-all ${isCompleted ? 'grayscale opacity-60' : ''}`}
+      >
         <button
           onClick={() => handleToggleBought(item.id, !isCompleted)}
-          className="absolute inset-0 rounded-2xl"
+          className="absolute inset-0"
           aria-label={isCompleted ? t('aria_restaurar_producto').replace('{nombre}', item.nombre) : t('aria_marcar_comprado_producto').replace('{nombre}', item.nombre)}
           {...crearLongPress(item)}
         />
 
-        <div className="relative pointer-events-none">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-            {icono ? (
-              <IconRenderer name={icono} className="w-7 h-7 text-muted-foreground" />
-            ) : isCompleted ? (
-              <CheckCircle2 className="w-7 h-7 text-green-500" />
-            ) : (
-              <Circle className="w-7 h-7 text-muted-foreground" />
-            )}
-          </div>
-          {item.cantidad !== 1 && (
-            <span className="absolute -bottom-1.5 -right-1.5 min-w-[1.375rem] h-5.5 px-1 flex items-center justify-center rounded-full text-xs font-bold tabular-nums border-2 border-card bg-accent text-accent-foreground">
-              {item.cantidad}
-            </span>
-          )}
-          {item.origen === 'auto' && !isCompleted && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-orange-500 border-2 border-card" title={t('stock_bajo')} />
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradiente} flex items-center justify-center pointer-events-none`}>
+          {icono ? (
+            <IconRenderer name={icono} className="w-8 h-8 text-white/90" />
+          ) : isCompleted ? (
+            <CheckCircle2 className="w-8 h-8 text-white/90" />
+          ) : (
+            <Circle className="w-8 h-8 text-white/90" />
           )}
         </div>
 
-        <p className={`font-medium text-foreground text-xs leading-tight line-clamp-2 pointer-events-none ${isCompleted ? 'line-through' : ''}`}>
-          {item.nombre}
-        </p>
+        {item.origen === 'auto' && !isCompleted && (
+          <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white/85 pointer-events-none" title={t('stock_bajo')} />
+        )}
+
+        <div className="relative bg-black/45 backdrop-blur-[1px] px-2 py-1.5 pointer-events-none">
+          <p className={`text-white text-xs font-semibold leading-tight line-clamp-2 ${isCompleted ? 'line-through' : ''}`}>
+            {item.nombre}
+          </p>
+          <p className="text-white/80 text-[0.65rem] mt-0.5 tabular-nums">
+            ×{item.cantidad}
+          </p>
+        </div>
       </div>
     )
   }

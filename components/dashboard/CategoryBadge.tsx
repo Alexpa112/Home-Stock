@@ -23,10 +23,37 @@ const FALLBACK_PALETTES = [
   'bg-sky-100    text-sky-800    dark:bg-sky-900/40    dark:text-sky-300',
 ]
 
-function hashIndex(str: string, len: number) {
+export function hashIndex(str: string, len: number) {
   let h = 0
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0
   return h % len
+}
+
+// Mismo criterio que CATEGORY_STYLES/FALLBACK_PALETTES de arriba (misma
+// categoría → mismo color en toda la app), pero en degradado sólido para
+// usarse como fondo de una ficha entera (vista grid de la compra) en vez de
+// como texto de una insignia pequeña.
+const CATEGORY_TILE_GRADIENTS: Record<string, string> = {
+  Alimentos: 'from-orange-400 to-orange-600',
+  Bebidas: 'from-blue-400 to-blue-600',
+  Limpieza: 'from-violet-400 to-violet-600',
+  Higiene: 'from-pink-400 to-pink-600',
+  Mascotas: 'from-amber-400 to-amber-600',
+  Electrónica: 'from-cyan-400 to-cyan-600',
+  Otros: 'from-slate-400 to-slate-600',
+}
+
+const FALLBACK_TILE_GRADIENTS = [
+  'from-teal-400 to-teal-600',
+  'from-rose-400 to-rose-600',
+  'from-indigo-400 to-indigo-600',
+  'from-lime-500 to-lime-700',
+  'from-sky-400 to-sky-600',
+]
+
+export function getCategoryTileGradient(category: string): string {
+  return CATEGORY_TILE_GRADIENTS[category]
+    ?? FALLBACK_TILE_GRADIENTS[hashIndex(category, FALLBACK_TILE_GRADIENTS.length)]
 }
 
 interface CategoryBadgeProps {
