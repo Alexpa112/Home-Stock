@@ -135,8 +135,8 @@ export default function StockPage() {
       setError('')
 
       // La seleccion de hogar/lista activa ahora es obligatoria antes de
-      // llegar aqui (ver components/shared/SeleccionHogar.tsx), asi que ya
-      // no hace falta crear una lista de emergencia en este punto. Ambas
+      // llegar aqui (ver components/shared/SelectorHogarPantallaCompleta.tsx),
+      // asi que ya no hace falta crear una lista de emergencia en este punto. Ambas
       // peticiones van en paralelo desde el primer instante, sin esperas
       // en cascada.
       const [productosData, categoriasData] = await Promise.all([

@@ -49,3 +49,23 @@ export function setCached(key: string, data: unknown): void {
 export function prefetch<T>(key: string, fetcher: () => Promise<T>): void {
   fetcher().then((data) => setCached(key, data)).catch(() => {})
 }
+
+/**
+ * Borra entradas de cache (memoria + localStorage). Las claves de este
+ * modulo NO estan separadas por hogar (ver 'stock:productos', etc.), asi
+ * que al cambiar de hogar hay que llamar a esto antes de recargar la app:
+ * si no, un stale-while-revalidate pintaria por un instante los datos del
+ * hogar anterior.
+ */
+export function clearCache(keys: string[]): void {
+  for (const key of keys) {
+    memoryCache.delete(key)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_PREFIX + key)
+      } catch {
+        // ignorar
+      }
+    }
+  }
+}
