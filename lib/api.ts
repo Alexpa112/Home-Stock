@@ -12,6 +12,8 @@
  * backend lo rechaza por caducado.
  */
 
+import { marcarMantenimiento } from './mantenimiento'
+
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>
 }
@@ -41,6 +43,9 @@ export async function apiUpload<T = any>(endpoint: string, formData: FormData): 
   })
   const contentType = response.headers.get('content-type') || ''
   const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
+  if (response.status === 503 && datos?.mantenimiento) {
+    marcarMantenimiento(true)
+  }
   if (!response.ok) {
     throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
   }
@@ -80,6 +85,12 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
 
   const contentType = response.headers.get('content-type') || ''
   const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
+
+  // Red de seguridad si el stream SSE de mantenimiento (RootLayoutClient) se
+  // hubiera perdido: cualquier petición real detecta el 503 igualmente.
+  if (response.status === 503 && datos?.mantenimiento) {
+    marcarMantenimiento(true)
+  }
 
   if (!response.ok) {
     throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
