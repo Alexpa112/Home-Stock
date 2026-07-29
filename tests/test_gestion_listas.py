@@ -90,6 +90,21 @@ class GestionListasTests(unittest.TestCase):
         resp = self.client.post(f"/api/listas/{self.lista_inicial_id}/salir")
         self.assertEqual(resp.status_code, 403, resp.get_data(as_text=True))
 
+    def test_crear_lista_con_usuario_de_sesion_inexistente_da_401(self):
+        # Simula una cookie de sesion firmada que sobrevive al borrado de la
+        # cuenta (p.ej. "Eliminar Cuenta" desde otro dispositivo) o a una
+        # restauracion de la BD: el usuario_id de la sesion ya no existe.
+        # Antes esto llegaba intacto al INSERT con FK hacia `usuarios` y
+        # saltaba un IntegrityError -> 500 generico en vez de pedir login.
+        with self.app.app_context():
+            db = get_db()
+            db.execute("DELETE FROM listas WHERE usuario_propietario_id = ?", (self.usuario_id,))
+            db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
+            db.commit()
+
+        resp = self.client.post("/api/listas", json={"nombre": "Lista fantasma"})
+        self.assertEqual(resp.status_code, 401, resp.get_data(as_text=True))
+
     def test_eliminar_lista_solo_propietario(self):
         resp = self.client.delete(f"/api/listas/{self.lista_inicial_id}")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))

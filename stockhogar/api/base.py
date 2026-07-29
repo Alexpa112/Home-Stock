@@ -3,6 +3,7 @@ from functools import wraps
 from flask import jsonify, session
 from ..utils.validation import ValidationError
 from ..translator import traducir
+from ..db import get_db
 
 
 class APIResponse:
@@ -49,10 +50,25 @@ class APIResponse:
 
 
 def requerir_sesion(f):
-    """Decorador: requiere sesión activa."""
+    """Decorador: requiere sesión activa con un usuario que siga existiendo.
+
+    Una cookie de sesión firmada sigue siendo válida aunque la cuenta se
+    haya borrado (p.ej. "Eliminar Cuenta" desde otro dispositivo) o la BD
+    se haya restaurado. Sin esta comprobación, ese usuario_id fantasma
+    llega intacto a los INSERT con FK hacia `usuarios` (p.ej. crear lista)
+    y salta un IntegrityError que el manejo_errores genérico convierte en
+    un 500 "error interno" en vez de pedir volver a iniciar sesión.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get("usuario_id"):
+        usuario_id = session.get("usuario_id")
+        if not usuario_id:
+            return APIResponse.no_autorizado()
+        existe = get_db().execute(
+            "SELECT 1 FROM usuarios WHERE id = ?", (usuario_id,)
+        ).fetchone()
+        if not existe:
+            session.clear()
             return APIResponse.no_autorizado()
         return f(*args, **kwargs)
     return decorated
