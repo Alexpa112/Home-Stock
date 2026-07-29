@@ -32,6 +32,13 @@ ENV PYTHONUNBUFFERED=1 \
 #     de OpenCV (ffmpeg)
 #   - liblapack3, libatlas3-base: LAPACK/CBLAS de OpenCV (libatlas3-base
 #     provee libcblas.so.3 vía el sistema de alternativas de Debian)
+#
+# build-essential/pkg-config/libffi-dev/libssl-dev se conservan como red de
+# seguridad por si una futura versión de alguna dependencia deja de publicar
+# wheel para armv7l (ver opencv-python-headless en requirements.txt: pasó
+# justo eso el 2026-07-28), aunque hoy nada se compila desde fuente. cryptography
+# (que sí requería Rust) ya publica wheel armv7l prebuilt desde hace tiempo,
+# así que se ha retirado el toolchain de Rust que se instalaba aquí antes.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         tesseract-ocr \
@@ -59,15 +66,6 @@ RUN apt-get update && \
         libatlas3-base \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# cryptography (ver requirements.txt) trae extensiones en Rust y no hay wheel
-# precompilada para armv7l en PyPI, así que se compila desde fuente en el build.
-# Se instala Rust vía rustup en vez del rustc/cargo de apt porque la versión de
-# Debian puede quedarse corta para el MSRV de crates recientes.
-ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/usr/local/cargo \
-    PATH=/usr/local/cargo/bin:$PATH
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
 
 WORKDIR /app
 
