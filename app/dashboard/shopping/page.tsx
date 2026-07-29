@@ -362,12 +362,12 @@ export default function ShoppingPage() {
       <div
         key={item.id}
         className={`relative rounded-2xl overflow-hidden border border-border aspect-[10/11] flex flex-col justify-end transition-all ${isCompleted ? 'grayscale opacity-60' : ''}`}
+        {...crearLongPress(item)}
       >
         <button
           onClick={() => handleToggleBought(item.id, !isCompleted)}
           className="absolute inset-0"
           aria-label={isCompleted ? t('aria_restaurar_producto').replace('{nombre}', item.nombre) : t('aria_marcar_comprado_producto').replace('{nombre}', item.nombre)}
-          {...crearLongPress(item)}
         />
 
         <div className={`absolute inset-0 bg-gradient-to-br ${gradiente} flex items-center justify-center pointer-events-none`}>
