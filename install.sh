@@ -34,7 +34,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 STEPS_COMPLETED=0
-STEPS_TOTAL=13
+STEPS_TOTAL=14
 LOG_FILE="$SCRIPT_DIR/install.log"
 LOCK_FILE="$SCRIPT_DIR/.install.lock"
 : > "$LOG_FILE"
@@ -799,6 +799,39 @@ if wait_healthy frontend 120; then
 else
     log_warning "El frontend no responde todavía (estado: $(container_health frontend))."
     log_warning "Puede seguir arrancando. Revisa: ${COMPOSE[*]} logs -f frontend"
+fi
+
+step_end
+
+################################################################################
+step_start "Configurar auto-actualización"
+################################################################################
+
+# El frontend ya trae su propio auto-actualizador (lib/useCacheBuster.ts):
+# sondea /api/cache-version cada 15s y recarga solo cuando detecta una versión
+# nueva, así que no necesita ningún paso de instalación aparte: viaja dentro
+# de la imagen que se acaba de construir.
+#
+# Lo que sí falta instalar es el cron que dispara ese cambio de versión:
+# scripts/auto_update.sh comprueba origin/produccion y hace `install.sh
+# --update` cuando hay commits nuevos. Solo tiene sentido en la rama
+# "produccion" (que es la que auto_update.sh vigila); en otras ramas se avisa
+# y se omite para no dejar un cron que nunca hará nada.
+CRON_LINE="*/5 * * * * $SCRIPT_DIR/scripts/auto_update.sh >> $SCRIPT_DIR/logs/auto_update.log 2>&1"
+if [[ -d .git ]] && [[ "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" == "produccion" ]]; then
+    if check_cmd crontab; then
+        if crontab -l 2>/dev/null | grep -qF "scripts/auto_update.sh"; then
+            log_info "El cron de auto-actualización ya estaba instalado"
+        else
+            (crontab -l 2>/dev/null; echo "$CRON_LINE") | crontab -
+            log_success "Cron de auto-actualización instalado (cada 5 min, rama produccion)"
+        fi
+    else
+        log_warning "No hay 'crontab' disponible; añade esto manualmente para activar la auto-actualización:"
+        log_warning "  $CRON_LINE"
+    fi
+else
+    log_info "Rama actual distinta de 'produccion'; se omite el cron de auto-actualización (actívalo manualmente si lo necesitas)."
 fi
 
 step_end
