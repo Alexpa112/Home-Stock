@@ -13,3 +13,12 @@ data/
 logs/
 uploads/
 *.log
+node_modules/
+.next/
+.claude/
+tests/
+.github/
+*.md
+.env*
+tsconfig.tsbuildinfo
+StockHogar-Panel/

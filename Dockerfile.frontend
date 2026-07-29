@@ -49,6 +49,14 @@ RUN if [ -f pnpm-lock.yaml ]; then \
         NODE_OPTIONS=--unhandled-rejections=warn npm run build -- --webpack; \
     fi
 
+# Elimina devDependencies (jest, typescript, tailwind, lucide-static, etc.)
+# del node_modules del builder antes de copiarlo a la imagen final.
+RUN if [ -f pnpm-lock.yaml ]; then \
+        pnpm prune --prod; \
+    else \
+        npm prune --omit=dev; \
+    fi
+
 FROM node:20-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
