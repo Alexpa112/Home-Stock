@@ -122,7 +122,7 @@ Si una tarea implica varios cambios relacionados:
 - Realiza cambios coherentes.
 - Genera mensajes de commit claros.
 - Prepara PR solo cuando el trabajo esté completo.
-- Workflow: `dev` → `dev2` → `produccion` (pre-push hook)
+- Workflow: `dev2` → `produccion` (pre-push hook). No existe rama `dev`.
 
 ---
 
