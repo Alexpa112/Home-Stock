@@ -37,12 +37,18 @@ def mantenimiento_stream():
         # si ya está en mantenimiento o no.
         yield f"event: mantenimiento\ndata: {'activo' if ultimo else 'inactivo'}\n\n"
         while True:
-            # Bloquea ~55 s o hasta que activo() detecte un cambio y haga notify_all.
-            mantenimiento.esperar_cambio(timeout_s=55.0)
+            # Espera corta (no los ~55s de antes): si el cliente se fue sin
+            # cerrar limpio (frecuente en iOS al suspender/matar la PWA), este
+            # yield periódico hace que el intento de escritura falle enseguida
+            # y libere el hilo de gunicorn, en vez de retenerlo minutos u horas
+            # a la espera del keepalive TCP por defecto del sistema.
+            mantenimiento.esperar_cambio(timeout_s=10.0)
             ahora = mantenimiento.activo()
             if ahora != ultimo:
                 ultimo = ahora
                 yield f"event: mantenimiento\ndata: {'activo' if ahora else 'inactivo'}\n\n"
+            else:
+                yield ": heartbeat\n\n"
 
     return Response(
         stream_with_context(generar()),
