@@ -104,6 +104,15 @@ MAPEO_EMOJI_A_ICONO_LUCIDE = {
     "🍰": "cake-slice", "🌾": "wheat", "🌿": "sprout", "🍿": "candy",
     "🍘": "cookie", "🥃": "wine", "🪒": "spray-can", "🍝": "soup",
     "🥞": "wheat", "🫓": "wheat", "🗑️": "h-trash", "😷": "stethoscope",
+    # Emojis de las categorías Bazar y Ferretería.
+    "🪚": "hammer", "⚙️": "settings", "🧱": "package-2", "🪝": "anchor",
+    "🧰": "wrench", "🪓": "axe", "🔗": "link", "🚰": "droplet",
+    "🪤": "target", "🎨": "palette", "🖌️": "paintbrush", "🧵": "scissors",
+    "🪡": "scissors", "🧷": "pin", "📏": "ruler", "🪟": "app-window",
+    "🖼️": "image", "🎀": "gift", "🔑": "key", "🧲": "magnet",
+    "🪒": "spray-can", "🕸️": "waves-ladder", "🧨": "flame",
+    "🍽️": "utensils", "☂️": "umbrella", "🔪": "utensils-crossed", "🥽": "glasses",
+    "🥥": "nut",
 }
 
 
