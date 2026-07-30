@@ -19,8 +19,9 @@ Reglas de trabajo (pedidas por el usuario):
 - Este fichero se actualiza tras cada punto completado, para poder retomar el trabajo aunque
   se pierda el contexto de la conversacion (pasar solo este arbol basta para continuar).
 
-Estado global: **EN CURSO** — Puntos 1-5 completados (Punto 5 con pendiente de traduccion en
-6 idiomas, ver detalle), siguiente: Punto 6 (compatibilidad/despliegue).
+Estado global: **EN CURSO** — Puntos 1-6 completados (Punto 5 con pendiente de traduccion en
+6 idiomas, ver detalle), siguiente: Punto 7 (tests, aunque gran parte ya se adelanto en el
+Punto 2).
 
 ---
 
@@ -193,11 +194,23 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
   silenciosamente. Usar siempre reemplazo de texto quirurgico (buscar la clave exacta
   con su valor completo y sustituir solo eso)
 
-### 6. Compatibilidad / despliegue
-- [ ] Service worker / PWA offline: purgar cache de endpoints `/api/listas` viejos tras el
-      despliegue
-- [ ] Seguir regla de memoria: solo subir a rama `produccion` cuando el cambio funcional este
-      completo y probado en movil
+### 6. Compatibilidad / despliegue — COMPLETADO 2026-07-30 (sin trabajo manual necesario)
+- [x] Investigado: NO existe un service worker clasico con lista de URLs cacheadas
+      (no hay `navigator.serviceWorker.register` en toda la app). El mecanismo real
+      de cache-busting es `lib/useCacheBuster.ts` (activo en `app/RootLayoutClient.tsx`),
+      que cada 15s consulta `GET /api/cache-version` (`stockhogar/rutas/version.py`,
+      version = mtime de `docker-compose.yml` o, si no existe, de `stockhogar/__init__.py`)
+      y si cambia: desregistra cualquier service worker residual, borra TODO
+      `caches.keys()` (Cache Storage API) y recarga la pagina
+- [x] Como `stockhogar/__init__.py` ya se modifico en el Punto 2, cualquier despliegue
+      a produccion (git pull) cambia su mtime automaticamente -> todos los clientes
+      conectados detectan la nueva version en <=15s y purgan cache solos, sin
+      necesidad de tocar nada mas para este punto
+- [x] Regla de memoria confirmada y respetada: NO se ha subido nada a la rama
+      `produccion` durante esta tarea; todo el trabajo esta en `dev2`. Solo se debe
+      fusionar a `produccion` cuando el usuario lo pida explicitamente, tras revisar
+      el cambio funcional completo (incluye el Punto 4 pendiente de verificacion
+      visual en movil)
 
 ### 7. Tests (tests/)
 - [ ] Actualizar tests que usan `/api/listas`, tabla `listas`, `lista_actual_id`
@@ -233,3 +246,6 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
   renombradas en 7 idiomas + texto en espanol corregido; texto de gl/en/pt/fr/it/de
   bajo las claves nuevas sigue siendo el antiguo (traduccion real pendiente, tarea
   de seguimiento creada). tsc --noEmit limpio, 66 passed 1 skipped.
+- 2026-07-30 — Punto 6 completado sin cambios de codigo: no hay service worker
+  clasico que purgar; el cache-busting existente (useCacheBuster + /api/cache-version
+  basado en mtime) ya cubre el caso automaticamente en cualquier despliegue.
