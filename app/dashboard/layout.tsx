@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Package, ShoppingCart, Settings, LogOut, ClipboardList, Camera, History, Home, ChevronsUpDown } from 'lucide-react'
+import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Users } from 'lucide-react'
 import { useState } from 'react'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { SelectorHogarPantallaCompleta } from '@/components/shared/SelectorHogarPantallaCompleta'
@@ -27,24 +27,30 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mostrarSelectorHogar, setMostrarSelectorHogar] = useState(false)
   const hogarActivo = [...propios, ...compartidos].find((h) => h.id === hogarActivoId)
 
-  // Bottom bar móvil: las 5 rutas más usadas
+  // Bottom bar móvil: las 5 rutas más usadas (Stock y Compra se mantienen a
+  // un toque; la gestión/compartir del hogar vive en su propia pestaña).
   const tabItems = [
     { href: '/dashboard', label: t('nav_stock'), icon: Package },
     { href: '/dashboard/shopping', label: t('nav_compra'), icon: ShoppingCart },
     { href: '/dashboard/ticket', label: t('nav_escanear'), icon: Camera },
-    { href: '/dashboard/listas', label: t('listas'), icon: ClipboardList },
+    { href: '/dashboard/hogar', label: t('hogar'), icon: Home },
     { href: '/dashboard/settings', label: t('ajustes'), icon: Settings },
   ]
 
-  // Sidebar desktop: todas las rutas
-  const sidebarItems = [
+  // Sidebar desktop: "Hogar" agrupa Stock, Lista de la compra y Compartir/
+  // miembros bajo un mismo desplegable; el resto queda a primer nivel.
+  const hogarSubItems = [
     { href: '/dashboard', label: t('nav_stock'), icon: Package },
     { href: '/dashboard/shopping', label: t('nav_lista_compra'), icon: ShoppingCart },
-    { href: '/dashboard/listas', label: t('mis_listas'), icon: ClipboardList },
+    { href: '/dashboard/hogar', label: t('compartir'), icon: Users },
+  ]
+  const sidebarItems = [
     { href: '/dashboard/ticket', label: t('escanear_ticket'), icon: Camera },
     { href: '/dashboard/historial', label: t('historial'), icon: History },
     { href: '/dashboard/settings', label: t('ajustes'), icon: Settings },
   ]
+  const hogarActivoRuta = hogarSubItems.some(({ href }) => href === pathname)
+  const [hogarMenuAbierto, setHogarMenuAbierto] = useState(true)
 
   const handleLogout = async () => {
     try {
@@ -104,6 +110,45 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
           {/* Nav links */}
           <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+            {/* Grupo "Hogar": Stock, Lista de la compra y Compartir */}
+            <button
+              onClick={() => setHogarMenuAbierto((v) => !v)}
+              className={`
+                w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 min-h-[44px]
+                ${hogarActivoRuta ? 'text-accent' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}
+              `}
+            >
+              <Home className={`w-4 h-4 shrink-0 transition-colors ${hogarActivoRuta ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+              {t('hogar')}
+              <ChevronDown className={`ml-auto w-3.5 h-3.5 shrink-0 transition-transform ${hogarMenuAbierto ? 'rotate-180' : ''}`} />
+            </button>
+            {hogarMenuAbierto && (
+              <div className="pl-4 space-y-0.5">
+                {hogarSubItems.map(({ href, label, icon: Icon }) => {
+                  const isActive = pathname === href
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={`
+                        group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 min-h-[40px]
+                        ${isActive
+                          ? 'bg-accent/10 text-accent'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }
+                      `}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                      {label}
+                      {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent" />}
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="my-2 border-t border-border" />
+
             {sidebarItems.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href
               return (

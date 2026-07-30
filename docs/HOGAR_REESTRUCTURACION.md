@@ -19,7 +19,7 @@ Reglas de trabajo (pedidas por el usuario):
 - Este fichero se actualiza tras cada punto completado, para poder retomar el trabajo aunque
   se pierda el contexto de la conversacion (pasar solo este arbol basta para continuar).
 
-Estado global: **EN CURSO** — Puntos 1, 2 y 3 completados, siguiente: Punto 4 (frontend navegacion/pantallas).
+Estado global: **EN CURSO** — Puntos 1-4 completados, siguiente: Punto 5 (traducciones completas).
 
 ---
 
@@ -125,17 +125,35 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 - [x] Verificado: `npx tsc --noEmit` limpio, sin referencias residuales a
       `listasApi`/`export const listas` en todo el frontend (grep completo)
 
-### 4. Frontend — navegacion y pantallas
-- [ ] `app/dashboard/layout.tsx`: menu "Hogar" como padre con submenu (Stock / Lista de la
-      compra / Compartir)
-- [ ] `app/dashboard/listas/` -> `app/dashboard/hogar/` (pagina de gestion: crear/renombrar/
-      eliminar/seleccionar hogar), interfaz `Lista` -> `Hogar`
-- [ ] Mover/organizar `app/dashboard/stock/` y `app/dashboard/shopping/` bajo el submenu
-      "Hogar" (decidir si cambian de URL o solo de posicion en el menu)
-- [ ] `app/aceptar-invitacion/[codigo]/page.tsx` — textos/llamadas a la nueva API
-- [ ] `components/shared/SelectorHogarPantallaCompleta.tsx` — actualizar llamadas a `hogaresApi`
-- [ ] Verificar: `npx tsc --noEmit` limpio + prueba manual en navegador (crear hogar, compartir,
-      aceptar invitacion, cambiar hogar activo, ver stock y compra del hogar correcto)
+### 4. Frontend — navegacion y pantallas — COMPLETADO 2026-07-30
+- [x] `app/dashboard/layout.tsx`: sidebar desktop rehecho con grupo desplegable
+      "Hogar" (boton con chevron, `hogarMenuAbierto` en estado, abierto por defecto)
+      que contiene Stock (`/dashboard`), Lista de la compra (`/dashboard/shopping`) y
+      Compartir (`/dashboard/hogar`); el resto (Escanear ticket, Historial, Ajustes)
+      queda a primer nivel, separado por un divisor
+- [x] Bottom tab bar movil: se mantiene Stock y Compra como pestañas directas (un
+      toque, convencion de tab bar movil); la pestaña "Listas" se sustituye por
+      "Hogar" apuntando a `/dashboard/hogar` (gestion/compartir/cambiar de hogar)
+- [x] `app/dashboard/listas/` -> `app/dashboard/hogar/` (git mv), componente
+      `ListasPage` -> `GestionHogarPage`, interfaz `Lista` -> `Hogar`
+- [x] `app/aceptar-invitacion/[codigo]/page.tsx` — redirect tras aceptar apunta a
+      `/dashboard/hogar` (antes `/dashboard/listas`)
+- [x] `components/shared/SelectorHogarPantallaCompleta.tsx` — ya actualizado a
+      `hogaresApi` en el Punto 3, sin cambios adicionales aqui
+- [x] Traducciones: añadidas claves `hogar` y `compartir` (esta ultima ya existia)
+      en los 7 idiomas para el nuevo grupo de menu, via insercion quirurgica de texto
+      (NO usar `json.load`+`json.dump` en este fichero: el JSON de origen tiene
+      claves duplicadas dentro de cada bloque de idioma —p.ej. `cambiar_icono`
+      aparece 2 veces por idioma— y un roundtrip por `json` de Python las
+      colapsa/pierde silenciosamente; hubo que revertir un primer intento que hizo
+      exactamente eso)
+- [x] Verificado: `npx tsc --noEmit` limpio, `python -m pytest tests/ -q` -> 66
+      passed 1 skipped (backend no tocado en este punto), sin rutas residuales a
+      `/dashboard/listas` en todo el frontend
+- Pendiente (no bloqueante): no se pudo verificar visualmente en el navegador de
+  esta sesion (el servidor de previsualizacion no cargaba, conflicto con otro
+  servidor de otra sesion activo en la misma carpeta); revisar a mano en un
+  servidor propio antes de subir a `produccion`
 
 ### 5. Traducciones (todas las i18n)
 - [ ] `listas`/`mis_listas`/`compartir_lista`/`lista_actual` -> `hogar`/`mi_hogar`/
@@ -174,3 +192,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
   servicios/stock.py + 13 ficheros de test + translations.json). 66 passed, 1 skipped.
 - 2026-07-30 — Punto 3 completado (lib/api.ts, HogarContext, SelectorHogarPantallaCompleta,
   app/dashboard/listas/page.tsx, migracion de localStorage). tsc --noEmit limpio.
+- 2026-07-30 — Punto 4 completado (menu Hogar con submenu, app/dashboard/listas ->
+  app/dashboard/hogar, redirect de aceptar-invitacion, claves hogar/compartir en 7
+  idiomas). tsc --noEmit limpio, 66 passed 1 skipped. Verificacion visual pendiente
+  (servidor de preview de esta sesion no cargaba).

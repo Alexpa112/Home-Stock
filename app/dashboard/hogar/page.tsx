@@ -6,7 +6,7 @@ import { hogares as hogaresApi, permisos } from '@/lib/api'
 import { useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 
-interface Lista {
+interface Hogar {
   id: number
   nombre: string
   descripcion: string | null
@@ -30,11 +30,11 @@ const CLAVE_HOGAR_ACTIVO = 'stockhogar-hogar-activo-ui'
 // para no desloguear/perder la seleccion de usuarios con la PWA ya instalada.
 const CLAVE_LISTA_ACTIVA_LEGADO = 'stockhogar-lista-activa-ui'
 
-export default function ListasPage() {
+export default function GestionHogarPage() {
   const { seleccionar: seleccionarHogar, refrescar: refrescarHogar } = useHogar()
   const { t } = useTranslation()
-  const [propias, setPropias] = useState<Lista[]>([])
-  const [compartidas, setCompartidas] = useState<Lista[]>([])
+  const [propias, setPropias] = useState<Hogar[]>([])
+  const [compartidas, setCompartidas] = useState<Hogar[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [nuevoNombre, setNuevoNombre] = useState('')
@@ -109,7 +109,7 @@ export default function ListasPage() {
     }
   }
 
-  const iniciarRenombrar = (lista: Lista) => {
+  const iniciarRenombrar = (lista: Hogar) => {
     setRenombrandoId(lista.id)
     setNombreEditado(lista.nombre)
   }
@@ -263,7 +263,7 @@ export default function ListasPage() {
     }
   }
 
-  const renderLista = (lista: Lista, esPropia: boolean) => (
+  const renderLista = (lista: Hogar, esPropia: boolean) => (
     <div key={lista.id} className="card space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">

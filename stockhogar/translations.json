@@ -591,7 +591,8 @@
     "email_cuerpo_invitacion_lista": "Hola! Quiero compartir mi lista \"{nombre}\" contigo.\n\nHaz clic aquí para aceptar:\n{enlace}",
     "whatsapp_mensaje_compartir_lista": "Hola! Quiero compartir mi lista \"{nombre}\" contigo. 📱\n\n{enlace}",
     "hacer_foto_boton": "Hacer foto",
-    "subir_archivo_boton": "Subir archivo"
+    "subir_archivo_boton": "Subir archivo",
+    "hogar": "Hogar"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1185,7 +1186,8 @@
     "email_cuerpo_invitacion_lista": "Ola! Quero compartir a miña lista \"{nombre}\" contigo.\n\nPreme aquí para aceptar:\n{enlace}",
     "whatsapp_mensaje_compartir_lista": "Ola! Quero compartir a miña lista \"{nombre}\" contigo. 📱\n\n{enlace}",
     "hacer_foto_boton": "Facer foto",
-    "subir_archivo_boton": "Subir ficheiro"
+    "subir_archivo_boton": "Subir ficheiro",
+    "hogar": "Fogar"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -1779,7 +1781,8 @@
     "email_cuerpo_invitacion_lista": "Hi! I want to share my list \"{nombre}\" with you.\n\nClick here to accept:\n{enlace}",
     "whatsapp_mensaje_compartir_lista": "Hi! I want to share my list \"{nombre}\" with you. 📱\n\n{enlace}",
     "hacer_foto_boton": "Take photo",
-    "subir_archivo_boton": "Upload file"
+    "subir_archivo_boton": "Upload file",
+    "hogar": "Home"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -2373,7 +2376,8 @@
     "email_cuerpo_invitacion_lista": "Olá! Quero compartilhar minha lista \"{nombre}\" com você.\n\nClique aqui para aceitar:\n{enlace}",
     "whatsapp_mensaje_compartir_lista": "Olá! Quero compartilhar minha lista \"{nombre}\" com você. 📱\n\n{enlace}",
     "hacer_foto_boton": "Tirar foto",
-    "subir_archivo_boton": "Enviar arquivo"
+    "subir_archivo_boton": "Enviar arquivo",
+    "hogar": "Lar"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -2967,7 +2971,8 @@
     "email_cuerpo_invitacion_lista": "Salut ! Je veux partager ma liste \"{nombre}\" avec toi.\n\nClique ici pour accepter :\n{enlace}",
     "whatsapp_mensaje_compartir_lista": "Salut ! Je veux partager ma liste \"{nombre}\" avec toi. 📱\n\n{enlace}",
     "hacer_foto_boton": "Prendre une photo",
-    "subir_archivo_boton": "Importer un fichier"
+    "subir_archivo_boton": "Importer un fichier",
+    "hogar": "Foyer"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -3561,7 +3566,8 @@
     "email_cuerpo_invitacion_lista": "Ciao! Voglio condividere la mia lista \"{nombre}\" con te.\n\nClicca qui per accettare:\n{enlace}",
     "whatsapp_mensaje_compartir_lista": "Ciao! Voglio condividere la mia lista \"{nombre}\" con te. 📱\n\n{enlace}",
     "hacer_foto_boton": "Scatta foto",
-    "subir_archivo_boton": "Carica file"
+    "subir_archivo_boton": "Carica file",
+    "hogar": "Casa"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -4155,6 +4161,7 @@
     "email_cuerpo_invitacion_lista": "Hallo! Ich möchte meine Liste \"{nombre}\" mit dir teilen.\n\nKlicke hier, um anzunehmen:\n{enlace}",
     "whatsapp_mensaje_compartir_lista": "Hallo! Ich möchte meine Liste \"{nombre}\" mit dir teilen. 📱\n\n{enlace}",
     "hacer_foto_boton": "Foto aufnehmen",
-    "subir_archivo_boton": "Datei hochladen"
+    "subir_archivo_boton": "Datei hochladen",
+    "hogar": "Zuhause"
   }
 }
