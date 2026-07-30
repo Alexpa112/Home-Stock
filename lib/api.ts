@@ -259,4 +259,5 @@ export const consumo = {
 export const idiomas = {
   disponibles: () => apiCall('/api/idiomas/disponibles'),
   cambiar: (idioma: string) => apiCall('/api/idiomas/cambiar', { method: 'POST', body: JSON.stringify({ idioma }) }),
+  todos: (idioma: string) => apiCall(`/api/idiomas/todos/${idioma}`),
 }
