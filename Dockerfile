@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Dockerfile genérico (x86_64) para desarrollo/pruebas.
 # Para despliegue en Raspberry Pi usa Dockerfile.raspbian (ver docker-compose.yml).
 FROM python:3.11-slim
@@ -13,8 +14,9 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 COPY . .
 

@@ -333,12 +333,9 @@ if [[ -n "$MEMORY_MB" ]]; then
 fi
 
 FREE_DISK_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo "")"
-# --reinstall (--no-cache) reconstruye TODAS las capas de golpe en vez de
-# reutilizar las que ya existen, así que necesita bastante más margen temporal.
-DISK_MIN_MB=800; DISK_RECOMENDADO_MB=2048
-if [[ "$REINSTALL_MODE" -eq 1 ]]; then
-    DISK_MIN_MB=2048; DISK_RECOMENDADO_MB=4096
-fi
+# El build reconstruye TODAS las capas de golpe (--no-cache, ver más abajo),
+# así que necesita el mismo margen tanto en modo normal como en --reinstall.
+DISK_MIN_MB=2048; DISK_RECOMENDADO_MB=4096
 if [[ -n "$FREE_DISK_MB" ]]; then
     if [[ "$FREE_DISK_MB" -lt "$DISK_MIN_MB" ]]; then
         log_error "Espacio libre: ${FREE_DISK_MB}MB. Insuficiente para construir la imagen (mínimo ${DISK_MIN_MB}MB). Libera espacio y reintenta."
@@ -702,23 +699,14 @@ else
         [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -eq 0 ]] && log_info "No hay imagen anterior que respaldar (primera instalación)"
     fi
 
-    # Limpieza automática antes de compilar, pero SOLO si el disco anda justo:
-    # "docker system prune -f" no distingue caché útil de basura y se lleva
-    # por delante toda la caché de capas de builds anteriores (apt-get, npm
-    # ci...), convirtiendo cada actualización en una reconstrucción completa
-    # de ~35 min en vez de una incremental de pocos minutos. Sin -a: nunca
-    # borra imágenes con tag (incluida ":rollback") ni volúmenes, así que
-    # jamás toca datos de usuario.
-    UMBRAL_LIMPIEZA_MB=2000
+    # Limpieza automática ANTES de compilar (imágenes huérfanas de builds
+    # previos: "docker system prune -f" nunca borra imágenes con tag -incluida
+    # ":rollback"- ni volúmenes, así que jamás toca datos de usuario).
     ESPACIO_ANTES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
-    if [[ "$ESPACIO_ANTES_MB" -lt "$UMBRAL_LIMPIEZA_MB" ]]; then
-        log_info "Espacio libre bajo (${ESPACIO_ANTES_MB}MB): liberando imágenes/caché de Docker sin usar..."
-        "${DOCKER[@]}" system prune -f >> "$LOG_FILE" 2>&1 || true
-        ESPACIO_DESPUES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
-        log_success "Espacio libre en disco: ${ESPACIO_ANTES_MB}MB -> ${ESPACIO_DESPUES_MB}MB"
-    else
-        log_info "Espacio libre de sobra (${ESPACIO_ANTES_MB}MB): se conserva la caché de builds anteriores"
-    fi
+    log_info "Liberando imágenes de Docker sin usar antes de construir..."
+    "${DOCKER[@]}" system prune -f >> "$LOG_FILE" 2>&1 || true
+    ESPACIO_DESPUES_MB="$(df -Pm "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo 0)"
+    log_success "Espacio libre en disco: ${ESPACIO_ANTES_MB}MB -> ${ESPACIO_DESPUES_MB}MB"
 
     # Pre-descarga con reintentos de las imágenes base: en la Pi la conexión a
     # Docker Hub falla de vez en cuando a mitad de la descarga ("TLS handshake
@@ -753,11 +741,13 @@ else
     # descargas de Docker Hub fallan por timeout (no es un problema de red:
     # el propio daemon no tiene CPU para atender el handshake TLS a tiempo).
     # Construir en serie deja cada build con la máquina para él solo.
-    BUILD_ARGS=(build)
-    if [[ "$REINSTALL_MODE" -eq 1 ]]; then
-        BUILD_ARGS+=(--no-cache)
-        log_info "--reinstall: build SIN CACHÉ (recompila todo desde cero, más lento)"
-    fi
+    # --no-cache SIEMPRE (no solo en --reinstall): la caché de capas de Docker
+    # (apt-get, pip, npm ci) se purga tras cada build (ver más abajo) para no
+    # llenar el disco de la Pi, así que reutilizarla aquí nunca sería posible
+    # de todas formas. La velocidad de reinstalar dependencias la da el caché
+    # de paquetes de BuildKit (--mount=type=cache en los Dockerfiles), que no
+    # se ve afectado por --no-cache ni por la purga posterior.
+    BUILD_ARGS=(build --no-cache)
 
     BUILD_START=$SECONDS
     BUILD_OK=1
@@ -787,6 +777,14 @@ else
         exit 1
     fi
     log_success "Imágenes construidas en $(( (SECONDS - BUILD_START) / 60 )) min"
+
+    # Purga la caché de capas de build (grande, GB) justo después de usarla, ya
+    # que con --no-cache arriba nunca se reaprovecha entre ejecuciones. El
+    # filtro "type=regular" conserva los cache-mounts de pip/npm declarados con
+    # --mount=type=cache en los Dockerfiles (pequeños, MB), que sí siguen
+    # acelerando la descarga de dependencias en la próxima actualización.
+    log_info "Liberando caché de capas de build (se conserva el caché de paquetes pip/npm)..."
+    "${DOCKER[@]}" builder prune -f --filter type=regular >> "$LOG_FILE" 2>&1 || true
 fi
 
 step_end

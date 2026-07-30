@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Dockerfile del frontend Next.js (rediseño de la rama dev2).
 # node:20-bookworm-slim: mismo Debian base que Dockerfile.raspbian, y Node 20
 # sigue publicando manifiesto multi-arco con linux/arm/v7 y linux/arm64,
@@ -8,7 +9,13 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* pnpm-lock.yaml* ./
-RUN if [ -f pnpm-lock.yaml ]; then \
+# --mount=type=cache: igual que en Dockerfile.raspbian, cachea los paquetes
+# descargados (~/.npm o el store de pnpm) fuera de las capas de la imagen, para
+# que sobrevivan a la purga de caché de capas que hace install.sh tras cada
+# build sin necesidad de conservar la imagen intermedia completa.
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
+    if [ -f pnpm-lock.yaml ]; then \
         corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile; \
     else \
         npm ci; \
