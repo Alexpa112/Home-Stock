@@ -19,7 +19,8 @@ Reglas de trabajo (pedidas por el usuario):
 - Este fichero se actualiza tras cada punto completado, para poder retomar el trabajo aunque
   se pierda el contexto de la conversacion (pasar solo este arbol basta para continuar).
 
-Estado global: **EN CURSO** — Puntos 1-4 completados, siguiente: Punto 5 (traducciones completas).
+Estado global: **EN CURSO** — Puntos 1-5 completados (Punto 5 con pendiente de traduccion en
+6 idiomas, ver detalle), siguiente: Punto 6 (compatibilidad/despliegue).
 
 ---
 
@@ -155,10 +156,42 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
   servidor de otra sesion activo en la misma carpeta); revisar a mano en un
   servidor propio antes de subir a `produccion`
 
-### 5. Traducciones (todas las i18n)
-- [ ] `listas`/`mis_listas`/`compartir_lista`/`lista_actual` -> `hogar`/`mi_hogar`/
-      `mis_hogares`/`compartir_hogar`/`hogar_actual` en todos los idiomas soportados
-- [ ] Verificar: no quedan claves huerfanas ni textos "lista" referidos al hogar
+### 5. Traducciones (todas las i18n) — COMPLETADO 2026-07-30 (solo texto en español)
+- [x] 24 claves renombradas en los 7 bloques de idioma de `stockhogar/translations.json`:
+      `mis_listas`->`mis_hogares`, `subtitulo_mis_listas`->`subtitulo_mis_hogares`,
+      `compartir_lista`->`compartir_hogar`, `cargando_listas`->`cargando_hogares`,
+      `sin_listas_crea_una_nueva`->`sin_hogares_crea_uno_nuevo`,
+      `nombre_nueva_lista`->`nombre_nuevo_hogar`, `usar_esta_lista`->`usar_este_hogar`,
+      `eliminar_lista`->`eliminar_hogar`, `err_error_al_crear_lista`->
+      `err_error_al_crear_hogar`, `err_seleccionar_lista`->`err_seleccionar_hogar`,
+      `err_renombrar_lista`->`err_renombrar_hogar`, `err_eliminar_lista`->
+      `err_eliminar_hogar`, `err_error_al_salir_lista`->`err_error_al_salir_hogar`,
+      `email_asunto_invitacion_lista`->`email_asunto_invitacion_hogar`,
+      `email_cuerpo_invitacion_lista`->`email_cuerpo_invitacion_hogar`,
+      `whatsapp_mensaje_compartir_lista`->`whatsapp_mensaje_compartir_hogar`,
+      `aria_renombrar_lista`->`aria_renombrar_hogar`, `redirigiendo_a_tus_listas`->
+      `redirigiendo_a_tu_hogar`, mas correccion de genero gramatical (masculino,
+      concuerda con "el hogar"): `propias`->`propios`, `compartidas_conmigo`->
+      `compartidos_conmigo`, `compartida_puedes_editar`->`compartido_puedes_editar`,
+      `compartida_solo_ver`->`compartido_solo_ver`, `activa`->`activo`,
+      `ya_activa`->`ya_activo`
+- [x] `app/dashboard/hogar/page.tsx`, `components/shared/SelectorHogarPantallaCompleta.tsx`,
+      `app/aceptar-invitacion/[codigo]/page.tsx` — llamadas `t('...')` actualizadas a
+      las claves nuevas
+- [x] Texto en español (`es`) actualizado para decir "hogar" en vez de "lista" en las
+      24 claves (p.ej. `"compartir_hogar": "Compartir hogar"`)
+- [ ] **Pendiente**: los 6 idiomas restantes (`gl`, `en`, `pt`, `fr`, `it`, `de`) tienen
+      las claves ya renombradas pero el VALOR sigue siendo el texto viejo (equivalente a
+      "lista") heredado del renombrado de clave. Reportado como tarea de seguimiento
+      aparte (fuera de esta sesion) porque traducir con calidad en 6 idiomas sin
+      verificacion nativa no es razonable hacerlo a ciegas en el mismo golpe
+- [x] Verificado: JSON valido, `npx tsc --noEmit` limpio, `python -m pytest tests/ -q`
+      -> 66 passed, 1 skipped
+- Nota tecnica repetida (importante para quien continue): en este fichero, NUNCA usar
+  `json.load`+`json.dump` de Python para editarlo -> hay claves duplicadas dentro de
+  cada bloque de idioma (p.ej. `cambiar_icono` x2) y el roundtrip las colapsa
+  silenciosamente. Usar siempre reemplazo de texto quirurgico (buscar la clave exacta
+  con su valor completo y sustituir solo eso)
 
 ### 6. Compatibilidad / despliegue
 - [ ] Service worker / PWA offline: purgar cache de endpoints `/api/listas` viejos tras el
@@ -196,3 +229,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
   app/dashboard/hogar, redirect de aceptar-invitacion, claves hogar/compartir en 7
   idiomas). tsc --noEmit limpio, 66 passed 1 skipped. Verificacion visual pendiente
   (servidor de preview de esta sesion no cargaba).
+- 2026-07-30 — Punto 5 completado con pendiente: 24 claves de traducciones.json
+  renombradas en 7 idiomas + texto en espanol corregido; texto de gl/en/pt/fr/it/de
+  bajo las claves nuevas sigue siendo el antiguo (traduccion real pendiente, tarea
+  de seguimiento creada). tsc --noEmit limpio, 66 passed 1 skipped.

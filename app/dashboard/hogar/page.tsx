@@ -94,7 +94,7 @@ export default function GestionHogarPage() {
       await cargar()
       handleSeleccionar(nueva.id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_error_al_crear_lista'))
+      setError(err instanceof Error ? err.message : t('err_error_al_crear_hogar'))
     }
   }
 
@@ -105,7 +105,7 @@ export default function GestionHogarPage() {
       setListaActivaId(id)
       localStorage.setItem(CLAVE_HOGAR_ACTIVO, String(id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_seleccionar_lista'))
+      setError(err instanceof Error ? err.message : t('err_seleccionar_hogar'))
     }
   }
 
@@ -125,7 +125,7 @@ export default function GestionHogarPage() {
       setRenombrandoId(null)
       await cargar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_renombrar_lista'))
+      setError(err instanceof Error ? err.message : t('err_renombrar_hogar'))
     }
   }
 
@@ -142,7 +142,7 @@ export default function GestionHogarPage() {
       await cargar()
       await refrescarHogar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_eliminar_lista'))
+      setError(err instanceof Error ? err.message : t('err_eliminar_hogar'))
     }
   }
 
@@ -159,7 +159,7 @@ export default function GestionHogarPage() {
       await cargar()
       await refrescarHogar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_error_al_salir_lista'))
+      setError(err instanceof Error ? err.message : t('err_error_al_salir_hogar'))
     }
   }
 
@@ -202,14 +202,14 @@ export default function GestionHogarPage() {
 
   const enviarPorMail = () => {
     if (!enlaceCompartible) return
-    const asunto = t('email_asunto_invitacion_lista').replace('{nombre}', enlaceCompartible.nombre_lista)
-    const cuerpo = t('email_cuerpo_invitacion_lista').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
+    const asunto = t('email_asunto_invitacion_hogar').replace('{nombre}', enlaceCompartible.nombre_lista)
+    const cuerpo = t('email_cuerpo_invitacion_hogar').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
     window.open(`mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`, '_blank')
   }
 
   const enviarPorWhatsApp = () => {
     if (!enlaceCompartible) return
-    const mensaje = t('whatsapp_mensaje_compartir_lista').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
+    const mensaje = t('whatsapp_mensaje_compartir_hogar').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
   }
@@ -287,7 +287,7 @@ export default function GestionHogarPage() {
               {esPropia && (
                 <button
                   onClick={() => iniciarRenombrar(lista)}
-                  aria-label={t('aria_renombrar_lista').replace('{nombre}', lista.nombre)}
+                  aria-label={t('aria_renombrar_hogar').replace('{nombre}', lista.nombre)}
                   className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
@@ -297,12 +297,12 @@ export default function GestionHogarPage() {
           )}
           {lista.descripcion && <p className="text-sm text-muted-foreground">{lista.descripcion}</p>}
           <p className="text-xs text-muted-foreground mt-1">
-            {esPropia ? t('propietario_rol') : (lista.mi_rol === 'editar' ? t('compartida_puedes_editar') : t('compartida_solo_ver'))}
+            {esPropia ? t('propietario_rol') : (lista.mi_rol === 'editar' ? t('compartido_puedes_editar') : t('compartido_solo_ver'))}
           </p>
         </div>
         {listaActivaId === lista.id && (
           <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 flex-shrink-0">
-            <Check className="w-4 h-4" /> {t('activa')}
+            <Check className="w-4 h-4" /> {t('activo')}
           </span>
         )}
       </div>
@@ -312,7 +312,7 @@ export default function GestionHogarPage() {
           disabled={listaActivaId === lista.id}
           className="btn-secondary flex-1 disabled:opacity-50"
         >
-          {listaActivaId === lista.id ? t('ya_activa') : t('usar_esta_lista')}
+          {listaActivaId === lista.id ? t('ya_activo') : t('usar_este_hogar')}
         </button>
         {esPropia ? (
           <>
@@ -328,7 +328,7 @@ export default function GestionHogarPage() {
               <button
                 onClick={() => handleEliminarLista(lista.id)}
                 className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                aria-label={t('eliminar_lista')}
+                aria-label={t('eliminar_hogar')}
               >
                 <Trash2 className="w-4 h-4 text-red-500" />
               </button>
@@ -356,9 +356,9 @@ export default function GestionHogarPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">{t('mis_listas')}</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('mis_hogares')}</h1>
         <p className="text-muted-foreground mt-1">
-          {t('subtitulo_mis_listas')}
+          {t('subtitulo_mis_hogares')}
         </p>
       </div>
 
@@ -373,13 +373,13 @@ export default function GestionHogarPage() {
       )}
 
       <form onSubmit={handleCrear} className="card flex gap-2">
-        <label htmlFor="lista-nombre" className="sr-only">{t('nombre_nueva_lista')}</label>
+        <label htmlFor="lista-nombre" className="sr-only">{t('nombre_nuevo_hogar')}</label>
         <input
           id="lista-nombre"
           type="text"
           value={nuevoNombre}
           onChange={(e) => setNuevoNombre(e.target.value)}
-          placeholder={t('nombre_nueva_lista')}
+          placeholder={t('nombre_nuevo_hogar')}
           className="input-field flex-1"
         />
         <button type="submit" className="btn-primary flex items-center gap-1">
@@ -388,23 +388,23 @@ export default function GestionHogarPage() {
       </form>
 
       {loading ? (
-        <p className="text-center text-muted-foreground py-8">{t('cargando_listas')}</p>
+        <p className="text-center text-muted-foreground py-8">{t('cargando_hogares')}</p>
       ) : (
         <>
           {propias.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">{t('propias')}</h2>
+              <h2 className="text-lg font-semibold">{t('propios')}</h2>
               <div className="grid gap-3">{propias.map((l) => renderLista(l, true))}</div>
             </div>
           )}
           {compartidas.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">{t('compartidas_conmigo')}</h2>
+              <h2 className="text-lg font-semibold">{t('compartidos_conmigo')}</h2>
               <div className="grid gap-3">{compartidas.map((l) => renderLista(l, false))}</div>
             </div>
           )}
           {propias.length === 0 && compartidas.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">{t('sin_listas_crea_una_nueva')}</p>
+            <p className="text-center text-muted-foreground py-8">{t('sin_hogares_crea_uno_nuevo')}</p>
           )}
         </>
       )}
@@ -414,7 +414,7 @@ export default function GestionHogarPage() {
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[9999] p-4">
           <div className="bg-card rounded-xl w-full max-w-md p-4 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{t('compartir_lista')}</h2>
+              <h2 className="text-lg font-semibold">{t('compartir_hogar')}</h2>
               <button onClick={() => setCompartiendoId(null)} className="p-1 hover:bg-muted rounded">
                 <X className="w-5 h-5" />
               </button>

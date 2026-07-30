@@ -81,7 +81,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
       setRenombrandoId(null)
       await refrescar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_renombrar_lista'))
+      setError(err instanceof Error ? err.message : t('err_renombrar_hogar'))
     }
   }
 
@@ -96,7 +96,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
       await hogaresApi.eliminar(id)
       await refrescar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_eliminar_lista'))
+      setError(err instanceof Error ? err.message : t('err_eliminar_hogar'))
     }
   }
 
@@ -111,7 +111,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
       await hogaresApi.salir(id)
       await refrescar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_error_al_salir_lista'))
+      setError(err instanceof Error ? err.message : t('err_error_al_salir_hogar'))
     }
   }
 
@@ -175,7 +175,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                             t('propietario_rol')
                           ) : (
                             <>
-                              <Users className="w-3 h-3" /> {hogar.mi_rol === 'editar' ? t('compartida_puedes_editar') : t('compartida_solo_ver')}
+                              <Users className="w-3 h-3" /> {hogar.mi_rol === 'editar' ? t('compartido_puedes_editar') : t('compartido_solo_ver')}
                             </>
                           )}
                         </p>

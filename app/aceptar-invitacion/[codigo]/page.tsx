@@ -51,7 +51,7 @@ export default function AceptarInvitacionPage() {
           <>
             <CheckCircle2 className="w-10 h-10 mx-auto text-green-500" />
             <p>{mensaje}</p>
-            <p className="text-sm text-muted-foreground">{t('redirigiendo_a_tus_listas')}</p>
+            <p className="text-sm text-muted-foreground">{t('redirigiendo_a_tu_hogar')}</p>
           </>
         )}
         {estado === 'error' && (
