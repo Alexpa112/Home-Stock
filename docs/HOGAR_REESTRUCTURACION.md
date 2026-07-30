@@ -19,9 +19,10 @@ Reglas de trabajo (pedidas por el usuario):
 - Este fichero se actualiza tras cada punto completado, para poder retomar el trabajo aunque
   se pierda el contexto de la conversacion (pasar solo este arbol basta para continuar).
 
-Estado global: **EN CURSO** — Puntos 1-6 completados (Punto 5 con pendiente de traduccion en
-6 idiomas, ver detalle), siguiente: Punto 7 (tests, aunque gran parte ya se adelanto en el
-Punto 2).
+Estado global: **EN CURSO** — Puntos 1-7 completados (Punto 5 con pendiente de traduccion en
+6 idiomas, ver detalle; delegado como tarea aparte). Siguiente: Punto 8 (limpieza final),
+que solo debe hacerse tras validar en produccion con datos reales durante un tiempo — NO
+hacerlo todavia sin confirmacion explicita del usuario.
 
 ---
 
@@ -212,13 +213,21 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
       el cambio funcional completo (incluye el Punto 4 pendiente de verificacion
       visual en movil)
 
-### 7. Tests (tests/)
-- [ ] Actualizar tests que usan `/api/listas`, tabla `listas`, `lista_actual_id`
-- [ ] Test de regresion de la migracion: BD vieja con datos reales -> tras migrar, `hogares`/
-      `stock_hogar`/`articulos_compra` tienen los mismos datos con las FKs correctas
-- [ ] Verificar que `test_stock_minimo_lista_compra.py` (regla vital) sigue pasando con los
-      nuevos nombres de tabla
-- [ ] Verificar: suite completa `python -m pytest tests/ -q` en verde
+### 7. Tests (tests/) — COMPLETADO 2026-07-30
+- [x] Actualizar tests que usan `/api/listas`, tabla `listas`, `lista_actual_id` — hecho
+      en el Punto 2 (13 ficheros), no quedaba nada pendiente aqui
+- [x] Test de regresion de la migracion (`tests/test_migracion_hogares.py`, nuevo):
+      inserta una fila "vieja" directamente en `listas`/`stock_lista`/`articulos_lista`/
+      `permisos_lista` con un id explicito muy por encima del maximo actual en ambas
+      tablas (evita falsos negativos por desincronizacion de autoincrement entre
+      `listas`, congelada desde el Punto 2, y `hogares`, que sigue creciendo), reinicia
+      la app (dispara `_init_db_impl` de forma idempotente) y comprueba que aparece la
+      fila equivalente en `hogares`/`stock_hogar`/`articulos_compra`/`permisos_hogar`
+      con los mismos datos; incluye test de no-duplicacion al reiniciar dos veces
+- [x] Verificado que `test_stock_minimo_lista_compra.py` (regla vital, ver memoria)
+      sigue en verde con los nombres de tabla nuevos
+- [x] Suite completa `python -m pytest tests/ -q` en verde dos veces seguidas sin
+      reiniciar la BD entre medias: 71 passed, 1 skipped
 
 ### 8. Limpieza final (solo tras validar en produccion con datos reales)
 - [ ] Eliminar tablas viejas (`listas`, `permisos_lista`, `invitaciones_lista`,
@@ -249,3 +258,6 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 - 2026-07-30 — Punto 6 completado sin cambios de codigo: no hay service worker
   clasico que purgar; el cache-busting existente (useCacheBuster + /api/cache-version
   basado en mtime) ya cubre el caso automaticamente en cualquier despliegue.
+- 2026-07-30 — Punto 7 completado: nuevo tests/test_migracion_hogares.py (5 tests) de
+  regresion de la migracion aditiva. Suite completa 71 passed, 1 skipped, dos veces
+  seguidas sin reiniciar la BD.
