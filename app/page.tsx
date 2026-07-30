@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { User, Lock, ArrowRight } from 'lucide-react'
+import { User, Lock, ArrowRight, ShieldCheck, Mail } from 'lucide-react'
 import { auth } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -175,45 +175,81 @@ function HomeContent() {
             </div>
 
             {requiereCodigo ? (
-              <form onSubmit={handleVerificarCodigo} className="space-y-4">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  placeholder={t('placeholder_codigo')}
-                  className="input-field text-center text-lg tracking-[0.3em]"
-                  maxLength={6}
-                  required
-                  autoFocus
-                  disabled={loading}
-                />
+              <form onSubmit={handleVerificarCodigo} className="space-y-6">
+                {/* Security icon */}
+                <div className="flex justify-center mb-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
+                    <ShieldCheck className="h-8 w-8 text-accent" />
+                  </div>
+                </div>
+
+                {/* Info message */}
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-4 flex gap-3">
+                  <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-blue-700 dark:text-blue-200">
+                    {t('subtitulo_verificacion_codigo')}
+                  </p>
+                </div>
+
+                {/* Code input with visual feedback */}
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className={`input-field text-center text-2xl font-bold tracking-[0.5em] transition-all ${
+                      codigo.length === 6 ? 'border-accent shadow-lg shadow-accent/20' : 'border-border'
+                    }`}
+                    maxLength={6}
+                    required
+                    autoFocus
+                    disabled={loading}
+                  />
+                  <p className="text-xs text-muted-foreground text-center">
+                    {codigo.length}/6 {t('digitos')}
+                  </p>
+                </div>
 
                 {error && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
-                    {error}
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200 flex gap-2">
+                    <span className="text-lg">⚠️</span>
+                    <span>{error}</span>
                   </div>
                 )}
                 {reenviado && (
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-200">
-                    {t('codigo_reenviado')}
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-200 flex gap-2">
+                    <span className="text-lg">✓</span>
+                    <span>{t('codigo_reenviado')}</span>
                   </div>
                 )}
 
-                <button type="submit" disabled={loading} className="btn-primary w-full gap-2">
+                <button
+                  type="submit"
+                  disabled={loading || codigo.length !== 6}
+                  className={`btn-primary w-full gap-2 transition-all ${
+                    codigo.length === 6 ? '' : 'opacity-50'
+                  }`}
+                >
                   {loading ? t('procesando') : t('btn_verificar_codigo')}
                   {!loading && <ArrowRight className="h-4 w-4" />}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleReenviarCodigo}
-                  disabled={reenviando}
-                  className="w-full text-sm text-accent hover:underline"
-                >
-                  {t('reenviar_codigo')}
-                </button>
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground text-center mb-3">
+                    {t('no_recibiste_codigo')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleReenviarCodigo}
+                    disabled={reenviando}
+                    className="w-full px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {reenviando ? t('reenviando') : t('reenviar_codigo')}
+                  </button>
+                </div>
               </form>
             ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
