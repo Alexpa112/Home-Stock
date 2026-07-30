@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Users } from 'lucide-react'
+import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { SelectorHogarPantallaCompleta } from '@/components/shared/SelectorHogarPantallaCompleta'
@@ -28,22 +28,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mostrarSelectorHogar, setMostrarSelectorHogar] = useState(false)
   const hogarActivo = [...propios, ...compartidos].find((h) => h.id === hogarActivoId)
 
-  // Bottom bar móvil: las 5 rutas más usadas (Stock y Compra se mantienen a
-  // un toque; la gestión/compartir del hogar vive en su propia pestaña).
+  // Bottom bar móvil: la gestión/compartir del hogar se hace desde la
+  // ventana "tus hogares" (selector), ya accesible desde el header/sidebar.
   const tabItems = [
     { href: '/dashboard', label: t('nav_stock'), icon: Package },
     { href: '/dashboard/shopping', label: t('nav_compra'), icon: ShoppingCart },
     { href: '/dashboard/ticket', label: t('nav_escanear'), icon: Camera },
-    { href: '/dashboard/hogar', label: t('hogar'), icon: Home },
     { href: '/dashboard/settings', label: t('ajustes'), icon: Settings },
   ]
 
-  // Sidebar desktop: "Hogar" agrupa Stock, Lista de la compra y Compartir/
-  // miembros bajo un mismo desplegable; el resto queda a primer nivel.
+  // Sidebar desktop: "Hogar" agrupa Stock y Lista de la compra; gestión/
+  // compartir vive en la ventana "tus hogares" (selector), no en una ruta propia.
   const hogarSubItems = [
     { href: '/dashboard', label: t('nav_stock'), icon: Package },
     { href: '/dashboard/shopping', label: t('nav_lista_compra'), icon: ShoppingCart },
-    { href: '/dashboard/hogar', label: t('compartir'), icon: Users },
   ]
   const sidebarItems = [
     { href: '/dashboard/ticket', label: t('escanear_ticket'), icon: Camera },

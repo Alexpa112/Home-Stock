@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Home, Plus, Users, X } from 'lucide-react'
+import { Home, Plus, Users, X, Check, Copy, Mail, MessageCircle, UserPlus, Trash2 } from 'lucide-react'
 import { useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { hogares as hogaresApi } from '@/lib/api'
+import { hogares as hogaresApi, permisos } from '@/lib/api'
 import { clearCache } from '@/lib/dataCache'
 
 // Claves de lib/dataCache.ts que dependen del hogar activo: hay que limpiarlas
@@ -33,6 +33,18 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
   const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<number | null>(null)
   const [confirmandoSalirId, setConfirmandoSalirId] = useState<number | null>(null)
   const [coloresDisponibles] = useState(['#B5551A', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#34495E'])
+
+  // Panel de compartir (solo un hogar abierto a la vez)
+  const [compartiendoId, setCompartiendoId] = useState<number | null>(null)
+  const [confirmandoRevocarId, setConfirmandoRevocarId] = useState<number | null>(null)
+  const [miembros, setMiembros] = useState<{ id: number; nombre_usuario: string; email: string | null; nivel: string }[]>([])
+  const [propietario, setPropietario] = useState<{ nombre_usuario: string } | null>(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [resultados, setResultados] = useState<{ id: number; nombre_usuario: string; email: string | null }[]>([])
+  const [nivelNuevo, setNivelNuevo] = useState<'ver' | 'editar'>('editar')
+  const [enlaceCompartible, setEnlaceCompartible] = useState<{ url: string; codigo: string; nombre_lista: string } | null>(null)
+  const [cargandoEnlace, setCargandoEnlace] = useState(false)
+  const [copiado, setCopiado] = useState(false)
 
   const hogares = [...propios, ...compartidos]
 
@@ -114,6 +126,106 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     }
   }
 
+  const abrirCompartir = async (hogarId: number) => {
+    setCompartiendoId(hogarId)
+    setResultados([])
+    setBusqueda('')
+    setEnlaceCompartible(null)
+    try {
+      const data: any = await permisos.miembros(hogarId)
+      setPropietario(data.propietario)
+      setMiembros(data.miembros || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_error_al_cargar_miembros'))
+    }
+  }
+
+  const generarEnlace = async (hogarId: number) => {
+    setCargandoEnlace(true)
+    try {
+      const data: any = await permisos.generarEnlace(hogarId)
+      setEnlaceCompartible(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_generar_enlace'))
+    } finally {
+      setCargandoEnlace(false)
+    }
+  }
+
+  const copiarEnlace = async () => {
+    if (!enlaceCompartible) return
+    try {
+      await navigator.clipboard.writeText(enlaceCompartible.url)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      setError(t('err_copiar_enlace'))
+    }
+  }
+
+  const enviarPorMail = () => {
+    if (!enlaceCompartible) return
+    const asunto = t('email_asunto_invitacion_hogar').replace('{nombre}', enlaceCompartible.nombre_lista)
+    const cuerpo = t('email_cuerpo_invitacion_hogar').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
+    window.open(`mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`, '_blank')
+  }
+
+  const enviarPorWhatsApp = () => {
+    if (!enlaceCompartible) return
+    const mensaje = t('whatsapp_mensaje_compartir_hogar').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
+    window.open(url, '_blank')
+  }
+
+  const buscarUsuarios = async (q: string) => {
+    setBusqueda(q)
+    if (q.trim().length < 2) {
+      setResultados([])
+      return
+    }
+    try {
+      const data: any = await permisos.buscarUsuarios(q.trim())
+      setResultados(data.usuarios || [])
+    } catch {
+      setResultados([])
+    }
+  }
+
+  const compartirCon = async (nombreUsuario: string) => {
+    if (!compartiendoId) return
+    try {
+      setError('')
+      await permisos.compartir(compartiendoId, { usuario: nombreUsuario, nivel: nivelNuevo })
+      await abrirCompartir(compartiendoId)
+      setBusqueda('')
+      setResultados([])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_compartir'))
+    }
+  }
+
+  const cambiarNivel = async (usuarioId: number, nivel: 'ver' | 'editar') => {
+    if (!compartiendoId) return
+    try {
+      await permisos.actualizarPermiso(compartiendoId, usuarioId, nivel)
+      await abrirCompartir(compartiendoId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_error_al_actualizar_permiso'))
+    }
+  }
+
+  const quitarAcceso = async (usuarioId: number) => {
+    if (!compartiendoId) return
+    if (confirmandoRevocarId !== usuarioId) { setConfirmandoRevocarId(usuarioId); return }
+    setConfirmandoRevocarId(null)
+    try {
+      await permisos.revocar(compartiendoId, usuarioId)
+      await abrirCompartir(compartiendoId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_error_al_revocar_acceso'))
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[9999] bg-background overflow-y-auto">
       <div className="w-full max-w-md mx-auto p-4 pt-6 pb-10 space-y-5">
@@ -167,12 +279,20 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                 </button>
 
                 {entrandoId === null && esPropia && (
-                  <button
-                    onClick={() => editando ? setEditandoId(null) : iniciarEdicion(hogar)}
-                    className="w-full mt-1 px-3 py-2 text-sm text-muted-foreground hover:text-accent hover:bg-muted rounded-lg transition-colors"
-                  >
-                    {editando ? t('cancelar') : t('editar')}
-                  </button>
+                  <div className="flex mt-1">
+                    <button
+                      onClick={() => editando ? setEditandoId(null) : iniciarEdicion(hogar)}
+                      className="flex-1 px-3 py-2 text-sm text-muted-foreground hover:text-accent hover:bg-muted rounded-lg transition-colors"
+                    >
+                      {editando ? t('cancelar') : t('editar')}
+                    </button>
+                    <button
+                      onClick={() => compartiendoId === hogar.id ? setCompartiendoId(null) : abrirCompartir(hogar.id)}
+                      className="flex-1 px-3 py-2 text-sm text-muted-foreground hover:text-accent hover:bg-muted rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Users className="w-3.5 h-3.5" /> {t('compartir')}
+                    </button>
+                  </div>
                 )}
 
                 {editando && esPropia && (
@@ -183,6 +303,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                         type="text"
                         value={nombreEditado}
                         onChange={(e) => setNombreEditado(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && guardarEdicion(hogar.id)}
                         className="input-field"
                         autoFocus
                       />
@@ -208,7 +329,8 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                     <div className="border-t border-border pt-4 space-y-2">
                       <button
                         onClick={() => guardarEdicion(hogar.id)}
-                        className="w-full px-3 py-2.5 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent/90 transition-colors"
+                        disabled={!nombreEditado.trim()}
+                        className="w-full px-3 py-2.5 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
                       >
                         {t('guardar')}
                       </button>
@@ -246,6 +368,138 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                         </button>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {compartiendoId === hogar.id && esPropia && (
+                  <div className="card !p-4 mt-2 space-y-4 bg-muted/30">
+                    <div className="bg-background/60 rounded-lg p-3 space-y-2">
+                      <h3 className="text-sm font-medium text-muted-foreground">{t('enlace_compartible_titulo')}</h3>
+                      {enlaceCompartible ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 bg-background rounded px-2 py-1">
+                            <input
+                              type="text"
+                              value={enlaceCompartible.url}
+                              readOnly
+                              className="flex-1 bg-transparent text-xs font-mono outline-none"
+                            />
+                            <button
+                              onClick={copiarEnlace}
+                              className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                              title={t('copiar_enlace')}
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={enviarPorMail}
+                              className="btn-secondary flex-1 flex items-center justify-center gap-1 text-xs"
+                            >
+                              <Mail className="w-3.5 h-3.5" /> {t('email')}
+                            </button>
+                            <button
+                              onClick={enviarPorWhatsApp}
+                              className="btn-secondary flex-1 flex items-center justify-center gap-1 text-xs"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                            </button>
+                          </div>
+                          {copiado && <p className="text-xs text-green-600 dark:text-green-400 text-center">✓ {t('enlace_copiado_portapapeles')}</p>}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => generarEnlace(hogar.id)}
+                          disabled={cargandoEnlace}
+                          className="btn-primary w-full text-sm disabled:opacity-50"
+                        >
+                          {cargandoEnlace ? t('generando') : t('generar_enlace_compartible')}
+                        </button>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">{t('con_acceso')}</h3>
+                      <div className="space-y-2">
+                        {propietario && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span>{propietario.nombre_usuario} {t('tu_suffix')}</span>
+                            <span className="text-muted-foreground">{t('propietario_rol')}</span>
+                          </div>
+                        )}
+                        {miembros.map((m) => (
+                          <div key={m.id} className="flex items-center justify-between text-sm gap-2">
+                            <span className="truncate">{m.nombre_usuario}</span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <select
+                                value={m.nivel}
+                                onChange={(e) => cambiarNivel(m.id, e.target.value as 'ver' | 'editar')}
+                                className="input-field !py-1 !px-2 text-xs"
+                              >
+                                <option value="ver">{t('permiso_ver')}</option>
+                                <option value="editar">{t('puede_editar')}</option>
+                              </select>
+                              {confirmandoRevocarId === m.id ? (
+                                <div className="flex gap-1">
+                                  <button onClick={() => quitarAcceso(m.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-lg">{t('quitar')}</button>
+                                  <button onClick={() => setConfirmandoRevocarId(null)} className="px-2 h-8 text-xs bg-muted rounded-lg">{t('no')}</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => quitarAcceso(m.id)} className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg" aria-label={t('aria_quitar_acceso')}>
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {miembros.length === 0 && (
+                          <p className="text-xs text-muted-foreground">{t('nadie_tiene_acceso')}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-border pt-4 space-y-2">
+                      <h3 className="text-sm font-medium text-muted-foreground">{t('añadir_usuario')}</h3>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={busqueda}
+                          onChange={(e) => buscarUsuarios(e.target.value)}
+                          placeholder={t('placeholder_usuario_o_email')}
+                          className="input-field flex-1"
+                        />
+                        <select
+                          value={nivelNuevo}
+                          onChange={(e) => setNivelNuevo(e.target.value as 'ver' | 'editar')}
+                          className="input-field w-32"
+                        >
+                          <option value="editar">{t('editar')}</option>
+                          <option value="ver">{t('ver')}</option>
+                        </select>
+                      </div>
+                      {resultados.length > 0 && (
+                        <div className="space-y-1">
+                          {resultados.map((u) => (
+                            <button
+                              key={u.id}
+                              onClick={() => compartirCon(u.nombre_usuario)}
+                              className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-muted text-sm"
+                            >
+                              <span>{u.nombre_usuario}</span>
+                              <UserPlus className="w-4 h-4 text-accent" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => setCompartiendoId(null)}
+                      className="w-full px-3 py-2.5 bg-muted rounded-lg font-medium text-sm hover:bg-muted/80 transition-colors"
+                    >
+                      {t('cancelar')}
+                    </button>
                   </div>
                 )}
 
