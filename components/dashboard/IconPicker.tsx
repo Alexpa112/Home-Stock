@@ -79,7 +79,7 @@ export function IconPicker({ valorActual, onSeleccionar, onCerrar }: IconPickerP
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={onCerrar}>
       <div
-        className="card w-full sm:max-w-md max-h-[75vh] flex flex-col gap-3"
+        className="card w-full sm:max-w-md h-[75dvh] sm:h-auto sm:max-h-[75dvh] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -91,7 +91,7 @@ export function IconPicker({ valorActual, onSeleccionar, onCerrar }: IconPickerP
 
         <SearchBar placeholder={t('buscar_icono')} value={query} onChange={setQuery} />
 
-        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-1">
+        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-1 flex-1 min-h-0 content-start">
           {filtrados.map((icono) => (
             <button
               key={icono.nombre}

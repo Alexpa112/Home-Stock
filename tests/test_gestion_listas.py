@@ -1,5 +1,5 @@
-"""Tests de CRUD de listas: crear, obtener, actualizar, seleccionar, salir,
-eliminar. Cubre stockhogar/rutas/listas.py, sin test previo."""
+"""Tests de CRUD de hogares: crear, obtener, actualizar, seleccionar, salir,
+eliminar. Cubre stockhogar/rutas/hogares.py, sin test previo."""
 import unittest
 import uuid
 
@@ -23,7 +23,7 @@ class GestionListasTests(unittest.TestCase):
             )
             self.usuario_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 ("Lista inicial", self.usuario_id, ahora(), ahora()),
             )
@@ -34,39 +34,39 @@ class GestionListasTests(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess["usuario"] = nombre_usuario
             sess["usuario_id"] = self.usuario_id
-            sess["lista_actual_id"] = self.lista_inicial_id
+            sess["hogar_actual_id"] = self.lista_inicial_id
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
             db.execute(
-                "DELETE FROM articulos_lista WHERE lista_id IN "
-                "(SELECT id FROM listas WHERE usuario_propietario_id = ?)",
+                "DELETE FROM articulos_compra WHERE hogar_id IN "
+                "(SELECT id FROM hogares WHERE usuario_propietario_id = ?)",
                 (self.usuario_id,),
             )
-            db.execute("DELETE FROM permisos_lista WHERE usuario_id = ?", (self.usuario_id,))
-            db.execute("DELETE FROM listas WHERE usuario_propietario_id = ?", (self.usuario_id,))
+            db.execute("DELETE FROM permisos_hogar WHERE usuario_id = ?", (self.usuario_id,))
+            db.execute("DELETE FROM hogares WHERE usuario_propietario_id = ?", (self.usuario_id,))
             db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             db.commit()
 
     def test_crear_lista_la_marca_como_actual(self):
-        resp = self.client.post("/api/listas", json={"nombre": "Nueva lista"})
+        resp = self.client.post("/api/hogares", json={"nombre": "Nueva lista"})
         self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
         nueva_id = resp.get_json()["id"]
 
         with self.client.session_transaction() as sess:
-            self.assertEqual(sess["lista_actual_id"], nueva_id)
+            self.assertEqual(sess["hogar_actual_id"], nueva_id)
 
     def test_obtener_lista_requiere_acceso(self):
-        resp = self.client.get(f"/api/listas/{self.lista_inicial_id}")
+        resp = self.client.get(f"/api/hogares/{self.lista_inicial_id}")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
 
         otro_client = self.app.test_client()
-        resp_otro = otro_client.get(f"/api/listas/{self.lista_inicial_id}")
+        resp_otro = otro_client.get(f"/api/hogares/{self.lista_inicial_id}")
         self.assertEqual(resp_otro.status_code, 401)
 
     def test_actualizar_lista_solo_propietario(self):
-        resp = self.client.patch(f"/api/listas/{self.lista_inicial_id}", json={"nombre": "Renombrada"})
+        resp = self.client.patch(f"/api/hogares/{self.lista_inicial_id}", json={"nombre": "Renombrada"})
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         self.assertEqual(resp.get_json()["nombre"], "Renombrada")
 
@@ -74,20 +74,20 @@ class GestionListasTests(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 ("Segunda lista", self.usuario_id, ahora(), ahora()),
             )
             segunda_id = cur.lastrowid
             db.commit()
 
-        resp = self.client.post(f"/api/listas/{segunda_id}/seleccionar")
+        resp = self.client.post(f"/api/hogares/{segunda_id}/seleccionar")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         with self.client.session_transaction() as sess:
-            self.assertEqual(sess["lista_actual_id"], segunda_id)
+            self.assertEqual(sess["hogar_actual_id"], segunda_id)
 
     def test_salir_de_lista_propia_esta_prohibido(self):
-        resp = self.client.post(f"/api/listas/{self.lista_inicial_id}/salir")
+        resp = self.client.post(f"/api/hogares/{self.lista_inicial_id}/salir")
         self.assertEqual(resp.status_code, 403, resp.get_data(as_text=True))
 
     def test_crear_lista_con_usuario_de_sesion_inexistente_da_401(self):
@@ -98,20 +98,20 @@ class GestionListasTests(unittest.TestCase):
         # saltaba un IntegrityError -> 500 generico en vez de pedir login.
         with self.app.app_context():
             db = get_db()
-            db.execute("DELETE FROM listas WHERE usuario_propietario_id = ?", (self.usuario_id,))
+            db.execute("DELETE FROM hogares WHERE usuario_propietario_id = ?", (self.usuario_id,))
             db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             db.commit()
 
-        resp = self.client.post("/api/listas", json={"nombre": "Lista fantasma"})
+        resp = self.client.post("/api/hogares", json={"nombre": "Lista fantasma"})
         self.assertEqual(resp.status_code, 401, resp.get_data(as_text=True))
 
     def test_eliminar_lista_solo_propietario(self):
-        resp = self.client.delete(f"/api/listas/{self.lista_inicial_id}")
+        resp = self.client.delete(f"/api/hogares/{self.lista_inicial_id}")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
 
         with self.app.app_context():
             db = get_db()
-            fila = db.execute("SELECT id FROM listas WHERE id = ?", (self.lista_inicial_id,)).fetchone()
+            fila = db.execute("SELECT id FROM hogares WHERE id = ?", (self.lista_inicial_id,)).fetchone()
         self.assertIsNone(fila)
 
 

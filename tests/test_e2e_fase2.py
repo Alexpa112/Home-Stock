@@ -1,8 +1,8 @@
 """
 Test E2E: aislamiento de stock por lista.
 
-Verifica que dos usuarios con sus propias listas no comparten stock entre
-si: el stock de un producto vive en stock_lista, por lista, no en una tabla
+Verifica que dos usuarios con sus propias hogares no comparten stock entre
+si: el stock de un producto vive en stock_hogar, por lista, no en una tabla
 global compartida. Usa el test client de Flask (in-process), igual que
 test_productos.py, sin depender de un servidor real levantado aparte.
 """
@@ -33,11 +33,11 @@ class AislamientoStockTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 201, resp.get_json())
 
         resp = client.post(
-            "/api/listas",
+            "/api/hogares",
             json={"nombre": f"Lista de {usuario}"},
         )
         self.assertEqual(resp.status_code, 201, resp.get_json())
-        lista_id = resp.get_json()["id"]
+        hogar_id = resp.get_json()["id"]
 
         with self.app.app_context():
             db = get_db()
@@ -45,17 +45,17 @@ class AislamientoStockTests(unittest.TestCase):
                 "SELECT id FROM usuarios WHERE nombre_usuario = ?", (usuario,)
             ).fetchone()["id"]
         self.usuarios_creados.append(usuario_id)
-        self.listas_creadas.append(lista_id)
+        self.listas_creadas.append(hogar_id)
 
-        return client, usuario, lista_id
+        return client, usuario, hogar_id
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
-            for lista_id in self.listas_creadas:
-                db.execute("DELETE FROM stock_lista WHERE lista_id = ?", (lista_id,))
-                db.execute("DELETE FROM articulos_lista WHERE lista_id = ?", (lista_id,))
-                db.execute("DELETE FROM listas WHERE id = ?", (lista_id,))
+            for hogar_id in self.listas_creadas:
+                db.execute("DELETE FROM stock_hogar WHERE hogar_id = ?", (hogar_id,))
+                db.execute("DELETE FROM articulos_compra WHERE hogar_id = ?", (hogar_id,))
+                db.execute("DELETE FROM hogares WHERE id = ?", (hogar_id,))
             for producto_id in self.productos_creados:
                 db.execute("DELETE FROM productos WHERE id = ?", (producto_id,))
             for usuario_id in self.usuarios_creados:
@@ -86,10 +86,10 @@ class AislamientoStockTests(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             stock_lista1 = db.execute(
-                "SELECT COUNT(*) AS n FROM stock_lista WHERE lista_id = ?", (lista1_id,)
+                "SELECT COUNT(*) AS n FROM stock_hogar WHERE hogar_id = ?", (lista1_id,)
             ).fetchone()["n"]
             stock_lista2 = db.execute(
-                "SELECT COUNT(*) AS n FROM stock_lista WHERE lista_id = ?", (lista2_id,)
+                "SELECT COUNT(*) AS n FROM stock_hogar WHERE hogar_id = ?", (lista2_id,)
             ).fetchone()["n"]
 
         self.assertEqual(stock_lista1, 1)

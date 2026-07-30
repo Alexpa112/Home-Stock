@@ -76,7 +76,7 @@ class DataConverter:
         """Convierte fila de artículo de lista a dict JSON."""
         return {
             "id": row["id"],
-            "lista_id": row["lista_id"],
+            "hogar_id": row["hogar_id"],
             "nombre": row["nombre"],
             "cantidad": row["cantidad"],
             "unidad": DataConverter.safe_field(row, "unidad", "ud"),

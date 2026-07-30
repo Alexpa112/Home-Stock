@@ -379,7 +379,7 @@ def cambiar_password():
 @requerir_sesion
 @manejo_errores
 def actualizar_preferencias_listas():
-    """Actualiza las preferencias de vista de listas (lista/recuadros) y agrupación por categorías."""
+    """Actualiza las preferencias de vista de la lista de la compra (lista/recuadros) y agrupación por categorías."""
     usuario_id = session.get("usuario_id")
     datos = request.get_json(force=True) or {}
 
@@ -418,19 +418,19 @@ def listar_usuarios():
         FROM usuarios u
         WHERE u.id = ?
            OR u.id IN (
-                SELECT l.usuario_propietario_id FROM listas l
+                SELECT l.usuario_propietario_id FROM hogares l
                 WHERE l.id IN (
-                    SELECT id FROM listas WHERE usuario_propietario_id = ?
+                    SELECT id FROM hogares WHERE usuario_propietario_id = ?
                     UNION
-                    SELECT lista_id FROM permisos_lista WHERE usuario_id = ?
+                    SELECT hogar_id FROM permisos_hogar WHERE usuario_id = ?
                 )
            )
            OR u.id IN (
-                SELECT p.usuario_id FROM permisos_lista p
-                WHERE p.lista_id IN (
-                    SELECT id FROM listas WHERE usuario_propietario_id = ?
+                SELECT p.usuario_id FROM permisos_hogar p
+                WHERE p.hogar_id IN (
+                    SELECT id FROM hogares WHERE usuario_propietario_id = ?
                     UNION
-                    SELECT lista_id FROM permisos_lista WHERE usuario_id = ?
+                    SELECT hogar_id FROM permisos_hogar WHERE usuario_id = ?
                 )
            )
         ORDER BY u.fecha_creacion

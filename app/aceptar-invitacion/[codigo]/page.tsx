@@ -23,7 +23,7 @@ export default function AceptarInvitacionPage() {
         const datos: any = await permisos.aceptarInvitacion(params.codigo)
         setMensaje(datos.mensaje || t('invitacion_aceptada_titulo'))
         setEstado('ok')
-        setTimeout(() => router.push('/dashboard/listas'), 1500)
+        setTimeout(() => router.push('/dashboard/hogar'), 1500)
       } catch (err) {
         const msg = err instanceof Error ? err.message : t('error_no_se_pudo_aceptar_invitacion')
         if (msg.toLowerCase().includes('no has iniciado sesión')) {
@@ -51,7 +51,7 @@ export default function AceptarInvitacionPage() {
           <>
             <CheckCircle2 className="w-10 h-10 mx-auto text-green-500" />
             <p>{mensaje}</p>
-            <p className="text-sm text-muted-foreground">{t('redirigiendo_a_tus_listas')}</p>
+            <p className="text-sm text-muted-foreground">{t('redirigiendo_a_tu_hogar')}</p>
           </>
         )}
         {estado === 'error' && (

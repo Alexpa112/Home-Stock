@@ -88,15 +88,26 @@ const nextConfig = {
           },
         ],
       },
-      {
-        source: '/_next/static/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
+      // El cacheo agresivo de un año solo es seguro en produccion, donde
+      // Next hashea el contenido de cada chunk en su nombre de fichero (un
+      // cambio de codigo siempre genera una URL nueva). En dev, Turbopack
+      // reutiliza los mismos nombres de chunk entre recompilaciones; con
+      // esta cabecera tambien en dev, el navegador nunca vuelve a pedir el
+      // fichero y los cambios de codigo quedan invisibles hasta vaciar la
+      // cache a mano (visto en la practica: ver docs/HOGAR_REESTRUCTURACION.md).
+      ...(process.env.NODE_ENV === 'production'
+        ? [
+            {
+              source: '/_next/static/:path*',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=31536000, immutable',
+                },
+              ],
+            },
+          ]
+        : []),
     ]
   },
 

@@ -33,7 +33,7 @@ class TraducirProductoAislamientoTests(unittest.TestCase):
             )
             self.producto_id = cur.lastrowid
             db.execute(
-                "INSERT INTO stock_lista (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO stock_hogar (hogar_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, 1, ?, ?)",
                 (self.lista_a_id, self.producto_id, ahora(), ahora()),
             )
@@ -49,28 +49,28 @@ class TraducirProductoAislamientoTests(unittest.TestCase):
             )
             usuario_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 (f"Lista de {sufijo}", usuario_id, ahora(), ahora()),
             )
-            lista_id = cur.lastrowid
+            hogar_id = cur.lastrowid
             db.commit()
 
         client = self.app.test_client()
         with client.session_transaction() as sess:
             sess["usuario"] = nombre_usuario
             sess["usuario_id"] = usuario_id
-            sess["lista_actual_id"] = lista_id
+            sess["hogar_actual_id"] = hogar_id
 
-        return usuario_id, lista_id, client
+        return usuario_id, hogar_id, client
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
             db.execute("DELETE FROM traducciones_productos WHERE producto_id = ?", (self.producto_id,))
-            db.execute("DELETE FROM stock_lista WHERE producto_id = ?", (self.producto_id,))
+            db.execute("DELETE FROM stock_hogar WHERE producto_id = ?", (self.producto_id,))
             db.execute("DELETE FROM productos WHERE id = ?", (self.producto_id,))
-            db.execute("DELETE FROM listas WHERE id IN (?, ?)", (self.lista_a_id, self.lista_b_id))
+            db.execute("DELETE FROM hogares WHERE id IN (?, ?)", (self.lista_a_id, self.lista_b_id))
             db.execute("DELETE FROM usuarios WHERE id IN (?, ?)", (self.usuario_a_id, self.usuario_b_id))
             db.commit()
 

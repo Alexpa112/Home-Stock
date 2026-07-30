@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut, AlertCircle, Copy, Mail, MessageCircle } from 'lucide-react'
-import { listas as listasApi, permisos } from '@/lib/api'
+import { hogares as hogaresApi, permisos } from '@/lib/api'
 import { useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 
-interface Lista {
+interface Hogar {
   id: number
   nombre: string
   descripcion: string | null
@@ -25,13 +25,16 @@ interface Miembro {
   fecha_otorgado?: string
 }
 
-const CLAVE_LISTA_ACTIVA = 'stockhogar-lista-activa-ui'
+const CLAVE_HOGAR_ACTIVO = 'stockhogar-hogar-activo-ui'
+// Clave antigua, previa al renombrado de "lista" a "hogar": se lee una vez
+// para no desloguear/perder la seleccion de usuarios con la PWA ya instalada.
+const CLAVE_LISTA_ACTIVA_LEGADO = 'stockhogar-lista-activa-ui'
 
-export default function ListasPage() {
+export default function GestionHogarPage() {
   const { seleccionar: seleccionarHogar, refrescar: refrescarHogar } = useHogar()
   const { t } = useTranslation()
-  const [propias, setPropias] = useState<Lista[]>([])
-  const [compartidas, setCompartidas] = useState<Lista[]>([])
+  const [propias, setPropias] = useState<Hogar[]>([])
+  const [compartidas, setCompartidas] = useState<Hogar[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [nuevoNombre, setNuevoNombre] = useState('')
@@ -55,7 +58,15 @@ export default function ListasPage() {
 
   useEffect(() => {
     cargar()
-    const guardada = localStorage.getItem(CLAVE_LISTA_ACTIVA)
+    let guardada = localStorage.getItem(CLAVE_HOGAR_ACTIVO)
+    if (!guardada) {
+      // Migracion unica desde la clave antigua (ver comentario arriba).
+      guardada = localStorage.getItem(CLAVE_LISTA_ACTIVA_LEGADO)
+      if (guardada) {
+        localStorage.setItem(CLAVE_HOGAR_ACTIVO, guardada)
+        localStorage.removeItem(CLAVE_LISTA_ACTIVA_LEGADO)
+      }
+    }
     if (guardada) setListaActivaId(parseInt(guardada, 10))
   }, [])
 
@@ -63,7 +74,7 @@ export default function ListasPage() {
     try {
       setLoading(true)
       setError('')
-      const data: any = await listasApi.listar()
+      const data: any = await hogaresApi.listar()
       setPropias(data.propias || [])
       setCompartidas(data.compartidas || [])
     } catch (err) {
@@ -78,12 +89,12 @@ export default function ListasPage() {
     if (!nuevoNombre.trim()) return
     try {
       setError('')
-      const nueva: any = await listasApi.crear(nuevoNombre.trim())
+      const nueva: any = await hogaresApi.crear(nuevoNombre.trim())
       setNuevoNombre('')
       await cargar()
       handleSeleccionar(nueva.id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_error_al_crear_lista'))
+      setError(err instanceof Error ? err.message : t('err_error_al_crear_hogar'))
     }
   }
 
@@ -92,13 +103,13 @@ export default function ListasPage() {
       setError('')
       await seleccionarHogar(id)
       setListaActivaId(id)
-      localStorage.setItem(CLAVE_LISTA_ACTIVA, String(id))
+      localStorage.setItem(CLAVE_HOGAR_ACTIVO, String(id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_seleccionar_lista'))
+      setError(err instanceof Error ? err.message : t('err_seleccionar_hogar'))
     }
   }
 
-  const iniciarRenombrar = (lista: Lista) => {
+  const iniciarRenombrar = (lista: Hogar) => {
     setRenombrandoId(lista.id)
     setNombreEditado(lista.nombre)
   }
@@ -110,11 +121,11 @@ export default function ListasPage() {
     }
     try {
       setError('')
-      await listasApi.actualizar(id, { nombre: nombreEditado.trim() })
+      await hogaresApi.actualizar(id, { nombre: nombreEditado.trim() })
       setRenombrandoId(null)
       await cargar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_renombrar_lista'))
+      setError(err instanceof Error ? err.message : t('err_renombrar_hogar'))
     }
   }
 
@@ -123,15 +134,15 @@ export default function ListasPage() {
     setConfirmandoEliminarId(null)
     try {
       setError('')
-      await listasApi.eliminar(id)
+      await hogaresApi.eliminar(id)
       if (listaActivaId === id) {
         setListaActivaId(null)
-        localStorage.removeItem(CLAVE_LISTA_ACTIVA)
+        localStorage.removeItem(CLAVE_HOGAR_ACTIVO)
       }
       await cargar()
       await refrescarHogar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_eliminar_lista'))
+      setError(err instanceof Error ? err.message : t('err_eliminar_hogar'))
     }
   }
 
@@ -140,15 +151,15 @@ export default function ListasPage() {
     setConfirmandoSalirId(null)
     try {
       setError('')
-      await listasApi.salir(id)
+      await hogaresApi.salir(id)
       if (listaActivaId === id) {
         setListaActivaId(null)
-        localStorage.removeItem(CLAVE_LISTA_ACTIVA)
+        localStorage.removeItem(CLAVE_HOGAR_ACTIVO)
       }
       await cargar()
       await refrescarHogar()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_error_al_salir_lista'))
+      setError(err instanceof Error ? err.message : t('err_error_al_salir_hogar'))
     }
   }
 
@@ -191,14 +202,14 @@ export default function ListasPage() {
 
   const enviarPorMail = () => {
     if (!enlaceCompartible) return
-    const asunto = t('email_asunto_invitacion_lista').replace('{nombre}', enlaceCompartible.nombre_lista)
-    const cuerpo = t('email_cuerpo_invitacion_lista').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
+    const asunto = t('email_asunto_invitacion_hogar').replace('{nombre}', enlaceCompartible.nombre_lista)
+    const cuerpo = t('email_cuerpo_invitacion_hogar').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
     window.open(`mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`, '_blank')
   }
 
   const enviarPorWhatsApp = () => {
     if (!enlaceCompartible) return
-    const mensaje = t('whatsapp_mensaje_compartir_lista').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
+    const mensaje = t('whatsapp_mensaje_compartir_hogar').replace('{nombre}', enlaceCompartible.nombre_lista).replace('{enlace}', enlaceCompartible.url)
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
   }
@@ -252,7 +263,7 @@ export default function ListasPage() {
     }
   }
 
-  const renderLista = (lista: Lista, esPropia: boolean) => (
+  const renderLista = (lista: Hogar, esPropia: boolean) => (
     <div key={lista.id} className="card space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
@@ -276,7 +287,7 @@ export default function ListasPage() {
               {esPropia && (
                 <button
                   onClick={() => iniciarRenombrar(lista)}
-                  aria-label={t('aria_renombrar_lista').replace('{nombre}', lista.nombre)}
+                  aria-label={t('aria_renombrar_hogar').replace('{nombre}', lista.nombre)}
                   className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
@@ -286,12 +297,12 @@ export default function ListasPage() {
           )}
           {lista.descripcion && <p className="text-sm text-muted-foreground">{lista.descripcion}</p>}
           <p className="text-xs text-muted-foreground mt-1">
-            {esPropia ? t('propietario_rol') : (lista.mi_rol === 'editar' ? t('compartida_puedes_editar') : t('compartida_solo_ver'))}
+            {esPropia ? t('propietario_rol') : (lista.mi_rol === 'editar' ? t('compartido_puedes_editar') : t('compartido_solo_ver'))}
           </p>
         </div>
         {listaActivaId === lista.id && (
           <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 flex-shrink-0">
-            <Check className="w-4 h-4" /> {t('activa')}
+            <Check className="w-4 h-4" /> {t('activo')}
           </span>
         )}
       </div>
@@ -301,7 +312,7 @@ export default function ListasPage() {
           disabled={listaActivaId === lista.id}
           className="btn-secondary flex-1 disabled:opacity-50"
         >
-          {listaActivaId === lista.id ? t('ya_activa') : t('usar_esta_lista')}
+          {listaActivaId === lista.id ? t('ya_activo') : t('usar_este_hogar')}
         </button>
         {esPropia ? (
           <>
@@ -317,7 +328,7 @@ export default function ListasPage() {
               <button
                 onClick={() => handleEliminarLista(lista.id)}
                 className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
-                aria-label={t('eliminar_lista')}
+                aria-label={t('eliminar_hogar')}
               >
                 <Trash2 className="w-4 h-4 text-red-500" />
               </button>
@@ -345,9 +356,9 @@ export default function ListasPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">{t('mis_listas')}</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('mis_hogares')}</h1>
         <p className="text-muted-foreground mt-1">
-          {t('subtitulo_mis_listas')}
+          {t('subtitulo_mis_hogares')}
         </p>
       </div>
 
@@ -362,13 +373,13 @@ export default function ListasPage() {
       )}
 
       <form onSubmit={handleCrear} className="card flex gap-2">
-        <label htmlFor="lista-nombre" className="sr-only">{t('nombre_nueva_lista')}</label>
+        <label htmlFor="lista-nombre" className="sr-only">{t('nombre_nuevo_hogar')}</label>
         <input
           id="lista-nombre"
           type="text"
           value={nuevoNombre}
           onChange={(e) => setNuevoNombre(e.target.value)}
-          placeholder={t('nombre_nueva_lista')}
+          placeholder={t('nombre_nuevo_hogar')}
           className="input-field flex-1"
         />
         <button type="submit" className="btn-primary flex items-center gap-1">
@@ -377,23 +388,23 @@ export default function ListasPage() {
       </form>
 
       {loading ? (
-        <p className="text-center text-muted-foreground py-8">{t('cargando_listas')}</p>
+        <p className="text-center text-muted-foreground py-8">{t('cargando_hogares')}</p>
       ) : (
         <>
           {propias.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">{t('propias')}</h2>
+              <h2 className="text-lg font-semibold">{t('propios')}</h2>
               <div className="grid gap-3">{propias.map((l) => renderLista(l, true))}</div>
             </div>
           )}
           {compartidas.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">{t('compartidas_conmigo')}</h2>
+              <h2 className="text-lg font-semibold">{t('compartidos_conmigo')}</h2>
               <div className="grid gap-3">{compartidas.map((l) => renderLista(l, false))}</div>
             </div>
           )}
           {propias.length === 0 && compartidas.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">{t('sin_listas_crea_una_nueva')}</p>
+            <p className="text-center text-muted-foreground py-8">{t('sin_hogares_crea_uno_nuevo')}</p>
           )}
         </>
       )}
@@ -403,7 +414,7 @@ export default function ListasPage() {
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[9999] p-4">
           <div className="bg-card rounded-xl w-full max-w-md p-4 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{t('compartir_lista')}</h2>
+              <h2 className="text-lg font-semibold">{t('compartir_hogar')}</h2>
               <button onClick={() => setCompartiendoId(null)} className="p-1 hover:bg-muted rounded">
                 <X className="w-5 h-5" />
               </button>

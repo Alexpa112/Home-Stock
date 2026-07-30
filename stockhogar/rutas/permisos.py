@@ -1,4 +1,4 @@
-"""Rutas para gestionar permisos y compartir listas."""
+"""Rutas para gestionar permisos y compartir hogares."""
 import secrets
 
 from flask import Blueprint, request, session
@@ -10,14 +10,14 @@ from ..db import ahora, get_db
 from ..utils import Validator
 from ..servicios.email_service import EmailService
 
-bp = Blueprint("permisos", __name__, url_prefix="/api/listas")
+bp = Blueprint("permisos", __name__, url_prefix="/api/hogares")
 
 
 @bp.route("/buscar-usuarios", methods=["GET"])
 @requerir_sesion
 @manejo_errores
 def buscar_usuarios():
-    """Buscar usuarios para compartir listas."""
+    """Buscar usuarios para compartir hogares."""
     usuario_id = session.get("usuario_id")
     query = request.args.get("q", "").strip()
 
@@ -47,18 +47,18 @@ def buscar_usuarios():
     })
 
 
-@bp.route("/<int:lista_id>/miembros", methods=["GET"])
+@bp.route("/<int:hogar_id>/miembros", methods=["GET"])
 @requerir_sesion
 @manejo_errores
-def obtener_miembros(lista_id):
+def obtener_miembros(hogar_id):
     """Obtener lista de usuarios con acceso a una lista."""
     usuario_id = session.get("usuario_id")
     db = get_db()
 
     # Verificar que el usuario es el propietario
     lista = db.execute(
-        "SELECT usuario_propietario_id FROM listas WHERE id = ?",
-        (lista_id,)
+        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
+        (hogar_id,)
     ).fetchone()
 
     if not lista or lista["usuario_propietario_id"] != usuario_id:
@@ -74,10 +74,10 @@ def obtener_miembros(lista_id):
     miembros_datos = db.execute(
         """SELECT u.id, u.nombre_usuario, u.email, p.nivel, p.fecha_otorgado
            FROM usuarios u
-           JOIN permisos_lista p ON u.id = p.usuario_id
-           WHERE p.lista_id = ?
+           JOIN permisos_hogar p ON u.id = p.usuario_id
+           WHERE p.hogar_id = ?
            ORDER BY p.fecha_otorgado DESC""",
-        (lista_id,)
+        (hogar_id,)
     ).fetchall()
 
     miembros = [
@@ -100,10 +100,10 @@ def obtener_miembros(lista_id):
     })
 
 
-@bp.route("/<int:lista_id>/compartir", methods=["POST"])
+@bp.route("/<int:hogar_id>/compartir", methods=["POST"])
 @requerir_sesion
 @manejo_errores
-def compartir_lista(lista_id):
+def compartir_lista(hogar_id):
     """Compartir lista con otro usuario o por email."""
     usuario_id = session.get("usuario_id")
     db = get_db()
@@ -111,8 +111,8 @@ def compartir_lista(lista_id):
 
     # Verificar que el usuario es el propietario
     lista = db.execute(
-        "SELECT usuario_propietario_id FROM listas WHERE id = ?",
-        (lista_id,)
+        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
+        (hogar_id,)
     ).fetchone()
 
     if not lista or lista["usuario_propietario_id"] != usuario_id:
@@ -140,10 +140,10 @@ def compartir_lista(lista_id):
         # captura el @manejo_errores del endpoint con un 500 generico, en vez
         # de devolver el texto crudo de la excepcion al cliente.
         db.execute(
-            """INSERT OR REPLACE INTO permisos_lista
-               (lista_id, usuario_id, nivel, fecha_otorgado)
+            """INSERT OR REPLACE INTO permisos_hogar
+               (hogar_id, usuario_id, nivel, fecha_otorgado)
                VALUES (?, ?, ?, ?)""",
-            (lista_id, usuario_destino["id"], nivel, ahora())
+            (hogar_id, usuario_destino["id"], nivel, ahora())
         )
         db.commit()
         return APIResponse.success({"mensaje": "Lista compartida correctamente"})
@@ -164,17 +164,17 @@ def compartir_lista(lista_id):
 
         # Obtener nombre de la lista
         lista = db.execute(
-            "SELECT nombre FROM listas WHERE id = ?",
-            (lista_id,)
+            "SELECT nombre FROM hogares WHERE id = ?",
+            (hogar_id,)
         ).fetchone()
         nombre_lista = lista["nombre"] if lista else "Una lista"
 
         # Crear invitación en BD
         db.execute(
-            """INSERT INTO invitaciones_lista
-               (lista_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
+            """INSERT INTO invitaciones_hogar
+               (hogar_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            (lista_id, email_destino, nivel, codigo, ahora(), fecha_expiracion)
+            (hogar_id, email_destino, nivel, codigo, ahora(), fecha_expiracion)
         )
         db.commit()
 
@@ -198,10 +198,10 @@ def compartir_lista(lista_id):
     return APIResponse.error("err_falta_email_o_usuario", 400)
 
 
-@bp.route("/<int:lista_id>/permisos/<int:usuario_id>", methods=["PATCH"])
+@bp.route("/<int:hogar_id>/permisos/<int:usuario_id>", methods=["PATCH"])
 @requerir_sesion
 @manejo_errores
-def actualizar_permiso(lista_id, usuario_id):
+def actualizar_permiso(hogar_id, usuario_id):
     """Actualizar nivel de permiso de un usuario."""
     usuario_actual_id = session.get("usuario_id")
     db = get_db()
@@ -209,15 +209,15 @@ def actualizar_permiso(lista_id, usuario_id):
 
     # Verificar propietario
     lista = db.execute(
-        "SELECT usuario_propietario_id FROM listas WHERE id = ?",
-        (lista_id,)
+        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
+        (hogar_id,)
     ).fetchone()
 
     if not lista or lista["usuario_propietario_id"] != usuario_actual_id:
         return APIResponse.no_permitido()
 
     if usuario_id == usuario_actual_id:
-        # El propietario no tiene fila en permisos_lista (su acceso viene de
+        # El propietario no tiene fila en permisos_hogar (su acceso viene de
         # ser el dueño, no de un permiso); sin este aviso el UPDATE de abajo
         # no afecta a ninguna fila y la peticion "tiene exito" sin haber
         # cambiado nada, dando una falsa sensacion de que se aplico.
@@ -228,26 +228,26 @@ def actualizar_permiso(lista_id, usuario_id):
         return APIResponse.error("err_nivel_invalido", 400)
 
     db.execute(
-        "UPDATE permisos_lista SET nivel = ? WHERE lista_id = ? AND usuario_id = ?",
-        (nivel, lista_id, usuario_id)
+        "UPDATE permisos_hogar SET nivel = ? WHERE hogar_id = ? AND usuario_id = ?",
+        (nivel, hogar_id, usuario_id)
     )
     db.commit()
 
     return APIResponse.success({"mensaje": "Permiso actualizado"})
 
 
-@bp.route("/<int:lista_id>/permisos/<int:usuario_id>", methods=["DELETE"])
+@bp.route("/<int:hogar_id>/permisos/<int:usuario_id>", methods=["DELETE"])
 @requerir_sesion
 @manejo_errores
-def revocar_acceso(lista_id, usuario_id):
+def revocar_acceso(hogar_id, usuario_id):
     """Revocar acceso de un usuario a una lista."""
     usuario_actual_id = session.get("usuario_id")
     db = get_db()
 
     # Verificar propietario
     lista = db.execute(
-        "SELECT usuario_propietario_id FROM listas WHERE id = ?",
-        (lista_id,)
+        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
+        (hogar_id,)
     ).fetchone()
 
     if not lista or lista["usuario_propietario_id"] != usuario_actual_id:
@@ -257,26 +257,26 @@ def revocar_acceso(lista_id, usuario_id):
         return APIResponse.error("err_no_revocar_acceso_propietario", 400)
 
     db.execute(
-        "DELETE FROM permisos_lista WHERE lista_id = ? AND usuario_id = ?",
-        (lista_id, usuario_id)
+        "DELETE FROM permisos_hogar WHERE hogar_id = ? AND usuario_id = ?",
+        (hogar_id, usuario_id)
     )
     db.commit()
 
     return APIResponse.success({"mensaje": "Acceso revocado"})
 
 
-@bp.route("/<int:lista_id>/enlace-compartible", methods=["POST"])
+@bp.route("/<int:hogar_id>/enlace-compartible", methods=["POST"])
 @requerir_sesion
 @manejo_errores
-def generar_enlace_compartible(lista_id):
+def generar_enlace_compartible(hogar_id):
     """Generar un enlace compartible para una lista."""
     usuario_id = session.get("usuario_id")
     db = get_db()
 
     # Verificar propietario
     lista = db.execute(
-        "SELECT usuario_propietario_id, nombre FROM listas WHERE id = ?",
-        (lista_id,)
+        "SELECT usuario_propietario_id, nombre FROM hogares WHERE id = ?",
+        (hogar_id,)
     ).fetchone()
 
     if not lista or lista["usuario_propietario_id"] != usuario_id:
@@ -288,10 +288,10 @@ def generar_enlace_compartible(lista_id):
 
     # Guardar invitación (sin email destino = enlace público)
     db.execute(
-        """INSERT INTO invitaciones_lista
-           (lista_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
+        """INSERT INTO invitaciones_hogar
+           (hogar_id, email_destino, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
            VALUES (?, ?, ?, ?, ?, ?)""",
-        (lista_id, "", "editar", codigo, ahora(), fecha_expiracion)
+        (hogar_id, "", "editar", codigo, ahora(), fecha_expiracion)
     )
     db.commit()
 
@@ -317,7 +317,7 @@ def aceptar_invitacion(codigo):
 
     # Buscar invitación
     invitacion = db.execute(
-        "SELECT * FROM invitaciones_lista WHERE codigo_invitacion = ?",
+        "SELECT * FROM invitaciones_hogar WHERE codigo_invitacion = ?",
         (codigo,)
     ).fetchone()
 
@@ -337,15 +337,15 @@ def aceptar_invitacion(codigo):
     # @manejo_errores del endpoint con un 500 generico, en vez de devolver el
     # texto crudo de la excepcion al cliente.
     db.execute(
-        """INSERT OR REPLACE INTO permisos_lista
-           (lista_id, usuario_id, nivel, fecha_otorgado)
+        """INSERT OR REPLACE INTO permisos_hogar
+           (hogar_id, usuario_id, nivel, fecha_otorgado)
            VALUES (?, ?, ?, ?)""",
-        (invitacion["lista_id"], usuario_id, invitacion["nivel"], ahora())
+        (invitacion["hogar_id"], usuario_id, invitacion["nivel"], ahora())
     )
 
     # Marcar invitación como usada
     db.execute(
-        """UPDATE invitaciones_lista
+        """UPDATE invitaciones_hogar
            SET usado = 1, usuario_aceptacion_id = ?, fecha_aceptacion = ?
            WHERE id = ?""",
         (usuario_id, ahora(), invitacion["id"])
@@ -353,4 +353,4 @@ def aceptar_invitacion(codigo):
 
     db.commit()
 
-    return APIResponse.success({"mensaje": "¡Invitación aceptada!", "lista_id": invitacion["lista_id"]})
+    return APIResponse.success({"mensaje": "¡Invitación aceptada!", "hogar_id": invitacion["hogar_id"]})

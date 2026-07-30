@@ -41,9 +41,15 @@ export function ListPreferencesProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Aplica el cambio en pantalla al instante y lo confirma contra el backend
+  // en segundo plano: antes se esperaba la respuesta antes de repintar, así
+  // que cambiar de vista o marcar "agrupar" tardaba un viaje de red completo
+  // en notarse (>1s en Raspberry Pi/móvil).
   const updatePreferences = async (prefs: Partial<ListPreferences>) => {
+    const prefsPrevias = preferences
+    const newPrefs = { ...preferences, ...prefs }
+    setPreferences(newPrefs)
     try {
-      const newPrefs = { ...preferences, ...prefs }
       const result: any = await auth.actualizarPreferenciasListas({
         vista_lista_compra: newPrefs.vista_lista_compra,
         agrupar_categorias: newPrefs.agrupar_categorias,
@@ -53,6 +59,7 @@ export function ListPreferencesProvider({ children }: { children: ReactNode }) {
         agrupar_categorias: result.agrupar_categorias || 'off',
       })
     } catch (err) {
+      setPreferences(prefsPrevias)
       console.error('Error updating preferences:', err)
       throw err
     }

@@ -52,30 +52,30 @@ class HistorialCatalogoTests(unittest.TestCase):
             )
             usuario_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 (f"Lista de {sufijo}", usuario_id, ahora(), ahora()),
             )
-            lista_id = cur.lastrowid
+            hogar_id = cur.lastrowid
             db.commit()
 
         self.usuarios_creados.append(usuario_id)
-        self.listas_creadas.append(lista_id)
+        self.listas_creadas.append(hogar_id)
 
         client = self.app.test_client()
         with client.session_transaction() as sess:
             sess["usuario"] = nombre_usuario
             sess["usuario_id"] = usuario_id
-            sess["lista_actual_id"] = lista_id
+            sess["hogar_actual_id"] = hogar_id
 
-        return usuario_id, lista_id, client
+        return usuario_id, hogar_id, client
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
-            for lista_id in self.listas_creadas:
-                db.execute("DELETE FROM articulos_lista WHERE lista_id = ?", (lista_id,))
-                db.execute("DELETE FROM listas WHERE id = ?", (lista_id,))
+            for hogar_id in self.listas_creadas:
+                db.execute("DELETE FROM articulos_compra WHERE hogar_id = ?", (hogar_id,))
+                db.execute("DELETE FROM hogares WHERE id = ?", (hogar_id,))
             db.execute(
                 "DELETE FROM traducciones_productos WHERE articulo_personalizado_id IN "
                 "(SELECT id FROM articulos_personalizados WHERE nombre IN (?, ?))",

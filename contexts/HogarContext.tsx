@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
-import { listas as listasApi } from '@/lib/api'
+import { hogares as hogaresApi } from '@/lib/api'
 
 interface Hogar {
   id: number
@@ -35,10 +35,10 @@ export function HogarProvider({ children }: { children: ReactNode }) {
   const cargar = useCallback(async () => {
     try {
       setLoading(true)
-      const data: any = await listasApi.listar()
+      const data: any = await hogaresApi.listar()
       setPropios(data.propias || [])
       setCompartidos(data.compartidas || [])
-      setHogarActivoId(data.lista_actual_id ?? null)
+      setHogarActivoId(data.hogar_actual_id ?? null)
     } catch {
       // Sin conexion: se mantiene el estado anterior; ProtectedRoute ya
       // habra redirigido si de verdad no hay sesion.
@@ -52,12 +52,12 @@ export function HogarProvider({ children }: { children: ReactNode }) {
   }, [cargar])
 
   const seleccionar = async (id: number) => {
-    await listasApi.seleccionar(id)
+    await hogaresApi.seleccionar(id)
     setHogarActivoId(id)
   }
 
   const crear = async (nombre: string) => {
-    const nuevo: any = await listasApi.crear(nombre)
+    const nuevo: any = await hogaresApi.crear(nombre)
     await cargar()
     setHogarActivoId(nuevo.id)
   }

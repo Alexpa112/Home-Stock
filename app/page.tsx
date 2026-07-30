@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Package, User, Lock, ArrowRight } from 'lucide-react'
+import Image from 'next/image'
+import { User, Lock, ArrowRight } from 'lucide-react'
 import { auth } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -150,8 +151,8 @@ function HomeContent() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm">
-                <Package className="h-6 w-6" />
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl shadow-sm">
+                <Image src="/icon.svg" alt="" width={48} height={48} priority />
               </div>
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dreame!</h1>

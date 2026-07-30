@@ -138,22 +138,22 @@ export const auth = {
     apiCall(`/api/usuarios/${usuarioId}`, { method: 'DELETE' }),
 }
 
-// ===== Listas (stockhogar/rutas/listas.py) =====
-export const listas = {
-  listar: () => apiCall('/api/listas'),
+// ===== Hogares (stockhogar/rutas/hogares.py) =====
+export const hogares = {
+  listar: () => apiCall('/api/hogares'),
 
   crear: (nombre: string, opciones: { descripcion?: string; icono?: string; color?: string; privada?: boolean } = {}) =>
-    apiCall('/api/listas', { method: 'POST', body: JSON.stringify({ nombre, ...opciones }) }),
+    apiCall('/api/hogares', { method: 'POST', body: JSON.stringify({ nombre, ...opciones }) }),
 
   actualizar: (id: number, datos: Record<string, unknown>) =>
-    apiCall(`/api/listas/${id}`, { method: 'PATCH', body: JSON.stringify(datos) }),
+    apiCall(`/api/hogares/${id}`, { method: 'PATCH', body: JSON.stringify(datos) }),
 
-  eliminar: (id: number) => apiCall(`/api/listas/${id}`, { method: 'DELETE' }),
+  eliminar: (id: number) => apiCall(`/api/hogares/${id}`, { method: 'DELETE' }),
 
-  seleccionar: (id: number) => apiCall(`/api/listas/${id}/seleccionar`, { method: 'POST' }),
+  seleccionar: (id: number) => apiCall(`/api/hogares/${id}/seleccionar`, { method: 'POST' }),
 
-  // Abandonar una lista compartida contigo (no aplica a listas propias).
-  salir: (id: number) => apiCall(`/api/listas/${id}/salir`, { method: 'POST' }),
+  // Abandonar un hogar compartido contigo (no aplica a hogares propios).
+  salir: (id: number) => apiCall(`/api/hogares/${id}/salir`, { method: 'POST' }),
 }
 
 // ===== Productos / stock (stockhogar/rutas/productos.py) =====
@@ -177,7 +177,7 @@ export const productos = {
   eliminar: (id: number) => apiCall(`/api/productos/${id}`, { method: 'DELETE' }),
 }
 
-// ===== Lista de la compra (stockhogar/rutas/articulos_lista.py) =====
+// ===== Lista de la compra (stockhogar/rutas/articulos_compra.py) =====
 export const articulosLista = {
   // Devuelve { pendientes: [...], completados: [...] }
   listar: () => apiCall('/api/articulos'),
@@ -205,29 +205,29 @@ export const categorias = {
   eliminar: (id: number) => apiCall(`/api/categorias/${id}`, { method: 'DELETE' }),
 }
 
-// ===== Listas compartidas / permisos (stockhogar/rutas/permisos.py) =====
+// ===== Hogares compartidos / permisos (stockhogar/rutas/permisos.py) =====
 export const permisos = {
-  buscarUsuarios: (q: string) => apiCall(`/api/listas/buscar-usuarios?q=${encodeURIComponent(q)}`),
+  buscarUsuarios: (q: string) => apiCall(`/api/hogares/buscar-usuarios?q=${encodeURIComponent(q)}`),
 
   // { propietario: {...}, miembros: [...] }
-  miembros: (listaId: number) => apiCall(`/api/listas/${listaId}/miembros`),
+  miembros: (hogarId: number) => apiCall(`/api/hogares/${hogarId}/miembros`),
 
   // Por nombre de usuario (acceso inmediato) o por email (crea invitación).
-  compartir: (listaId: number, datos: { usuario?: string; email?: string; nivel?: 'ver' | 'editar' }) =>
-    apiCall(`/api/listas/${listaId}/compartir`, { method: 'POST', body: JSON.stringify(datos) }),
+  compartir: (hogarId: number, datos: { usuario?: string; email?: string; nivel?: 'ver' | 'editar' }) =>
+    apiCall(`/api/hogares/${hogarId}/compartir`, { method: 'POST', body: JSON.stringify(datos) }),
 
   // Generar enlace compartible público
-  generarEnlace: (listaId: number) =>
-    apiCall(`/api/listas/${listaId}/enlace-compartible`, { method: 'POST' }),
+  generarEnlace: (hogarId: number) =>
+    apiCall(`/api/hogares/${hogarId}/enlace-compartible`, { method: 'POST' }),
 
-  actualizarPermiso: (listaId: number, usuarioId: number, nivel: 'ver' | 'editar') =>
-    apiCall(`/api/listas/${listaId}/permisos/${usuarioId}`, { method: 'PATCH', body: JSON.stringify({ nivel }) }),
+  actualizarPermiso: (hogarId: number, usuarioId: number, nivel: 'ver' | 'editar') =>
+    apiCall(`/api/hogares/${hogarId}/permisos/${usuarioId}`, { method: 'PATCH', body: JSON.stringify({ nivel }) }),
 
-  revocar: (listaId: number, usuarioId: number) =>
-    apiCall(`/api/listas/${listaId}/permisos/${usuarioId}`, { method: 'DELETE' }),
+  revocar: (hogarId: number, usuarioId: number) =>
+    apiCall(`/api/hogares/${hogarId}/permisos/${usuarioId}`, { method: 'DELETE' }),
 
   aceptarInvitacion: (codigo: string) =>
-    apiCall(`/api/listas/aceptar-invitacion/${codigo}`, { method: 'POST' }),
+    apiCall(`/api/hogares/aceptar-invitacion/${codigo}`, { method: 'POST' }),
 }
 
 // ===== Escaneo de tickets (stockhogar/rutas/tickets.py) =====
@@ -259,4 +259,5 @@ export const consumo = {
 export const idiomas = {
   disponibles: () => apiCall('/api/idiomas/disponibles'),
   cambiar: (idioma: string) => apiCall('/api/idiomas/cambiar', { method: 'POST', body: JSON.stringify({ idioma }) }),
+  todos: (idioma: string) => apiCall(`/api/idiomas/todos/${idioma}`),
 }

@@ -53,6 +53,19 @@ step_end() { log_success "Paso completado"; }
 
 check_cmd() { command -v "$1" &> /dev/null; }
 
+# Re-ejecutar este script bajo timeout global si no estamos ya bajo uno.
+# Si timeout mata el script, el trap cleanup() se ejecuta y limpia el lock.
+# Esto evita que un proceso colgado bloquee futuras ejecuciones.
+if [[ "${_INSTALL_SH_TIMEOUT:-0}" -eq 0 ]]; then
+    if check_cmd timeout; then
+        export _INSTALL_SH_TIMEOUT=1
+        # 5 horas de timeout (18000s): builds lentos en Pi pueden tardar ~60 min,
+        # más overhead de I/O. Si se agota, timeout envía SIGTERM (permite cleanup)
+        # y luego SIGKILL si no termina en 60s.
+        exec timeout --signal=TERM --kill-after=60 18000 bash "$0" "$@"
+    fi
+fi
+
 # DOCKER y COMPOSE son ARRAYS, no cadenas: `docker` puede necesitar `sudo`
 # delante y `docker compose` son dos palabras. Como arrays se expanden sin
 # `eval` ni riesgo de word-splitting: "${COMPOSE[@]}" ps
@@ -65,8 +78,25 @@ COMPOSE=()
 # a la vez, `flock` no.
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
-    log_error "Ya hay una instalación en curso. Espera a que termine o revisa $LOCK_FILE."
-    exit 1
+    # El lock no está disponible. Verificar si el proceso que lo tiene existe.
+    # Si quedó huérfano (la anterior ejecución se colgó), limpiar y reintentar.
+    PREV_PID=""
+    if [[ -s "$LOCK_FILE" ]]; then
+        PREV_PID="$(cat "$LOCK_FILE" 2>/dev/null)"
+    fi
+    if [[ -n "$PREV_PID" ]] && ! kill -0 "$PREV_PID" 2>/dev/null; then
+        # El PID que tiene el lock NO existe: lock huérfano. Limpiar y reintentar.
+        log_warning "Lock huérfano detectado (PID $PREV_PID no existe). Limpiando..."
+        rm -f "$LOCK_FILE"
+        exec 200>"$LOCK_FILE"
+        if ! flock -n 200; then
+            log_error "Ya hay una instalación en curso. Espera a que termine o revisa $LOCK_FILE."
+            exit 1
+        fi
+    else
+        log_error "Ya hay una instalación en curso (PID ${PREV_PID:-desconocido}). Espera a que termine o revisa $LOCK_FILE."
+        exit 1
+    fi
 fi
 echo "$$" >&200
 
@@ -89,6 +119,8 @@ cleanup() {
     [[ "$CLEANUP_DONE" -eq 1 ]] && return 0
     CLEANUP_DONE=1
     stop_heartbeat
+    # Limpiar el lock file para que futuras ejecuciones no queden bloqueadas.
+    # Importante especialmente si este script es matado por timeout.
     rm -f "$LOCK_FILE"
     return 0
 }
@@ -738,8 +770,10 @@ else
         # despliegue de un solo nodo y, en el almacenamiento lento de la Pi,
         # esas escrituras se llevaban entre 15 y 50s extra por imagen (visto
         # en install.log: 12.8s + 14.5s solo en la del frontend).
+        # Timeout: 90 minutos por servicio (build típico 15-60 min + margen
+        # para I/O lento). Si se agota, mata todo y se hace rollback.
         BUILDX_NO_DEFAULT_ATTESTATIONS=1 \
-            "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" "${BUILD_ARGS[@]}" "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
+            timeout 5400 "${COMPOSE[@]}" "${COMPOSE_FLAGS[@]+"${COMPOSE_FLAGS[@]}"}" "${BUILD_ARGS[@]}" "$SERVICE" 2>&1 | tee -a "$LOG_FILE" || { BUILD_OK=0; break; }
     done
 
     stop_heartbeat

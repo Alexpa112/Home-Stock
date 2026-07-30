@@ -33,7 +33,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - api / auth: son reescrituras hacia Flask (ver next.config.mjs) y su
+     *   autorización la hace el propio backend, así que pasar por aquí solo
+     *   añadía latencia a CADA llamada de la app (varias por pulsación).
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|api/|auth/|favicon.ico).*)',
   ],
 }
