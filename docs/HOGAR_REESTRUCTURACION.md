@@ -12,6 +12,33 @@ Decisiones ya validadas con el usuario:
   `stock_lista`) se mantienen como backup hasta confirmar que todo funciona en produccion,
   y se eliminan en un punto posterior explicito (punto 8).
 
+## Hallazgo critico de entorno (2026-07-30): cache de dev envenenada
+
+Al verificar el Punto 4 en el navegador, `crear hogar` fallaba con
+`Cannot read properties of undefined (reading 'crear')` de forma perfectamente
+reproducible, incluso tras reiniciar ambos servidores, borrar `.next` y probar en
+pestañas nuevas. Causa real: `next.config.mjs` aplicaba
+`Cache-Control: public, max-age=31536000, immutable` a `/_next/static/:path*`
+**tambien en modo desarrollo** (el propio `next dev` lo avisaba en el log:
+"Custom Cache-Control headers detected... can break Next.js development behavior").
+Turbopack en dev reutiliza los mismos nombres de chunk entre recompilaciones (no
+los hashea por contenido como en produccion), asi que con esa cabecera el
+navegador jamas volvia a pedir el JS actualizado, ejecutando codigo de sesiones
+anteriores sin que ningun log ni marcador de depuracion insertado en el codigo
+llegara a aparecer nunca (por eso costo tanto diagnosticarlo).
+
+Confirmacion: un `fetch(..., {cache:'no-store'})` al mismo chunk SI devolvia el
+codigo actualizado, y una llamada manual replicando `apiCall` (CSRF token +
+`POST /api/hogares`) desde la consola del navegador devolvio `201 Created` con
+los datos correctos. Es decir, el codigo de la migracion siempre funciono bien;
+el error visible era enteramente un artefacto de esta cabecera mal aplicada.
+
+**Arreglado** en `next.config.mjs`: la cabecera `immutable` de `/_next/static/`
+ahora solo se aplica si `process.env.NODE_ENV === 'production'`. Si en el futuro
+un cambio de codigo "no se ve" en el navegador durante `npm run dev`, sospechar
+primero de la cache HTTP del navegador (vaciar cache/site data) antes de asumir
+que el codigo esta mal.
+
 Reglas de trabajo (pedidas por el usuario):
 - Se avanza punto por punto. Cada punto se verifica (compila / tests pasan) antes de darlo
   por hecho.
