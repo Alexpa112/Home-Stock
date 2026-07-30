@@ -11,6 +11,7 @@ async function generateLogos() {
 
     const sizes = [
       { name: 'icon.png', size: 256 },
+      { name: 'apple-icon.png', size: 192 },
       { name: 'apple-touch-icon.png', size: 180 },
       { name: 'favicon-32x32.png', size: 32 },
       { name: 'favicon-16x16.png', size: 16 },
