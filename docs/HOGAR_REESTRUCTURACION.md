@@ -1,5 +1,27 @@
 # Reestructuracion "Listas" -> "Hogar" (Stock + Lista de la compra)
 
+## Prueba exhaustiva end-to-end (2026-07-30, tras el fix de cache)
+
+Verificado por interfaz real (no simulado), con el bug de cache de
+`next.config.mjs` ya corregido: registro de usuario nuevo -> crear hogar ->
+redirige a Stock -> menu "Hogar" con submenu (Stock/Lista de la compra/
+Compartir) funciona -> anadir producto con cantidad=stock_minimo -> aparece
+automaticamente en Lista de la compra marcado "Stock bajo" (regla vital,
+[[stockhogar_regla_stock_minimo]]) -> generar enlace compartible (permisos_hogar/
+invitaciones_hogar) funciona. Pipeline completo migrado confirmado end-to-end.
+71 tests + tsc limpio, dos veces seguidas.
+
+Instalador (`install.sh`): revisado (Docker no disponible en este entorno para
+correrlo completo) - hace backup de `data/stock.db` antes de reconstruir,
+healthcheck del backend tras el deploy, y rollback automatico (imagenes, codigo
+y BD) si algo falla. La migracion de este trabajo es aditiva y esta protegida
+por el mismo `flock` que ya evitaba "database is locked" con gunicorn
+multi-worker.
+
+Pendiente sin bloquear: revision del usuario en movil real antes de fusionar a
+`produccion` (regla del proyecto). No fusionar sin confirmacion explicita.
+
+
 Objetivo: el concepto "Listas" no tiene sentido para el usuario. El concepto real es
 **Hogar**: unidad editable y compartible entre usuarios. Dentro de un Hogar hay dos cosas:
 **Stock** (inventario) y **Lista de la compra**.
