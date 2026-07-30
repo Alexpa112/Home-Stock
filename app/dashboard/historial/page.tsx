@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingDown, BookOpen } from 'lucide-react'
-import { consumo as consumoApi, historial as historialApi } from '@/lib/api'
+import { TrendingDown, BookOpen, Trash2 } from 'lucide-react'
+import { consumo as consumoApi, historial as historialApi, articulosPersonalizados as articulosPersonalizadosApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 
@@ -20,6 +20,14 @@ interface ArticuloCatalogo {
   cantidad_defecto: number | null
 }
 
+interface ArticuloPersonalizado {
+  id: number
+  nombre: string
+  icono: string | null
+  categoria: string | null
+  unidad: string
+}
+
 const RANGOS = [7, 30, 90]
 
 export default function HistorialPage() {
@@ -27,6 +35,8 @@ export default function HistorialPage() {
   const [dias, setDias] = useState(30)
   const [porProducto, setPorProducto] = useState<ProductoConsumo[]>([])
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
+  const [personalizados, setPersonalizados] = useState<ArticuloPersonalizado[]>([])
+  const [eliminandoId, setEliminandoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -36,8 +46,26 @@ export default function HistorialPage() {
       .listar()
       .then((data: any) => setCatalogo(Array.isArray(data) ? data : []))
       .catch(() => {})
+    articulosPersonalizadosApi
+      .listar()
+      .then((data: any) => setPersonalizados(Array.isArray(data) ? data : []))
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const eliminarPersonalizado = async (id: number) => {
+    if (!window.confirm(t('eliminar_pregunta'))) return
+    setEliminandoId(id)
+    setError('')
+    try {
+      await articulosPersonalizadosApi.eliminar(id)
+      setPersonalizados((prev) => prev.filter((a) => a.id !== id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_eliminar_articulo_personalizado'))
+    } finally {
+      setEliminandoId(null)
+    }
+  }
 
   const cargarConsumo = async (d: number) => {
     try {
@@ -138,6 +166,34 @@ export default function HistorialPage() {
           </div>
         )}
       </div>
+
+      {personalizados.length > 0 && (
+        <div className="card space-y-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-accent" /> {t('mis_articulos_personalizados')} ({personalizados.length})
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {t('descripcion_mis_articulos_personalizados')}
+          </p>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {personalizados.map((a) => (
+              <div key={a.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted text-sm">
+                {a.icono && <IconRenderer name={a.icono} className="w-4 h-4 shrink-0" />}
+                <span className="truncate flex-1" title={a.nombre}>{a.nombre}</span>
+                <button
+                  type="button"
+                  onClick={() => eliminarPersonalizado(a.id)}
+                  disabled={eliminandoId === a.id}
+                  aria-label={`${t('eliminar')} ${a.nombre}`}
+                  className="p-1.5 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

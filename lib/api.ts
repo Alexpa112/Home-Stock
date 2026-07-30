@@ -197,6 +197,12 @@ export const articulosLista = {
   eliminar: (id: number) => apiCall(`/api/articulos/${id}`, { method: 'DELETE' }),
 }
 
+// ===== Artículos personalizados del hogar (catálogo propio) =====
+export const articulosPersonalizados = {
+  listar: () => apiCall('/api/articulos/personalizados'),
+  eliminar: (id: number) => apiCall(`/api/articulos/personalizados/${id}`, { method: 'DELETE' }),
+}
+
 // ===== Categorías (stockhogar/rutas/categorias.py) =====
 export const categorias = {
   listar: () => apiCall('/api/categorias'),

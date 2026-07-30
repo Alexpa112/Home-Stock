@@ -287,18 +287,53 @@ def borrar_articulo(item_id):
 
 def _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, nivel_requerido=None):
     """Un artículo personalizado pertenece al catálogo privado de un hogar
-    (usuario_propietario_id, ver migración en db.py); solo puede ser
-    referenciado por hogares de ese mismo hogar, así que basta con comprobar
-    que el usuario tiene el nivel de permiso requerido en alguna de las
-    hogares que lo usan para saber que pertenece a su propio hogar."""
-    listas_ids = db.execute(
-        "SELECT DISTINCT hogar_id FROM articulos_compra WHERE articulo_personalizado_id = ?",
+    (articulos_personalizados.usuario_propietario_id = hogares.usuario_propietario_id
+    del hogar dueño del catálogo), así que basta con comprobar que el usuario
+    tiene el nivel de permiso requerido en alguna hogar de ese mismo dueño.
+    OJO: no basta con mirar articulos_compra, porque un artículo del catálogo
+    puede no estar referenciado por ningún artículo activo/completado de
+    ninguna lista (p.ej. tras eliminarlo de la lista) y aun así seguir
+    perteneciendo legítimamente al hogar."""
+    articulo = db.execute(
+        "SELECT usuario_propietario_id FROM articulos_personalizados WHERE id = ?",
         (articulo_id,)
+    ).fetchone()
+    if not articulo:
+        return False
+    hogares_ids = db.execute(
+        "SELECT id FROM hogares WHERE usuario_propietario_id = ?",
+        (articulo["usuario_propietario_id"],)
     ).fetchall()
     return any(
-        _usuario_tiene_permiso(db, fila["hogar_id"], usuario_id, nivel_requerido=nivel_requerido)
-        for fila in listas_ids
+        _usuario_tiene_permiso(db, fila["id"], usuario_id, nivel_requerido=nivel_requerido)
+        for fila in hogares_ids
     )
+
+
+@bp.route("/personalizados", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def listar_articulos_personalizados():
+    """Catálogo de artículos personalizados del hogar activo (aislado por
+    usuario_propietario_id), con su id, para poder editarlos/eliminarlos."""
+    db = get_db()
+
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.success([])
+
+    propietario = db.execute(
+        "SELECT usuario_propietario_id FROM hogares WHERE id = ?", (hogar_id,)
+    ).fetchone()
+    if not propietario:
+        return APIResponse.success([])
+
+    filas = db.execute(
+        "SELECT id, nombre, icono, categoria, unidad FROM articulos_personalizados "
+        "WHERE usuario_propietario_id = ? ORDER BY nombre COLLATE NOCASE",
+        (propietario["usuario_propietario_id"],),
+    ).fetchall()
+    return APIResponse.success([dict(fila) for fila in filas])
 
 
 @bp.route("/personalizados/<int:articulo_id>/traducciones/<idioma>", methods=["GET"])
