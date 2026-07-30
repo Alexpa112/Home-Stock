@@ -6,6 +6,8 @@ import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge } from '@/components/dashboard/CategoryBadge'
 import { productos as productosApi, categorias as categoriasApi, listas as listasApi, articulosLista } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
+import { useTexto } from '@/hooks/useTexto'
 
 // Shape real: ver stockhogar/utils/converters.py DataConverter.producto_to_dict.
 // No hay fecha de caducidad absoluta; 'revisar_caducidad' es un booleano que el
@@ -36,6 +38,7 @@ interface FormularioProducto {
   cantidad: number | ''
   stock_minimo: number | ''
   unidad: string
+  dias_aviso: number
 }
 
 const FORM_VACIO: FormularioProducto = {
@@ -54,6 +57,8 @@ function parseNumeroInput(value: string, fallback: number): number | '' {
 }
 
 export default function StockPage() {
+  const { user } = useAuth()
+  const t = useTexto(user?.idioma_preferido || 'es')
   const [items, setItems] = useState<Producto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
@@ -647,7 +652,7 @@ export default function StockPage() {
                     ) : añadiendoId === item.id ? (
                       <>Añadiendo...</>
                     ) : (
-                      <><ShoppingCart className="w-3.5 h-3.5" /> Añadir a la compra</>
+                      <><ShoppingCart className="w-3.5 h-3.5" /> {t('añadir_a_la_compra', 'Añadir a la compra')}</>
                     )}
                   </button>
                 )}
