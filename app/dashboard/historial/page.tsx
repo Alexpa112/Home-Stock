@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { TrendingDown, BookOpen } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { IconRenderer } from '@/components/dashboard/IconRenderer'
 
 interface ProductoConsumo {
   nombre: string
@@ -102,7 +103,10 @@ export default function HistorialPage() {
             {porProducto.map((p, i) => (
               <div key={i} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm gap-2">
-                  <span className="font-medium truncate">{p.icono ? `${p.icono} ` : ''}{p.nombre}</span>
+                  <span className="font-medium truncate flex items-center gap-1.5">
+                    {p.icono && <IconRenderer name={p.icono} className="w-4 h-4 shrink-0" />}
+                    {p.nombre}
+                  </span>
                   <span className="text-muted-foreground tabular-nums shrink-0 font-medium">{p.consumo}</span>
                 </div>
                 <div className="h-2.5 bg-muted rounded-full overflow-hidden">

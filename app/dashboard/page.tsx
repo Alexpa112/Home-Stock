@@ -965,7 +965,7 @@ export default function StockPage() {
             return (
               <div key={cat.id}>
                 <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <span className="text-2xl">{cat.icono}</span>
+                  <IconRenderer name={cat.icono} className="w-6 h-6" />
                   {cat.nombre}
                   <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} {productosCat.length !== 1 ? t('producto_plural') : t('producto_singular')}</span>
                 </h2>
