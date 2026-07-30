@@ -53,6 +53,7 @@ fi
 LOCK_FILE="$REPO_DIR/.install.lock"
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
+    # Ya hay una instalación en curso; sale sin error para reintentar después.
     exit 0
 fi
 

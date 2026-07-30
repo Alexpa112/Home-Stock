@@ -65,8 +65,25 @@ COMPOSE=()
 # a la vez, `flock` no.
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
-    log_error "Ya hay una instalación en curso. Espera a que termine o revisa $LOCK_FILE."
-    exit 1
+    # El lock no está disponible. Verificar si el proceso que lo tiene existe.
+    # Si quedó huérfano (la anterior ejecución se colgó), limpiar y reintentar.
+    PREV_PID=""
+    if [[ -s "$LOCK_FILE" ]]; then
+        PREV_PID="$(cat "$LOCK_FILE" 2>/dev/null)"
+    fi
+    if [[ -n "$PREV_PID" ]] && ! kill -0 "$PREV_PID" 2>/dev/null; then
+        # El PID que tiene el lock NO existe: lock huérfano. Limpiar y reintentar.
+        log_warning "Lock huérfano detectado (PID $PREV_PID no existe). Limpiando..."
+        rm -f "$LOCK_FILE"
+        exec 200>"$LOCK_FILE"
+        if ! flock -n 200; then
+            log_error "Ya hay una instalación en curso. Espera a que termine o revisa $LOCK_FILE."
+            exit 1
+        fi
+    else
+        log_error "Ya hay una instalación en curso (PID ${PREV_PID:-desconocido}). Espera a que termine o revisa $LOCK_FILE."
+        exit 1
+    fi
 fi
 echo "$$" >&200
 
