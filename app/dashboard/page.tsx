@@ -86,7 +86,7 @@ export default function StockPage() {
   const [nuevaCategoria, setNuevaCategoria] = useState('')
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
   const [filtro, setFiltro] = useState<'todos' | 'bajo_minimo' | 'por_revisar'>('todos')
-  const [añadiendoId, setAñadiendoId] = useState<number | null>(null)
+  const [añadiendoIds, setAñadiendoIds] = useState<Set<number>>(new Set())
   const [añadidoIds, setAñadidoIds] = useState<Set<number>>(new Set())
   const [confirmandoEliminarCatId, setConfirmandoEliminarCatId] = useState<number | null>(null)
   const [modoVista, setModoVista] = useState<'lista' | 'grid'>('grid')
@@ -113,6 +113,13 @@ export default function StockPage() {
     }, 60000)
     return () => clearInterval(intervalo)
   }, [])
+
+  // La caché es lo que se pinta al montar la pantalla, así que cualquier
+  // cambio local (ajuste de cantidad, borrado, alta, edición) tiene que
+  // quedar reflejado o al volver aquí se vería un instante el dato antiguo.
+  useEffect(() => {
+    if (!loading) setCached(CACHE_KEY_PRODUCTOS, items)
+  }, [items, loading])
 
   // Guardar preferencias cuando cambien
   useEffect(() => {
@@ -248,11 +255,18 @@ export default function StockPage() {
       return
     }
     setConfirmandoId(null)
+
+    // Quitar el producto al instante y revertir si el backend falla: antes se
+    // esperaba al DELETE y encima se recargaba todo con bootstrap(), o sea dos
+    // viajes de red en serie antes de que la fila desapareciera de la pantalla.
+    const itemsPrevios = items
+    setItems(prev => prev.filter((item) => item.id !== id))
+    setError('')
+
     try {
-      setError('')
       await productosApi.eliminar(id)
-      await bootstrap()
     } catch (err) {
+      setItems(itemsPrevios)
       const message = err instanceof Error ? err.message : t('err_eliminar_producto')
       setError(message)
     }
@@ -265,17 +279,16 @@ export default function StockPage() {
     const itemAnterior = items[itemIndex]
     const cantidadNueva = Math.max(0, itemAnterior.cantidad + delta)
 
-    setItems(prev => prev.map((item, i) =>
-      i === itemIndex ? { ...item, cantidad: cantidadNueva } : item
-    ))
+    const aplicarCantidad = (cantidad: number) =>
+      setItems(prev => prev.map((item) => (item.id === id ? { ...item, cantidad } : item)))
+
+    aplicarCantidad(cantidadNueva)
     setError('')
 
     try {
       await productosApi.actualizar(id, { delta })
     } catch (err) {
-      setItems(prev => prev.map((item, i) =>
-        i === itemIndex ? itemAnterior : item
-      ))
+      aplicarCantidad(itemAnterior.cantidad)
       const message = err instanceof Error ? err.message : t('err_actualizar_cantidad')
       setError(message)
     }
@@ -309,7 +322,7 @@ export default function StockPage() {
   }
 
   const handleAñadirACompra = async (item: Producto) => {
-    setAñadiendoId(item.id)
+    setAñadiendoIds(prev => new Set(prev).add(item.id))
     try {
       await articulosLista.anadir(item.nombre, {
         cantidad: Math.max(1, item.stock_minimo - item.cantidad),
@@ -320,15 +333,20 @@ export default function StockPage() {
     } catch {
       // silencioso — el usuario puede ir a la lista de compra a verificar
     } finally {
-      setAñadiendoId(null)
+      setAñadiendoIds(prev => {
+        const siguiente = new Set(prev)
+        siguiente.delete(item.id)
+        return siguiente
+      })
     }
   }
 
+  // Un solo toque en "añadir todos" hacía una petición por producto y
+  // esperaba a cada una antes de lanzar la siguiente (N viajes de red en
+  // serie). Van en paralelo, así que tarda lo que la más lenta.
   const handleAñadirTodosACompra = async () => {
     const bajos = items.filter(i => i.cantidad <= i.stock_minimo && !añadidoIds.has(i.id))
-    for (const item of bajos) {
-      await handleAñadirACompra(item)
-    }
+    await Promise.all(bajos.map(handleAñadirACompra))
   }
 
   // Filtrar items por búsqueda y filtro activo
@@ -444,7 +462,7 @@ export default function StockPage() {
         {bajoMinimo && (
           <button
             onClick={() => handleAñadirACompra(item)}
-            disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
+            disabled={añadiendoIds.has(item.id)}
             className={`relative w-full flex items-center justify-center gap-1 py-1 rounded-lg text-[0.65rem] font-semibold transition-all active:scale-95 ${
               añadidoIds.has(item.id)
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
@@ -453,7 +471,7 @@ export default function StockPage() {
           >
             {añadidoIds.has(item.id) ? (
               <>✓ {t('añadido_a_la_compra')}</>
-            ) : añadiendoId === item.id ? (
+            ) : añadiendoIds.has(item.id) ? (
               <>{t('añadiendo')}</>
             ) : (
               <><ShoppingCart className="w-3 h-3" /> {t('añadir_a_la_compra')}</>
@@ -512,7 +530,7 @@ export default function StockPage() {
         {bajoMinimo && (
           <button
             onClick={() => handleAñadirACompra(item)}
-            disabled={añadiendoId === item.id || añadidoIds.has(item.id)}
+            disabled={añadiendoIds.has(item.id)}
             className={`w-9 h-9 flex items-center justify-center rounded-lg shrink-0 transition-all active:scale-95 ${
               añadidoIds.has(item.id)
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'

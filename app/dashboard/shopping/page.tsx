@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X } from 'lucide-react'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
@@ -14,6 +14,11 @@ import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
 
 const CACHE_KEY_ARTICULOS = 'shopping:articulos'
 const CACHE_KEY_CATEGORIAS = 'stock:categorias'
+
+// Espejo de LIMITE_COMPLETADOS en stockhogar/rutas/articulos_lista.py: al
+// actualizar la lista en local (sin volver a pedirla al backend) hay que
+// recortar los completados igual que lo hace el servidor.
+const LIMITE_COMPLETADOS = 12
 
 interface ArticuloLista {
   id: number
@@ -103,22 +108,56 @@ export default function ShoppingPage() {
     }
   }
 
+  type EstadoLista = { pendientes: ArticuloLista[]; completados: ArticuloLista[] }
+
+  // Pinta un estado nuevo de la lista al instante y lo deja en caché. Todas
+  // las acciones de un toque (marcar comprado, borrar, editar) lo usan para
+  // actualizar la UI sin esperar al backend: antes cada toque encadenaba la
+  // petición de la mutación + una recarga completa de la lista, así que no se
+  // veía nada hasta pasados dos viajes de red (>1s en Raspberry Pi/móvil).
+  const aplicarEstado = (siguiente: EstadoLista) => {
+    setPendientes(siguiente.pendientes)
+    setCompletados(siguiente.completados)
+    setCached(CACHE_KEY_ARTICULOS, siguiente)
+  }
+
+  // Mismo orden que la consulta del backend (categoria, nombre COLLATE NOCASE)
+  // para que un artículo restaurado aparezca donde le corresponde.
+  const ordenarPendientes = (a: ArticuloLista, b: ArticuloLista) => {
+    const catA = a.categoria || ''
+    const catB = b.categoria || ''
+    if (catA !== catB) return catA < catB ? -1 : 1
+    return a.nombre.localeCompare(b.nombre, undefined, { sensitivity: 'base' })
+  }
+
+  // Inserta/actualiza el artículo devuelto por el backend al añadir: el POST
+  // puede crear uno nuevo, sumar cantidad a uno pendiente o reactivar uno
+  // completado, así que hay que cubrir los tres casos sin recargar la lista.
+  const fusionarArticulo = (articulo: ArticuloLista) => {
+    const restoPendientes = pendientes.filter((i) => i.id !== articulo.id)
+    aplicarEstado({
+      pendientes: [...restoPendientes, articulo].sort(ordenarPendientes),
+      completados: completados.filter((i) => i.id !== articulo.id),
+    })
+  }
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault()
+    const categoriaPrevia = formData.categoria
     try {
       setError('')
-      await articulosLista.anadir(formData.nombre, {
+      const creado: any = await articulosLista.anadir(formData.nombre, {
         categoria: formData.categoria,
         cantidad: formData.cantidad,
         icono: formIcono,
         unidad: formUnidad,
       })
-      setFormData({ nombre: '', categoria: formData.categoria, cantidad: 1 })
+      setFormData({ nombre: '', categoria: categoriaPrevia, cantidad: 1 })
       setFormIcono(undefined)
       setFormUnidad(undefined)
       setShowForm(false)
       setCatalogoQuery('')
-      await loadItems()
+      if (creado?.id) fusionarArticulo(creado)
     } catch (err) {
       const message = err instanceof Error ? err.message : t('err_anadir_articulo')
       setError(message)
@@ -129,12 +168,12 @@ export default function ShoppingPage() {
   const handleQuickAdd = async (item: ArticuloCatalogo) => {
     try {
       setError('')
-      await articulosLista.anadir(item.nombre, {
+      const creado: any = await articulosLista.anadir(item.nombre, {
         categoria: item.categoria || undefined,
         icono: item.icono || undefined,
         unidad: item.unidad || undefined,
       })
-      await loadItems()
+      if (creado?.id) fusionarArticulo(creado)
     } catch (err) {
       const message = err instanceof Error ? err.message : t('err_anadir_articulo')
       setError(message)
@@ -157,15 +196,32 @@ export default function ShoppingPage() {
   )
 
   const handleToggleBought = async (id: number, marcarComprado: boolean) => {
+    const item = (marcarComprado ? pendientes : completados).find((i) => i.id === id)
+    if (!item) return
+
+    const previo: EstadoLista = { pendientes, completados }
+    const movido = { ...item, completado: marcarComprado }
+    aplicarEstado(
+      marcarComprado
+        ? {
+            pendientes: pendientes.filter((i) => i.id !== id),
+            completados: [movido, ...completados].slice(0, LIMITE_COMPLETADOS),
+          }
+        : {
+            pendientes: [...pendientes, movido].sort(ordenarPendientes),
+            completados: completados.filter((i) => i.id !== id),
+          }
+    )
+    setError('')
+
     try {
-      setError('')
       if (marcarComprado) {
         await articulosLista.marcarComprado(id)
       } else {
         await articulosLista.restaurar(id)
       }
-      await loadItems()
     } catch (err) {
+      aplicarEstado(previo)
       const message = err instanceof Error ? err.message : t('err_actualizar')
       setError(message)
     }
@@ -177,11 +233,18 @@ export default function ShoppingPage() {
       return
     }
     setConfirmandoId(null)
+
+    const previo: EstadoLista = { pendientes, completados }
+    aplicarEstado({
+      pendientes: pendientes.filter((i) => i.id !== id),
+      completados: completados.filter((i) => i.id !== id),
+    })
+    setError('')
+
     try {
-      setError('')
       await articulosLista.eliminar(id)
-      await loadItems()
     } catch (err) {
+      aplicarEstado(previo)
       const message = err instanceof Error ? err.message : t('err_eliminar_articulo')
       setError(message)
     }
@@ -199,17 +262,29 @@ export default function ShoppingPage() {
 
   const guardarEdicionCompleta = async () => {
     if (modalEdicionId === null || !edicionCompleta.nombre.trim()) return
+
+    const id = modalEdicionId
+    const cambios = {
+      nombre: edicionCompleta.nombre.trim(),
+      cantidad: edicionCompleta.cantidad,
+      unidad: edicionCompleta.unidad,
+      categoria: edicionCompleta.categoria,
+    }
+    const previo: EstadoLista = { pendientes, completados }
+    const parchear = (lista: ArticuloLista[]) =>
+      lista.map((i) => (i.id === id ? { ...i, ...cambios } : i))
+
+    setModalEdicionId(null)
+    aplicarEstado({
+      pendientes: parchear(pendientes).sort(ordenarPendientes),
+      completados: parchear(completados),
+    })
+    setError('')
+
     try {
-      setError('')
-      await articulosLista.actualizar(modalEdicionId, {
-        nombre: edicionCompleta.nombre.trim(),
-        cantidad: edicionCompleta.cantidad,
-        unidad: edicionCompleta.unidad,
-        categoria: edicionCompleta.categoria,
-      })
-      setModalEdicionId(null)
-      await loadItems()
+      await articulosLista.actualizar(id, cambios)
     } catch (err) {
+      aplicarEstado(previo)
       setError(err instanceof Error ? err.message : t('err_editar_articulo'))
     }
   }
@@ -218,19 +293,28 @@ export default function ShoppingPage() {
   // que el click posterior (mouseup/touchend) dispare la accion normal del
   // elemento (marcar comprado, etc.). onClickCapture corta la propagacion
   // hacia los botones hijos si el long-press ya se disparo.
+  //
+  // El estado del gesto vive en refs, no en variables de la closure: antes se
+  // creaba una closure nueva en cada render, asi que si se re-renderizaba
+  // entre el mousedown y el mouseup (ahora ocurre en cada toque, porque la UI
+  // se actualiza al instante) el `cancelar` del nuevo render no veia el timer
+  // del anterior y la modal de edicion se abria sola tras 550ms.
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressDisparado = useRef(false)
+
   const crearLongPress = (item: ArticuloLista) => {
-    let timer: ReturnType<typeof setTimeout> | null = null
-    let triggered = false
     const iniciar = () => {
-      triggered = false
-      timer = setTimeout(() => {
-        triggered = true
+      longPressDisparado.current = false
+      if (longPressTimer.current) clearTimeout(longPressTimer.current)
+      longPressTimer.current = setTimeout(() => {
+        longPressTimer.current = null
+        longPressDisparado.current = true
         abrirModalEdicion(item)
       }, 550)
     }
     const cancelar = () => {
-      if (timer) clearTimeout(timer)
-      timer = null
+      if (longPressTimer.current) clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
     }
     return {
       onTouchStart: iniciar,
@@ -241,7 +325,8 @@ export default function ShoppingPage() {
       onMouseLeave: cancelar,
       onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
       onClickCapture: (e: React.MouseEvent) => {
-        if (triggered) {
+        if (longPressDisparado.current) {
+          longPressDisparado.current = false
           e.stopPropagation()
           e.preventDefault()
         }

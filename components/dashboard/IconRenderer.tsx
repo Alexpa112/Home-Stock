@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import * as LucideIcons from 'lucide-react'
 import * as HeroIcons from '@heroicons/react/24/solid'
 
@@ -8,7 +9,7 @@ interface IconRendererProps {
   className?: string
 }
 
-export function IconRenderer({ name, className = 'w-4 h-4' }: IconRendererProps) {
+function IconRendererBase({ name, className = 'w-4 h-4' }: IconRendererProps) {
   if (!name) return null
 
   const iconName = String(name).trim()
@@ -43,3 +44,9 @@ export function IconRenderer({ name, className = 'w-4 h-4' }: IconRendererProps)
   // Fallback: no se encontró el icono
   return null
 }
+
+// Las listas de stock y de la compra repintan todas sus filas en cada
+// pulsación; con memo, resolver el nombre del icono (dos búsquedas de string
+// + lookup en los namespaces de lucide/heroicons) solo se paga cuando el
+// icono o su clase cambian de verdad.
+export const IconRenderer = memo(IconRendererBase)
