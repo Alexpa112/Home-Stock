@@ -1,59 +1,59 @@
-"""Rutas de artículos en listas (antes lista_compra)."""
+"""Rutas de artículos en la lista de la compra de un hogar (antes lista_compra)."""
 import logging
 from flask import Blueprint, request, session, jsonify
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
-from ..servicios.stock import lista_actual_con_permiso
+from ..servicios.stock import hogar_actual_con_permiso
 from ..utils import Validator, DataConverter
 from .categorias import normalizar_categoria
 from .historial import buscar_historial, recordar_articulo
-from .listas import _usuario_tiene_permiso
+from .hogares import _usuario_tiene_permiso
 
-bp = Blueprint("articulos_lista", __name__, url_prefix="/api/articulos")
+bp = Blueprint("articulos_compra", __name__, url_prefix="/api/articulos")
 logger = logging.getLogger(__name__)
 
 LIMITE_COMPLETADOS = 12
 CAMPOS_EDITABLES = {"nombre", "cantidad", "unidad", "categoria", "icono", "sub_descripcion"}
 
 
-def _resolver_lista_id(db, session):
+def _resolver_hogar_id(db, session):
     """Resuelve la lista a usar: SIEMPRE la lista activa de la sesión (la
-    misma que usa /api/productos para el stock), nunca el 'lista_id' que
+    misma que usa /api/productos para el stock), nunca el 'hogar_id' que
     manda el cliente (localStorage en el navegador). Ambos valores se
     guardan por separado y pueden desincronizarse (p. ej. tras cambiar de
     lista con una petición en segundo plano en curso); si se confiara en el
-    del cliente, el stock y la lista de la compra podrían mostrar listas
-    distintas y un artículo añadido automáticamente por bajada de stock
+    del cliente, el stock y la lista de la compra podrían mostrar hogares
+    distintos y un artículo añadido automáticamente por bajada de stock
     parecería no añadirse nunca."""
-    return lista_actual_con_permiso(db, session)
+    return hogar_actual_con_permiso(db, session)
 
 
 @bp.route("", methods=["GET"])
 @requerir_sesion
 @manejo_errores
 def listar_articulos():
-    """Lista artículos de la lista activa (o de lista_id si se indica y hay permiso)."""
+    """Lista artículos de la lista activa (o de hogar_id si se indica y hay permiso)."""
     usuario_id = session.get("usuario_id")
     db = get_db()
-    lista_id = _resolver_lista_id(db, session)
+    hogar_id = _resolver_hogar_id(db, session)
 
-    if not lista_id:
-        return APIResponse.error("err_no_hay_lista_activa", 400)
+    if not hogar_id:
+        return APIResponse.error("err_no_hay_hogar_activo", 400)
 
-    permiso = _usuario_tiene_permiso(db, lista_id, usuario_id)
+    permiso = _usuario_tiene_permiso(db, hogar_id, usuario_id)
     if not permiso:
         return APIResponse.no_permitido()
 
     pendientes = db.execute(
-        "SELECT * FROM articulos_lista WHERE activo = 1 AND lista_id = ? "
+        "SELECT * FROM articulos_compra WHERE activo = 1 AND hogar_id = ? "
         "ORDER BY categoria, nombre COLLATE NOCASE",
-        (lista_id,),
+        (hogar_id,),
     ).fetchall()
     completados = db.execute(
-        "SELECT * FROM articulos_lista WHERE activo = 0 AND lista_id = ? "
+        "SELECT * FROM articulos_compra WHERE activo = 0 AND hogar_id = ? "
         "ORDER BY fecha_completado DESC LIMIT ?",
-        (lista_id, LIMITE_COMPLETADOS),
+        (hogar_id, LIMITE_COMPLETADOS),
     ).fetchall()
 
     return APIResponse.success({
@@ -75,17 +75,17 @@ def anadir_articulo():
         return APIResponse.error("err_nombre_obligatorio", 400)
 
     db = get_db()
-    # Igual que en listar_articulos: si el lista_id que manda el cliente
+    # Igual que en listar_articulos: si el hogar_id que manda el cliente
     # (guardado en localStorage) no coincide con la lista activa real de la
     # sesión, se ignora y se usa la de sesión, para que el artículo quede
     # siempre en la misma lista que el stock que lo disparó.
-    lista_id = _resolver_lista_id(db, session)
+    hogar_id = _resolver_hogar_id(db, session)
 
-    if not lista_id:
-        return APIResponse.error("err_no_hay_lista_activa", 400)
+    if not hogar_id:
+        return APIResponse.error("err_no_hay_hogar_activo", 400)
 
     # Validar permisos
-    permiso = _usuario_tiene_permiso(db, lista_id, usuario_id, nivel_requerido="editar")
+    permiso = _usuario_tiene_permiso(db, hogar_id, usuario_id, nivel_requerido="editar")
     if not permiso or (permiso != "propietario" and permiso != "editar"):
         return APIResponse.no_permitido()
 
@@ -93,30 +93,30 @@ def anadir_articulo():
 
     # Si ya está en la lista activa, sumar cantidad
     existente = db.execute(
-        "SELECT * FROM articulos_lista WHERE nombre = ? COLLATE NOCASE AND activo = 1 AND lista_id = ?",
-        (nombre, lista_id),
+        "SELECT * FROM articulos_compra WHERE nombre = ? COLLATE NOCASE AND activo = 1 AND hogar_id = ?",
+        (nombre, hogar_id),
     ).fetchone()
     if existente:
         db.execute(
-            "UPDATE articulos_lista SET cantidad = cantidad + ? WHERE id = ?",
+            "UPDATE articulos_compra SET cantidad = cantidad + ? WHERE id = ?",
             (cantidad_sumar, existente["id"]),
         )
         db.commit()
-        fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (existente["id"],)).fetchone()
+        fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (existente["id"],)).fetchone()
         return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
     # Si hay uno completado, reutilizarlo
     completado = db.execute(
-        "SELECT * FROM articulos_lista WHERE nombre = ? COLLATE NOCASE AND activo = 0 AND lista_id = ?",
-        (nombre, lista_id),
+        "SELECT * FROM articulos_compra WHERE nombre = ? COLLATE NOCASE AND activo = 0 AND hogar_id = ?",
+        (nombre, hogar_id),
     ).fetchone()
     if completado:
         db.execute(
-            "UPDATE articulos_lista SET activo = 1, cantidad = ?, fecha_completado = NULL WHERE id = ?",
+            "UPDATE articulos_compra SET activo = 1, cantidad = ?, fecha_completado = NULL WHERE id = ?",
             (cantidad_sumar, completado["id"]),
         )
         db.commit()
-        fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (completado["id"],)).fetchone()
+        fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (completado["id"],)).fetchone()
         return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
     # Buscar en historial estándar
@@ -136,7 +136,7 @@ def anadir_articulo():
         # de la lista (cada hogar tiene su propio catálogo personalizado, ver
         # migración en db.py sobre usuario_propietario_id).
         propietario = db.execute(
-            "SELECT usuario_propietario_id FROM listas WHERE id = ?", (lista_id,)
+            "SELECT usuario_propietario_id FROM hogares WHERE id = ?", (hogar_id,)
         ).fetchone()
         propietario_id = propietario["usuario_propietario_id"]
 
@@ -190,10 +190,10 @@ def anadir_articulo():
 
     # Crear artículo en lista
     cur = db.execute(
-        """INSERT INTO articulos_lista
-           (lista_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, fecha_creacion)
+        """INSERT INTO articulos_compra
+           (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, fecha_creacion)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (lista_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, 'manual', ahora())
+        (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, 'manual', ahora())
     )
 
     # Recordar para historial si tiene icono
@@ -201,7 +201,7 @@ def anadir_articulo():
         recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
-    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (cur.lastrowid,)).fetchone()
+    fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (cur.lastrowid,)).fetchone()
     return APIResponse.success(DataConverter.articulo_lista_to_dict(fila), 201)
 
 
@@ -212,15 +212,15 @@ def actualizar_articulo(item_id):
     """Actualiza un artículo (requiere permiso 'editar')."""
     usuario_id = session.get("usuario_id")
     db = get_db()
-    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
+    fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (item_id,)).fetchone()
 
     if fila is None:
         return APIResponse.no_encontrado("recurso_articulo")
 
     # Validar permisos sobre la lista
-    permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
+    permiso = _usuario_tiene_permiso(db, fila["hogar_id"], usuario_id, nivel_requerido="editar")
     if not permiso or (permiso != "propietario" and permiso != "editar"):
-        return APIResponse.no_permitido("err_sin_permiso_editar_lista")
+        return APIResponse.no_permitido("err_sin_permiso_editar_hogar")
 
     datos = request.get_json(force=True) or {}
     if not datos:
@@ -229,12 +229,12 @@ def actualizar_articulo(item_id):
     if "activo" in datos:
         if datos["activo"]:
             db.execute(
-                "UPDATE articulos_lista SET activo = 1, fecha_completado = NULL WHERE id = ?",
+                "UPDATE articulos_compra SET activo = 1, fecha_completado = NULL WHERE id = ?",
                 (item_id,),
             )
         else:
             db.execute(
-                "UPDATE articulos_lista SET activo = 0, fecha_completado = ? WHERE id = ?",
+                "UPDATE articulos_compra SET activo = 0, fecha_completado = ? WHERE id = ?",
                 (ahora(), item_id),
             )
 
@@ -248,7 +248,7 @@ def actualizar_articulo(item_id):
         sub_descripcion = (datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
 
         db.execute(
-            "UPDATE articulos_lista SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
+            "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
             "sub_descripcion=? WHERE id=?",
             (nombre, cantidad, unidad, categoria, icono, sub_descripcion, item_id),
         )
@@ -256,7 +256,7 @@ def actualizar_articulo(item_id):
             recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
 
     db.commit()
-    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
+    fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (item_id,)).fetchone()
     return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
 
 
@@ -268,17 +268,17 @@ def borrar_articulo(item_id):
     usuario_id = session.get("usuario_id")
     db = get_db()
 
-    fila = db.execute("SELECT * FROM articulos_lista WHERE id = ?", (item_id,)).fetchone()
+    fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (item_id,)).fetchone()
 
     if fila is None:
         return APIResponse.no_encontrado("recurso_articulo")
 
     # Validar permisos sobre la lista
-    permiso = _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido="editar")
+    permiso = _usuario_tiene_permiso(db, fila["hogar_id"], usuario_id, nivel_requerido="editar")
     if not permiso or (permiso != "propietario" and permiso != "editar"):
         return APIResponse.no_permitido()
 
-    db.execute("DELETE FROM articulos_lista WHERE id = ?", (item_id,))
+    db.execute("DELETE FROM articulos_compra WHERE id = ?", (item_id,))
     db.commit()
     return APIResponse.success(None, 204)
 
@@ -288,15 +288,15 @@ def borrar_articulo(item_id):
 def _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, nivel_requerido=None):
     """Un artículo personalizado pertenece al catálogo privado de un hogar
     (usuario_propietario_id, ver migración en db.py); solo puede ser
-    referenciado por listas de ese mismo hogar, así que basta con comprobar
+    referenciado por hogares de ese mismo hogar, así que basta con comprobar
     que el usuario tiene el nivel de permiso requerido en alguna de las
-    listas que lo usan para saber que pertenece a su propio hogar."""
+    hogares que lo usan para saber que pertenece a su propio hogar."""
     listas_ids = db.execute(
-        "SELECT DISTINCT lista_id FROM articulos_lista WHERE articulo_personalizado_id = ?",
+        "SELECT DISTINCT hogar_id FROM articulos_compra WHERE articulo_personalizado_id = ?",
         (articulo_id,)
     ).fetchall()
     return any(
-        _usuario_tiene_permiso(db, fila["lista_id"], usuario_id, nivel_requerido=nivel_requerido)
+        _usuario_tiene_permiso(db, fila["hogar_id"], usuario_id, nivel_requerido=nivel_requerido)
         for fila in listas_ids
     )
 
@@ -450,21 +450,21 @@ def eliminar_articulo_personalizado(articulo_id):
 
     # Verificar que no está en uso en artículos activos
     en_uso = db.execute(
-        "SELECT COUNT(*) as count FROM articulos_lista WHERE articulo_personalizado_id = ? AND activo = 1",
+        "SELECT COUNT(*) as count FROM articulos_compra WHERE articulo_personalizado_id = ? AND activo = 1",
         (articulo_id,)
     ).fetchone()
 
     if en_uso["count"] > 0:
         return APIResponse.error(
-            "No se puede eliminar: artículo está en uso en listas activas",
+            "No se puede eliminar: artículo está en uso en la lista de la compra",
             400
         )
 
     # Eliminar traducciones asociadas
     db.execute("DELETE FROM traducciones_productos WHERE articulo_personalizado_id = ?", (articulo_id,))
 
-    # Eliminar artículos completados de listas
-    db.execute("DELETE FROM articulos_lista WHERE articulo_personalizado_id = ?", (articulo_id,))
+    # Eliminar artículos completados de la lista de la compra
+    db.execute("DELETE FROM articulos_compra WHERE articulo_personalizado_id = ?", (articulo_id,))
 
     # Eliminar artículo personalizado
     db.execute("DELETE FROM articulos_personalizados WHERE id = ?", (articulo_id,))

@@ -12,7 +12,7 @@ from ..translator import traducir
 from ..integraciones import ticket_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..utils import Validator
-from ..servicios.stock import crear_producto_nuevo, sumar_stock, lista_actual_con_permiso
+from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
@@ -122,8 +122,8 @@ def confirmar_ticket():
     ajena subiendo un ticket.
     """
     db = get_db()
-    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="editar")
+    if not hogar_id:
         return APIResponse.no_permitido()
 
     datos = request.get_json(force=True) or {}
@@ -141,11 +141,11 @@ def confirmar_ticket():
 
         producto_id = item.get("producto_id")
         if producto_id:
-            sumar_stock(db, int(producto_id), cantidad, lista_id)
+            sumar_stock(db, int(producto_id), cantidad, hogar_id)
             actualizados += 1
         else:
             categoria = item.get("categoria") or "Otros"
-            crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, lista_id=lista_id)
+            crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, hogar_id=hogar_id)
             creados += 1
 
     db.commit()

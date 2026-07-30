@@ -17,7 +17,7 @@ from .translator import traducir
 
 csrf = CSRFProtect()
 
-from .rutas import auth, articulos_lista, categorias, consumo, historial, listas, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios, version
+from .rutas import auth, articulos_compra, categorias, consumo, historial, hogares, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios, version
 from .rutas.auth import RUTAS_PUBLICAS
 
 
@@ -101,8 +101,13 @@ def create_app():
     app.register_blueprint(productos.bp)
     app.register_blueprint(categorias.bp)
     app.register_blueprint(historial.bp)
-    app.register_blueprint(listas.bp)
-    app.register_blueprint(articulos_lista.bp)
+    app.register_blueprint(hogares.bp)
+    # Alias temporal /api/listas -> misma lógica que /api/hogares, para no
+    # romper peticiones de PWAs instaladas con la app antigua en caché offline
+    # hasta que se confirme que todos los clientes migraron (ver
+    # docs/HOGAR_REESTRUCTURACION.md).
+    app.register_blueprint(hogares.bp, name="hogares_alias_legado", url_prefix="/api/listas")
+    app.register_blueprint(articulos_compra.bp)
     app.register_blueprint(permisos.bp)
     app.register_blueprint(tickets.bp)
     app.register_blueprint(ocr_tickets.bp)

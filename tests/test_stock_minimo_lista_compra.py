@@ -22,33 +22,33 @@ class ReproBajadaStockTest(unittest.TestCase):
             )
             usuario_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 ("Lista de test", usuario_id, ahora(), ahora()),
             )
-            self.lista_id = cur.lastrowid
+            self.hogar_id = cur.lastrowid
             db.commit()
 
         self.usuario_id = usuario_id
         with self.client.session_transaction() as sess:
             sess["usuario"] = nombre_usuario
             sess["usuario_id"] = usuario_id
-            sess["lista_actual_id"] = self.lista_id
+            sess["hogar_actual_id"] = self.hogar_id
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
             db.execute(
-                "DELETE FROM stock_lista WHERE lista_id IN "
-                "(SELECT id FROM listas WHERE usuario_propietario_id = ?)",
+                "DELETE FROM stock_hogar WHERE hogar_id IN "
+                "(SELECT id FROM hogares WHERE usuario_propietario_id = ?)",
                 (self.usuario_id,),
             )
             db.execute(
-                "DELETE FROM articulos_lista WHERE lista_id IN "
-                "(SELECT id FROM listas WHERE usuario_propietario_id = ?)",
+                "DELETE FROM articulos_compra WHERE hogar_id IN "
+                "(SELECT id FROM hogares WHERE usuario_propietario_id = ?)",
                 (self.usuario_id,),
             )
-            db.execute("DELETE FROM listas WHERE usuario_propietario_id = ?", (self.usuario_id,))
+            db.execute("DELETE FROM hogares WHERE usuario_propietario_id = ?", (self.usuario_id,))
             db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             db.commit()
 
@@ -75,13 +75,13 @@ class ReproBajadaStockTest(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             fila = db.execute(
-                "SELECT cantidad, stock_minimo FROM stock_lista WHERE producto_id = ? AND lista_id = ?",
-                (producto_id, self.lista_id),
+                "SELECT cantidad, stock_minimo FROM stock_hogar WHERE producto_id = ? AND hogar_id = ?",
+                (producto_id, self.hogar_id),
             ).fetchone()
             print("STOCK ACTUAL:", dict(fila))
             pendiente = db.execute(
-                "SELECT * FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND activo = 1 AND lista_id = ?",
-                (producto_id, self.lista_id),
+                "SELECT * FROM articulos_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1 AND hogar_id = ?",
+                (producto_id, self.hogar_id),
             ).fetchone()
             print("PENDIENTE:", dict(pendiente) if pendiente else None)
 
@@ -119,8 +119,8 @@ class ReproEdicionCompletaTest(ReproBajadaStockTest):
         with self.app.app_context():
             db = get_db()
             pendiente = db.execute(
-                "SELECT * FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND activo = 1 AND lista_id = ?",
-                (producto_id, self.lista_id),
+                "SELECT * FROM articulos_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1 AND hogar_id = ?",
+                (producto_id, self.hogar_id),
             ).fetchone()
             print("PENDIENTE EDICION:", dict(pendiente) if pendiente else None)
 

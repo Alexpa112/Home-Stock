@@ -19,7 +19,7 @@ Reglas de trabajo (pedidas por el usuario):
 - Este fichero se actualiza tras cada punto completado, para poder retomar el trabajo aunque
   se pierda el contexto de la conversacion (pasar solo este arbol basta para continuar).
 
-Estado global: **EN CURSO** — Punto 1 completado, siguiente: Punto 2 (backend Flask).
+Estado global: **EN CURSO** — Puntos 1 y 2 completados, siguiente: Punto 3 (frontend API/contexto).
 
 ---
 
@@ -52,16 +52,56 @@ Estado global: **EN CURSO** — Punto 1 completado, siguiente: Punto 2 (backend 
   perdida de datos es minimo; si se quiere backup extra antes de desplegar a
   produccion, hacerlo a nivel de operacion (copiar el fichero .db) antes del deploy.
 
-### 2. Backend Flask
-- [ ] `stockhogar/rutas/listas.py` -> `stockhogar/rutas/hogares.py`, prefijo `/api/hogares`
-      (mantener alias `/api/listas` temporalmente por PWA offline con peticiones en cola)
-- [ ] `stockhogar/rutas/articulos_lista.py` -> `stockhogar/rutas/articulos_compra.py`,
-      prefijo `/api/hogares/<id>/compra`
-- [ ] `stockhogar/rutas/permisos.py` — renombrar funciones/claves de error
-      (`err_no_salir_propia_lista` -> `err_no_salir_propio_hogar`, etc.)
-- [ ] `session['lista_actual_id']` -> `session['hogar_actual_id']`
-- [ ] `stockhogar/i18n.py` — claves de error/mensajes que se refieran al hogar
-- [ ] Verificar: `python -m pytest tests/ -q` pasa completo
+### 2. Backend Flask — COMPLETADO 2026-07-30 (alcance ampliado a 8 ficheros)
+Descubrimiento durante el trabajo: el plan original solo contaba 3 ficheros
+(`listas.py`, `articulos_lista.py`, `permisos.py`), pero 8 ficheros de rutas
+dependian del modelo antiguo. Se decidio con el usuario ampliar el alcance a
+los 8 para no dejar el backend con dos fuentes de verdad divergentes.
+
+- [x] `stockhogar/rutas/listas.py` -> `stockhogar/rutas/hogares.py` (git mv),
+      Blueprint `hogares`, prefijo `/api/hogares`
+- [x] Alias `/api/listas` registrado en `stockhogar/__init__.py` reutilizando el
+      mismo blueprint (`register_blueprint(hogares.bp, name="hogares_alias_legado",
+      url_prefix="/api/listas")`) para no romper peticiones de PWA offline en cola
+- [x] `stockhogar/rutas/articulos_lista.py` -> `stockhogar/rutas/articulos_compra.py`
+      (git mv), Blueprint `articulos_compra`, sigue en `/api/articulos` (sin cambio
+      de prefijo, solo de tabla interna: `articulos_lista` -> `articulos_compra`)
+- [x] `stockhogar/rutas/permisos.py` — usa `hogares`/`permisos_hogar`/
+      `invitaciones_hogar`, prefijo ya era `/api/hogares`
+- [x] `stockhogar/servicios/stock.py` — logica central de stock (`sumar_stock`,
+      `revisar_stock_bajo`, `registrar_movimiento`, `crear_producto_nuevo`) migrada
+      a `stock_hogar`/`articulos_compra`/`hogares`; `lista_actual_con_permiso` ->
+      `hogar_actual_con_permiso`
+- [x] `stockhogar/rutas/productos.py`, `tickets.py`, `consumo.py`, `historial.py`,
+      `auth.py` — actualizados a `hogar_id`/`stock_hogar`/`articulos_compra`/
+      `hogares`/`permisos_hogar`
+- [x] `session['lista_actual_id']` -> `session['hogar_actual_id']` en todos los sitios
+- [x] `stockhogar/utils/converters.py` — sin cambios necesarios (no referenciaba
+      nombres de tabla directamente)
+- [x] `stockhogar/translations.json` — claves renombradas en los 7 idiomas:
+      `recurso_lista`->`recurso_hogar`, `err_no_hay_lista_activa`->
+      `err_no_hay_hogar_activo`, `err_sin_permiso_editar_lista`->
+      `err_sin_permiso_editar_hogar`, `err_no_salir_propia_lista`->
+      `err_no_salir_propio_hogar` (solo las claves; el texto traducido se revisa
+      en el Punto 5)
+- [x] Corregido un falso positivo del renombrado automatico: la ruta
+      `/api/auth/preferencias-listas` (preferencia de vista lista/recuadros de la
+      lista de la compra, sin relacion con el hogar como contenedor) se habia
+      renombrado por error a `preferencias-hogares`; revertida a su nombre original
+- [x] Corregidos 2 mensajes de error en `articulos_compra.py` que el renombrado
+      automatico dejo con sentido incorrecto ("en uso en hogares activas" ->
+      "en uso en la lista de la compra")
+- [x] Tests (`tests/*.py`) actualizados en la misma tanda (se adelanta parte del
+      Punto 7 porque los tests insertan datos directamente en las tablas viejas
+      via SQL y no podian verificar el Punto 2 sin este cambio): 13 ficheros de
+      test migrados a `hogares`/`permisos_hogar`/`articulos_compra`/`stock_hogar`/
+      `hogar_actual_id`
+- [x] Verificado: `python -m pytest tests/ -q` -> 66 passed, 1 skipped
+- Hallazgo aparte (no relacionado con esta tarea, reportado como tarea suelta):
+  `tests/test_historial_catalogo.py` no limpia una fila fija de
+  `historial_articulos` en tearDown; si la suite corre dos veces seguidas contra
+  la BD real sin reiniciarla, falla por UNIQUE constraint. Prexistente, no
+  causado por esta migracion.
 
 ### 3. Frontend — API y contexto
 - [ ] `lib/api.ts`: `listasApi` -> `hogaresApi`, apuntando a `/api/hogares`
@@ -115,3 +155,5 @@ Estado global: **EN CURSO** — Punto 1 completado, siguiente: Punto 2 (backend 
   quedo commiteado antes de empezar esta tarea.
 - 2026-07-30 — Punto 1 completado (migracion BD hogares/permisos_hogar/invitaciones_hogar/
   articulos_compra/stock_hogar/movimientos_stock.hogar_id). Ver hash en el siguiente commit.
+- 2026-07-30 — Punto 2 completado (backend Flask, alcance ampliado a 8 ficheros de rutas +
+  servicios/stock.py + 13 ficheros de test + translations.json). 66 passed, 1 skipped.

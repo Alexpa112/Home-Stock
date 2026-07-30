@@ -8,7 +8,7 @@ from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..utils import Validator, DataConverter, ValidationError
 from ..servicios.stock import (
-    lista_actual_con_permiso,
+    hogar_actual_con_permiso,
     revisar_stock_bajo,
     sumar_stock,
     crear_producto_nuevo,
@@ -16,7 +16,7 @@ from ..servicios.stock import (
 )
 from .categorias import normalizar_categoria
 from .historial import recordar_articulo
-from .listas import _usuario_tiene_permiso
+from .hogares import _usuario_tiene_permiso
 from ..servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
@@ -29,23 +29,23 @@ logger = logging.getLogger(__name__)
 def listar_productos():
     db = get_db()
 
-    lista_id = lista_actual_con_permiso(db, session)
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
         # Sin lista activa o sin permiso: no se muestra stock de nadie más
         return APIResponse.success([])
 
-    # El stock es el que hay en stock_lista para ESTA lista (no el catálogo global).
+    # El stock es el que hay en stock_hogar para ESTA lista (no el catálogo global).
     # sl.cantidad/sl.stock_minimo se seleccionan DESPUÉS que p.cantidad/p.stock_minimo
     # para que, con nombres de columna repetidos, prevalezcan los valores de la lista.
     filas = db.execute(
         """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
-           FROM stock_lista sl
+           FROM stock_hogar sl
            JOIN productos p ON p.id = sl.producto_id
-           WHERE sl.lista_id = ?
+           WHERE sl.hogar_id = ?
            ORDER BY p.categoria, p.nombre COLLATE NOCASE""",
-        (lista_id,),
+        (hogar_id,),
     ).fetchall()
 
     return APIResponse.success([DataConverter.producto_to_dict(f) for f in filas])
@@ -66,21 +66,21 @@ def crear_producto():
 
     db = get_db()
 
-    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="editar")
+    if not hogar_id:
         return APIResponse.no_permitido()
 
     producto_id = crear_producto_nuevo(
-        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, lista_id
+        db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, hogar_id
     )
     db.commit()
     fila = db.execute(
         """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
-           FROM productos p JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
+           FROM productos p JOIN stock_hogar sl ON p.id = sl.producto_id AND sl.hogar_id = ?
            WHERE p.id = ?""",
-        (lista_id, producto_id),
+        (hogar_id, producto_id),
     ).fetchone()
     return APIResponse.success(DataConverter.producto_to_dict(fila), 201)
 
@@ -96,15 +96,15 @@ def obtener_traducciones_producto(producto_id, idioma):
     """
     db = get_db()
 
-    lista_id = lista_actual_con_permiso(db, session)
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
         return APIResponse.no_permitido()
 
     producto = db.execute(
         """SELECT p.id FROM productos p
-           JOIN stock_lista sl ON sl.producto_id = p.id AND sl.lista_id = ?
+           JOIN stock_hogar sl ON sl.producto_id = p.id AND sl.hogar_id = ?
            WHERE p.id = ?""",
-        (lista_id, producto_id),
+        (hogar_id, producto_id),
     ).fetchone()
 
     if not producto:
@@ -206,17 +206,17 @@ def traducir_producto_auto():
         acceso_valido = False
         if producto_id:
             lista_del_producto = db.execute(
-                "SELECT lista_id FROM stock_lista WHERE producto_id = ?", (producto_id,)
+                "SELECT hogar_id FROM stock_hogar WHERE producto_id = ?", (producto_id,)
             ).fetchall()
             acceso_valido = any(
-                _usuario_tiene_permiso(db, fila["lista_id"], usuario_id) for fila in lista_del_producto
+                _usuario_tiene_permiso(db, fila["hogar_id"], usuario_id) for fila in lista_del_producto
             )
         elif articulo_id:
             fila_articulo = db.execute(
-                "SELECT lista_id FROM articulos_lista WHERE id = ?", (articulo_id,)
+                "SELECT hogar_id FROM articulos_compra WHERE id = ?", (articulo_id,)
             ).fetchone()
             acceso_valido = bool(
-                fila_articulo and _usuario_tiene_permiso(db, fila_articulo["lista_id"], usuario_id)
+                fila_articulo and _usuario_tiene_permiso(db, fila_articulo["hogar_id"], usuario_id)
             )
 
         if not acceso_valido:
@@ -238,17 +238,17 @@ def traducir_producto_auto():
 def actualizar_producto(producto_id):
     db = get_db()
 
-    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="editar")
+    if not hogar_id:
         return APIResponse.no_permitido()
 
     fila = db.execute(
         """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
-           FROM productos p JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
+           FROM productos p JOIN stock_hogar sl ON p.id = sl.producto_id AND sl.hogar_id = ?
            WHERE p.id = ?""",
-        (lista_id, producto_id),
+        (hogar_id, producto_id),
     ).fetchone()
     if not fila:
         return APIResponse.no_encontrado("recurso_producto")
@@ -261,7 +261,7 @@ def actualizar_producto(producto_id):
             delta = int(datos.get("delta", 0))
         except (TypeError, ValueError) as e:
             raise ValidationError("delta debe ser un número entero") from e
-        sumar_stock(db, producto_id, delta, lista_id)
+        sumar_stock(db, producto_id, delta, hogar_id)
     else:
         nombre = Validator.string_opcional(datos.get("nombre"), actual["nombre"], 80)
         categoria = datos.get("categoria") or actual["categoria"]
@@ -275,8 +275,8 @@ def actualizar_producto(producto_id):
         unidad = Validator.string_opcional(datos.get("unidad"), actual["unidad"], 20)
         icono = Validator.string_opcional(datos.get("icono"), actual.get("icono"), 30)
 
-        # nombre/categoria/unidad/icono son datos de catálogo compartidos entre listas;
-        # cantidad/stock_minimo son propios de ESTA lista y solo se guardan en stock_lista.
+        # nombre/categoria/unidad/icono son datos de catálogo compartidos entre hogares;
+        # cantidad/stock_minimo son propios de ESTA lista y solo se guardan en stock_hogar.
         db.execute(
             "UPDATE productos SET nombre=?, categoria=?, unidad=?, "
             "dias_aviso=?, icono=?, fecha_actualizacion=? WHERE id=?",
@@ -284,26 +284,26 @@ def actualizar_producto(producto_id):
         )
 
         db.execute(
-            """UPDATE stock_lista SET cantidad=?, stock_minimo=?, fecha_actualizacion=?
-               WHERE lista_id=? AND producto_id=?""",
-            (cantidad, stock_minimo, ahora(), lista_id, producto_id)
+            """UPDATE stock_hogar SET cantidad=?, stock_minimo=?, fecha_actualizacion=?
+               WHERE hogar_id=? AND producto_id=?""",
+            (cantidad, stock_minimo, ahora(), hogar_id, producto_id)
         )
 
         if cantidad != actual["cantidad"]:
-            registrar_movimiento(db, producto_id, lista_id, cantidad - actual["cantidad"], cantidad, origen="edicion")
+            registrar_movimiento(db, producto_id, hogar_id, cantidad - actual["cantidad"], cantidad, origen="edicion")
 
         if icono:
             recordar_articulo(db, nombre, icono, categoria, unidad, cantidad_defecto=cantidad)
-        revisar_stock_bajo(db, producto_id, lista_id)
+        revisar_stock_bajo(db, producto_id, hogar_id)
 
     db.commit()
     fila = db.execute(
         """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
                   sl.cantidad, sl.stock_minimo
-           FROM productos p JOIN stock_lista sl ON p.id = sl.producto_id AND sl.lista_id = ?
+           FROM productos p JOIN stock_hogar sl ON p.id = sl.producto_id AND sl.hogar_id = ?
            WHERE p.id = ?""",
-        (lista_id, producto_id),
+        (hogar_id, producto_id),
     ).fetchone()
     return APIResponse.success(DataConverter.producto_to_dict(fila))
 
@@ -314,30 +314,30 @@ def actualizar_producto(producto_id):
 def borrar_producto(producto_id):
     db = get_db()
 
-    lista_id = lista_actual_con_permiso(db, session, nivel_requerido="editar")
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="editar")
+    if not hogar_id:
         return APIResponse.no_permitido()
 
     en_lista = db.execute(
-        "SELECT 1 FROM stock_lista WHERE lista_id = ? AND producto_id = ?",
-        (lista_id, producto_id),
+        "SELECT 1 FROM stock_hogar WHERE hogar_id = ? AND producto_id = ?",
+        (hogar_id, producto_id),
     ).fetchone()
     if not en_lista:
         return APIResponse.no_encontrado("recurso_producto")
 
-    # Solo se quita de ESTA lista: el producto/catálogo puede seguir en otras listas
+    # Solo se quita de ESTA lista: el producto/catálogo puede seguir en otras hogares
     db.execute(
-        "DELETE FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND lista_id = ?",
-        (producto_id, lista_id),
+        "DELETE FROM articulos_compra WHERE producto_id = ? AND origen = 'auto' AND hogar_id = ?",
+        (producto_id, hogar_id),
     )
     db.execute(
-        "DELETE FROM stock_lista WHERE lista_id = ? AND producto_id = ?",
-        (lista_id, producto_id),
+        "DELETE FROM stock_hogar WHERE hogar_id = ? AND producto_id = ?",
+        (hogar_id, producto_id),
     )
 
     # Si ninguna otra lista usa ya este producto, limpiar el catálogo global
     otras = db.execute(
-        "SELECT 1 FROM stock_lista WHERE producto_id = ?", (producto_id,)
+        "SELECT 1 FROM stock_hogar WHERE producto_id = ?", (producto_id,)
     ).fetchone()
     if not otras:
         db.execute("DELETE FROM productos WHERE id = ?", (producto_id,))

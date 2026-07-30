@@ -15,7 +15,7 @@ bp = Blueprint("historial", __name__, url_prefix="/api/historial")
 
 
 def buscar_historial(db, nombre):
-    """Busca un artículo en el catálogo (compartido por todas las listas)."""
+    """Busca un artículo en el catálogo (compartido por todas las hogares)."""
     nombre = (nombre or "").strip()
     if not nombre:
         return None
@@ -87,13 +87,13 @@ def buscar_catalogo():
             "ORDER BY nombre COLLATE NOCASE LIMIT 30",
         ).fetchall()
 
-    from ..servicios.stock import lista_actual_con_permiso
+    from ..servicios.stock import hogar_actual_con_permiso
 
     personalizados = []
-    lista_id = lista_actual_con_permiso(db, session)
-    if lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if hogar_id:
         propietario = db.execute(
-            "SELECT usuario_propietario_id FROM listas WHERE id = ?", (lista_id,)
+            "SELECT usuario_propietario_id FROM hogares WHERE id = ?", (hogar_id,)
         ).fetchone()
         if propietario:
             if query:

@@ -1,4 +1,4 @@
-"""Tests de regresion para POST /api/listas/<id>/compartir.
+"""Tests de regresion para POST /api/hogares/<id>/compartir.
 
 Cubre dos bugs:
 1. La busqueda de usuario destino por nombre no usaba COLLATE NOCASE,
@@ -38,11 +38,11 @@ class CompartirListaTests(unittest.TestCase):
             )
             self.destino_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 ("Lista de test", self.propietario_id, ahora(), ahora()),
             )
-            self.lista_id = cur.lastrowid
+            self.hogar_id = cur.lastrowid
             db.commit()
 
         with self.client.session_transaction() as sess:
@@ -52,15 +52,15 @@ class CompartirListaTests(unittest.TestCase):
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
-            db.execute("DELETE FROM permisos_lista WHERE lista_id = ?", (self.lista_id,))
-            db.execute("DELETE FROM invitaciones_lista WHERE lista_id = ?", (self.lista_id,))
-            db.execute("DELETE FROM listas WHERE id = ?", (self.lista_id,))
+            db.execute("DELETE FROM permisos_hogar WHERE hogar_id = ?", (self.hogar_id,))
+            db.execute("DELETE FROM invitaciones_hogar WHERE hogar_id = ?", (self.hogar_id,))
+            db.execute("DELETE FROM hogares WHERE id = ?", (self.hogar_id,))
             db.execute("DELETE FROM usuarios WHERE id IN (?, ?)", (self.propietario_id, self.destino_id))
             db.commit()
 
     def test_compartir_con_nombre_en_minusculas_encuentra_al_usuario(self):
         resp = self.client.post(
-            f"/api/listas/{self.lista_id}/compartir",
+            f"/api/hogares/{self.hogar_id}/compartir",
             json={"usuario": self.nombre_destino.lower(), "nivel": "editar"},
         )
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -68,15 +68,15 @@ class CompartirListaTests(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             permiso = db.execute(
-                "SELECT nivel FROM permisos_lista WHERE lista_id = ? AND usuario_id = ?",
-                (self.lista_id, self.destino_id),
+                "SELECT nivel FROM permisos_hogar WHERE hogar_id = ? AND usuario_id = ?",
+                (self.hogar_id, self.destino_id),
             ).fetchone()
             self.assertIsNotNone(permiso, "El usuario destino deberia tener permiso sobre la lista")
             self.assertEqual(permiso["nivel"], "editar")
 
     def test_compartir_con_nombre_en_mayusculas_encuentra_al_usuario(self):
         resp = self.client.post(
-            f"/api/listas/{self.lista_id}/compartir",
+            f"/api/hogares/{self.hogar_id}/compartir",
             json={"usuario": self.nombre_destino.upper(), "nivel": "ver"},
         )
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -88,7 +88,7 @@ class CompartirListaTests(unittest.TestCase):
             side_effect=RuntimeError(mensaje_interno_sensible),
         ):
             resp = self.client.post(
-                f"/api/listas/{self.lista_id}/compartir",
+                f"/api/hogares/{self.hogar_id}/compartir",
                 json={"email": "destino@example.com", "nivel": "editar"},
             )
 
