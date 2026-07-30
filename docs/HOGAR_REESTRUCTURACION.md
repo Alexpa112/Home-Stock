@@ -19,24 +19,38 @@ Reglas de trabajo (pedidas por el usuario):
 - Este fichero se actualiza tras cada punto completado, para poder retomar el trabajo aunque
   se pierda el contexto de la conversacion (pasar solo este arbol basta para continuar).
 
-Estado global: **EN CURSO** — ver progreso por punto abajo.
+Estado global: **EN CURSO** — Punto 1 completado, siguiente: Punto 2 (backend Flask).
 
 ---
 
 ## Arbol de desarrollo
 
-### 1. Migracion de base de datos (stockhogar/db.py)
-- [ ] Nueva migracion versionada (patron incremental ya existente en `_init_db_impl`)
-- [ ] Crear tabla `hogares` (copia de `listas`) + copiar datos
-- [ ] Crear tabla `permisos_hogar` (copia de `permisos_lista`, FK `hogar_id`) + copiar datos
-- [ ] Crear tabla `invitaciones_hogar` (copia de `invitaciones_lista`, FK `hogar_id`) + copiar datos
-- [ ] Crear tabla `articulos_compra` (copia de `articulos_lista`, FK `hogar_id`) + copiar datos
-- [ ] Crear tabla `stock_hogar` (copia de `stock_lista`, FK `hogar_id`) + copiar datos
-- [ ] `movimientos_stock`: anadir columna `hogar_id`, copiar valor de `lista_id`
-- [ ] Migracion idempotente (comprobar si `hogares` ya existe antes de repetir)
-- [ ] Backup automatico antes de aplicar (patron ya usado en el proyecto)
-- [ ] Tablas viejas (`listas`, etc.) se mantienen sin tocar por ahora
-- [ ] Verificar: tests de BD pasan, migracion se puede ejecutar dos veces sin error
+### 1. Migracion de base de datos (stockhogar/db.py) — COMPLETADO 2026-07-30
+- [x] Migracion anadida al final de `_init_db_impl` (stockhogar/db.py), despues de
+      que `articulos_lista` ya tiene su forma final (columna `articulo_personalizado_id`
+      incluida) y antes del `DROP TABLE espacios`
+- [x] Crear tabla `hogares` (copia de `listas`) + copiar datos
+- [x] Crear tabla `permisos_hogar` (copia de `permisos_lista`, FK `hogar_id`) + copiar datos
+- [x] Crear tabla `invitaciones_hogar` (copia de `invitaciones_lista`, FK `hogar_id`) + copiar datos
+- [x] Crear tabla `articulos_compra` (copia de `articulos_lista`, FK `hogar_id`) + copiar datos
+- [x] Crear tabla `stock_hogar` (copia de `stock_lista`, FK `hogar_id`) + copiar datos
+- [x] `movimientos_stock`: anadida columna `hogar_id` (via `asegurar_columna`), copiado
+      valor de `lista_id`, nuevo indice `idx_movimientos_stock_hogar_fecha`
+- [x] Migracion idempotente: usa `INSERT ... WHERE id NOT IN (SELECT id FROM <tabla_nueva>)`,
+      igual que el patron `INSERT OR IGNORE` ya usado en el resto del fichero
+- [x] Tablas viejas (`listas`, `permisos_lista`, `invitaciones_lista`, `articulos_lista`,
+      `stock_lista`) se mantienen intactas, sin DROP ni ALTER
+- [x] Verificado: `python -m pytest tests/ -q` -> 66 passed, 1 skipped (corre contra
+      `data/stock.db` real, tal como esta configurado el proyecto)
+- [x] Verificado contra `data/stock.db` real: recuentos identicos entre tabla vieja y
+      nueva (listas=76/hogares=76, permisos_lista=0/permisos_hogar=0,
+      invitaciones_lista=1/invitaciones_hogar=1, articulos_lista=4/articulos_compra=4,
+      stock_lista=9421/stock_hogar=9421); estable tras multiples arranques de la app
+      (create_app se llamo varias veces durante los tests sobre el mismo fichero)
+- Nota: no se ha anadido backup automatico separado porque la migracion es aditiva
+  (solo CREATE TABLE + INSERT, nunca toca las tablas viejas), asi que el riesgo de
+  perdida de datos es minimo; si se quiere backup extra antes de desplegar a
+  produccion, hacerlo a nivel de operacion (copiar el fichero .db) antes del deploy.
 
 ### 2. Backend Flask
 - [ ] `stockhogar/rutas/listas.py` -> `stockhogar/rutas/hogares.py`, prefijo `/api/hogares`
@@ -99,3 +113,5 @@ Estado global: **EN CURSO** — ver progreso por punto abajo.
 
 - 2026-07-30 — Fix suelto previo: logo real del login (`53ddb295`), no forma parte del arbol pero
   quedo commiteado antes de empezar esta tarea.
+- 2026-07-30 — Punto 1 completado (migracion BD hogares/permisos_hogar/invitaciones_hogar/
+  articulos_compra/stock_hogar/movimientos_stock.hogar_id). Ver hash en el siguiente commit.
