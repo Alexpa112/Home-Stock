@@ -286,10 +286,16 @@ export default function SettingsPage() {
             role="switch"
             aria-checked={dobleFactorActivo}
             aria-label={t('doble_factor_titulo')}
-            className={`relative w-12 h-7 rounded-full transition-colors shrink-0 disabled:opacity-40 ${dobleFactorActivo ? 'bg-accent' : 'bg-muted'}`}
+            className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 disabled:opacity-50 border-2 ${
+              dobleFactorActivo
+                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
+                : 'bg-muted border-border hover:border-muted-foreground'
+            }`}
           >
             <span
-              className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${dobleFactorActivo ? 'translate-x-5' : ''}`}
+              className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
+                dobleFactorActivo ? 'translate-x-6' : ''
+              }`}
             />
           </button>
         </div>
@@ -405,15 +411,17 @@ export default function SettingsPage() {
           <span className="flex-1 text-sm">{t('modo_oscuro')}</span>
           <button
             onClick={toggleDarkMode}
-            className={`relative inline-flex items-center h-7 w-12 rounded-full transition-colors shrink-0 ${
-              darkMode ? 'bg-accent' : 'bg-muted'
+            className={`relative inline-flex items-center h-8 w-14 rounded-full transition-all duration-300 shrink-0 border-2 ${
+              darkMode
+                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
+                : 'bg-muted border-border hover:border-muted-foreground'
             }`}
             aria-label={darkMode ? t('aria_desactivar_modo_oscuro') : t('aria_activar_modo_oscuro')}
             aria-pressed={darkMode}
           >
             <span
-              className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                darkMode ? 'translate-x-5' : ''
+              className={`absolute top-1.5 left-1.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${
+                darkMode ? 'translate-x-6' : ''
               }`}
             />
           </button>
@@ -477,15 +485,17 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => updatePreferences({ agrupar_categorias: preferences.agrupar_categorias === 'on' ? 'off' : 'on' })}
-            className={`relative inline-flex items-center h-7 w-12 rounded-full transition-colors shrink-0 ${
-              preferences.agrupar_categorias === 'on' ? 'bg-accent' : 'bg-muted'
+            className={`relative inline-flex items-center h-8 w-14 rounded-full transition-all duration-300 shrink-0 border-2 ${
+              preferences.agrupar_categorias === 'on'
+                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
+                : 'bg-muted border-border hover:border-muted-foreground'
             }`}
             aria-label={t('agrupar_por_categoria')}
             aria-pressed={preferences.agrupar_categorias === 'on'}
           >
             <span
-              className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                preferences.agrupar_categorias === 'on' ? 'translate-x-5' : ''
+              className={`absolute top-1.5 left-1.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${
+                preferences.agrupar_categorias === 'on' ? 'translate-x-6' : ''
               }`}
             />
           </button>
