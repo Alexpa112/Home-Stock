@@ -1,26 +1,52 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    @media (prefers-color-scheme: light) {
-      .background { fill: black; }
-      .foreground { fill: white; }
-    }
-    @media (prefers-color-scheme: dark) {
-      .background { fill: white; }
-      .foreground { fill: black; }
-    }
-  </style>
-  <g clip-path="url(#clip0_7960_43945)">
-    <rect class="background" width="180" height="180" rx="37" />
-    <g style="transform: scale(95%); transform-origin: center">
-      <path class="foreground"
-        d="M101.141 53H136.632C151.023 53 162.689 64.6662 162.689 79.0573V112.904H148.112V79.0573C148.112 78.7105 148.098 78.3662 148.072 78.0251L112.581 112.898C112.701 112.902 112.821 112.904 112.941 112.904H148.112V126.672H112.941C98.5504 126.672 86.5638 114.891 86.5638 100.5V66.7434H101.141V100.5C101.141 101.15 101.191 101.792 101.289 102.422L137.56 66.7816C137.255 66.7563 136.945 66.7434 136.632 66.7434H101.141V53Z" />
-      <path class="foreground"
-        d="M65.2926 124.136L14 66.7372H34.6355L64.7495 100.436V66.7372H80.1365V118.47C80.1365 126.278 70.4953 129.958 65.2926 124.136Z" />
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded -->
+  <rect width="256" height="256" rx="56" fill="currentColor" opacity="0.1"/>
+
+  <!-- Main house icon with dream elements -->
+  <g transform="translate(128, 128)">
+    <!-- Roof -->
+    <path d="M -45 -5 L 0 -50 L 45 -5 Z"
+          fill="url(#gradAccent)" stroke="currentColor" stroke-width="3"
+          stroke-linejoin="round" stroke-linecap="round"/>
+
+    <!-- House body -->
+    <rect x="-45" y="-5" width="90" height="60" rx="4"
+          fill="none" stroke="currentColor" stroke-width="3"/>
+
+    <!-- Door -->
+    <rect x="-18" y="10" width="36" height="40" rx="3"
+          fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <circle cx="9" cy="35" r="2" fill="currentColor"/>
+
+    <!-- Left window -->
+    <rect x="-38" y="0" width="20" height="20" rx="2"
+          fill="none" stroke="currentColor" stroke-width="2"/>
+    <line x1="-28" y1="0" x2="-28" y2="20" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="-38" y1="10" x2="-18" y2="10" stroke="currentColor" stroke-width="1.5"/>
+
+    <!-- Right window -->
+    <rect x="18" y="0" width="20" height="20" rx="2"
+          fill="none" stroke="currentColor" stroke-width="2"/>
+    <line x1="28" y1="0" x2="28" y2="20" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="18" y1="10" x2="38" y2="10" stroke="currentColor" stroke-width="1.5"/>
+
+    <!-- Dream cloud above -->
+    <path d="M -40 -60 Q -25 -75 0 -72 Q 25 -75 40 -60"
+          fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" opacity="0.7"/>
+
+    <!-- Stars (dream elements) -->
+    <g fill="currentColor">
+      <circle cx="-52" cy="-68" r="3.5" opacity="0.85"/>
+      <circle cx="50" cy="-75" r="2.5" opacity="0.65"/>
+      <circle cx="0" cy="-88" r="3.5" opacity="0.75"/>
     </g>
   </g>
-  <defs>
-    <clipPath id="clip0_7960_43945">
-      <rect width="180" height="180" fill="white" />
-    </clipPath>
-  </defs>
 </svg>

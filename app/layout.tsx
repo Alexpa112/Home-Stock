@@ -6,8 +6,12 @@ export const metadata: Metadata = {
   title: 'Dreame! - Inventario del Hogar',
   description: 'Gestiona tu inventario del hogar y lista de compra de forma fácil',
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-icon.png',
+    icon: [
+      { rel: 'icon', url: '/favicon-32x32.png', sizes: '32x32' },
+      { rel: 'icon', url: '/favicon-16x16.png', sizes: '16x16' },
+    ],
+    apple: '/apple-touch-icon.png',
+    shortcut: '/apple-touch-icon.png',
   },
 }
 

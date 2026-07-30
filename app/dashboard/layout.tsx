@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Users } from 'lucide-react'
 import { useState } from 'react'
@@ -87,8 +88,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <aside className="hidden lg:flex lg:flex-col lg:w-60 shrink-0 border-r border-border bg-card">
           {/* Logo */}
           <div className="flex items-center gap-2.5 h-14 px-5 border-b border-border">
-            <div className="w-7 h-7 bg-accent rounded-lg flex items-center justify-center shrink-0">
-              <Package className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-accent">
+              <Image src="/icon.svg" alt="Dreame" width={32} height={32} priority />
             </div>
             <span className="text-base font-bold tracking-tight">Dreame!</span>
           </div>
@@ -186,8 +187,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         {/* ── Contenido principal ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Header móvil: logo + selector de hogar (abre pantalla completa) */}
-          <header className="sticky top-0 z-40 lg:hidden flex items-center justify-between h-12 px-4 border-b border-border bg-card/90 backdrop-blur-sm">
-            <span className="text-base font-bold tracking-tight">Dreame!</span>
+          <header className="sticky top-0 z-40 lg:hidden flex items-center justify-between h-12 px-4 border-b border-border bg-card/90 backdrop-blur-sm gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-accent">
+                <Image src="/icon.svg" alt="Dreame" width={24} height={24} priority />
+              </div>
+              <span className="text-base font-bold tracking-tight">Dreame!</span>
+            </div>
             <button
               onClick={() => setMostrarSelectorHogar(true)}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors"
