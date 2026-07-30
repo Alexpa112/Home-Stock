@@ -19,7 +19,7 @@ Reglas de trabajo (pedidas por el usuario):
 - Este fichero se actualiza tras cada punto completado, para poder retomar el trabajo aunque
   se pierda el contexto de la conversacion (pasar solo este arbol basta para continuar).
 
-Estado global: **EN CURSO** — Puntos 1 y 2 completados, siguiente: Punto 3 (frontend API/contexto).
+Estado global: **EN CURSO** — Puntos 1, 2 y 3 completados, siguiente: Punto 4 (frontend navegacion/pantallas).
 
 ---
 
@@ -103,12 +103,27 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
   la BD real sin reiniciarla, falla por UNIQUE constraint. Prexistente, no
   causado por esta migracion.
 
-### 3. Frontend — API y contexto
-- [ ] `lib/api.ts`: `listasApi` -> `hogaresApi`, apuntando a `/api/hogares`
-- [ ] `contexts/HogarContext.tsx` — actualizar llamadas internas a la nueva API
-- [ ] `localStorage`: `CLAVE_LISTA_ACTIVA` -> `CLAVE_HOGAR_ACTIVO` (migrar clave vieja una vez,
-      sin desloguear usuarios con PWA instalada)
-- [ ] Verificar: `npx tsc --noEmit` limpio
+### 3. Frontend — API y contexto — COMPLETADO 2026-07-30
+- [x] `lib/api.ts`: `export const listas` -> `export const hogares`, endpoints
+      `/api/listas` -> `/api/hogares` (listar/crear/actualizar/eliminar/seleccionar/
+      salir); `permisos` (buscarUsuarios/miembros/compartir/generarEnlace/
+      actualizarPermiso/revocar/aceptarInvitacion) tambien apuntan a `/api/hogares`
+      (coincide con el prefijo real de `permisos.py`, sin cambios en el backend)
+- [x] `contexts/HogarContext.tsx` — import `hogares as hogaresApi`, y
+      `data.hogar_actual_id` (antes `data.lista_actual_id`, coincide con la
+      respuesta de `GET /api/hogares` tras el Punto 2)
+- [x] `components/shared/SelectorHogarPantallaCompleta.tsx` — import actualizado a
+      `hogaresApi`
+- [x] `app/dashboard/listas/page.tsx` — import actualizado a `hogaresApi` (la
+      pagina en si, su ruta `/dashboard/listas` y sus textos `t('...')` se dejan
+      para el Punto 4, este cambio es solo para que compile con la nueva API)
+- [x] `localStorage`: `CLAVE_LISTA_ACTIVA` -> `CLAVE_HOGAR_ACTIVO`, con migracion de
+      la clave vieja (`stockhogar-lista-activa-ui`) una sola vez si no existe la
+      nueva, sin desloguear ni perder seleccion en usuarios con la PWA instalada
+- [x] `app/aceptar-invitacion/[codigo]/page.tsx` — revisado, no usaba `listasApi`
+      directamente (solo `permisos.aceptarInvitacion`), sin cambios necesarios aqui
+- [x] Verificado: `npx tsc --noEmit` limpio, sin referencias residuales a
+      `listasApi`/`export const listas` en todo el frontend (grep completo)
 
 ### 4. Frontend — navegacion y pantallas
 - [ ] `app/dashboard/layout.tsx`: menu "Hogar" como padre con submenu (Stock / Lista de la
@@ -157,3 +172,5 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
   articulos_compra/stock_hogar/movimientos_stock.hogar_id). Ver hash en el siguiente commit.
 - 2026-07-30 — Punto 2 completado (backend Flask, alcance ampliado a 8 ficheros de rutas +
   servicios/stock.py + 13 ficheros de test + translations.json). 66 passed, 1 skipped.
+- 2026-07-30 — Punto 3 completado (lib/api.ts, HogarContext, SelectorHogarPantallaCompleta,
+  app/dashboard/listas/page.tsx, migracion de localStorage). tsc --noEmit limpio.

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Home, Plus, Users, MoreVertical, X } from 'lucide-react'
 import { useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { listas as listasApi } from '@/lib/api'
+import { hogares as hogaresApi } from '@/lib/api'
 import { clearCache } from '@/lib/dataCache'
 
 // Claves de lib/dataCache.ts que dependen del hogar activo: hay que limpiarlas
@@ -77,7 +77,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
       return
     }
     try {
-      await listasApi.actualizar(id, { nombre: nombreEditado.trim() })
+      await hogaresApi.actualizar(id, { nombre: nombreEditado.trim() })
       setRenombrandoId(null)
       await refrescar()
     } catch (err) {
@@ -93,7 +93,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     }
     setConfirmandoEliminarId(null)
     try {
-      await listasApi.eliminar(id)
+      await hogaresApi.eliminar(id)
       await refrescar()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_eliminar_lista'))
@@ -108,7 +108,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     }
     setConfirmandoSalirId(null)
     try {
-      await listasApi.salir(id)
+      await hogaresApi.salir(id)
       await refrescar()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_error_al_salir_lista'))

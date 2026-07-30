@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Users, Check, Trash2, UserPlus, X, Pencil, LogOut, AlertCircle, Copy, Mail, MessageCircle } from 'lucide-react'
-import { listas as listasApi, permisos } from '@/lib/api'
+import { hogares as hogaresApi, permisos } from '@/lib/api'
 import { useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -25,7 +25,10 @@ interface Miembro {
   fecha_otorgado?: string
 }
 
-const CLAVE_LISTA_ACTIVA = 'stockhogar-lista-activa-ui'
+const CLAVE_HOGAR_ACTIVO = 'stockhogar-hogar-activo-ui'
+// Clave antigua, previa al renombrado de "lista" a "hogar": se lee una vez
+// para no desloguear/perder la seleccion de usuarios con la PWA ya instalada.
+const CLAVE_LISTA_ACTIVA_LEGADO = 'stockhogar-lista-activa-ui'
 
 export default function ListasPage() {
   const { seleccionar: seleccionarHogar, refrescar: refrescarHogar } = useHogar()
@@ -55,7 +58,15 @@ export default function ListasPage() {
 
   useEffect(() => {
     cargar()
-    const guardada = localStorage.getItem(CLAVE_LISTA_ACTIVA)
+    let guardada = localStorage.getItem(CLAVE_HOGAR_ACTIVO)
+    if (!guardada) {
+      // Migracion unica desde la clave antigua (ver comentario arriba).
+      guardada = localStorage.getItem(CLAVE_LISTA_ACTIVA_LEGADO)
+      if (guardada) {
+        localStorage.setItem(CLAVE_HOGAR_ACTIVO, guardada)
+        localStorage.removeItem(CLAVE_LISTA_ACTIVA_LEGADO)
+      }
+    }
     if (guardada) setListaActivaId(parseInt(guardada, 10))
   }, [])
 
@@ -63,7 +74,7 @@ export default function ListasPage() {
     try {
       setLoading(true)
       setError('')
-      const data: any = await listasApi.listar()
+      const data: any = await hogaresApi.listar()
       setPropias(data.propias || [])
       setCompartidas(data.compartidas || [])
     } catch (err) {
@@ -78,7 +89,7 @@ export default function ListasPage() {
     if (!nuevoNombre.trim()) return
     try {
       setError('')
-      const nueva: any = await listasApi.crear(nuevoNombre.trim())
+      const nueva: any = await hogaresApi.crear(nuevoNombre.trim())
       setNuevoNombre('')
       await cargar()
       handleSeleccionar(nueva.id)
@@ -92,7 +103,7 @@ export default function ListasPage() {
       setError('')
       await seleccionarHogar(id)
       setListaActivaId(id)
-      localStorage.setItem(CLAVE_LISTA_ACTIVA, String(id))
+      localStorage.setItem(CLAVE_HOGAR_ACTIVO, String(id))
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_seleccionar_lista'))
     }
@@ -110,7 +121,7 @@ export default function ListasPage() {
     }
     try {
       setError('')
-      await listasApi.actualizar(id, { nombre: nombreEditado.trim() })
+      await hogaresApi.actualizar(id, { nombre: nombreEditado.trim() })
       setRenombrandoId(null)
       await cargar()
     } catch (err) {
@@ -123,10 +134,10 @@ export default function ListasPage() {
     setConfirmandoEliminarId(null)
     try {
       setError('')
-      await listasApi.eliminar(id)
+      await hogaresApi.eliminar(id)
       if (listaActivaId === id) {
         setListaActivaId(null)
-        localStorage.removeItem(CLAVE_LISTA_ACTIVA)
+        localStorage.removeItem(CLAVE_HOGAR_ACTIVO)
       }
       await cargar()
       await refrescarHogar()
@@ -140,10 +151,10 @@ export default function ListasPage() {
     setConfirmandoSalirId(null)
     try {
       setError('')
-      await listasApi.salir(id)
+      await hogaresApi.salir(id)
       if (listaActivaId === id) {
         setListaActivaId(null)
-        localStorage.removeItem(CLAVE_LISTA_ACTIVA)
+        localStorage.removeItem(CLAVE_HOGAR_ACTIVO)
       }
       await cargar()
       await refrescarHogar()
