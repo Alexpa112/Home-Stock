@@ -1,4 +1,5 @@
 """Rutas para escanear tickets de compra y volcarlos al stock."""
+import logging
 import os
 import subprocess
 import tempfile
@@ -16,7 +17,7 @@ from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_co
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
-EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp", "pdf"}
+EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "heif", "pdf"}
 TAMANO_MAXIMO_MB = 10
 
 
@@ -47,6 +48,31 @@ def _convertir_pdf_a_imagen(ruta_pdf):
     return ruta_png
 
 
+def _convertir_heic_a_imagen(ruta_heic):
+    """Convierte una foto HEIC/HEIF (formato por defecto de la camara de
+    iPhone al elegir "Subir archivo" desde la galeria, en vez de "Hacer
+    foto") a PNG con libheif (heif-convert).
+
+    Mismo motivo que con el PDF (ver _convertir_pdf_a_imagen): se usa el
+    binario de sistema (paquete Debian libheif-examples, con build nativo
+    para armv7l/aarch64) en vez de bindings Python (pillow-heif, pyheif),
+    que no siempre publican wheels para armv7l y forzarian compilar libheif
+    desde fuente en la Raspberry Pi.
+    """
+    ruta_png = ruta_heic + "_convertida.png"
+    try:
+        resultado = subprocess.run(
+            ["heif-convert", ruta_heic, ruta_png],
+            capture_output=True, timeout=30
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+    if resultado.returncode != 0 or not os.path.exists(ruta_png):
+        return None
+    return ruta_png
+
+
 @bp.route("/analizar", methods=["POST"])
 @requerir_sesion
 @manejo_errores
@@ -69,16 +95,21 @@ def analizar_ticket():
     sufijo = Path(archivo.filename).suffix.lower() or ".jpg"
     tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
     tmp.close()
-    ruta_png_pdf = None
+    ruta_png_convertida = None
     try:
         archivo.save(tmp.name)
 
         ruta_imagen = tmp.name
         if sufijo == ".pdf":
-            ruta_png_pdf = _convertir_pdf_a_imagen(tmp.name)
-            if not ruta_png_pdf:
+            ruta_png_convertida = _convertir_pdf_a_imagen(tmp.name)
+            if not ruta_png_convertida:
                 return APIResponse.error("err_procesando_ticket", 500)
-            ruta_imagen = ruta_png_pdf
+            ruta_imagen = ruta_png_convertida
+        elif sufijo in (".heic", ".heif"):
+            ruta_png_convertida = _convertir_heic_a_imagen(tmp.name)
+            if not ruta_png_convertida:
+                return APIResponse.error("err_procesando_ticket", 500)
+            ruta_imagen = ruta_png_convertida
 
         # Extraer texto con OCR (Tesseract)
         texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
@@ -87,6 +118,16 @@ def analizar_ticket():
         proc = ProcesadorTicketsV2()
         db = get_db()
         items = proc.procesar_completo(texto_ocr, db)
+
+        # Diagnostico: sin esto, un ticket mal reconocido (OCR ilegible o
+        # parser que descarta/lee mal las lineas) no deja ningun rastro para
+        # saber si el fallo esta en Tesseract o en el parser, y el Panel de
+        # Gestion del Servidor es la unica forma de ver que paso en la Pi.
+        logging.getLogger(__name__).info(
+            "Ticket analizado: %d lineas OCR, %d items detectados. Texto OCR:\n%s\nItems: %s",
+            len(texto_ocr.splitlines()), len(items), texto_ocr,
+            [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
+        )
 
         # Formatear respuesta para UI con sugerencias
         respuesta = crear_respuesta_usuario(items, db)
@@ -97,13 +138,12 @@ def analizar_ticket():
         # que para el resto de endpoints ya evita esto con un mensaje
         # generico). Aqui se hacia una excepcion para dar una pista sobre
         # Tesseract, pero el detalle real solo debe ir al log del servidor.
-        import logging
         logging.getLogger(__name__).exception("Error analizando ticket")
         return APIResponse.error("err_interno_generico", 500)
     finally:
         os.unlink(tmp.name)
-        if ruta_png_pdf and os.path.exists(ruta_png_pdf):
-            os.unlink(ruta_png_pdf)
+        if ruta_png_convertida and os.path.exists(ruta_png_convertida):
+            os.unlink(ruta_png_convertida)
 
     return APIResponse.success(respuesta)
 

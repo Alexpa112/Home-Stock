@@ -108,7 +108,7 @@ export default function EscanearTicketPage() {
               {t('hacer_foto_boton')}
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,image/webp,image/heic,image/heif"
                 capture="environment"
                 className="hidden"
                 onChange={handleFile}
@@ -119,7 +119,7 @@ export default function EscanearTicketPage() {
               {t('subir_archivo_boton')}
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,application/pdf"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,image/webp,image/heic,image/heif,application/pdf"
                 className="hidden"
                 onChange={handleFile}
               />

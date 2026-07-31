@@ -26,7 +26,11 @@ class ProcesadorImagen:
         Returns:
             np.ndarray: Imagen procesada en escala de grises
         """
-        # Cargar imagen
+        # Cargar imagen. IMREAD_COLOR aplica automaticamente la rotacion del
+        # tag EXIF Orientation si lo hay (por defecto desde OpenCV 3.4): las
+        # fotos de movil en vertical (el caso normal al fotografiar un
+        # ticket, sobre todo en iOS) guardan a veces el pixel en horizontal
+        # con ese tag puesto, y sin esta correccion llegarian tumbadas.
         nparr = np.frombuffer(imagen_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
@@ -58,6 +62,26 @@ class ProcesadorImagen:
         # reconocido. El gris con CLAHE, sin binarizar, es lo que Tesseract
         # procesa realmente rápido y bien en este tipo de tickets.
         return gray
+
+    @staticmethod
+    def _decodificar_respetando_exif(imagen_bytes):
+        """Decodifica bytes de imagen a un array BGR de OpenCV, aplicando
+        antes la rotación del tag EXIF Orientation si lo hay.
+
+        Las fotos de móvil en vertical (el caso normal al fotografiar un
+        ticket) suelen guardar el píxel en horizontal con un tag EXIF que
+        indica "rota 90°" para verse en vertical -asi es como la app Camara
+        de iOS guarda practicamente todas las fotos en vertical, y muchos
+        Android hacen lo mismo-. cv2.imdecode ignora ese tag por completo,
+        asi que sin esto el ticket llegaba a Tesseract tumbado de lado.
+        """
+        try:
+            with Image.open(io.BytesIO(imagen_bytes)) as pil_img:
+                pil_img = ImageOps.exif_transpose(pil_img)
+                pil_img = pil_img.convert("RGB")
+                return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        except Exception:
+            return None
 
     def _detectar_y_recortar_ticket(self, img):
         """Detecta el papel del ticket en la foto y recorta/endereza esa
