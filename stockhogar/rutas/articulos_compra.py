@@ -241,7 +241,10 @@ def actualizar_articulo(item_id):
     if CAMPOS_EDITABLES & datos.keys():
         actual = DataConverter.articulo_lista_to_dict(fila)
         nombre = (datos.get("nombre") or actual["nombre"]).strip() or actual["nombre"]
-        cantidad = Validator.entero_minimo(datos.get("cantidad", actual["cantidad"]) or 1, "cantidad")
+        if "cantidad" in datos:
+            cantidad = Validator.entero_minimo(datos.get("cantidad") or 1, "cantidad")
+        else:
+            cantidad = actual["cantidad"]
         unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
         categoria = normalizar_categoria(db, datos.get("categoria", actual["categoria"]))
         icono = (datos.get("icono", actual["icono"]) or "").strip() or None

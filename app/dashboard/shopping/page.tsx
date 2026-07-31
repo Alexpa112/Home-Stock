@@ -670,9 +670,8 @@ export default function ShoppingPage() {
                 <input
                   id="art-cantidad"
                   type="number"
-                  value={formData.cantidad}
-                  onChange={(e) => setFormData({ ...formData, cantidad: parseInt(e.target.value) || 1 })}
-                  min="1"
+                  value={formData.cantidad || ''}
+                  onChange={(e) => setFormData({ ...formData, cantidad: e.target.value === '' ? null : parseInt(e.target.value) })}
                   className="input-field"
                   inputMode="numeric"
                 />
@@ -866,9 +865,8 @@ export default function ShoppingPage() {
                 <input
                   id="edit-cantidad"
                   type="number"
-                  min={1}
-                  value={edicionCompleta.cantidad}
-                  onChange={(e) => setEdicionCompleta({ ...edicionCompleta, cantidad: parseInt(e.target.value) || 1 })}
+                  value={edicionCompleta.cantidad || ''}
+                  onChange={(e) => setEdicionCompleta({ ...edicionCompleta, cantidad: e.target.value === '' ? null : parseInt(e.target.value) })}
                   className="input-field"
                   inputMode="numeric"
                 />
