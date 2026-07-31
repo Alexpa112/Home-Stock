@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingDown, BookOpen, Trash2 } from 'lucide-react'
+import { TrendingDown, BookOpen, Trash2, Pencil } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi, articulosPersonalizados as articulosPersonalizadosApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
@@ -26,6 +26,7 @@ interface ArticuloPersonalizado {
   icono: string | null
   categoria: string | null
   unidad: string
+  dias_aviso: number
 }
 
 const RANGOS = [7, 30, 90]
@@ -39,6 +40,9 @@ export default function HistorialPage() {
   const [eliminandoId, setEliminandoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editandoId, setEditandoId] = useState<number | null>(null)
+  const [diasAvisoEdit, setDiasAvisoEdit] = useState(30)
+  const [guardandoId, setGuardandoId] = useState<number | null>(null)
 
   useEffect(() => {
     cargarConsumo(dias)
@@ -52,6 +56,25 @@ export default function HistorialPage() {
       .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const abrirEdicion = (a: ArticuloPersonalizado) => {
+    setEditandoId(a.id)
+    setDiasAvisoEdit(a.dias_aviso ?? 30)
+  }
+
+  const guardarDiasAviso = async (id: number) => {
+    setGuardandoId(id)
+    setError('')
+    try {
+      const actualizado: any = await articulosPersonalizadosApi.actualizar(id, { dias_aviso: diasAvisoEdit })
+      setPersonalizados((prev) => prev.map((a) => (a.id === id ? { ...a, dias_aviso: actualizado.dias_aviso } : a)))
+      setEditandoId(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_editar_articulo'))
+    } finally {
+      setGuardandoId(null)
+    }
+  }
 
   const eliminarPersonalizado = async (id: number) => {
     if (!window.confirm(t('eliminar_pregunta'))) return
@@ -177,18 +200,53 @@ export default function HistorialPage() {
           </p>
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {personalizados.map((a) => (
-              <div key={a.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted text-sm">
-                {a.icono && <IconRenderer name={a.icono} className="w-4 h-4 shrink-0" />}
-                <span className="truncate flex-1" title={a.nombre}>{a.nombre}</span>
-                <button
-                  type="button"
-                  onClick={() => eliminarPersonalizado(a.id)}
-                  disabled={eliminandoId === a.id}
-                  aria-label={`${t('eliminar')} ${a.nombre}`}
-                  className="p-1.5 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 shrink-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              <div key={a.id} className="p-2 rounded-lg bg-muted text-sm space-y-2">
+                <div className="flex items-center gap-2">
+                  {a.icono && <IconRenderer name={a.icono} className="w-4 h-4 shrink-0" />}
+                  <span className="truncate flex-1" title={a.nombre}>{a.nombre}</span>
+                  <button
+                    type="button"
+                    onClick={() => (editandoId === a.id ? setEditandoId(null) : abrirEdicion(a))}
+                    aria-label={`${t('editar')} ${a.nombre}`}
+                    className="p-1.5 rounded-md text-muted-foreground hover:bg-background disabled:opacity-50 shrink-0"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => eliminarPersonalizado(a.id)}
+                    disabled={eliminandoId === a.id}
+                    aria-label={`${t('eliminar')} ${a.nombre}`}
+                    className="p-1.5 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                {editandoId === a.id && (
+                  <div className="flex items-center gap-2 pl-6">
+                    <label htmlFor={`dias-aviso-${a.id}`} className="text-xs text-muted-foreground flex-1">
+                      {t('dias_sin_actualizar_para_avisar')}
+                    </label>
+                    <input
+                      id={`dias-aviso-${a.id}`}
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={diasAvisoEdit}
+                      onChange={(e) => setDiasAvisoEdit(parseInt(e.target.value) || 30)}
+                      className="input-field w-20 py-1"
+                      inputMode="numeric"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => guardarDiasAviso(a.id)}
+                      disabled={guardandoId === a.id}
+                      className="btn-primary btn-sm disabled:opacity-50"
+                    >
+                      {t('guardar')}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

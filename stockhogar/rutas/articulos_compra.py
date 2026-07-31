@@ -3,6 +3,7 @@ import logging
 from flask import Blueprint, request, session, jsonify
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
 from ..utils import Validator, DataConverter
@@ -14,7 +15,12 @@ bp = Blueprint("articulos_compra", __name__, url_prefix="/api/articulos")
 logger = logging.getLogger(__name__)
 
 LIMITE_COMPLETADOS = 12
-CAMPOS_EDITABLES = {"nombre", "cantidad", "unidad", "categoria", "icono", "sub_descripcion"}
+CAMPOS_EDITABLES = {"nombre", "cantidad", "unidad", "categoria", "icono", "sub_descripcion", "dias_aviso"}
+# Campos que describen el artículo estándar en sí (no la cantidad puntual en
+# esta lista): si se editan mientras el ítem apunta a un artículo del
+# catálogo estándar, el ítem se "bifurca" a un artículo personalizado propio
+# del hogar en vez de tocar el catálogo global compartido.
+CAMPOS_PERSONALIZAN = {"nombre", "categoria", "icono", "unidad", "sub_descripcion", "dias_aviso"}
 
 
 def _resolver_hogar_id(db, session):
@@ -127,6 +133,7 @@ def anadir_articulo():
     sub_descripcion = (datos.get("sub_descripcion") or "").strip() or (
         recuerdo["sub_descripcion"] if recuerdo else None
     )
+    dias_aviso = int(datos.get("dias_aviso") or (recuerdo["dias_aviso"] if recuerdo else DIAS_AVISO_DEFECTO))
 
     # ===== LÓGICA NUEVA: Artículos Personalizados =====
     # Si el artículo NO está en historial estándar → crearlo en articulos_personalizados
@@ -151,9 +158,9 @@ def anadir_articulo():
             # Crear nuevo artículo personalizado
             cur = db.execute(
                 """INSERT INTO articulos_personalizados
-                   (nombre, categoria, icono, unidad, sub_descripcion, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (nombre, categoria, icono, unidad, sub_descripcion, ahora(), ahora(), propietario_id)
+                   (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id)
             )
             articulo_personalizado_id = cur.lastrowid
 
@@ -191,14 +198,14 @@ def anadir_articulo():
     # Crear artículo en lista
     cur = db.execute(
         """INSERT INTO articulos_compra
-           (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, fecha_creacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, 'manual', ahora())
+           (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, dias_aviso, origen, fecha_creacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, dias_aviso, 'manual', ahora())
     )
 
     # Recordar para historial si tiene icono
     if icono and recuerdo:
-        recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
+        recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion, dias_aviso=dias_aviso)
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -249,14 +256,62 @@ def actualizar_articulo(item_id):
         categoria = normalizar_categoria(db, datos.get("categoria", actual["categoria"]))
         icono = (datos.get("icono", actual["icono"]) or "").strip() or None
         sub_descripcion = (datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
+        dias_aviso = int(datos.get("dias_aviso", actual.get("dias_aviso") or DIAS_AVISO_DEFECTO))
 
-        db.execute(
-            "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
-            "sub_descripcion=? WHERE id=?",
-            (nombre, cantidad, unidad, categoria, icono, sub_descripcion, item_id),
-        )
-        if icono:
-            recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion)
+        # Si el ítem aún apunta al catálogo estándar (sin articulo_personalizado_id)
+        # y se está tocando algún campo que describe el artículo en sí, se
+        # bifurca a un artículo personalizado propio del hogar en vez de
+        # sobrescribir el catálogo compartido por todas las hogares.
+        articulo_personalizado_id = actual["articulo_personalizado_id"]
+        if articulo_personalizado_id is None and (CAMPOS_PERSONALIZAN & datos.keys()):
+            propietario = db.execute(
+                "SELECT usuario_propietario_id FROM hogares WHERE id = ?", (fila["hogar_id"],)
+            ).fetchone()
+            propietario_id = propietario["usuario_propietario_id"]
+
+            existente_personal = db.execute(
+                "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE AND usuario_propietario_id = ?",
+                (nombre, propietario_id),
+            ).fetchone()
+            if existente_personal:
+                articulo_personalizado_id = existente_personal["id"]
+                db.execute(
+                    "UPDATE articulos_personalizados SET categoria=?, icono=?, unidad=?, sub_descripcion=?, "
+                    "dias_aviso=?, fecha_actualizacion=? WHERE id=?",
+                    (categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), articulo_personalizado_id),
+                )
+            else:
+                cur = db.execute(
+                    """INSERT INTO articulos_personalizados
+                       (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id),
+                )
+                articulo_personalizado_id = cur.lastrowid
+
+            db.execute(
+                "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
+                "sub_descripcion=?, dias_aviso=?, articulo_personalizado_id=? WHERE id=?",
+                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, articulo_personalizado_id, item_id),
+            )
+        elif articulo_personalizado_id is not None and (CAMPOS_PERSONALIZAN & datos.keys()):
+            # Ya es personalizado: se edita directamente su catálogo privado.
+            db.execute(
+                "UPDATE articulos_personalizados SET nombre=?, categoria=?, icono=?, unidad=?, "
+                "sub_descripcion=?, dias_aviso=?, fecha_actualizacion=? WHERE id=?",
+                (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), articulo_personalizado_id),
+            )
+            db.execute(
+                "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
+                "sub_descripcion=?, dias_aviso=? WHERE id=?",
+                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, item_id),
+            )
+        else:
+            db.execute(
+                "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
+                "sub_descripcion=?, dias_aviso=? WHERE id=?",
+                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, item_id),
+            )
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (item_id,)).fetchone()
@@ -332,7 +387,7 @@ def listar_articulos_personalizados():
         return APIResponse.success([])
 
     filas = db.execute(
-        "SELECT id, nombre, icono, categoria, unidad FROM articulos_personalizados "
+        "SELECT id, nombre, icono, categoria, unidad, dias_aviso FROM articulos_personalizados "
         "WHERE usuario_propietario_id = ? ORDER BY nombre COLLATE NOCASE",
         (propietario["usuario_propietario_id"],),
     ).fetchall()
@@ -401,12 +456,13 @@ def actualizar_articulo_personalizado(articulo_id):
     icono = (datos.get("icono") or articulo["icono"] or "").strip() or None
     unidad = (datos.get("unidad") or articulo["unidad"]).strip()
     sub_descripcion = (datos.get("sub_descripcion") or articulo["sub_descripcion"] or "").strip() or None
+    dias_aviso = int(datos.get("dias_aviso", articulo["dias_aviso"]))
 
     db.execute(
         """UPDATE articulos_personalizados
-           SET nombre=?, categoria=?, icono=?, unidad=?, sub_descripcion=?, fecha_actualizacion=?
+           SET nombre=?, categoria=?, icono=?, unidad=?, sub_descripcion=?, dias_aviso=?, fecha_actualizacion=?
            WHERE id=?""",
-        (nombre, categoria, icono, unidad, sub_descripcion, ahora(), articulo_id)
+        (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), articulo_id)
     )
 
     # Si cambió el nombre o descripción, actualizar traducciones
@@ -463,6 +519,7 @@ def actualizar_articulo_personalizado(articulo_id):
         "icono": fila["icono"],
         "unidad": fila["unidad"],
         "sub_descripcion": fila["sub_descripcion"],
+        "dias_aviso": fila["dias_aviso"],
         "fecha_actualizacion": fila["fecha_actualizacion"]
     })
 

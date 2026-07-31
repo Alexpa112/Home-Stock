@@ -30,6 +30,7 @@ interface ArticuloLista {
   icono: string | null
   completado: boolean
   origen: 'auto' | 'manual'
+  dias_aviso: number
 }
 
 interface Categoria {
@@ -66,7 +67,7 @@ export default function ShoppingPage() {
   const [formUnidad, setFormUnidad] = useState<string | undefined>(undefined)
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
-  const [edicionCompleta, setEdicionCompleta] = useState({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros' })
+  const [edicionCompleta, setEdicionCompleta] = useState({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros', dias_aviso: 30 })
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [catalogoQuery, setCatalogoQuery] = useState('')
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
@@ -257,6 +258,7 @@ export default function ShoppingPage() {
       cantidad: item.cantidad,
       unidad: item.unidad,
       categoria: item.categoria || 'Otros',
+      dias_aviso: item.dias_aviso ?? 30,
     })
   }
 
@@ -269,6 +271,7 @@ export default function ShoppingPage() {
       cantidad: edicionCompleta.cantidad,
       unidad: edicionCompleta.unidad,
       categoria: edicionCompleta.categoria,
+      dias_aviso: edicionCompleta.dias_aviso,
     }
     const previo: EstadoLista = { pendientes, completados }
     const parchear = (lista: ArticuloLista[]) =>
@@ -860,16 +863,34 @@ export default function ShoppingPage() {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="edit-cantidad" className="block text-sm font-medium mb-2">{t('cantidad')}</label>
-                <input
-                  id="edit-cantidad"
-                  type="number"
-                  value={edicionCompleta.cantidad || ''}
-                  onChange={(e) => setEdicionCompleta({ ...edicionCompleta, cantidad: e.target.value === '' ? null : parseInt(e.target.value) })}
-                  className="input-field"
-                  inputMode="numeric"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="edit-cantidad" className="block text-sm font-medium mb-2">{t('cantidad')}</label>
+                  <input
+                    id="edit-cantidad"
+                    type="number"
+                    value={edicionCompleta.cantidad || ''}
+                    onChange={(e) => setEdicionCompleta({ ...edicionCompleta, cantidad: e.target.value === '' ? null : parseInt(e.target.value) })}
+                    className="input-field"
+                    inputMode="numeric"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edit-dias-aviso" className="block text-sm font-medium mb-2">
+                    {t('dias_sin_actualizar_para_avisar')}
+                  </label>
+                  <input
+                    id="edit-dias-aviso"
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={edicionCompleta.dias_aviso}
+                    onChange={(e) => setEdicionCompleta({ ...edicionCompleta, dias_aviso: parseInt(e.target.value) || 30 })}
+                    className="input-field"
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2">

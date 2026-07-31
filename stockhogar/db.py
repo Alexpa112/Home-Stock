@@ -583,6 +583,7 @@ def _init_db_impl():
         asegurar_columna(db, "historial_articulos", "unidad", "TEXT NOT NULL DEFAULT 'ud'")
         asegurar_columna(db, "historial_articulos", "sub_descripcion", "TEXT")
         asegurar_columna(db, "historial_articulos", "cantidad_defecto", "INTEGER NOT NULL DEFAULT 1")
+        asegurar_columna(db, "historial_articulos", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
 
         # Migración: instalaciones que aún tengan la columna espacio_id (de cuando existían
         # "espacios" como stocks independientes, funcionalidad eliminada por no tener UI y
@@ -634,6 +635,7 @@ def _init_db_impl():
         )
         asegurar_columna(db, "articulos_personalizados", "fecha_creacion", "TEXT")
         asegurar_columna(db, "articulos_personalizados", "fecha_actualizacion", "TEXT")
+        asegurar_columna(db, "articulos_personalizados", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
 
         # Migración: instalaciones antiguas tenían la columna espacio_id (funcionalidad de
         # "espacios" ya eliminada, ver historial_articulos más arriba) y/o un UNIQUE
@@ -994,6 +996,7 @@ def _init_db_impl():
             WHERE id NOT IN (SELECT id FROM articulos_compra)
             """
         )
+        asegurar_columna(db, "articulos_compra", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
         db.execute(
             "CREATE INDEX IF NOT EXISTS idx_articulos_compra_hogar_id ON articulos_compra(hogar_id, activo)"
         )

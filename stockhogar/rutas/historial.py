@@ -20,7 +20,7 @@ def buscar_historial(db, nombre):
     if not nombre:
         return None
     fila = db.execute(
-        "SELECT icono, categoria, unidad, sub_descripcion, cantidad_defecto FROM historial_articulos "
+        "SELECT icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso FROM historial_articulos "
         "WHERE nombre = ? COLLATE NOCASE",
         (nombre,),
     ).fetchone()
@@ -28,7 +28,7 @@ def buscar_historial(db, nombre):
 
 
 def recordar_articulo(
-    db, nombre, icono, categoria=None, unidad=None, sub_descripcion=None, cantidad_defecto=None
+    db, nombre, icono, categoria=None, unidad=None, sub_descripcion=None, cantidad_defecto=None, dias_aviso=None
 ):
     """Aprende/actualiza un artículo en el catálogo compartido."""
     nombre = (nombre or "").strip()
@@ -36,17 +36,18 @@ def recordar_articulo(
         return
     db.execute(
         "INSERT INTO historial_articulos "
-        "(nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
-        "VALUES (?, ?, ?, COALESCE(?, 'ud'), ?, COALESCE(?, 1), ?) "
+        "(nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, fecha_actualizacion) "
+        "VALUES (?, ?, ?, COALESCE(?, 'ud'), ?, COALESCE(?, 1), COALESCE(?, 30), ?) "
         "ON CONFLICT(nombre) DO UPDATE SET icono = excluded.icono, "
         "categoria = COALESCE(?, historial_articulos.categoria), "
         "unidad = COALESCE(?, historial_articulos.unidad), "
         "sub_descripcion = COALESCE(?, historial_articulos.sub_descripcion), "
         "cantidad_defecto = COALESCE(?, historial_articulos.cantidad_defecto), "
+        "dias_aviso = COALESCE(?, historial_articulos.dias_aviso), "
         "fecha_actualizacion = excluded.fecha_actualizacion",
         (
-            nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, ahora(),
-            categoria, unidad, sub_descripcion, cantidad_defecto,
+            nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, ahora(),
+            categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso,
         ),
     )
 
@@ -57,7 +58,7 @@ def recordar_articulo(
 def listar_historial():
     db = get_db()
     filas = db.execute(
-        "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto "
+        "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso "
         "FROM historial_articulos ORDER BY nombre COLLATE NOCASE",
     ).fetchall()
     return APIResponse.success([dict(fila) for fila in filas])

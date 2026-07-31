@@ -83,6 +83,7 @@ class DataConverter:
             "categoria": DataConverter.safe_field(row, "categoria"),
             "icono": DataConverter.safe_field(row, "icono"),
             "sub_descripcion": DataConverter.safe_field(row, "sub_descripcion"),
+            "dias_aviso": DataConverter.safe_field(row, "dias_aviso", 30),
             "articulo_personalizado_id": DataConverter.safe_field(row, "articulo_personalizado_id"),
             "completado": bool(DataConverter.safe_field(row, "completado", 0)),
             "origen": DataConverter.safe_field(row, "origen", "manual"),

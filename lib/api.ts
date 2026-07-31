@@ -200,6 +200,8 @@ export const articulosLista = {
 // ===== Artículos personalizados del hogar (catálogo propio) =====
 export const articulosPersonalizados = {
   listar: () => apiCall('/api/articulos/personalizados'),
+  actualizar: (id: number, datos: Record<string, unknown>) =>
+    apiCall(`/api/articulos/personalizados/${id}`, { method: 'PATCH', body: JSON.stringify(datos) }),
   eliminar: (id: number) => apiCall(`/api/articulos/personalizados/${id}`, { method: 'DELETE' }),
 }
 
