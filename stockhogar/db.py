@@ -923,6 +923,12 @@ def _init_db_impl():
             """
         )
 
+        # Quien hizo el ultimo cambio de icono/color/nombre del hogar: permite
+        # al resto de miembros ver "X ha cambiado el estilo del hogar" en vez
+        # de un aviso anonimo. NULL en hogares creados antes de esta columna
+        # o nunca editados tras crearse.
+        asegurar_columna(db, "hogares", "actualizado_por_usuario_id", "INTEGER REFERENCES usuarios(id) ON DELETE SET NULL")
+
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS permisos_hogar (

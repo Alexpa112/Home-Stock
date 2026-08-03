@@ -1,5 +1,8 @@
 """Validación centralizada y reutilizable."""
+import re
 from typing import Any, Optional
+
+_RE_COLOR_HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
 class ValidationError(ValueError):
@@ -65,6 +68,18 @@ class Validator:
         if len(valor) > max_len:
             raise ValidationError(f"El campo no puede exceder {max_len} caracteres")
         return valor or default
+
+    @staticmethod
+    def color_hex(valor: Optional[str], default: str) -> str:
+        """Valida que sea un color hexadecimal de 6 dígitos (#RRGGBB). Si no
+        viene informado devuelve el default; si viene pero no tiene formato
+        válido, rechaza en vez de guardar basura que luego rompa la UI."""
+        if not valor:
+            return default
+        valor = str(valor).strip()
+        if not _RE_COLOR_HEX.match(valor):
+            raise ValidationError("El color debe tener formato hexadecimal, p.ej. #B5551A")
+        return valor
 
     @staticmethod
     def json_de_request(request_data: Any, required_fields: list = None, **defaults) -> dict:

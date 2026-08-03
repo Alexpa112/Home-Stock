@@ -40,13 +40,16 @@ def listar_listas():
     db = get_db()
 
     propias = db.execute(
-        "SELECT * FROM hogares WHERE usuario_propietario_id = ? ORDER BY fecha_actualizacion DESC",
+        """SELECT l.*, u.nombre_usuario AS actualizado_por_nombre FROM hogares l
+           LEFT JOIN usuarios u ON u.id = l.actualizado_por_usuario_id
+           WHERE l.usuario_propietario_id = ? ORDER BY l.fecha_actualizacion DESC""",
         (usuario_id,),
     ).fetchall()
 
     compartidas = db.execute(
-        """SELECT l.*, pl.nivel FROM hogares l
+        """SELECT l.*, pl.nivel, u.nombre_usuario AS actualizado_por_nombre FROM hogares l
            JOIN permisos_hogar pl ON l.id = pl.hogar_id
+           LEFT JOIN usuarios u ON u.id = l.actualizado_por_usuario_id
            WHERE pl.usuario_id = ? AND l.usuario_propietario_id != ?
            ORDER BY l.fecha_actualizacion DESC""",
         (usuario_id, usuario_id),
@@ -69,7 +72,7 @@ def crear_lista():
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 100)
     descripcion = Validator.string_opcional(datos.get("descripcion"), None, 500)
     icono = Validator.string_opcional(datos.get("icono"), "h-clipboard-document-list", 30)
-    color = Validator.string_opcional(datos.get("color"), "#B5551A", 7)
+    color = Validator.color_hex(datos.get("color"), "#B5551A")
     privada = datos.get("privada", True)
 
     db = get_db()
@@ -101,7 +104,12 @@ def obtener_lista(hogar_id):
     """Obtiene detalles de una lista (requiere acceso)."""
     usuario_id = session.get("usuario_id")
     db = get_db()
-    lista = db.execute("SELECT * FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
+    lista = db.execute(
+        """SELECT l.*, u.nombre_usuario AS actualizado_por_nombre FROM hogares l
+           LEFT JOIN usuarios u ON u.id = l.actualizado_por_usuario_id
+           WHERE l.id = ?""",
+        (hogar_id,),
+    ).fetchone()
 
     if not lista:
         return APIResponse.no_encontrado("recurso_hogar")
@@ -151,7 +159,7 @@ def actualizar_lista(hogar_id):
         parametros.append(icono)
 
     if "color" in datos:
-        color = Validator.string_opcional(datos.get("color"), "#B5551A", 7)
+        color = Validator.color_hex(datos.get("color"), "#B5551A")
         actualizaciones["color"] = "?"
         parametros.append(color)
 
@@ -162,6 +170,13 @@ def actualizar_lista(hogar_id):
     if not actualizaciones:
         return APIResponse.error("err_nada_que_actualizar", 400)
 
+    # Solo nombre/icono/color son visibles para el resto de miembros como
+    # "estilo" del hogar; registrar el autor para poder avisarles sin
+    # atribuir a nadie un cambio que no sea de apariencia (ej. privada).
+    if {"nombre", "icono", "color"} & actualizaciones.keys():
+        actualizaciones["actualizado_por_usuario_id"] = "?"
+        parametros.append(usuario_id)
+
     actualizaciones["fecha_actualizacion"] = "?"
     parametros.append(ahora())
     parametros.append(hogar_id)
@@ -170,7 +185,12 @@ def actualizar_lista(hogar_id):
     db.execute(f"UPDATE hogares SET {campos} WHERE id = ?", parametros)
     db.commit()
 
-    lista = db.execute("SELECT * FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
+    lista = db.execute(
+        """SELECT l.*, u.nombre_usuario AS actualizado_por_nombre FROM hogares l
+           LEFT JOIN usuarios u ON u.id = l.actualizado_por_usuario_id
+           WHERE l.id = ?""",
+        (hogar_id,),
+    ).fetchone()
     return APIResponse.success(DataConverter.lista_to_dict(lista, usuario_id, include_detalles=True))
 
 

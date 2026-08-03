@@ -6,6 +6,8 @@ import { useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { hogares as hogaresApi, permisos } from '@/lib/api'
 import { clearCache } from '@/lib/dataCache'
+import { IconPicker, ICONOS_HOGAR } from '@/components/dashboard/IconPicker'
+import { IconRenderer } from '@/components/dashboard/IconRenderer'
 
 // Claves de lib/dataCache.ts que dependen del hogar activo: hay que limpiarlas
 // antes de recargar para no pintar un instante los datos del hogar anterior
@@ -21,7 +23,7 @@ interface Props {
 }
 
 export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
-  const { propios, compartidos, seleccionar, crear, refrescar } = useHogar()
+  const { propios, compartidos, seleccionar, crear, refrescar, actualizarHogar } = useHogar()
   const { t } = useTranslation()
   const [entrandoId, setEntrandoId] = useState<number | null>(null)
   const [creando, setCreando] = useState(false)
@@ -30,6 +32,8 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [nombreEditado, setNombreEditado] = useState('')
   const [colorEditado, setColorEditado] = useState('')
+  const [iconoEditado, setIconoEditado] = useState<string | null>(null)
+  const [eligiendoIcono, setEligiendoIcono] = useState(false)
   const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<number | null>(null)
   const [confirmandoSalirId, setConfirmandoSalirId] = useState<number | null>(null)
   const [coloresDisponibles] = useState(['#B5551A', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#34495E'])
@@ -78,10 +82,11 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     }
   }
 
-  const iniciarEdicion = (hogar: { id: number; nombre: string; color?: string }) => {
+  const iniciarEdicion = (hogar: { id: number; nombre: string; color?: string; icono?: string }) => {
     setEditandoId(hogar.id)
     setNombreEditado(hogar.nombre)
     setColorEditado(hogar.color || '#B5551A')
+    setIconoEditado(hogar.icono || null)
   }
 
   const guardarEdicion = async (id: number) => {
@@ -90,9 +95,8 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
       return
     }
     try {
-      await hogaresApi.actualizar(id, { nombre: nombreEditado.trim(), color: colorEditado })
+      await actualizarHogar(id, { nombre: nombreEditado.trim(), color: colorEditado, icono: iconoEditado })
       setEditandoId(null)
-      await refrescar()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_renombrar_hogar'))
     }
@@ -261,7 +265,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                   className="w-full card !p-3 flex items-center gap-3 text-left disabled:opacity-60 hover:bg-muted/50 transition-colors"
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: hogar.color || '#B5551A' }}>
-                    <Home className="w-5 h-5" />
+                    {hogar.icono ? <IconRenderer name={hogar.icono} className="w-5 h-5" /> : <Home className="w-5 h-5" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{hogar.nombre}</p>
@@ -324,6 +328,20 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                           />
                         ))}
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-2">{t('icono')}</label>
+                      <button
+                        type="button"
+                        onClick={() => setEligiendoIcono(true)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted transition-colors"
+                      >
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: colorEditado }}>
+                          {iconoEditado ? <IconRenderer name={iconoEditado} className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+                        </div>
+                        <span className="text-sm text-muted-foreground">{t('elegir_icono')}</span>
+                      </button>
                     </div>
 
                     <div className="border-t border-border pt-4 space-y-2">
@@ -553,6 +571,18 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
           </button>
         )}
       </div>
+
+      {eligiendoIcono && (
+        <IconPicker
+          valorActual={iconoEditado}
+          iconos={ICONOS_HOGAR}
+          onSeleccionar={(icono) => {
+            setIconoEditado(icono)
+            setEligiendoIcono(false)
+          }}
+          onCerrar={() => setEligiendoIcono(false)}
+        />
+      )}
     </div>
   )
 }

@@ -105,6 +105,39 @@ class GestionListasTests(unittest.TestCase):
         resp = self.client.post("/api/hogares", json={"nombre": "Lista fantasma"})
         self.assertEqual(resp.status_code, 401, resp.get_data(as_text=True))
 
+    def test_actualizar_color_hogar_acepta_hex_valido(self):
+        resp = self.client.patch(f"/api/hogares/{self.lista_inicial_id}", json={"color": "#0F6E56"})
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json()["color"], "#0F6E56")
+
+    def test_actualizar_color_hogar_rechaza_formato_invalido(self):
+        resp = self.client.patch(f"/api/hogares/{self.lista_inicial_id}", json={"color": "no-es-un-color"})
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+
+    def test_crear_lista_rechaza_color_invalido(self):
+        resp = self.client.post("/api/hogares", json={"nombre": "Lista", "color": "rojo"})
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+
+    def test_actualizar_color_registra_autor_del_cambio(self):
+        resp = self.client.patch(f"/api/hogares/{self.lista_inicial_id}", json={"color": "#0F6E56"})
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        datos = resp.get_json()
+        self.assertIsNotNone(datos["actualizado_por_nombre"])
+
+        with self.app.app_context():
+            db = get_db()
+            fila = db.execute(
+                "SELECT actualizado_por_usuario_id FROM hogares WHERE id = ?", (self.lista_inicial_id,)
+            ).fetchone()
+        self.assertEqual(fila["actualizado_por_usuario_id"], self.usuario_id)
+
+    def test_actualizar_solo_privada_no_registra_autor_de_estilo(self):
+        # 'privada' no es un cambio de aspecto visual, asi que no debe
+        # atribuirse como si alguien hubiera cambiado el icono/color.
+        resp = self.client.patch(f"/api/hogares/{self.lista_inicial_id}", json={"privada": False})
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertIsNone(resp.get_json()["actualizado_por_nombre"])
+
     def test_eliminar_lista_solo_propietario(self):
         resp = self.client.delete(f"/api/hogares/{self.lista_inicial_id}")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))

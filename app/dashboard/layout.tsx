@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Palette, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { SelectorHogarPantallaCompleta } from '@/components/shared/SelectorHogarPantallaCompleta'
+import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { HogarProvider, useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { auth } from '@/lib/api'
@@ -23,10 +24,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { hogarActivoId, loading, propios, compartidos } = useHogar()
+  const { hogarActivoId, loading, propios, compartidos, avisoTemaHogar, cerrarAvisoTemaHogar } = useHogar()
   const { t } = useTranslation()
   const [mostrarSelectorHogar, setMostrarSelectorHogar] = useState(false)
   const hogarActivo = [...propios, ...compartidos].find((h) => h.id === hogarActivoId)
+
+  // El color del hogar activo se convierte en el acento de toda la UI
+  // (botones, badges, focus rings...) sobreescribiendo la variable que
+  // app/globals.css define en @theme, sin tocar ningún componente. Se
+  // limpia al desmontar para no dejar el acento de un hogar filtrando a
+  // pantallas fuera del dashboard (login, etc.) tras cerrar sesión.
+  useEffect(() => {
+    if (hogarActivo?.color) {
+      document.documentElement.style.setProperty('--color-accent', hogarActivo.color)
+    }
+    return () => {
+      document.documentElement.style.removeProperty('--color-accent')
+    }
+  }, [hogarActivo?.color])
+
+  useEffect(() => {
+    if (!avisoTemaHogar) return
+    const timer = setTimeout(cerrarAvisoTemaHogar, 5000)
+    return () => clearTimeout(timer)
+  }, [avisoTemaHogar, cerrarAvisoTemaHogar])
 
   // Bottom bar móvil: la gestión/compartir del hogar se hace desde la
   // ventana "tus hogares" (selector), ya accesible desde el header/sidebar.
@@ -101,7 +122,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-white"
               style={{ backgroundColor: hogarActivo?.color || '#B5551A' }}
             >
-              <Home className="w-3.5 h-3.5" />
+              {hogarActivo?.icono ? <IconRenderer name={hogarActivo.icono} className="w-3.5 h-3.5" /> : <Home className="w-3.5 h-3.5" />}
             </div>
             <span className="flex-1 min-w-0 text-sm font-semibold truncate">{hogarActivo?.nombre || t('mi_stock')}</span>
             <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -200,7 +221,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 text-white"
                 style={{ backgroundColor: hogarActivo?.color || '#B5551A' }}
               >
-                <Home className="w-3 h-3" />
+                {hogarActivo?.icono ? <IconRenderer name={hogarActivo.icono} className="w-3 h-3" /> : <Home className="w-3 h-3" />}
               </div>
               <span className="text-xs font-semibold max-w-[9rem] truncate">{hogarActivo?.nombre}</span>
               <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground" />
@@ -236,6 +257,23 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             })}
           </div>
         </nav>
+
+        {/* ── Toast: otro miembro cambió el estilo del hogar activo ── */}
+        {avisoTemaHogar && (
+          <div className="fixed bottom-20 lg:bottom-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+            <div className="card !p-3 flex items-center gap-2.5 shadow-lg pointer-events-auto max-w-sm">
+              <Palette className="w-4 h-4 text-accent shrink-0" />
+              <span className="text-sm flex-1">{avisoTemaHogar}</span>
+              <button
+                onClick={cerrarAvisoTemaHogar}
+                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-muted shrink-0"
+                aria-label={t('cancelar')}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
   )

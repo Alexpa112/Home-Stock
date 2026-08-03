@@ -61,6 +61,11 @@ class DataConverter:
             "usuario_propietario_id": row["usuario_propietario_id"],
             "fecha_creacion": row["fecha_creacion"],
             "fecha_actualizacion": row["fecha_actualizacion"],
+            # Quien hizo el ultimo cambio de nombre/icono/color (para el aviso
+            # "X ha cambiado el estilo del hogar" a otros miembros). Requiere
+            # que la consulta SQL haga JOIN con usuarios y traiga este alias;
+            # si no, queda None sin romper nada.
+            "actualizado_por_nombre": DataConverter.safe_field(row, "actualizado_por_nombre"),
         }
 
         if usuario_id and include_detalles:

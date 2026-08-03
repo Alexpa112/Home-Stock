@@ -62,19 +62,45 @@ const ICONOS_PRODUCTO: { nombre: string; etiqueta: string }[] = [
   { nombre: 'sparkles', etiqueta: 'Limpieza' },
 ]
 
+// Selección curada para identificar el propio hogar (no productos): tipos de
+// vivienda y contextos habituales (Casa Madrid, Casa Playa, Piso trabajo...).
+export const ICONOS_HOGAR: { nombre: string; etiqueta: string }[] = [
+  { nombre: 'home', etiqueta: 'Casa' },
+  { nombre: 'building', etiqueta: 'Piso' },
+  { nombre: 'building-2', etiqueta: 'Edificio' },
+  { nombre: 'castle', etiqueta: 'Chalet' },
+  { nombre: 'warehouse', etiqueta: 'Nave' },
+  { nombre: 'tent', etiqueta: 'Camping' },
+  { nombre: 'palmtree', etiqueta: 'Playa' },
+  { nombre: 'waves', etiqueta: 'Costa' },
+  { nombre: 'mountain', etiqueta: 'Montaña' },
+  { nombre: 'trees', etiqueta: 'Campo' },
+  { nombre: 'briefcase', etiqueta: 'Trabajo' },
+  { nombre: 'graduation-cap', etiqueta: 'Estudios' },
+  { nombre: 'users', etiqueta: 'Familia' },
+  { nombre: 'heart', etiqueta: 'Pareja' },
+  { nombre: 'dog', etiqueta: 'Mascotas' },
+  { nombre: 'car', etiqueta: 'Furgoneta' },
+  { nombre: 'sailboat', etiqueta: 'Barco' },
+  { nombre: 'sun', etiqueta: 'Vacaciones' },
+  { nombre: 'snowflake', etiqueta: 'Nieve' },
+  { nombre: 'key', etiqueta: 'Alquiler' },
+]
+
 interface IconPickerProps {
   valorActual: string | null | undefined
   onSeleccionar: (icono: string) => void
   onCerrar: () => void
+  iconos?: { nombre: string; etiqueta: string }[]
 }
 
-export function IconPicker({ valorActual, onSeleccionar, onCerrar }: IconPickerProps) {
+export function IconPicker({ valorActual, onSeleccionar, onCerrar, iconos = ICONOS_PRODUCTO }: IconPickerProps) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
 
   const filtrados = query.trim()
-    ? ICONOS_PRODUCTO.filter((i) => i.etiqueta.toLowerCase().includes(query.trim().toLowerCase()))
-    : ICONOS_PRODUCTO
+    ? iconos.filter((i) => i.etiqueta.toLowerCase().includes(query.trim().toLowerCase()))
+    : iconos
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={onCerrar}>
