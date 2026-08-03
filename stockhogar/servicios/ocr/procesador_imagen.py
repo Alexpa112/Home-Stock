@@ -53,6 +53,18 @@ class ProcesadorImagen:
         # Redimensionar para OCR óptimo
         gray = self._redimensionar_optimo(gray)
 
+        # Quitar ruido ISO (fotos con poca luz) ANTES del CLAHE de abajo:
+        # CLAHE amplifica el contraste local, y sobre una foto ruidosa
+        # amplifica igual de fuerte el grano del sensor que las letras,
+        # enterrando el texto bajo "nieve" (visto con una foto real tomada
+        # con poca luz: Tesseract leía basura pese a que el recorte era
+        # perfecto). medianBlur(5) quita ese grano de alta frecuencia sin
+        # difuminar los trazos del texto (que son más gruesos que el ruido).
+        # Se probó fastNlMeansDenoising (mejor calidad) pero tarda ~15s en
+        # la Pi a 2000px de ancho, muy por encima del objetivo de <20s
+        # total; medianBlur da una mejora casi tan buena en <1s.
+        gray = cv2.medianBlur(gray, 5)
+
         # Mejorar contraste (CLAHE)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         gray = clahe.apply(gray)
@@ -98,23 +110,37 @@ class ProcesadorImagen:
         h, w = img.shape[:2]
         escala = 800 / w if w > 800 else 1.0
         muestra = cv2.resize(img, (int(w * escala), int(h * escala))) if escala != 1.0 else img
-
-        gray = cv2.cvtColor(muestra, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
-        _, umbral = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # Cierre morfológico: rellena huecos del QR/texto para que el papel
-        # se detecte como un único contorno sólido.
-        kernel = np.ones((25, 25), np.uint8)
-        cerrado = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)
-
-        contornos, _ = cv2.findContours(cerrado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contornos:
-            return img
-
-        contorno = max(contornos, key=cv2.contourArea)
         area_muestra = muestra.shape[0] * muestra.shape[1]
-        if cv2.contourArea(contorno) < 0.15 * area_muestra:
-            # Contorno demasiado pequeño: no es fiable, no recortamos.
+        kernel = np.ones((25, 25), np.uint8)
+
+        # 1er intento: aislar el papel por SATURACIÓN (HSV), no por brillo.
+        # El papel del ticket es blanco/gris (saturación casi nula) sea cual
+        # sea la luz; fondos con color propio -piel, madera, tela vaquera-
+        # tienen saturación alta aunque su brillo (escala de grises) sea
+        # parecido al del papel, y en ese caso el umbral de grises de abajo
+        # no distingue papel de fondo en absoluto (contorno == casi toda la
+        # foto, se recortaba fatal). Ver ticket real que fallaba: foto sobre
+        # la pierna, el papel y la piel tenían brillo similar pero
+        # saturación muy distinta.
+        hsv = cv2.cvtColor(muestra, cv2.COLOR_BGR2HSV)
+        mascara_papel = cv2.inRange(hsv, (0, 0, 120), (180, 60, 255))
+        cerrado = cv2.morphologyEx(mascara_papel, cv2.MORPH_CLOSE, kernel)
+        contornos, _ = cv2.findContours(cerrado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contorno = max(contornos, key=cv2.contourArea) if contornos else None
+
+        if contorno is None or cv2.contourArea(contorno) < 0.15 * area_muestra:
+            # 2º intento (fallback): el umbral de grises de siempre. Sirve
+            # para fondos oscuros/uniformes donde la saturación no separa
+            # bien el papel (poca luz, fondo también gris).
+            gray = cv2.cvtColor(muestra, cv2.COLOR_BGR2GRAY)
+            blur = cv2.GaussianBlur(gray, (5, 5), 0)
+            _, umbral = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            cerrado = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)
+            contornos, _ = cv2.findContours(cerrado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contorno = max(contornos, key=cv2.contourArea) if contornos else None
+
+        if contorno is None or cv2.contourArea(contorno) < 0.15 * area_muestra:
+            # Ningún método encontró un contorno fiable: no recortamos.
             return img
 
         hull = cv2.convexHull(contorno)
