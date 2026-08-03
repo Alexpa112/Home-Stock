@@ -5,6 +5,7 @@ import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTr
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
+import { Modal } from '@/components/dashboard/Modal'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
 import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -576,7 +577,8 @@ export default function ShoppingPage() {
 
       {/* Add Form */}
       {showForm && (
-        <div className="card space-y-4">
+        <Modal onCerrar={() => { setShowForm(false); setCatalogoQuery('') }}>
+        <div className="space-y-4">
           <h2 className="text-lg font-semibold">{t('nuevo_articulo')}</h2>
           {catalogo.length > 0 && (
             <div className="space-y-2">
@@ -698,6 +700,7 @@ export default function ShoppingPage() {
             </div>
           </form>
         </div>
+        </Modal>
       )}
 
       {/* Search Bar */}
@@ -804,8 +807,8 @@ export default function ShoppingPage() {
 
       {/* Modal de edicion completa: se abre con mantener pulsado (grid y lista) */}
       {modalEdicionId !== null && (
-        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[9999] p-4">
-          <div className="bg-card rounded-xl w-full max-w-md p-4 space-y-4">
+        <Modal onCerrar={() => setModalEdicionId(null)}>
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">{t('editar_articulo')}</h2>
               <button onClick={() => setModalEdicionId(null)} className="p-1 hover:bg-muted rounded" aria-label={t('aria_cancelar_edicion')}>
@@ -903,7 +906,7 @@ export default function ShoppingPage() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

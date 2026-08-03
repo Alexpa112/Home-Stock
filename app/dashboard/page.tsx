@@ -6,6 +6,7 @@ import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { IconPicker } from '@/components/dashboard/IconPicker'
+import { Modal } from '@/components/dashboard/Modal'
 import { productos as productosApi, categorias as categoriasApi, articulosLista } from '@/lib/api'
 import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -664,7 +665,8 @@ export default function StockPage() {
 
       {/* Add / Edit Form */}
       {showForm && (
-        <div className="card space-y-4">
+        <Modal onCerrar={() => { setShowForm(false); setEditandoId(null) }}>
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">{editandoId ? t('editar_producto') : t('nuevo_producto')}</h2>
             <button
@@ -871,6 +873,7 @@ export default function StockPage() {
             </div>
           </form>
         </div>
+        </Modal>
       )}
 
       {/* Error Message */}

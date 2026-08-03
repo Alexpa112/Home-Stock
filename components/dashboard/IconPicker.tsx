@@ -77,7 +77,7 @@ export function IconPicker({ valorActual, onSeleccionar, onCerrar }: IconPickerP
     : ICONOS_PRODUCTO
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={onCerrar}>
       <div
         className="card w-full sm:max-w-md h-[75dvh] sm:h-auto sm:max-h-[75dvh] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
