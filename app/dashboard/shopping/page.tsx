@@ -11,6 +11,7 @@ import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
+import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
 
 const CACHE_KEY_ARTICULOS = 'shopping:articulos'
@@ -20,6 +21,17 @@ const CACHE_KEY_CATEGORIAS = 'stock:categorias'
 // actualizar la lista en local (sin volver a pedirla al backend) hay que
 // recortar los completados igual que lo hace el servidor.
 const LIMITE_COMPLETADOS = 12
+
+// Fusiona lo recibido del backend con lo pintado, conservando tal cual el
+// item que el usuario tiene abierto en el modal de edicion completa: si un
+// refresco en segundo plano llegase mientras edita, no debe pisarle lo que
+// esta viendo/escribiendo.
+function fusionarConservando(previos: ArticuloLista[], recibidos: ArticuloLista[], preservarId: number | null): ArticuloLista[] {
+  if (preservarId === null) return recibidos
+  const previo = previos.find((i) => i.id === preservarId)
+  if (!previo) return recibidos
+  return recibidos.map((item) => (item.id === preservarId ? previo : item))
+}
 
 interface ArticuloLista {
   id: number
@@ -87,6 +99,15 @@ export default function ShoppingPage() {
     prefetch('stock:productos', () => productosApi.listar())
   }, [])
 
+  // Refresco periodico silencioso: la lista de la compra es la pantalla mas
+  // colaborativa (varios operarios tachando/anadiendo a la vez), pero antes
+  // no se refrescaba nunca tras la carga inicial. Se salta el ciclo si hay
+  // un formulario de alta o un modal de edicion abiertos.
+  usePollingRefresh(
+    () => loadItems(),
+    () => showForm || modalEdicionId !== null
+  )
+
   // Grid de "tocar para añadir": busca en el catálogo (backend) según lo que
   // se escriba en su propia barra de búsqueda, en vez de cargar una vez los
   // 30 primeros por orden alfabético y filtrar solo esos en cliente.
@@ -122,8 +143,8 @@ export default function ShoppingPage() {
     try {
       setError('')
       const data: any = await articulosLista.listar()
-      const pendientesArr = data?.pendientes || []
-      const completadosArr = data?.completados || []
+      const pendientesArr = fusionarConservando(pendientes, data?.pendientes || [], modalEdicionId)
+      const completadosArr = fusionarConservando(completados, data?.completados || [], modalEdicionId)
       setPendientes(pendientesArr)
       setCompletados(completadosArr)
       setCached(CACHE_KEY_ARTICULOS, { pendientes: pendientesArr, completados: completadosArr })
@@ -518,18 +539,50 @@ export default function ShoppingPage() {
       {filteredPendingItems.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">{t('pendientes_contador')} ({filteredPendingItems.length})</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-            {filteredPendingItems.map((item) => renderItemGridTile(item, false))}
-          </div>
+          {preferences.agrupar_categorias === 'on' ? (
+            <div className="space-y-4">
+              {agruparPorCategoria(filteredPendingItems).map(([categoria, items]) => (
+                <div key={categoria} className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    {getCategoryIcon(categoria) && <IconRenderer name={getCategoryIcon(categoria)} className="w-4 h-4" />}
+                    {categoria}
+                  </h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                    {items.map((item) => renderItemGridTile(item, false))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              {filteredPendingItems.map((item) => renderItemGridTile(item, false))}
+            </div>
+          )}
         </div>
       )}
 
       {filteredBoughtItems.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-muted-foreground">{t('comprados_contador')} ({filteredBoughtItems.length})</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-            {filteredBoughtItems.map((item) => renderItemGridTile(item, true))}
-          </div>
+          {preferences.agrupar_categorias === 'on' ? (
+            <div className="space-y-4">
+              {agruparPorCategoria(filteredBoughtItems).map(([categoria, items]) => (
+                <div key={categoria} className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    {getCategoryIcon(categoria) && <IconRenderer name={getCategoryIcon(categoria)} className="w-4 h-4" />}
+                    {categoria}
+                  </h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                    {items.map((item) => renderItemGridTile(item, true))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              {filteredBoughtItems.map((item) => renderItemGridTile(item, true))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -584,15 +637,6 @@ export default function ShoppingPage() {
               <Grid3x3 className="w-5 h-5" />
             </button>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={preferences.agrupar_categorias === 'on'}
-              onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
-              className="w-4 h-4 rounded"
-            />
-            <span className="text-sm font-medium">{t('agrupar_por_categoria')}</span>
-          </label>
         </div>
       )}
 

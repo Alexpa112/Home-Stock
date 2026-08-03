@@ -254,5 +254,40 @@ def salir_lista(hogar_id):
     return APIResponse.success()
 
 
+@bp.route("/version", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def version_hogar_actual():
+    """Marca de versión barata del hogar activo: un cambio en cualquiera de
+    sus tablas (stock, lista de la compra, productos) hace que este valor
+    cambie. Pensado para que el cliente haga polling contra esto antes de
+    recargar los datos completos, y así no pisar ediciones en curso ni gastar
+    ancho de banda cuando nadie ha tocado nada."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+    hogar_id = session.get("hogar_actual_id")
+
+    if not hogar_id:
+        return APIResponse.success({"hogar_id": None, "version": None})
+
+    if not _usuario_tiene_permiso(db, hogar_id, usuario_id):
+        return APIResponse.no_permitido()
+
+    fila = db.execute(
+        """SELECT
+               (SELECT COUNT(*) FROM stock_hogar WHERE hogar_id = ?) AS n_stock,
+               (SELECT MAX(fecha_actualizacion) FROM stock_hogar WHERE hogar_id = ?) AS max_stock,
+               (SELECT COUNT(*) FROM articulos_compra WHERE hogar_id = ?) AS n_articulos,
+               (SELECT MAX(fecha_actualizacion) FROM articulos_compra WHERE hogar_id = ?) AS max_articulos
+        """,
+        (hogar_id, hogar_id, hogar_id, hogar_id),
+    ).fetchone()
+
+    version = "|".join(str(v) for v in (
+        fila["n_stock"], fila["max_stock"], fila["n_articulos"], fila["max_articulos"],
+    ))
+    return APIResponse.success({"hogar_id": hogar_id, "version": version})
+
+
 # Nota: compartir/miembros/permisos de lista se gestionan en rutas/permisos.py
 # (incluye compartir por usuario, por email con invitación, y aceptar invitación).

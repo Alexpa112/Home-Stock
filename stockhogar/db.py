@@ -997,6 +997,7 @@ def _init_db_impl():
             """
         )
         asegurar_columna(db, "articulos_compra", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
+        asegurar_columna(db, "articulos_compra", "fecha_actualizacion", "TEXT")
         db.execute(
             "CREATE INDEX IF NOT EXISTS idx_articulos_compra_hogar_id ON articulos_compra(hogar_id, activo)"
         )

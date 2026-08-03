@@ -104,8 +104,8 @@ def anadir_articulo():
     ).fetchone()
     if existente:
         db.execute(
-            "UPDATE articulos_compra SET cantidad = cantidad + ? WHERE id = ?",
-            (cantidad_sumar, existente["id"]),
+            "UPDATE articulos_compra SET cantidad = cantidad + ?, fecha_actualizacion = ? WHERE id = ?",
+            (cantidad_sumar, ahora(), existente["id"]),
         )
         db.commit()
         fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (existente["id"],)).fetchone()
@@ -118,8 +118,8 @@ def anadir_articulo():
     ).fetchone()
     if completado:
         db.execute(
-            "UPDATE articulos_compra SET activo = 1, cantidad = ?, fecha_completado = NULL WHERE id = ?",
-            (cantidad_sumar, completado["id"]),
+            "UPDATE articulos_compra SET activo = 1, cantidad = ?, fecha_completado = NULL, fecha_actualizacion = ? WHERE id = ?",
+            (cantidad_sumar, ahora(), completado["id"]),
         )
         db.commit()
         fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (completado["id"],)).fetchone()
@@ -198,9 +198,9 @@ def anadir_articulo():
     # Crear artículo en lista
     cur = db.execute(
         """INSERT INTO articulos_compra
-           (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, dias_aviso, origen, fecha_creacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, dias_aviso, 'manual', ahora())
+           (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, dias_aviso, origen, fecha_creacion, fecha_actualizacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, dias_aviso, 'manual', ahora(), ahora())
     )
 
     # Recordar para historial si tiene icono
@@ -236,13 +236,13 @@ def actualizar_articulo(item_id):
     if "activo" in datos:
         if datos["activo"]:
             db.execute(
-                "UPDATE articulos_compra SET activo = 1, fecha_completado = NULL WHERE id = ?",
-                (item_id,),
+                "UPDATE articulos_compra SET activo = 1, fecha_completado = NULL, fecha_actualizacion = ? WHERE id = ?",
+                (ahora(), item_id),
             )
         else:
             db.execute(
-                "UPDATE articulos_compra SET activo = 0, fecha_completado = ? WHERE id = ?",
-                (ahora(), item_id),
+                "UPDATE articulos_compra SET activo = 0, fecha_completado = ?, fecha_actualizacion = ? WHERE id = ?",
+                (ahora(), ahora(), item_id),
             )
 
     if CAMPOS_EDITABLES & datos.keys():
@@ -293,8 +293,8 @@ def actualizar_articulo(item_id):
 
             db.execute(
                 "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
-                "sub_descripcion=?, dias_aviso=?, articulo_personalizado_id=? WHERE id=?",
-                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, articulo_personalizado_id, item_id),
+                "sub_descripcion=?, dias_aviso=?, articulo_personalizado_id=?, fecha_actualizacion=? WHERE id=?",
+                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, articulo_personalizado_id, ahora(), item_id),
             )
         elif articulo_personalizado_id is not None and (CAMPOS_PERSONALIZAN & datos.keys()):
             # Ya es personalizado: se edita directamente su catálogo privado.
@@ -305,14 +305,14 @@ def actualizar_articulo(item_id):
             )
             db.execute(
                 "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
-                "sub_descripcion=?, dias_aviso=? WHERE id=?",
-                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, item_id),
+                "sub_descripcion=?, dias_aviso=?, fecha_actualizacion=? WHERE id=?",
+                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, ahora(), item_id),
             )
         else:
             db.execute(
                 "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
-                "sub_descripcion=?, dias_aviso=? WHERE id=?",
-                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, item_id),
+                "sub_descripcion=?, dias_aviso=?, fecha_actualizacion=? WHERE id=?",
+                (nombre, cantidad, unidad, categoria, icono, sub_descripcion, dias_aviso, ahora(), item_id),
             )
 
     db.commit()

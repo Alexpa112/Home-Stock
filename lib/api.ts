@@ -154,6 +154,10 @@ export const hogares = {
 
   // Abandonar un hogar compartido contigo (no aplica a hogares propios).
   salir: (id: number) => apiCall(`/api/hogares/${id}/salir`, { method: 'POST' }),
+
+  // Marca de versión barata del hogar activo, para polling silencioso (ver
+  // lib/usePollingRefresh.ts): se pide antes de recargar datos completos.
+  version: () => apiCall('/api/hogares/version'),
 }
 
 // ===== Productos / stock (stockhogar/rutas/productos.py) =====

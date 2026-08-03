@@ -12,6 +12,7 @@ import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
+import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
 
 const CACHE_KEY_PRODUCTOS = 'stock:productos'
@@ -72,8 +73,18 @@ function parseNumeroInput(value: string, fallback: number): number | '' {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+// Fusiona lo recibido del backend con lo pintado, conservando tal cual los
+// items que el usuario tiene abiertos en edicion (preservarIds): si un
+// refresco en segundo plano llegase entre que abre el modal y lo guarda,
+// no debe pisarle lo que esta viendo/editando.
+function fusionarProductos(previos: Producto[], recibidos: Producto[], preservarIds: Set<number>): Producto[] {
+  if (preservarIds.size === 0) return recibidos
+  const previosPorId = new Map(previos.map((p) => [p.id, p]))
+  return recibidos.map((item) => (preservarIds.has(item.id) ? previosPorId.get(item.id) ?? item : item))
+}
+
 export default function StockPage() {
-  const { preferences, updatePreferences } = useListPreferences()
+  const { preferences } = useListPreferences()
   const { t } = useTranslation()
   const [items, setItems] = useState<Producto[]>(() => getCached<Producto[]>(CACHE_KEY_PRODUCTOS) || [])
   const [categorias, setCategorias] = useState<Categoria[]>(() => getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
@@ -91,7 +102,6 @@ export default function StockPage() {
   const [añadidoIds, setAñadidoIds] = useState<Set<number>>(new Set())
   const [confirmandoEliminarCatId, setConfirmandoEliminarCatId] = useState<number | null>(null)
   const [modoVista, setModoVista] = useState<'lista' | 'grid'>('grid')
-  const [agruparPorCategoria, setAgruparPorCategoria] = useState(true)
   const [formIcono, setFormIcono] = useState<string | undefined>(undefined)
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
@@ -100,20 +110,19 @@ export default function StockPage() {
   useEffect(() => {
     // Cargar preferencias guardadas
     const modoGuardado = localStorage.getItem('stock-modo-vista') as 'lista' | 'grid' | null
-    const agruparGuardado = localStorage.getItem('stock-agrupar-categoria')
     if (modoGuardado) setModoVista(modoGuardado)
-    if (agruparGuardado !== null) setAgruparPorCategoria(agruparGuardado === 'true')
 
     bootstrap()
-
-    // Refresco periodico silencioso: otros operarios pueden modificar el
-    // stock desde otro dispositivo. No toca `loading` para no mostrar el
-    // skeleton de nuevo; simplemente reemplaza los datos en segundo plano.
-    const intervalo = setInterval(() => {
-      if (document.visibilityState === 'visible') bootstrap()
-    }, 60000)
-    return () => clearInterval(intervalo)
   }, [])
+
+  // Refresco periodico silencioso: otros operarios pueden modificar el stock
+  // desde otro dispositivo. Antes de recargar, comprueba una version barata
+  // del hogar (ver usePollingRefresh) y se salta el ciclo si hay un modal de
+  // edicion/alta abierto, para no pisar lo que el usuario esta escribiendo.
+  usePollingRefresh(
+    () => bootstrap(),
+    () => showForm || gestionandoCategorias
+  )
 
   // La caché es lo que se pinta al montar la pantalla, así que cualquier
   // cambio local (ajuste de cantidad, borrado, alta, edición) tiene que
@@ -126,10 +135,6 @@ export default function StockPage() {
   useEffect(() => {
     localStorage.setItem('stock-modo-vista', modoVista)
   }, [modoVista])
-
-  useEffect(() => {
-    localStorage.setItem('stock-agrupar-categoria', String(agruparPorCategoria))
-  }, [agruparPorCategoria])
 
   // Busca en el catálogo (backend) cada vez que el usuario escribe el nombre,
   // en lugar de cargar una vez los 30 primeros por orden alfabético y filtrar
@@ -161,9 +166,9 @@ export default function StockPage() {
 
       const productosArr = Array.isArray(productosData) ? productosData : []
       const categoriasArr = Array.isArray(categoriasData) ? categoriasData : []
-      setItems(productosArr)
+      const preservarIds = editandoId !== null ? new Set([editandoId]) : new Set<number>()
+      setItems((prev) => fusionarProductos(prev, productosArr, preservarIds))
       setCategorias(categoriasArr)
-      setCached(CACHE_KEY_PRODUCTOS, productosArr)
       setCached(CACHE_KEY_CATEGORIAS, categoriasArr)
 
       // Precargar la lista de la compra en segundo plano para que, si el
@@ -900,15 +905,6 @@ export default function StockPage() {
             value={searchQuery}
             onChange={setSearchQuery}
           />
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={preferences.agrupar_categorias === 'on'}
-              onChange={(e) => updatePreferences({ agrupar_categorias: e.target.checked ? 'on' : 'off' })}
-              className="w-4 h-4 rounded"
-            />
-            <span className="text-sm font-medium">{t('agrupar_por_categoria')}</span>
-          </label>
         </div>
       )}
 
@@ -931,13 +927,6 @@ export default function StockPage() {
               ⊞ {t('grid')}
             </button>
           </div>
-          <button
-            onClick={() => setAgruparPorCategoria(!agruparPorCategoria)}
-            className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${agruparPorCategoria ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
-            title={agruparPorCategoria ? t('agrupar_por_categoria') : t('sin_agrupar')}
-          >
-            {agruparPorCategoria ? `📂 ${t('agrupado')}` : `📄 ${t('sin_agrupar')}`}
-          </button>
         </div>
       )}
 
@@ -970,7 +959,7 @@ export default function StockPage() {
             <p className="text-muted-foreground">{t('no_se_encontraron_productos')}</p>
           )}
         </div>
-      ) : agruparPorCategoria ? (
+      ) : preferences.agrupar_categorias === 'on' ? (
         // Vista agrupada por categoría
         <div className="space-y-6">
           {categorias.map((cat) => {
