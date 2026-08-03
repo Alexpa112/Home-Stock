@@ -9,9 +9,19 @@ Características:
 - Detección de promociones
 """
 import re
+import unicodedata
 from typing import List, Dict, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
+
+
+def _sin_tildes(texto: str) -> str:
+    """Quita diacríticos (á->a, ñ->n...) para comparar palabras clave sin
+    depender de que el OCR acierte los acentos."""
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", texto)
+        if not unicodedata.combining(c)
+    )
 
 
 class TipoUnidad(Enum):
@@ -222,19 +232,24 @@ class ParserMejorado:
         ("Solicita tu tarjeta física", "NUM. TOTAL ART. VENDIDOS"), lo que
         desplazaría el corte hasta el final y dejaría pasar todo el pie.
         """
-        regex_cierre = re.compile(
-            r'\b(total|subtotal|tot|cambio|tarjeta|efectivo|pago|importe|'
-            r'visa|mastercard)\b',
+        # "total"/"subtotal"/"tot"/"tarjeta"/"efectivo"/"cambio"/"visa"/
+        # "mastercard" cierran solos: no aparecen nunca en la cabecera de
+        # una tabla de productos, a diferencia de "importe"/"pago", que sí
+        # ("Descripción P. Unit Importe", "Precio de costo + I.V.A."). Para
+        # esos dos se exige ademas un precio en euros en la misma línea
+        # (las líneas de cierre reales - "TOTAL (€) 6,80" - siempre llevan
+        # uno; la cabecera de tabla no), o si no el ticket se cortaba en la
+        # cabecera ANTES de llegar a los productos (0 items detectados pese
+        # a que el OCR leía el ticket perfectamente bien).
+        regex_cierre_fuerte = re.compile(
+            r'\b(total|subtotal|tot|cambio|tarjeta|efectivo|visa|mastercard)\b',
             re.IGNORECASE | re.UNICODE
         )
-        # Además de la palabra clave, se exige un importe en euros en la
-        # misma línea: la cabecera de la tabla de productos ("Descripción
-        # P. Unit Importe") también contiene "importe" pero sin ningún
-        # precio, y sin esta condición se detectaba como cierre ANTES de
-        # llegar a los productos (0 items detectados pese a que el OCR
-        # leía el ticket perfectamente bien).
+        regex_cierre_debil = re.compile(r'\b(importe|pago)\b', re.IGNORECASE | re.UNICODE)
         for idx, linea in enumerate(lineas):
-            if regex_cierre.search(linea) and self.regex_precio.search(linea):
+            if regex_cierre_fuerte.search(linea):
+                return idx
+            if regex_cierre_debil.search(linea) and self.regex_precio.search(linea):
                 return idx
 
         return len(lineas)
@@ -248,10 +263,27 @@ class ParserMejorado:
         (##,## €) ni una cantidad con unidad, y que además "parezca"
         cabecera (contiene CIF/NIF, teléfono, código postal o palabras
         típicas de dirección/razón social). Se limita la búsqueda a las
-        primeras 12 líneas para no comerse todo el ticket si el OCR no
-        detecta precios.
+        primeras 30 líneas para no comerse todo el ticket si el OCR no
+        detecta precios (facturas de mayorista tipo "cash and carry"
+        traen cabecera larga: razón social, CIF, cajero/hora, y encima la
+        fila de encabezados de columna antes de la primera línea real).
         """
-        limite = min(len(lineas), 12)
+        limite = min(len(lineas), 30)
+
+        # Fila de encabezados de columna de una factura formal
+        # ("Descripción del Artículo ... Cantidad ... Precio"): marca sin
+        # ambigüedad que los productos empiezan en la línea SIGUIENTE. Se
+        # comprueba en una pasada aparte, antes del bucle de abajo, porque
+        # ese bucle puede devolver un índice anterior (su propio fallback
+        # "primera línea que no parece cabecera") antes de llegar siquiera
+        # a la fila de encabezados si la cabecera es larga.
+        for idx in range(limite):
+            linea_lower = lineas[idx].lower()
+            if "descripcion" in _sin_tildes(linea_lower) and (
+                "articulo" in _sin_tildes(linea_lower) or "cantidad" in linea_lower
+            ):
+                return idx + 1
+
         for idx in range(limite):
             linea = lineas[idx]
             linea_lower = linea.lower()
@@ -455,8 +487,17 @@ class ParserMejorado:
         rompería el nombre del artículo (p.ej. "2 COCA COLA" -> "Cola").
         """
 
+        # Quitar código de artículo al principio de la línea (p.ej.
+        # "02728-01 OR| TOMATE FRITO..."), habitual en facturas de
+        # mayorista/cash and carry: sin esto el código quedaba pegado al
+        # nombre del producto.
+        nombre = re.sub(
+            r'^\d{4,6}-\d{1,3}\s*(?:or\|?|\|)?\s*', '', linea,
+            flags=re.IGNORECASE
+        )
+
         # Quitar precio unitario (@1.20€/kg)
-        nombre = re.sub(self.regex_precio_unitario, '', linea)
+        nombre = re.sub(self.regex_precio_unitario, '', nombre)
 
         # Quitar precios primero: si no, un precio sin el "0" inicial
         # (p.ej. ",70") deja sueltos sus dígitos y la regex de cantidad
