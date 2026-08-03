@@ -11,8 +11,12 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/home-stock-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/home-stock-frontend
+  # Docker exige el nombre del repositorio en minúsculas; github.repository_owner
+  # da "Alexpa112" (con mayúscula) y hace fallar el build con "repository name
+  # must be lowercase". docker-compose.yml ya referencia estas imágenes en
+  # minúsculas, así que se fija aquí en vez de derivarlo del contexto de GitHub.
+  BACKEND_IMAGE: ghcr.io/alexpa112/home-stock-backend
+  FRONTEND_IMAGE: ghcr.io/alexpa112/home-stock-frontend
 
 jobs:
   publish:
