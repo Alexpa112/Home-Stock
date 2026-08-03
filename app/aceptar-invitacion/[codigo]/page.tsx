@@ -23,7 +23,7 @@ export default function AceptarInvitacionPage() {
         const datos: any = await permisos.aceptarInvitacion(params.codigo)
         setMensaje(datos.mensaje || t('invitacion_aceptada_titulo'))
         setEstado('ok')
-        setTimeout(() => router.push('/dashboard/hogar'), 1500)
+        setTimeout(() => { window.location.href = '/dashboard' }, 1500)
       } catch (err) {
         const msg = err instanceof Error ? err.message : t('error_no_se_pudo_aceptar_invitacion')
         if (msg.toLowerCase().includes('no has iniciado sesión')) {

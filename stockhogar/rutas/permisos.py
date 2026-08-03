@@ -353,4 +353,6 @@ def aceptar_invitacion(codigo):
 
     db.commit()
 
+    session["hogar_actual_id"] = invitacion["hogar_id"]
+
     return APIResponse.success({"mensaje": "¡Invitación aceptada!", "hogar_id": invitacion["hogar_id"]})

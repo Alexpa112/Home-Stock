@@ -79,6 +79,9 @@ class PermisosInvitacionesTests(unittest.TestCase):
             ).fetchone()
         self.assertIsNotNone(permiso)
 
+        with self.client_invitado.session_transaction() as sess:
+            self.assertEqual(sess["hogar_actual_id"], self.hogar_id)
+
         resp_repetido = self.client_invitado.post(f"/api/hogares/aceptar-invitacion/{codigo}")
         self.assertEqual(resp_repetido.status_code, 400, resp_repetido.get_data(as_text=True))
 
