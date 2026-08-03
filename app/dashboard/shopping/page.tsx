@@ -71,6 +71,7 @@ export default function ShoppingPage() {
   const [edicionCompleta, setEdicionCompleta] = useState({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros', dias_aviso: 30 })
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [catalogoQuery, setCatalogoQuery] = useState('')
+  const [sugerencias, setSugerencias] = useState<ArticuloCatalogo[]>([])
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
 
   useEffect(() => {
@@ -86,12 +87,36 @@ export default function ShoppingPage() {
     prefetch('stock:productos', () => productosApi.listar())
   }, [])
 
+  // Grid de "tocar para añadir": busca en el catálogo (backend) según lo que
+  // se escriba en su propia barra de búsqueda, en vez de cargar una vez los
+  // 30 primeros por orden alfabético y filtrar solo esos en cliente.
   useEffect(() => {
-    if (!showForm || catalogo.length > 0) return
-    buscarCatalogo().then((data: any) => {
-      setCatalogo(Array.isArray(data) ? data : [])
-    }).catch(() => {})
-  }, [showForm])
+    if (!showForm) return
+    const q = catalogoQuery.trim()
+    const timer = setTimeout(() => {
+      buscarCatalogo(q || undefined).then((data: any) => {
+        setCatalogo(Array.isArray(data) ? data : [])
+      }).catch(() => {})
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [showForm, catalogoQuery])
+
+  // Sugerencias del campo de nombre: misma idea pero sobre lo que se escribe
+  // ahí, no sobre catalogoQuery (son dos búsquedas independientes).
+  useEffect(() => {
+    if (!showForm) return
+    const q = formData.nombre.trim()
+    if (!q) {
+      setSugerencias([])
+      return
+    }
+    const timer = setTimeout(() => {
+      buscarCatalogo(q).then((data: any) => {
+        setSugerencias(Array.isArray(data) ? data : [])
+      }).catch(() => {})
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [showForm, formData.nombre])
 
   const loadItems = async () => {
     try {
@@ -189,13 +214,9 @@ export default function ShoppingPage() {
     setMostrarSugerencias(false)
   }
 
-  const sugerenciasNombre = formData.nombre.trim()
-    ? catalogo.filter((item) => item.nombre.toLowerCase().includes(formData.nombre.trim().toLowerCase())).slice(0, 6)
-    : []
+  const sugerenciasNombre = sugerencias.slice(0, 6)
 
-  const catalogoFiltrado = catalogo.filter((item) =>
-    item.nombre.toLowerCase().includes(catalogoQuery.toLowerCase())
-  )
+  const catalogoFiltrado = catalogo
 
   const handleToggleBought = async (id: number, marcarComprado: boolean) => {
     const item = (marcarComprado ? pendientes : completados).find((i) => i.id === id)

@@ -131,12 +131,19 @@ export default function StockPage() {
     localStorage.setItem('stock-agrupar-categoria', String(agruparPorCategoria))
   }, [agruparPorCategoria])
 
+  // Busca en el catálogo (backend) cada vez que el usuario escribe el nombre,
+  // en lugar de cargar una vez los 30 primeros por orden alfabético y filtrar
+  // solo esos en cliente (por lo que "leche", "pan", "huevos"... nunca salían).
   useEffect(() => {
-    if (!showForm || catalogo.length > 0) return
-    buscarCatalogo().then((data: any) => {
-      setCatalogo(Array.isArray(data) ? data : [])
-    }).catch(() => {})
-  }, [showForm])
+    if (!showForm) return
+    const q = formData.nombre.trim()
+    const timer = setTimeout(() => {
+      buscarCatalogo(q || undefined).then((data: any) => {
+        setCatalogo(Array.isArray(data) ? data : [])
+      }).catch(() => {})
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [showForm, formData.nombre])
 
   const bootstrap = async () => {
     try {
@@ -202,9 +209,7 @@ export default function StockPage() {
     setMostrarSugerencias(false)
   }
 
-  const sugerenciasNombre = formData.nombre.trim()
-    ? catalogo.filter((item) => item.nombre.toLowerCase().includes(formData.nombre.trim().toLowerCase())).slice(0, 6)
-    : []
+  const sugerenciasNombre = formData.nombre.trim() ? catalogo.slice(0, 6) : []
 
   const getCategoryIcon = (categoryName: string | null) => {
     if (!categoryName) return null
