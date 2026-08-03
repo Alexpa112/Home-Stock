@@ -1,7 +1,7 @@
 """Procesamiento y preprocesamiento de imágenes de tickets."""
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 
 
@@ -26,13 +26,16 @@ class ProcesadorImagen:
         Returns:
             np.ndarray: Imagen procesada en escala de grises
         """
-        # Cargar imagen. IMREAD_COLOR aplica automaticamente la rotacion del
-        # tag EXIF Orientation si lo hay (por defecto desde OpenCV 3.4): las
-        # fotos de movil en vertical (el caso normal al fotografiar un
-        # ticket, sobre todo en iOS) guardan a veces el pixel en horizontal
-        # con ese tag puesto, y sin esta correccion llegarian tumbadas.
-        nparr = np.frombuffer(imagen_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # Cargar imagen respetando el tag EXIF Orientation: cv2.imdecode lo
+        # ignora por completo, y las fotos de movil en vertical (el caso
+        # normal al fotografiar un ticket, sobre todo en iOS) guardan el
+        # pixel en horizontal con ese tag puesto. Sin esta correccion el
+        # ticket llega a Tesseract tumbado de lado y no reconoce nada.
+        img = self._decodificar_respetando_exif(imagen_bytes)
+
+        if img is None:
+            nparr = np.frombuffer(imagen_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
             raise ValueError("No se pudo decodificar la imagen")
