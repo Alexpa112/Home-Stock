@@ -11,6 +11,18 @@ class Validator:
     """Sistema centralizado de validación."""
 
     @staticmethod
+    def con_defecto(datos: dict, clave: str, defecto: Any) -> Any:
+        """Devuelve datos[clave] si viene informado (ni ausente, ni None, ni
+        cadena vacía); si no, devuelve defecto. A diferencia de dict.get(clave,
+        defecto), también aplica el defecto cuando la clave SÍ está presente
+        pero llega a None/'' (input dejado en blanco por el usuario), sin
+        pisar valores válidos como 0."""
+        valor = datos.get(clave)
+        if valor is None or valor == "":
+            return defecto
+        return valor
+
+    @staticmethod
     def entero_no_negativo(valor: Any, nombre_campo: str) -> int:
         """Valida que sea entero no negativo."""
         try:

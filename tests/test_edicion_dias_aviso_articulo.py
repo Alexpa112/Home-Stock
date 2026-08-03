@@ -118,6 +118,36 @@ class EdicionDiasAvisoArticuloTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         self.assertEqual(resp.get_json()["dias_aviso"], 15)
 
+    def test_dias_aviso_nulo_al_editar_articulo_de_lista_conserva_el_anterior(self):
+        """Vaciar el input de dias_aviso (llega null) no debe romper la
+        petición: se conserva el valor que ya tenía el artículo."""
+        resp = self.client.post("/api/articulos", json={"nombre": self.NOMBRE_LIBRE, "cantidad": 1})
+        item = resp.get_json()
+        self.assertEqual(item["dias_aviso"], 30)
+
+        resp = self.client.patch(f"/api/articulos/{item['id']}", json={"dias_aviso": 10})
+        self.assertEqual(resp.get_json()["dias_aviso"], 10)
+
+        resp = self.client.patch(f"/api/articulos/{item['id']}", json={"dias_aviso": None, "cantidad": 2})
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json()["dias_aviso"], 10)
+        self.assertEqual(resp.get_json()["cantidad"], 2)
+
+    def test_dias_aviso_nulo_al_editar_articulo_personalizado_conserva_el_anterior(self):
+        resp = self.client.post("/api/articulos", json={"nombre": self.NOMBRE_LIBRE, "cantidad": 1})
+        articulo_personalizado_id = resp.get_json()["articulo_personalizado_id"]
+
+        resp = self.client.patch(
+            f"/api/articulos/personalizados/{articulo_personalizado_id}", json={"dias_aviso": 20}
+        )
+        self.assertEqual(resp.get_json()["dias_aviso"], 20)
+
+        resp = self.client.patch(
+            f"/api/articulos/personalizados/{articulo_personalizado_id}", json={"dias_aviso": None}
+        )
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json()["dias_aviso"], 20)
+
 
 if __name__ == "__main__":
     unittest.main()

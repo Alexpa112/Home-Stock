@@ -148,6 +148,56 @@ class ProductosValidationTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("cantidad", resp.get_json()["error"].lower())
 
+    def test_campos_nulos_al_crear_usan_valor_por_defecto_de_esquema(self):
+        """Dejar cantidad/stock_minimo/dias_aviso en blanco (null) al crear no
+        debe dar error: debe insertarse el mismo valor por defecto que fija
+        el esquema (stockhogar/db.py) para esas columnas."""
+        resp = self.client.post(
+            "/api/productos",
+            json={
+                "nombre": "Sal",
+                "categoria": "Despensa",
+                "cantidad": None,
+                "stock_minimo": None,
+                "dias_aviso": None,
+                "unidad": None,
+            },
+        )
+        self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
+        producto = resp.get_json()
+        self.assertEqual(producto["cantidad"], 0)
+        self.assertEqual(producto["stock_minimo"], 1)
+        self.assertEqual(producto["dias_aviso"], 30)
+        self.assertEqual(producto["unidad"], "ud")
+
+    def test_campos_nulos_al_editar_conservan_el_valor_anterior(self):
+        """Al editar, si un campo llega explícitamente a null (input vaciado
+        por el usuario), no debe fallar ni perderse el dato: se conserva el
+        valor que ya tenía el producto en vez de romper la petición."""
+        resp = self.client.post(
+            "/api/productos",
+            json={
+                "nombre": "Pimienta",
+                "categoria": "Despensa",
+                "cantidad": 4,
+                "stock_minimo": 2,
+                "dias_aviso": 45,
+                "unidad": "bote",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        producto_id = resp.get_json()["id"]
+
+        resp = self.client.patch(
+            f"/api/productos/{producto_id}",
+            json={"cantidad": None, "stock_minimo": None, "dias_aviso": None},
+        )
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        actualizado = resp.get_json()
+        self.assertEqual(actualizado["cantidad"], 4)
+        self.assertEqual(actualizado["stock_minimo"], 2)
+        self.assertEqual(actualizado["dias_aviso"], 45)
+
     def test_producto_solo_visible_en_su_propia_lista(self):
         """El stock creado en una lista no debe filtrarse a otra lista/usuario."""
         self.client.post(

@@ -885,8 +885,8 @@ export default function ShoppingPage() {
                     type="number"
                     min={1}
                     max={365}
-                    value={edicionCompleta.dias_aviso}
-                    onChange={(e) => setEdicionCompleta({ ...edicionCompleta, dias_aviso: parseInt(e.target.value) || 30 })}
+                    value={edicionCompleta.dias_aviso || ''}
+                    onChange={(e) => setEdicionCompleta({ ...edicionCompleta, dias_aviso: e.target.value === '' ? null : parseInt(e.target.value) })}
                     className="input-field"
                     inputMode="numeric"
                   />

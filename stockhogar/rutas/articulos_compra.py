@@ -256,7 +256,9 @@ def actualizar_articulo(item_id):
         categoria = normalizar_categoria(db, datos.get("categoria", actual["categoria"]))
         icono = (datos.get("icono", actual["icono"]) or "").strip() or None
         sub_descripcion = (datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
-        dias_aviso = int(datos.get("dias_aviso", actual.get("dias_aviso") or DIAS_AVISO_DEFECTO))
+        dias_aviso = int(
+            Validator.con_defecto(datos, "dias_aviso", actual.get("dias_aviso") or DIAS_AVISO_DEFECTO)
+        )
 
         # Si el ítem aún apunta al catálogo estándar (sin articulo_personalizado_id)
         # y se está tocando algún campo que describe el artículo en sí, se
@@ -456,7 +458,7 @@ def actualizar_articulo_personalizado(articulo_id):
     icono = (datos.get("icono") or articulo["icono"] or "").strip() or None
     unidad = (datos.get("unidad") or articulo["unidad"]).strip()
     sub_descripcion = (datos.get("sub_descripcion") or articulo["sub_descripcion"] or "").strip() or None
-    dias_aviso = int(datos.get("dias_aviso", articulo["dias_aviso"]))
+    dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", articulo["dias_aviso"]))
 
     db.execute(
         """UPDATE articulos_personalizados

@@ -176,7 +176,7 @@ def confirmar_ticket():
         nombre = (item.get("nombre") or "").strip()
         if not nombre:
             continue
-        cantidad = Validator.entero_no_negativo(item.get("cantidad"), "cantidad")
+        cantidad = Validator.entero_no_negativo(Validator.con_defecto(item, "cantidad", 1), "cantidad")
         unidad = (item.get("unidad") or "ud").strip() or "ud"
 
         producto_id = item.get("producto_id")

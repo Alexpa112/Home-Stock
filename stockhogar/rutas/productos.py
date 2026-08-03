@@ -58,9 +58,9 @@ def crear_producto():
     datos = request.get_json(force=True) or {}
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 80)
     categoria = Validator.string_opcional(datos.get("categoria"), "Otros", 50)
-    cantidad = Validator.entero_no_negativo(datos.get("cantidad", 0), "cantidad")
-    stock_minimo = Validator.entero_no_negativo(datos.get("stock_minimo", 1), "stock mínimo")
-    dias_aviso = int(datos.get("dias_aviso", DIAS_AVISO_DEFECTO))
+    cantidad = Validator.entero_no_negativo(Validator.con_defecto(datos, "cantidad", 0), "cantidad")
+    stock_minimo = Validator.entero_no_negativo(Validator.con_defecto(datos, "stock_minimo", 1), "stock mínimo")
+    dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", DIAS_AVISO_DEFECTO))
     unidad = Validator.string_opcional(datos.get("unidad"), "ud", 20)
     icono = Validator.string_opcional(datos.get("icono"), None, 30)
 
@@ -267,11 +267,13 @@ def actualizar_producto(producto_id):
         categoria = datos.get("categoria") or actual["categoria"]
         if categoria != normalizar_categoria(db, categoria):
             categoria = actual["categoria"]
-        cantidad = Validator.entero_no_negativo(datos.get("cantidad", actual["cantidad"]), "cantidad")
-        stock_minimo = Validator.entero_no_negativo(
-            datos.get("stock_minimo", actual["stock_minimo"]), "stock mínimo"
+        cantidad = Validator.entero_no_negativo(
+            Validator.con_defecto(datos, "cantidad", actual["cantidad"]), "cantidad"
         )
-        dias_aviso = int(datos.get("dias_aviso", actual["dias_aviso"]))
+        stock_minimo = Validator.entero_no_negativo(
+            Validator.con_defecto(datos, "stock_minimo", actual["stock_minimo"]), "stock mínimo"
+        )
+        dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", actual["dias_aviso"]))
         unidad = Validator.string_opcional(datos.get("unidad"), actual["unidad"], 20)
         icono = Validator.string_opcional(datos.get("icono"), actual.get("icono"), 30)
 

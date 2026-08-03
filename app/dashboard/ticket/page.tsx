@@ -8,7 +8,7 @@ import { useTranslation } from '@/contexts/TranslationContext'
 // Shape real: ver stockhogar/servicios/ocr/procesador_tickets_v2.py:crear_respuesta_usuario
 interface ItemTicket {
   nombre: string
-  cantidad: number
+  cantidad: number | ''
   unidad: string
   categoria: string
   producto_id: number | null
@@ -62,7 +62,7 @@ export default function EscanearTicketPage() {
       const data: any = await tickets.confirmar(
         seleccionados.map((it) => ({
           nombre: it.nombre,
-          cantidad: it.cantidad,
+          cantidad: it.cantidad === '' ? 1 : it.cantidad,
           unidad: it.unidad,
           categoria: it.categoria,
           producto_id: it.producto_id,
@@ -196,7 +196,11 @@ export default function EscanearTicketPage() {
                         type="number"
                         value={item.cantidad}
                         min={0}
-                        onChange={(e) => actualizarItem(idx, { cantidad: parseInt(e.target.value) || 0 })}
+                        onChange={(e) =>
+                          actualizarItem(idx, {
+                            cantidad: e.target.value === '' ? '' : parseInt(e.target.value) || 0,
+                          })
+                        }
                         className="input-field"
                         inputMode="numeric"
                         placeholder={t('cantidad')}

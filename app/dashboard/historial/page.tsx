@@ -41,7 +41,7 @@ export default function HistorialPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editandoId, setEditandoId] = useState<number | null>(null)
-  const [diasAvisoEdit, setDiasAvisoEdit] = useState(30)
+  const [diasAvisoEdit, setDiasAvisoEdit] = useState<number | ''>(30)
   const [guardandoId, setGuardandoId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -66,7 +66,9 @@ export default function HistorialPage() {
     setGuardandoId(id)
     setError('')
     try {
-      const actualizado: any = await articulosPersonalizadosApi.actualizar(id, { dias_aviso: diasAvisoEdit })
+      const actualizado: any = await articulosPersonalizadosApi.actualizar(id, {
+        dias_aviso: diasAvisoEdit === '' ? null : diasAvisoEdit,
+      })
       setPersonalizados((prev) => prev.map((a) => (a.id === id ? { ...a, dias_aviso: actualizado.dias_aviso } : a)))
       setEditandoId(null)
     } catch (err) {
@@ -233,7 +235,7 @@ export default function HistorialPage() {
                       min={1}
                       max={365}
                       value={diasAvisoEdit}
-                      onChange={(e) => setDiasAvisoEdit(parseInt(e.target.value) || 30)}
+                      onChange={(e) => setDiasAvisoEdit(e.target.value === '' ? '' : parseInt(e.target.value))}
                       className="input-field w-20 py-1"
                       inputMode="numeric"
                     />

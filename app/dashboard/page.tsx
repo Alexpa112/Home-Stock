@@ -53,7 +53,7 @@ interface FormularioProducto {
   cantidad: number | ''
   stock_minimo: number | ''
   unidad: string
-  dias_aviso: number
+  dias_aviso: number | ''
 }
 
 const FORM_VACIO: FormularioProducto = {
@@ -217,6 +217,7 @@ export default function StockPage() {
       setError('')
       const cantidadFinal = formData.cantidad === '' ? 0 : Number(formData.cantidad)
       const stockMinimoFinal = formData.stock_minimo === '' ? 1 : Number(formData.stock_minimo)
+      const diasAvisoFinal = formData.dias_aviso === '' ? 7 : Number(formData.dias_aviso)
 
       if (editandoId) {
         const actualizado: any = await productosApi.actualizar(editandoId, {
@@ -225,7 +226,7 @@ export default function StockPage() {
           cantidad: cantidadFinal,
           stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
-          dias_aviso: formData.dias_aviso,
+          dias_aviso: diasAvisoFinal,
           icono: formIcono,
         })
         setItems(prev => prev.map(item => item.id === editandoId ? { ...item, ...actualizado } : item))
@@ -236,7 +237,7 @@ export default function StockPage() {
           cantidad: cantidadFinal,
           stock_minimo: stockMinimoFinal,
           unidad: formData.unidad,
-          dias_aviso: formData.dias_aviso,
+          dias_aviso: diasAvisoFinal,
           icono: formIcono,
         })
         setItems(prev => [...prev, creado])
@@ -839,7 +840,12 @@ export default function StockPage() {
                   id="prod-dias"
                   type="number"
                   value={formData.dias_aviso}
-                  onChange={(e) => setFormData({ ...formData, dias_aviso: parseInt(e.target.value) || 7 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      dias_aviso: parseNumeroInput(e.target.value, 7),
+                    })
+                  }
                   min="1"
                   max="365"
                   className="input-field"
