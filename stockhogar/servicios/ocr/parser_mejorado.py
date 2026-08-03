@@ -227,8 +227,14 @@ class ParserMejorado:
             r'visa|mastercard)\b',
             re.IGNORECASE | re.UNICODE
         )
+        # Además de la palabra clave, se exige un importe en euros en la
+        # misma línea: la cabecera de la tabla de productos ("Descripción
+        # P. Unit Importe") también contiene "importe" pero sin ningún
+        # precio, y sin esta condición se detectaba como cierre ANTES de
+        # llegar a los productos (0 items detectados pese a que el OCR
+        # leía el ticket perfectamente bien).
         for idx, linea in enumerate(lineas):
-            if regex_cierre.search(linea):
+            if regex_cierre.search(linea) and self.regex_precio.search(linea):
                 return idx
 
         return len(lineas)
