@@ -34,7 +34,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 STEPS_COMPLETED=0
-STEPS_TOTAL=14
+STEPS_TOTAL=15
 LOG_FILE="$SCRIPT_DIR/install.log"
 LOCK_FILE="$SCRIPT_DIR/.install.lock"
 : > "$LOG_FILE"
@@ -672,11 +672,41 @@ log_success "docker-compose.yml válido"
 step_end
 
 ################################################################################
+step_start "Descargar imágenes precompiladas (GHCR)"
+################################################################################
+
+# .github/workflows/docker-publish.yml compila armv7l en un runner de GitHub
+# (rápido, RAM de sobra) y publica en ghcr.io en cada push a "produccion". Si
+# esas imágenes están disponibles, un "pull" es muchísimo más barato para la
+# Pi que compilar in-situ (evita el pico de CPU/RAM que colgaba el sistema
+# durante "next build"). Si el pull falla (imagen aún no publicada, sin red
+# hacia GHCR, etc.) se cae al build local de siempre: no es fatal.
+PULLED_INSTEAD_OF_BUILD=0
+if [[ "$BUILD_MODE" -eq 0 ]]; then
+    log_info "--no-build: se omite también el intento de pull"
+elif [[ "$REINSTALL_MODE" -eq 1 ]]; then
+    log_info "--reinstall pide reconstruir todo sin caché explícitamente: se omite el pull"
+else
+    log_info "Intentando descargar imágenes precompiladas antes de compilar localmente..."
+    if BUILDX_NO_DEFAULT_ATTESTATIONS=1 "${COMPOSE[@]}" pull >> "$LOG_FILE" 2>&1; then
+        log_success "Imágenes precompiladas descargadas; se omite el build local"
+        BUILD_MODE=0
+        PULLED_INSTEAD_OF_BUILD=1
+    else
+        log_warning "No se pudieron descargar imágenes precompiladas (aún no publicadas o sin red hacia GHCR)."
+        log_warning "Se compilará localmente como respaldo."
+    fi
+fi
+
+step_end
+
+################################################################################
 step_start "Construir imágenes"
 ################################################################################
 
 if [[ "$BUILD_MODE" -eq 0 ]]; then
-    log_info "--no-build: se omite la construcción y se reutiliza la imagen actual"
+    [[ "$PULLED_INSTEAD_OF_BUILD" -eq 1 ]] && log_info "Ya se descargaron imágenes precompiladas: se omite la construcción" \
+        || log_info "--no-build: se omite la construcción y se reutiliza la imagen actual"
 else
     # Guardamos la imagen anterior de CADA servicio (backend y frontend) como
     # :rollback para poder volver atrás si el arranque falla. Antes solo se

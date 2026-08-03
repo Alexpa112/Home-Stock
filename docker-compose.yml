@@ -1,5 +1,10 @@
 services:
   stockhogar:
+    # "image" fija el tag que usan tanto "docker compose pull" (descarga la
+    # imagen precompilada por .github/workflows/docker-publish.yml, evitando
+    # compilar en la Pi) como "docker compose build" (compilación local de
+    # respaldo si el pull falla o no hay red hacia GHCR).
+    image: ghcr.io/alexpa112/home-stock-backend:latest
     build:
       context: .
       dockerfile: Dockerfile.raspbian
@@ -24,6 +29,7 @@ services:
       - stockhogar-network
 
   frontend:
+    image: ghcr.io/alexpa112/home-stock-frontend:latest
     build:
       context: .
       dockerfile: Dockerfile.frontend
