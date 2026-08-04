@@ -26,6 +26,7 @@ set -Eeuo pipefail
 # --- Rutas: el script funciona sin importar desde dónde se invoque ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+ORIGINAL_ARGS=("$@")
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -507,7 +508,12 @@ step_end
 step_start "Actualizar código (git pull)"
 ################################################################################
 
-if [[ $REINSTALL_MODE -eq 1 ]]; then
+if [[ "${STOCKHOGAR_REEXEC:-0}" -eq 1 ]]; then
+    # Segunda pasada tras el re-exec de abajo: el código ya se actualizó en
+    # la primera pasada, solo se recupera PREV_GIT_COMMIT para el rollback.
+    PREV_GIT_COMMIT="${STOCKHOGAR_PREV_GIT_COMMIT:-}"
+    log_info "Continuando con el código ya actualizado a $(git rev-parse --short HEAD)."
+elif [[ $REINSTALL_MODE -eq 1 ]]; then
     if [[ -d .git ]]; then
         PREV_GIT_COMMIT="$(git rev-parse HEAD)"
         log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
@@ -516,6 +522,14 @@ if [[ $REINSTALL_MODE -eq 1 ]]; then
         run git fetch --all
         run git reset --hard "origin/${RAMA_ACTUAL}"
         log_success "Código reinstalado desde origin/${RAMA_ACTUAL} a $(git rev-parse --short HEAD)"
+        # El git reset de arriba puede haber modificado este propio fichero:
+        # bash ya tiene bufferizado en memoria el resto del script leído
+        # ANTES del reset, así que seguir sin más ejecutaría código
+        # potencialmente obsoleto. Se relanza para garantizar que el resto
+        # de pasos corre con el contenido ya actualizado en disco.
+        log_info "Relanzando install.sh para aplicar cualquier cambio en el propio script..."
+        STOCKHOGAR_REEXEC=1 STOCKHOGAR_PREV_GIT_COMMIT="$PREV_GIT_COMMIT" \
+            exec bash "$SCRIPT_DIR/install.sh" "${ORIGINAL_ARGS[@]}"
     else
         log_warning "No es un repositorio git; se omite git fetch/reset"
     fi
@@ -532,6 +546,11 @@ elif [[ $UPDATE_MODE -eq 1 ]]; then
         log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
         run git pull --ff-only
         log_success "Código actualizado a $(git rev-parse --short HEAD)"
+        # Mismo motivo que en --reinstall: garantizar que lo que sigue corre
+        # con el script ya actualizado, no con lo que bash tenía bufferizado.
+        log_info "Relanzando install.sh para aplicar cualquier cambio en el propio script..."
+        STOCKHOGAR_REEXEC=1 STOCKHOGAR_PREV_GIT_COMMIT="$PREV_GIT_COMMIT" \
+            exec bash "$SCRIPT_DIR/install.sh" "${ORIGINAL_ARGS[@]}"
     else
         log_warning "No es un repositorio git; se omite git pull"
     fi
