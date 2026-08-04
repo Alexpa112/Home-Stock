@@ -50,6 +50,7 @@ class DataConverter:
     def lista_to_dict(row: Dict, usuario_id: Optional[int] = None, include_detalles: bool = False) -> Dict:
         """Convierte fila de lista a dict JSON."""
         color = DataConverter.safe_field(row, "color", "#B5551A")
+        simbolo_moneda = DataConverter.safe_field(row, "simbolo_moneda", "€")
 
         data = {
             "id": row["id"],
@@ -57,6 +58,7 @@ class DataConverter:
             "descripcion": row["descripcion"],
             "icono": row["icono"],
             "color": color,
+            "simbolo_moneda": simbolo_moneda,
             "privada": bool(row["privada"]),
             "usuario_propietario_id": row["usuario_propietario_id"],
             "fecha_creacion": row["fecha_creacion"],

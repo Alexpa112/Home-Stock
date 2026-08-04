@@ -25,6 +25,12 @@ export default function PrivacidadPage() {
           compra, hogares y las personas con las que los compartes.
         </li>
         <li>
+          <strong>Gastos compartidos:</strong> si usas la función de gastos del hogar, guardamos
+          la descripción, el importe, quién pagó y cómo se reparte cada gasto entre los miembros
+          del hogar, así como los pagos que registres para saldarlos. Solo son visibles para los
+          miembros de ese mismo hogar; no se comparten con ningún tercero ni pasarela de pago.
+        </li>
+        <li>
           <strong>Fotos de tickets:</strong> las imágenes de tickets de compra que subes para el
           escaneo automático de artículos.
         </li>

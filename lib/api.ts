@@ -179,6 +179,10 @@ export const hogares = {
   // Marca de versión barata del hogar activo, para polling silencioso (ver
   // lib/usePollingRefresh.ts): se pide antes de recargar datos completos.
   version: () => apiCall('/api/hogares/version'),
+
+  // Lista básica (id + nombre_usuario) accesible a cualquier miembro del
+  // hogar, a diferencia de permisos.miembros (solo propietario).
+  miembrosBasico: (hogarId: number) => apiCall(`/api/hogares/${hogarId}/miembros-basico`),
 }
 
 // ===== Productos / stock (stockhogar/rutas/productos.py) =====
@@ -261,6 +265,30 @@ export const permisos = {
 
   aceptarInvitacion: (codigo: string) =>
     apiCall(`/api/hogares/aceptar-invitacion/${codigo}`, { method: 'POST' }),
+}
+
+// ===== Gastos compartidos del hogar (stockhogar/rutas/gastos.py) =====
+export const gastos = {
+  listar: () => apiCall('/api/gastos'),
+
+  crear: (datos: {
+    descripcion: string
+    importe_total: number
+    usuario_pagador_id: number
+    fecha?: string
+    participantes: Array<{ usuario_id: number; importe: number }>
+  }) => apiCall('/api/gastos', { method: 'POST', body: JSON.stringify(datos) }),
+
+  actualizar: (id: number, datos: Record<string, unknown>) =>
+    apiCall(`/api/gastos/${id}`, { method: 'PATCH', body: JSON.stringify(datos) }),
+
+  eliminar: (id: number) => apiCall(`/api/gastos/${id}`, { method: 'DELETE' }),
+
+  // Saldo neto por miembro del hogar activo: positivo = le deben, negativo = debe.
+  saldo: () => apiCall('/api/gastos/saldo'),
+
+  registrarLiquidacion: (datos: { usuario_origen_id: number; usuario_destino_id: number; importe: number; nota?: string }) =>
+    apiCall('/api/gastos/liquidaciones', { method: 'POST', body: JSON.stringify(datos) }),
 }
 
 // ===== Escaneo de tickets (stockhogar/rutas/tickets.py) =====

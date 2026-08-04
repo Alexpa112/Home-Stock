@@ -73,14 +73,15 @@ def crear_lista():
     descripcion = Validator.string_opcional(datos.get("descripcion"), None, 500)
     icono = Validator.string_opcional(datos.get("icono"), "h-clipboard-document-list", 30)
     color = Validator.color_hex(datos.get("color"), "#B5551A")
+    simbolo_moneda = Validator.string_opcional(datos.get("simbolo_moneda"), "€", 5)
     privada = datos.get("privada", True)
 
     db = get_db()
     cur = db.execute(
         """INSERT INTO hogares
-           (nombre, descripcion, usuario_propietario_id, privada, icono, color, fecha_creacion, fecha_actualizacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (nombre, descripcion, usuario_id, int(privada), icono, color, ahora(), ahora()),
+           (nombre, descripcion, usuario_propietario_id, privada, icono, color, simbolo_moneda, fecha_creacion, fecha_actualizacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (nombre, descripcion, usuario_id, int(privada), icono, color, simbolo_moneda, ahora(), ahora()),
     )
     nueva_lista_id = cur.lastrowid
 
@@ -162,6 +163,11 @@ def actualizar_lista(hogar_id):
         color = Validator.color_hex(datos.get("color"), "#B5551A")
         actualizaciones["color"] = "?"
         parametros.append(color)
+
+    if "simbolo_moneda" in datos:
+        simbolo_moneda = Validator.string_opcional(datos.get("simbolo_moneda"), "€", 5)
+        actualizaciones["simbolo_moneda"] = "?"
+        parametros.append(simbolo_moneda)
 
     if "privada" in datos:
         actualizaciones["privada"] = "?"
@@ -307,6 +313,28 @@ def version_hogar_actual():
         fila["n_stock"], fila["max_stock"], fila["n_articulos"], fila["max_articulos"],
     ))
     return APIResponse.success({"hogar_id": hogar_id, "version": version})
+
+
+@bp.route("/<int:hogar_id>/miembros-basico", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def miembros_basico(hogar_id):
+    """Lista básica (id + nombre) de los miembros del hogar, accesible a
+    cualquiera con acceso (a diferencia de /miembros en rutas/permisos.py,
+    que reserva la gestión de permisos al propietario). Pensado para
+    selectores de participantes en funcionalidades como gastos compartidos."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+
+    if not _usuario_tiene_permiso(db, hogar_id, usuario_id):
+        return APIResponse.no_permitido()
+
+    filas = db.execute(
+        "SELECT id, nombre_usuario FROM usuarios WHERE id = (SELECT usuario_propietario_id FROM hogares WHERE id = ?) "
+        "OR id IN (SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?)",
+        (hogar_id, hogar_id),
+    ).fetchall()
+    return APIResponse.success([{"id": f["id"], "nombre_usuario": f["nombre_usuario"]} for f in filas])
 
 
 # Nota: compartir/miembros/permisos de lista se gestionan en rutas/permisos.py

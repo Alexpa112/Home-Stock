@@ -15,6 +15,7 @@ interface Hogar {
   descripcion: string | null
   icono: string
   color: string
+  simbolo_moneda?: string
   privada: boolean
   usuario_propietario_id: number
   mi_rol?: string

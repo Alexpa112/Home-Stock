@@ -48,6 +48,20 @@ class Validator:
         return max(minimo, min(numero, maximo))
 
     @staticmethod
+    def decimal_positivo(valor: Any, nombre_campo: str, maximo: float = 1_000_000) -> float:
+        """Valida un importe monetario: número positivo, redondeado a 2
+        decimales, con un tope superior para evitar importes absurdos."""
+        try:
+            numero = round(float(valor), 2)
+        except (TypeError, ValueError) as e:
+            raise ValidationError(f"El {nombre_campo} debe ser un número") from e
+        if numero <= 0:
+            raise ValidationError(f"El {nombre_campo} debe ser mayor que 0")
+        if numero > maximo:
+            raise ValidationError(f"El {nombre_campo} no puede superar {maximo}")
+        return numero
+
+    @staticmethod
     def string_requerido(valor: Any, nombre_campo: str, max_len: int = 255) -> str:
         """Valida string no vacío."""
         if not isinstance(valor, str):

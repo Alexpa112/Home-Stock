@@ -1044,6 +1044,54 @@ def _init_db_impl():
             "ON movimientos_stock(hogar_id, fecha)"
         )
 
+        asegurar_columna(db, "hogares", "simbolo_moneda", "TEXT NOT NULL DEFAULT '€'")
+
+        # Gastos compartidos del hogar (division tipo Tricount): tablas nuevas,
+        # sin datos previos que migrar, por eso basta CREATE TABLE IF NOT EXISTS simple.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                descripcion TEXT NOT NULL,
+                importe_total REAL NOT NULL,
+                fecha TEXT NOT NULL,
+                usuario_pagador_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                creado_por_usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                fecha_creacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS idx_gastos_hogar_fecha ON gastos(hogar_id, fecha)")
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos_participantes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gasto_id INTEGER NOT NULL REFERENCES gastos(id) ON DELETE CASCADE,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                importe REAL NOT NULL,
+                UNIQUE(gasto_id, usuario_id)
+            )
+            """
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS idx_gastos_participantes_gasto ON gastos_participantes(gasto_id)")
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS liquidaciones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                usuario_origen_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                usuario_destino_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                importe REAL NOT NULL,
+                fecha TEXT NOT NULL,
+                nota TEXT
+            )
+            """
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS idx_liquidaciones_hogar_fecha ON liquidaciones(hogar_id, fecha)")
+
         db.commit()
 
         # "Espacios" (stocks independientes tipo casa/oficina) se eliminó: nunca tuvo UI y
