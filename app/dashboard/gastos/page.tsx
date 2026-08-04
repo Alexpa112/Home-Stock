@@ -130,6 +130,27 @@ export default function GastosPage() {
   const [form, setForm] = useState<FormularioGasto>(FORM_VACIO(null))
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
 
+  const SIN_CATEGORIA = '__sin_categoria__'
+  const [filtros, setFiltros] = useState({ desde: '', hasta: '', categoria: '', miembroId: '' })
+  const hayFiltrosActivos = Boolean(filtros.desde || filtros.hasta || filtros.categoria || filtros.miembroId)
+  const limpiarFiltros = () => setFiltros({ desde: '', hasta: '', categoria: '', miembroId: '' })
+
+  const gastosFiltrados = gastos.filter((g) => {
+    const fechaGasto = g.fecha.slice(0, 10)
+    if (filtros.desde && fechaGasto < filtros.desde) return false
+    if (filtros.hasta && fechaGasto > filtros.hasta) return false
+    if (filtros.categoria) {
+      const categoriaGasto = g.categoria || SIN_CATEGORIA
+      if (categoriaGasto !== filtros.categoria) return false
+    }
+    if (filtros.miembroId) {
+      const miembroId = Number(filtros.miembroId)
+      const involucrado = g.usuario_pagador_id === miembroId || g.participantes.some((p) => p.usuario_id === miembroId)
+      if (!involucrado) return false
+    }
+    return true
+  })
+
   const [gestionandoCategoriasGasto, setGestionandoCategoriasGasto] = useState(false)
   const [nuevaCategoriaGasto, setNuevaCategoriaGasto] = useState('')
   const [nuevaCategoriaGastoIcono, setNuevaCategoriaGastoIcono] = useState<string | undefined>(undefined)
@@ -760,15 +781,67 @@ export default function GastosPage() {
             </div>
           )}
 
+          {!loading && gastos.length > 0 && (
+            <div className="card space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">{t('filtros')}</h2>
+                {hayFiltrosActivos && (
+                  <button onClick={limpiarFiltros} className="text-xs text-primary font-medium">{t('limpiar_filtros')}</button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="date"
+                  value={filtros.desde}
+                  onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })}
+                  className="input-field !py-1.5 text-sm w-auto"
+                  aria-label={t('desde')}
+                />
+                <input
+                  type="date"
+                  value={filtros.hasta}
+                  onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })}
+                  className="input-field !py-1.5 text-sm w-auto"
+                  aria-label={t('hasta')}
+                />
+                <select
+                  value={filtros.categoria}
+                  onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
+                  className="input-field !py-1.5 text-sm w-auto"
+                >
+                  <option value="">{t('todas_las_categorias')}</option>
+                  <option value={SIN_CATEGORIA}>{t('sin_categoria')}</option>
+                  {categoriasGasto.map((cat) => (
+                    <option key={cat.id} value={cat.nombre}>{cat.nombre}</option>
+                  ))}
+                </select>
+                <select
+                  value={filtros.miembroId}
+                  onChange={(e) => setFiltros({ ...filtros, miembroId: e.target.value })}
+                  className="input-field !py-1.5 text-sm w-auto"
+                >
+                  <option value="">{t('todos_los_miembros')}</option>
+                  {miembros.map((m) => (
+                    <option key={m.id} value={m.id}>{m.nombre_usuario}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <SkeletonCards />
           ) : gastos.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">{t('sin_gastos_aun')}</p>
             </div>
+          ) : gastosFiltrados.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">{t('sin_resultados_filtro')}</p>
+            </div>
           ) : (
             <div className="space-y-2">
-              {gastos.map((gasto) => {
+              {gastosFiltrados.map((gasto) => {
                 const iconoCategoria = getCategoriaGastoIcon(gasto.categoria)
                 return (
                 <div key={gasto.id} className="card flex items-center justify-between gap-4">
