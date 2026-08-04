@@ -223,6 +223,65 @@ class GastosTests(unittest.TestCase):
         ids = {m["id"] for m in resp.get_json()}
         self.assertEqual(ids, {self.propietario_id, self.editor_id, self.viewer_id})
 
+    def test_simplificar_sin_gastos_no_sugiere_nada(self):
+        resp = self.client_propietario.get("/api/gastos/simplificar")
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json(), [])
+
+    def test_simplificar_sugiere_pago_directo(self):
+        self._crear_gasto_valido(self.client_propietario)
+
+        resp = self.client_propietario.get("/api/gastos/simplificar")
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        sugerencias = resp.get_json()
+        self.assertEqual(len(sugerencias), 1)
+        self.assertEqual(sugerencias[0]["usuario_origen_id"], self.editor_id)
+        self.assertEqual(sugerencias[0]["usuario_destino_id"], self.propietario_id)
+        self.assertAlmostEqual(sugerencias[0]["importe"], 15.0)
+
+    def test_simplificar_elimina_intermediario(self):
+        # viewer paga 30 (viewer+editor a 15 cada uno) -> viewer +15, editor -15
+        self.client_propietario.post(
+            "/api/gastos",
+            json={
+                "descripcion": "Cena",
+                "importe_total": 30,
+                "usuario_pagador_id": self.viewer_id,
+                "participantes": [
+                    {"usuario_id": self.viewer_id, "importe": 15},
+                    {"usuario_id": self.editor_id, "importe": 15},
+                ],
+            },
+        )
+        # editor paga 30 (editor+propietario a 15 cada uno) -> editor +15 (neto 0), propietario -15
+        self.client_propietario.post(
+            "/api/gastos",
+            json={
+                "descripcion": "Almuerzo",
+                "importe_total": 30,
+                "usuario_pagador_id": self.editor_id,
+                "participantes": [
+                    {"usuario_id": self.editor_id, "importe": 15},
+                    {"usuario_id": self.propietario_id, "importe": 15},
+                ],
+            },
+        )
+
+        saldo = {
+            f["usuario_id"]: f["saldo"]
+            for f in self.client_propietario.get("/api/gastos/saldo").get_json()
+        }
+        self.assertAlmostEqual(saldo[self.editor_id], 0.0)
+
+        resp = self.client_propietario.get("/api/gastos/simplificar")
+        sugerencias = resp.get_json()
+        # El editor queda neutro (paga y recibe lo mismo) -> se elimina como intermediario:
+        # el propietario paga directamente al viewer en una única transacción.
+        self.assertEqual(len(sugerencias), 1)
+        self.assertEqual(sugerencias[0]["usuario_origen_id"], self.propietario_id)
+        self.assertEqual(sugerencias[0]["usuario_destino_id"], self.viewer_id)
+        self.assertAlmostEqual(sugerencias[0]["importe"], 15.0)
+
 
 if __name__ == "__main__":
     unittest.main()

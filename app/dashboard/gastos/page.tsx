@@ -18,6 +18,7 @@ import { totalesPorCategoria, evolucionMensual, balancePorPersona } from '@/lib/
 
 const CACHE_KEY_GASTOS = 'gastos:lista'
 const CACHE_KEY_SALDO = 'gastos:saldo'
+const CACHE_KEY_SUGERENCIAS = 'gastos:sugerencias'
 const CACHE_KEY_CATEGORIAS_GASTO = 'gastos:categorias'
 
 interface Participante {
@@ -47,6 +48,14 @@ interface SaldoItem {
   usuario_id: number
   nombre_usuario: string
   saldo: number
+}
+
+interface SugerenciaPago {
+  usuario_origen_id: number
+  usuario_origen_nombre: string
+  usuario_destino_id: number
+  usuario_destino_nombre: string
+  importe: number
 }
 
 interface Miembro {
@@ -87,6 +96,9 @@ export default function GastosPage() {
 
   const [gastos, setGastos] = useState<Gasto[]>(() => getCached<Gasto[]>(CACHE_KEY_GASTOS) || [])
   const [saldo, setSaldo] = useState<SaldoItem[]>(() => getCached<SaldoItem[]>(CACHE_KEY_SALDO) || [])
+  const [sugerencias, setSugerencias] = useState<SugerenciaPago[]>(
+    () => getCached<SugerenciaPago[]>(CACHE_KEY_SUGERENCIAS) || []
+  )
   const [miembros, setMiembros] = useState<Miembro[]>([])
   const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>(
     () => getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || []
@@ -109,16 +121,26 @@ export default function GastosPage() {
   const [showLiquidacion, setShowLiquidacion] = useState(false)
   const [liquidacion, setLiquidacion] = useState({ usuario_origen_id: null as number | null, usuario_destino_id: null as number | null, importe: '', nota: '' })
 
+  const abrirLiquidacionSugerida = (s: SugerenciaPago) => {
+    setLiquidacion({ usuario_origen_id: s.usuario_origen_id, usuario_destino_id: s.usuario_destino_id, importe: s.importe.toFixed(2), nota: '' })
+    setShowLiquidacion(true)
+  }
+
   const cargarDatos = async () => {
     try {
       setError('')
-      const [gastosData, saldoData] = await Promise.all([gastosApi.listar(), gastosApi.saldo()])
+      const [gastosData, saldoData, sugerenciasData] = await Promise.all([
+        gastosApi.listar(), gastosApi.saldo(), gastosApi.simplificar(),
+      ])
       const gastosArr = Array.isArray(gastosData) ? gastosData : []
       const saldoArr = Array.isArray(saldoData) ? saldoData : []
+      const sugerenciasArr = Array.isArray(sugerenciasData) ? sugerenciasData : []
       setGastos(gastosArr)
       setSaldo(saldoArr)
+      setSugerencias(sugerenciasArr)
       setCached(CACHE_KEY_GASTOS, gastosArr)
       setCached(CACHE_KEY_SALDO, saldoArr)
+      setCached(CACHE_KEY_SUGERENCIAS, sugerenciasArr)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error_conexion_titulo'))
     } finally {
@@ -595,6 +617,27 @@ export default function GastosPage() {
                         ? formatImporte(0, simboloMoneda)
                         : `${s.saldo > 0 ? t('le_deben') : t('debe')}: ${formatImporte(Math.abs(s.saldo), simboloMoneda)}`}
                     </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sugerencias.length > 0 && (
+            <div className="card space-y-2">
+              <h2 className="text-lg font-semibold">{t('pagos_sugeridos')}</h2>
+              <div className="space-y-2">
+                {sugerencias.map((s, idx) => (
+                  <div key={idx} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate">
+                      {s.usuario_origen_nombre} → {s.usuario_destino_nombre}: {formatImporte(s.importe, simboloMoneda)}
+                    </span>
+                    <button
+                      onClick={() => abrirLiquidacionSugerida(s)}
+                      className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
+                    >
+                      {t('pagar')}
+                    </button>
                   </div>
                 ))}
               </div>

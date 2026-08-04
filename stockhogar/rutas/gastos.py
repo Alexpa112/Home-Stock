@@ -1,6 +1,7 @@
 """Gastos compartidos del hogar (division tipo Tricount): registro de quien
 pago que y como se reparte entre los miembros, y saldo neto de cada uno."""
 import csv
+import heapq
 import io
 
 from flask import Blueprint, Response, request, session
@@ -244,16 +245,8 @@ def eliminar_gasto(gasto_id):
     return APIResponse.success()
 
 
-@bp.route("/saldo", methods=["GET"])
-@requerir_sesion
-@manejo_errores
-def saldo_hogar():
-    """Saldo neto por miembro del hogar activo: positivo = le deben, negativo = debe."""
-    db = get_db()
-    hogar_id = hogar_actual_con_permiso(db, session)
-    if not hogar_id:
-        return APIResponse.success([])
-
+def _calcular_saldos(db, hogar_id):
+    """Saldo neto por miembro del hogar: positivo = le deben, negativo = debe."""
     filas = db.execute(
         """SELECT u.id, u.nombre_usuario,
                COALESCE(pagado.total, 0) - COALESCE(debido.total, 0)
@@ -276,10 +269,75 @@ def saldo_hogar():
         (hogar_id, hogar_id, hogar_id, hogar_id, hogar_id, hogar_id),
     ).fetchall()
 
-    return APIResponse.success([
+    return [
         {"usuario_id": f["id"], "nombre_usuario": f["nombre_usuario"], "saldo": round(f["saldo"], 2)}
         for f in filas
-    ])
+    ]
+
+
+@bp.route("/saldo", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def saldo_hogar():
+    """Saldo neto por miembro del hogar activo: positivo = le deben, negativo = debe."""
+    db = get_db()
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.success([])
+
+    return APIResponse.success(_calcular_saldos(db, hogar_id))
+
+
+def _simplificar_deudas(saldos):
+    """Algoritmo voraz: en cada paso empareja al mayor acreedor con el mayor
+    deudor, minimizando el número de pagos necesarios para saldar el grupo
+    (como máximo N-1 transacciones, N = nº de miembros con saldo distinto de 0)."""
+    acreedores = []
+    deudores = []
+    for s in saldos:
+        saldo = s["saldo"]
+        if saldo > TOLERANCIA_REPARTO:
+            heapq.heappush(acreedores, (-saldo, s["usuario_id"], s["nombre_usuario"]))
+        elif saldo < -TOLERANCIA_REPARTO:
+            heapq.heappush(deudores, (saldo, s["usuario_id"], s["nombre_usuario"]))
+
+    transacciones = []
+    while acreedores and deudores:
+        neg_credito, acreedor_id, acreedor_nombre = heapq.heappop(acreedores)
+        neg_deuda, deudor_id, deudor_nombre = heapq.heappop(deudores)
+        credito, deuda = -neg_credito, -neg_deuda
+        importe = round(min(credito, deuda), 2)
+
+        transacciones.append({
+            "usuario_origen_id": deudor_id,
+            "usuario_origen_nombre": deudor_nombre,
+            "usuario_destino_id": acreedor_id,
+            "usuario_destino_nombre": acreedor_nombre,
+            "importe": importe,
+        })
+
+        credito_restante = round(credito - importe, 2)
+        deuda_restante = round(deuda - importe, 2)
+        if credito_restante > TOLERANCIA_REPARTO:
+            heapq.heappush(acreedores, (-credito_restante, acreedor_id, acreedor_nombre))
+        if deuda_restante > TOLERANCIA_REPARTO:
+            heapq.heappush(deudores, (-deuda_restante, deudor_id, deudor_nombre))
+
+    return transacciones
+
+
+@bp.route("/simplificar", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def simplificar_deudas():
+    """Sugiere el conjunto mínimo de pagos para saldar el hogar activo."""
+    db = get_db()
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.success([])
+
+    saldos = _calcular_saldos(db, hogar_id)
+    return APIResponse.success(_simplificar_deudas(saldos))
 
 
 def _formatear_decimal_csv(valor):
