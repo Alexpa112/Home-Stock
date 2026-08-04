@@ -889,3 +889,17 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "noreply@homestock.local")
 APP_URL = os.getenv("APP_URL", "http://localhost:5000")
+# Dominio publico (sin esquema) mostrado en las paginas legales. Se deriva de
+# APP_URL para que baste con cambiar esa variable desde el Panel de Gestion
+# del Servidor si la app cambia de dominio, sin tocar codigo.
+DOMINIO_PUBLICO = APP_URL.split("://", 1)[-1]
+
+# Identidad del responsable del tratamiento (Aviso Legal / RGPD-LOPDGDD):
+# persona fisica, sin entidad mercantil detras de la app.
+TITULAR_LEGAL = "Alejandro Paz Silva"
+EMAIL_CONTACTO_LEGAL = "pazsilva.alejandro@gmail.com"
+
+# Version vigente de Terminos y Condiciones / Politica de Privacidad. Al
+# subir esta fecha, todo usuario (incluido el que ya tenia cuenta) debe
+# volver a aceptar antes de seguir usando la app (ver rutas/auth.py).
+VERSION_TERMINOS = "2026-08-04"

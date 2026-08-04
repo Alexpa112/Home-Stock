@@ -7,6 +7,7 @@ from flask import Blueprint, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..config import VERSION_TERMINOS
 from ..db import ahora, get_db
 from ..servicios import intentos_login
 from ..servicios.email_service import EmailService
@@ -31,6 +32,7 @@ RUTAS_PUBLICAS = {
     "paginas.mantenimiento_stream",
     "idiomas.obtener_todas_traducciones",
     "idiomas.obtener_idioma",
+    "legal.configuracion_legal",
 }
 
 
@@ -53,10 +55,11 @@ def estado():
     vista_lista_compra = "lista"
     agrupar_categorias = "off"
     doble_factor_activo = False
+    terminos_pendientes = False
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
         fila = db.execute(
-            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias, doble_factor_activo FROM usuarios WHERE id = ?",
+            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias, doble_factor_activo, terminos_version_aceptada FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         if fila:
@@ -67,6 +70,7 @@ def estado():
             vista_lista_compra = fila["vista_lista_compra"]
             agrupar_categorias = fila["agrupar_categorias"]
             doble_factor_activo = bool(fila["doble_factor_activo"])
+            terminos_pendientes = fila["terminos_version_aceptada"] != VERSION_TERMINOS
     return APIResponse.success(
         {
             "necesita_setup": not hay_usuarios(db),
@@ -78,6 +82,7 @@ def estado():
             "vista_lista_compra": vista_lista_compra,
             "agrupar_categorias": agrupar_categorias,
             "doble_factor_activo": doble_factor_activo,
+            "terminos_pendientes": terminos_pendientes,
         }
     )
 
@@ -93,6 +98,9 @@ def registrar():
     if len(password) < 8:
         return APIResponse.validacion("err_password_min_8")
 
+    if not datos.get("acepta_terminos"):
+        return APIResponse.validacion("err_debe_aceptar_terminos")
+
     existente = db.execute(
         "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
     ).fetchone()
@@ -100,8 +108,9 @@ def registrar():
         return APIResponse.error("err_usuario_duplicado", 400)
 
     db.execute(
-        "INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion) VALUES (?, ?, ?)",
-        (nombre_usuario, generate_password_hash(password), ahora()),
+        "INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion, terminos_version_aceptada, terminos_fecha_aceptacion) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (nombre_usuario, generate_password_hash(password), ahora(), VERSION_TERMINOS, ahora()),
     )
     db.commit()
 
@@ -236,6 +245,26 @@ def cambiar_doble_factor():
     db.execute("UPDATE usuarios SET doble_factor_activo = ? WHERE id = ?", (int(activar), usuario_id))
     db.commit()
     return APIResponse.success({"doble_factor_activo": activar})
+
+
+@bp.route("/api/auth/aceptar-terminos", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def aceptar_terminos():
+    """Registra la aceptación de la versión vigente de Términos y Privacidad.
+
+    Cubre tanto al usuario que se registra por Google/Apple (no pasa por el
+    formulario de registro, así que no acepta ahí) como al que ya tenía
+    cuenta antes de introducir esta versión de los términos.
+    """
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+    db.execute(
+        "UPDATE usuarios SET terminos_version_aceptada = ?, terminos_fecha_aceptacion = ? WHERE id = ?",
+        (VERSION_TERMINOS, ahora(), usuario_id),
+    )
+    db.commit()
+    return APIResponse.success({"version_terminos": VERSION_TERMINOS})
 
 
 @bp.route("/api/auth/logout", methods=["POST"])

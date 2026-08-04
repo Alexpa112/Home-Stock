@@ -55,6 +55,7 @@ function HomeContent() {
   const [error, setError] = useState('')
   const [requiereCodigo, setRequiereCodigo] = useState(false)
   const [codigo, setCodigo] = useState('')
+  const [aceptaTerminos, setAceptaTerminos] = useState(false)
   const [reenviando, setReenviando] = useState(false)
   const [reenviado, setReenviado] = useState(false)
 
@@ -86,6 +87,12 @@ function HomeContent() {
       return
     }
 
+    if (!isLogin && !aceptaTerminos) {
+      setError(t('err_debe_aceptar_terminos'))
+      setLoading(false)
+      return
+    }
+
     try {
       if (isLogin) {
         const respuesta: any = await auth.login(usuario, password)
@@ -95,7 +102,7 @@ function HomeContent() {
           return
         }
       } else {
-        await auth.registrar(usuario, password)
+        await auth.registrar(usuario, password, aceptaTerminos)
       }
 
       const estado = await auth.estado()
@@ -143,7 +150,15 @@ function HomeContent() {
     }
   }
 
-  const resetForm = () => { setIsLogin(!isLogin); setError(''); setUsuario(''); setPassword(''); setRequiereCodigo(false); setCodigo('') }
+  const resetForm = () => {
+    setIsLogin(!isLogin)
+    setError('')
+    setUsuario('')
+    setPassword('')
+    setRequiereCodigo(false)
+    setCodigo('')
+    setAceptaTerminos(false)
+  }
 
   return (
     <main className="min-h-screen flex flex-col bg-background text-foreground">
@@ -287,6 +302,31 @@ function HomeContent() {
                 </div>
               </div>
 
+              {!isLogin && (
+                <div className="space-y-1.5">
+                  <label className="flex items-start gap-2 text-sm text-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={aceptaTerminos}
+                      onChange={(e) => setAceptaTerminos(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-accent"
+                      disabled={loading}
+                      required
+                    />
+                    <span>{t('acepta_terminos_texto')}</span>
+                  </label>
+                  <p className="pl-6 text-xs text-muted-foreground">
+                    <a href="/legal/terminos" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      {t('enlace_terminos')}
+                    </a>
+                    {' · '}
+                    <a href="/legal/privacidad" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      {t('enlace_privacidad')}
+                    </a>
+                  </p>
+                </div>
+              )}
+
               {error && (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
                   {error}
@@ -347,6 +387,13 @@ function HomeContent() {
 
         </div>
       </div>
+
+      <footer className="pb-6 px-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <a href="/legal/aviso-legal" className="hover:text-foreground hover:underline">{t('enlace_aviso_legal')}</a>
+        <a href="/legal/privacidad" className="hover:text-foreground hover:underline">{t('enlace_privacidad')}</a>
+        <a href="/legal/terminos" className="hover:text-foreground hover:underline">{t('enlace_terminos')}</a>
+        <a href="/legal/cookies" className="hover:text-foreground hover:underline">{t('enlace_cookies')}</a>
+      </footer>
     </main>
   )
 }

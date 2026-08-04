@@ -106,8 +106,13 @@ export const auth = {
   login: (usuario: string, password: string) =>
     apiCall('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, password }) }),
 
-  registrar: (usuario: string, password: string) =>
-    apiCall('/api/auth/registrar', { method: 'POST', body: JSON.stringify({ usuario, password }) }),
+  registrar: (usuario: string, password: string, aceptaTerminos: boolean) =>
+    apiCall('/api/auth/registrar', {
+      method: 'POST',
+      body: JSON.stringify({ usuario, password, acepta_terminos: aceptaTerminos }),
+    }),
+
+  aceptarTerminos: () => apiCall('/api/auth/aceptar-terminos', { method: 'POST' }),
 
   verificarCodigo: (codigo: string) =>
     apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) }),
@@ -272,4 +277,10 @@ export const idiomas = {
   disponibles: () => apiCall('/api/idiomas/disponibles'),
   cambiar: (idioma: string) => apiCall('/api/idiomas/cambiar', { method: 'POST', body: JSON.stringify({ idioma }) }),
   todos: (idioma: string) => apiCall(`/api/idiomas/todos/${idioma}`),
+}
+
+// ===== Configuración pública para páginas legales (stockhogar/rutas/legal.py) =====
+export const legal = {
+  configuracion: (): Promise<{ titular: string; email_contacto: string; dominio: string; version_terminos: string }> =>
+    apiCall('/api/legal/config'),
 }

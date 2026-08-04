@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck } from 'lucide-react'
+import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck, ScrollText, Cookie } from 'lucide-react'
 import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -512,6 +512,32 @@ export default function SettingsPage() {
           <span className="flex-1 text-sm">{t('historial_consumo')}</span>
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </Link>
+      </div>
+
+      {/* Legal */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+        {[
+          { href: '/legal/aviso-legal', label: t('enlace_aviso_legal') },
+          { href: '/legal/privacidad', label: t('enlace_privacidad') },
+          { href: '/legal/terminos', label: t('enlace_terminos') },
+          { href: '/legal/cookies', label: t('enlace_cookies') },
+        ].map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-3 flex items-center gap-3 min-h-[44px] hover:bg-muted transition-colors"
+          >
+            {href === '/legal/cookies' ? (
+              <Cookie className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+            ) : (
+              <ScrollText className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+            )}
+            <span className="flex-1 text-sm">{label}</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          </Link>
+        ))}
       </div>
 
       {/* Grupo: Zona de riesgo */}

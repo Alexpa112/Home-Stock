@@ -136,6 +136,22 @@ Tras implementar cualquier funcionalidad nueva o modificar una existente:
 
 ---
 
+## 📌 REGLA 11: Impacto en textos legales
+
+Tras implementar cualquier cambio funcional, revisa si afecta a lo declarado en
+las páginas legales (`app/legal/aviso-legal`, `app/legal/privacidad`,
+`app/legal/terminos`, `app/legal/cookies`): nuevos datos personales tratados,
+nuevos terceros/encargados del tratamiento, nuevas cookies, cambios en el
+titular o dominio, etc.
+
+- Si afecta, corrige el texto correspondiente en la misma tarea y avisa
+  explícitamente al usuario de qué cambió y por qué.
+- Si el cambio es sustancial (no un matiz menor), sube `VERSION_TERMINOS` en
+  `stockhogar/config.py` para forzar la re-aceptación de todos los usuarios.
+- Si no afecta a ningún texto legal, no hace falta decir nada al respecto.
+
+---
+
 ## 📌 Duda
 
 Si una petición obliga a romper estas reglas, avísalo antes en lugar de cambiarlo en silencio.

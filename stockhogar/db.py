@@ -353,6 +353,13 @@ def _init_db_impl():
         asegurar_columna(db, "usuarios", "vista_lista_compra", "TEXT NOT NULL DEFAULT 'lista'")
         asegurar_columna(db, "usuarios", "agrupar_categorias", "TEXT NOT NULL DEFAULT 'off'")
         asegurar_columna(db, "usuarios", "doble_factor_activo", "INTEGER NOT NULL DEFAULT 0")
+        # Aceptacion de Terminos y Condiciones / Politica de Privacidad (ver
+        # config.VERSION_TERMINOS): NULL significa que el usuario aun no ha
+        # aceptado la version vigente (usuarios ya existentes al desplegar
+        # esto, o cuentas creadas por OAuth antes de pasar por la pantalla
+        # de aceptacion).
+        asegurar_columna(db, "usuarios", "terminos_version_aceptada", "TEXT")
+        asegurar_columna(db, "usuarios", "terminos_fecha_aceptacion", "TEXT")
 
         # Codigos de verificacion en dos pasos (login por email + codigo).
         # Una fila por usuario (se sobrescribe en cada intento de login, no

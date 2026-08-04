@@ -28,7 +28,7 @@ class AislamientoStockTests(unittest.TestCase):
 
         resp = client.post(
             "/api/auth/registrar",
-            json={"usuario": usuario, "password": "TestPass123"},
+            json={"usuario": usuario, "password": "TestPass123", "acepta_terminos": True},
         )
         self.assertEqual(resp.status_code, 201, resp.get_json())
 
