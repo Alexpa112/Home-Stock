@@ -642,7 +642,7 @@ def _init_db_impl():
                 cantidad_defecto INTEGER NOT NULL DEFAULT 1,
                 fecha_creacion TEXT,
                 fecha_actualizacion TEXT,
-                usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id),
+                usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 UNIQUE(nombre, usuario_propietario_id)
             )
             """
@@ -847,7 +847,7 @@ def _init_db_impl():
                     cantidad_defecto INTEGER NOT NULL DEFAULT 1,
                     fecha_creacion TEXT,
                     fecha_actualizacion TEXT,
-                    usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id),
+                    usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                     UNIQUE(nombre, usuario_propietario_id)
                 )
                 """
@@ -858,6 +858,46 @@ def _init_db_impl():
                 "fecha_creacion, fecha_actualizacion, usuario_propietario_id) "
                 "SELECT id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
                 "fecha_creacion, fecha_actualizacion, usuario_propietario_id FROM articulos_personalizados"
+            )
+            db.execute("DROP TABLE articulos_personalizados")
+            db.execute("ALTER TABLE articulos_personalizados_new RENAME TO articulos_personalizados")
+            db.commit()
+            db.execute("PRAGMA foreign_keys = ON")
+
+        # Migración: usuario_propietario_id no tenía ON DELETE CASCADE, así que
+        # borrar un usuario con artículos personalizados propios fallaba con
+        # FOREIGN KEY constraint failed (500) en vez de arrastrar el borrado
+        # como ocurre con el resto de tablas de usuario (hogares, gastos, etc.).
+        sql_actual = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='articulos_personalizados'"
+        ).fetchone()
+        if sql_actual and "usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE" not in sql_actual["sql"]:
+            db.commit()
+            db.execute("PRAGMA foreign_keys = OFF")
+            db.execute(
+                f"""
+                CREATE TABLE articulos_personalizados_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL COLLATE NOCASE,
+                    categoria TEXT NOT NULL DEFAULT 'Otros',
+                    icono TEXT,
+                    unidad TEXT NOT NULL DEFAULT 'ud',
+                    sub_descripcion TEXT,
+                    cantidad_defecto INTEGER NOT NULL DEFAULT 1,
+                    fecha_creacion TEXT,
+                    fecha_actualizacion TEXT,
+                    usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                    dias_aviso INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO},
+                    UNIQUE(nombre, usuario_propietario_id)
+                )
+                """
+            )
+            db.execute(
+                "INSERT INTO articulos_personalizados_new "
+                "(id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+                "fecha_creacion, fecha_actualizacion, usuario_propietario_id, dias_aviso) "
+                "SELECT id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+                "fecha_creacion, fecha_actualizacion, usuario_propietario_id, dias_aviso FROM articulos_personalizados"
             )
             db.execute("DROP TABLE articulos_personalizados")
             db.execute("ALTER TABLE articulos_personalizados_new RENAME TO articulos_personalizados")
