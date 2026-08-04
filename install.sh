@@ -149,8 +149,9 @@ rollback() {
     if [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -gt 0 ]]; then
         RETAG_OK=1
         for IMAGE_NAME in "${IMAGE_NAMES_BACKED_UP[@]}"; do
-            if "${DOCKER[@]}" image inspect "${IMAGE_NAME}:rollback" &> /dev/null; then
-                "${DOCKER[@]}" tag "${IMAGE_NAME}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 || RETAG_OK=0
+            IMAGE_BASE="${IMAGE_NAME%:*}"
+            if "${DOCKER[@]}" image inspect "${IMAGE_BASE}:rollback" &> /dev/null; then
+                "${DOCKER[@]}" tag "${IMAGE_BASE}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 || RETAG_OK=0
             fi
         done
         if [[ "$RETAG_OK" -eq 1 ]] && "${COMPOSE[@]}" up -d --force-recreate >> "$LOG_FILE" 2>&1; then
@@ -721,9 +722,10 @@ else
         for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
             if "${DOCKER[@]}" image inspect "$IMAGE_NAME" &> /dev/null; then
                 CONTAINERS_TOUCHED=1
-                run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_NAME}:rollback"
+                IMAGE_BASE="${IMAGE_NAME%:*}"
+                run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_BASE}:rollback"
                 IMAGE_NAMES_BACKED_UP+=("$IMAGE_NAME")
-                log_info "Imagen anterior guardada como ${IMAGE_NAME}:rollback"
+                log_info "Imagen anterior guardada como ${IMAGE_BASE}:rollback"
             fi
         done
         [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -eq 0 ]] && log_info "No hay imagen anterior que respaldar (primera instalación)"
