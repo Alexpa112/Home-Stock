@@ -71,7 +71,7 @@ export default function ShoppingPage() {
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{ nombre: string; categoria: string; cantidad: number | null }>({
     nombre: '',
     categoria: 'Otros',
     cantidad: 1,
@@ -80,7 +80,7 @@ export default function ShoppingPage() {
   const [formUnidad, setFormUnidad] = useState<string | undefined>(undefined)
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
-  const [edicionCompleta, setEdicionCompleta] = useState({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros', dias_aviso: 30 })
+  const [edicionCompleta, setEdicionCompleta] = useState<{ nombre: string; cantidad: number | null; unidad: string; categoria: string; dias_aviso: number | null }>({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros', dias_aviso: 30 })
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [catalogoQuery, setCatalogoQuery] = useState('')
   const [sugerencias, setSugerencias] = useState<ArticuloCatalogo[]>([])
@@ -196,7 +196,7 @@ export default function ShoppingPage() {
       setError('')
       const creado: any = await articulosLista.anadir(formData.nombre, {
         categoria: formData.categoria,
-        cantidad: formData.cantidad,
+        cantidad: formData.cantidad ?? undefined,
         icono: formIcono,
         unidad: formUnidad,
       })
@@ -311,10 +311,10 @@ export default function ShoppingPage() {
     const id = modalEdicionId
     const cambios = {
       nombre: edicionCompleta.nombre.trim(),
-      cantidad: edicionCompleta.cantidad,
+      cantidad: edicionCompleta.cantidad ?? 1,
       unidad: edicionCompleta.unidad,
       categoria: edicionCompleta.categoria,
-      dias_aviso: edicionCompleta.dias_aviso,
+      dias_aviso: edicionCompleta.dias_aviso ?? 30,
     }
     const previo: EstadoLista = { pendientes, completados }
     const parchear = (lista: ArticuloLista[]) =>
