@@ -330,7 +330,8 @@ def miembros_basico(hogar_id):
         return APIResponse.no_permitido()
 
     filas = db.execute(
-        "SELECT id, nombre_usuario FROM usuarios WHERE id = (SELECT usuario_propietario_id FROM hogares WHERE id = ?) "
+        "SELECT id, COALESCE(nombre, nombre_usuario) AS nombre_usuario FROM usuarios "
+        "WHERE id = (SELECT usuario_propietario_id FROM hogares WHERE id = ?) "
         "OR id IN (SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?)",
         (hogar_id, hogar_id),
     ).fetchall()

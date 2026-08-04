@@ -42,10 +42,10 @@ def _miembros_hogar_ids(db, hogar_id):
 
 def _gasto_a_dict(db, gasto):
     participantes = db.execute(
-        """SELECT gp.usuario_id, gp.importe, u.nombre_usuario
+        """SELECT gp.usuario_id, gp.importe, COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario
            FROM gastos_participantes gp, usuarios u
            WHERE gp.usuario_id = u.id AND gp.gasto_id = ?
-           ORDER BY u.nombre_usuario""",
+           ORDER BY COALESCE(u.nombre, u.nombre_usuario)""",
         (gasto["id"],),
     ).fetchall()
     return {
@@ -77,7 +77,7 @@ def listar_gastos():
     _generar_gastos_recurrentes_pendientes(db, hogar_id, session.get("usuario_id"))
 
     gastos = db.execute(
-        """SELECT g.*, u.nombre_usuario AS pagador_nombre
+        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
            WHERE g.usuario_pagador_id = u.id AND g.hogar_id = ?
            ORDER BY g.fecha DESC, g.id DESC""",
@@ -142,7 +142,7 @@ def crear_gasto():
     db.commit()
 
     gasto = db.execute(
-        """SELECT g.*, u.nombre_usuario AS pagador_nombre
+        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
            WHERE g.usuario_pagador_id = u.id AND g.id = ?""",
         (gasto_id,),
@@ -237,7 +237,7 @@ def actualizar_gasto(gasto_id):
     db.commit()
 
     gasto = db.execute(
-        """SELECT g.*, u.nombre_usuario AS pagador_nombre
+        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
            WHERE g.usuario_pagador_id = u.id AND g.id = ?""",
         (gasto_id,),
@@ -263,7 +263,7 @@ def eliminar_gasto(gasto_id):
 def _calcular_saldos(db, hogar_id):
     """Saldo neto por miembro del hogar: positivo = le deben, negativo = debe."""
     filas = db.execute(
-        """SELECT u.id, u.nombre_usuario,
+        """SELECT u.id, COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario,
                COALESCE(pagado.total, 0) - COALESCE(debido.total, 0)
                - COALESCE(recibido.total, 0) + COALESCE(pagado_liq.total, 0) AS saldo
            FROM usuarios u
@@ -280,7 +280,7 @@ def _calcular_saldos(db, hogar_id):
                SELECT usuario_propietario_id FROM hogares WHERE id = ?
                UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?
            )
-           ORDER BY u.nombre_usuario""",
+           ORDER BY COALESCE(u.nombre, u.nombre_usuario)""",
         (hogar_id, hogar_id, hogar_id, hogar_id, hogar_id, hogar_id),
     ).fetchall()
 
@@ -374,7 +374,7 @@ def exportar_gastos_csv():
         return APIResponse.no_permitido()
 
     gastos = db.execute(
-        """SELECT g.*, u.nombre_usuario AS pagador_nombre
+        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
            WHERE g.usuario_pagador_id = u.id AND g.hogar_id = ?
            ORDER BY g.fecha, g.id""",
@@ -391,10 +391,10 @@ def exportar_gastos_csv():
 
     for gasto in gastos:
         participantes = db.execute(
-            """SELECT gp.importe, u.nombre_usuario
+            """SELECT gp.importe, COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario
                FROM gastos_participantes gp, usuarios u
                WHERE gp.usuario_id = u.id AND gp.gasto_id = ?
-               ORDER BY u.nombre_usuario""",
+               ORDER BY COALESCE(u.nombre, u.nombre_usuario)""",
             (gasto["id"],),
         ).fetchall()
         for participante in participantes:
@@ -410,7 +410,8 @@ def exportar_gastos_csv():
             ])
 
     liquidaciones = db.execute(
-        """SELECT l.*, uo.nombre_usuario AS origen_nombre, ud.nombre_usuario AS destino_nombre
+        """SELECT l.*, COALESCE(uo.nombre, uo.nombre_usuario) AS origen_nombre,
+               COALESCE(ud.nombre, ud.nombre_usuario) AS destino_nombre
            FROM liquidaciones l, usuarios uo, usuarios ud
            WHERE l.usuario_origen_id = uo.id AND l.usuario_destino_id = ud.id AND l.hogar_id = ?
            ORDER BY l.fecha, l.id""",
@@ -493,7 +494,8 @@ def listar_liquidaciones():
         return APIResponse.success([])
 
     liquidaciones = db.execute(
-        """SELECT l.*, uo.nombre_usuario AS origen_nombre, ud.nombre_usuario AS destino_nombre
+        """SELECT l.*, COALESCE(uo.nombre, uo.nombre_usuario) AS origen_nombre,
+               COALESCE(ud.nombre, ud.nombre_usuario) AS destino_nombre
            FROM liquidaciones l, usuarios uo, usuarios ud
            WHERE l.usuario_origen_id = uo.id AND l.usuario_destino_id = ud.id AND l.hogar_id = ?
            ORDER BY l.fecha DESC, l.id DESC""",
@@ -666,10 +668,10 @@ def _generar_gastos_recurrentes_pendientes(db, hogar_id, usuario_id_actual):
 
 def _gasto_recurrente_a_dict(db, recurrente):
     participantes = db.execute(
-        """SELECT grp.usuario_id, grp.importe, u.nombre_usuario
+        """SELECT grp.usuario_id, grp.importe, COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario
            FROM gastos_recurrentes_participantes grp, usuarios u
            WHERE grp.usuario_id = u.id AND grp.gasto_recurrente_id = ?
-           ORDER BY u.nombre_usuario""",
+           ORDER BY COALESCE(u.nombre, u.nombre_usuario)""",
         (recurrente["id"],),
     ).fetchall()
     return {

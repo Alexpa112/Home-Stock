@@ -273,6 +273,31 @@ class GastosTests(unittest.TestCase):
         ids = {m["id"] for m in resp.get_json()}
         self.assertEqual(ids, {self.propietario_id, self.editor_id, self.viewer_id})
 
+    def test_miembros_basico_usa_nombre_a_mostrar_si_existe(self):
+        with self.app.app_context():
+            db = get_db()
+            db.execute("UPDATE usuarios SET nombre = ? WHERE id = ?", ("Nombre Bonito", self.propietario_id))
+            db.commit()
+
+        resp = self.client_viewer.get(f"/api/hogares/{self.hogar_id}/miembros-basico")
+        miembro = next(m for m in resp.get_json() if m["id"] == self.propietario_id)
+        self.assertEqual(miembro["nombre_usuario"], "Nombre Bonito")
+
+        otro = next(m for m in resp.get_json() if m["id"] == self.editor_id)
+        self.assertNotEqual(otro["nombre_usuario"], "")  # sigue devolviendo el username sin nombre configurado
+
+    def test_gasto_usa_nombre_a_mostrar_si_existe(self):
+        with self.app.app_context():
+            db = get_db()
+            db.execute("UPDATE usuarios SET nombre = ? WHERE id = ?", ("Nombre Bonito", self.propietario_id))
+            db.commit()
+
+        resp = self._crear_gasto_valido(self.client_propietario)
+        self.assertEqual(resp.get_json()["pagador_nombre"], "Nombre Bonito")
+
+        saldo = {f["nombre_usuario"] for f in self.client_propietario.get("/api/gastos/saldo").get_json()}
+        self.assertIn("Nombre Bonito", saldo)
+
     def test_simplificar_sin_gastos_no_sugiere_nada(self):
         resp = self.client_propietario.get("/api/gastos/simplificar")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))

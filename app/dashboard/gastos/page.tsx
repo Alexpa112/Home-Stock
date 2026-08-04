@@ -711,7 +711,7 @@ export default function GastosPage() {
                 type="button"
                 onClick={() => cambiarModoReparto(modo)}
                 className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  form.modoReparto === modo ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                  form.modoReparto === modo ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}
               >
                 {t(
@@ -863,7 +863,7 @@ export default function GastosPage() {
             key={v}
             onClick={() => setVista(v)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              vista === v ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+              vista === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
             }`}
           >
             {t(v === 'gastos' ? 'nav_gastos' : 'estadisticas')}
