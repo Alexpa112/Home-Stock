@@ -74,6 +74,7 @@ class ExportarGastosCsvTests(unittest.TestCase):
                 (self.hogar_id,),
             )
             db.execute("DELETE FROM gastos WHERE hogar_id = ?", (self.hogar_id,))
+            db.execute("DELETE FROM liquidaciones WHERE hogar_id = ?", (self.hogar_id,))
             db.execute("DELETE FROM permisos_hogar WHERE hogar_id = ?", (self.hogar_id,))
             db.execute("DELETE FROM hogares WHERE id = ?", (self.hogar_id,))
             db.execute(
@@ -125,6 +126,35 @@ class ExportarGastosCsvTests(unittest.TestCase):
         self.assertEqual(descripciones, {"Cañón de descuento; oferta"})
         importes = {fila[3] for fila in filas[1:]}
         self.assertEqual(importes, {"40,00"})
+
+    def test_exportar_csv_incluye_liquidaciones(self):
+        self.client.post(
+            "/api/gastos",
+            json={
+                "descripcion": "Compra semanal",
+                "importe_total": 40,
+                "usuario_pagador_id": self.usuario_id,
+                "participantes": [
+                    {"usuario_id": self.usuario_id, "importe": 25},
+                    {"usuario_id": self.editor_id, "importe": 15},
+                ],
+            },
+        )
+        self.client.post(
+            "/api/gastos/liquidaciones",
+            json={"usuario_origen_id": self.editor_id, "usuario_destino_id": self.usuario_id, "importe": 15, "nota": "Bizum"},
+        )
+
+        resp = self.client.get("/api/gastos/exportar")
+        filas = self._filas_csv(resp)
+        self.assertEqual(len(filas), 4)  # cabecera + 2 participantes del gasto + 1 liquidación
+        cabecera = filas[0]
+        self.assertEqual(cabecera[-1], "Tipo")
+
+        fila_liquidacion = filas[-1]
+        self.assertEqual(fila_liquidacion[1], "Bizum")
+        self.assertEqual(fila_liquidacion[3], "15,00")
+        self.assertEqual(fila_liquidacion[-1], "Liquidación")
 
     def test_viewer_puede_exportar(self):
         resp = self.client_viewer.get("/api/gastos/exportar")

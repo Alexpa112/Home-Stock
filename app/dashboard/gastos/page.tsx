@@ -19,6 +19,7 @@ import { totalesPorCategoria, evolucionMensual, balancePorPersona } from '@/lib/
 const CACHE_KEY_GASTOS = 'gastos:lista'
 const CACHE_KEY_SALDO = 'gastos:saldo'
 const CACHE_KEY_SUGERENCIAS = 'gastos:sugerencias'
+const CACHE_KEY_LIQUIDACIONES = 'gastos:liquidaciones'
 const CACHE_KEY_CATEGORIAS_GASTO = 'gastos:categorias'
 
 interface Participante {
@@ -56,6 +57,17 @@ interface SugerenciaPago {
   usuario_destino_id: number
   usuario_destino_nombre: string
   importe: number
+}
+
+interface LiquidacionItem {
+  id: number
+  usuario_origen_id: number
+  origen_nombre: string
+  usuario_destino_id: number
+  destino_nombre: string
+  importe: number
+  fecha: string
+  nota: string | null
 }
 
 interface Miembro {
@@ -99,6 +111,10 @@ export default function GastosPage() {
   const [sugerencias, setSugerencias] = useState<SugerenciaPago[]>(
     () => getCached<SugerenciaPago[]>(CACHE_KEY_SUGERENCIAS) || []
   )
+  const [historialLiquidaciones, setHistorialLiquidaciones] = useState<LiquidacionItem[]>(
+    () => getCached<LiquidacionItem[]>(CACHE_KEY_LIQUIDACIONES) || []
+  )
+  const [confirmandoLiquidacionId, setConfirmandoLiquidacionId] = useState<number | null>(null)
   const [miembros, setMiembros] = useState<Miembro[]>([])
   const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>(
     () => getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || []
@@ -129,18 +145,21 @@ export default function GastosPage() {
   const cargarDatos = async () => {
     try {
       setError('')
-      const [gastosData, saldoData, sugerenciasData] = await Promise.all([
-        gastosApi.listar(), gastosApi.saldo(), gastosApi.simplificar(),
+      const [gastosData, saldoData, sugerenciasData, liquidacionesData] = await Promise.all([
+        gastosApi.listar(), gastosApi.saldo(), gastosApi.simplificar(), gastosApi.listarLiquidaciones(),
       ])
       const gastosArr = Array.isArray(gastosData) ? gastosData : []
       const saldoArr = Array.isArray(saldoData) ? saldoData : []
       const sugerenciasArr = Array.isArray(sugerenciasData) ? sugerenciasData : []
+      const liquidacionesArr = Array.isArray(liquidacionesData) ? liquidacionesData : []
       setGastos(gastosArr)
       setSaldo(saldoArr)
       setSugerencias(sugerenciasArr)
+      setHistorialLiquidaciones(liquidacionesArr)
       setCached(CACHE_KEY_GASTOS, gastosArr)
       setCached(CACHE_KEY_SALDO, saldoArr)
       setCached(CACHE_KEY_SUGERENCIAS, sugerenciasArr)
+      setCached(CACHE_KEY_LIQUIDACIONES, liquidacionesArr)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error_conexion_titulo'))
     } finally {
@@ -351,6 +370,21 @@ export default function GastosPage() {
     try {
       setError('')
       await gastosApi.eliminar(id)
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_eliminar_articulo'))
+    }
+  }
+
+  const handleEliminarLiquidacion = async (id: number) => {
+    if (confirmandoLiquidacionId !== id) {
+      setConfirmandoLiquidacionId(id)
+      return
+    }
+    setConfirmandoLiquidacionId(null)
+    try {
+      setError('')
+      await gastosApi.eliminarLiquidacion(id)
       await cargarDatos()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_eliminar_articulo'))
@@ -638,6 +672,36 @@ export default function GastosPage() {
                     >
                       {t('pagar')}
                     </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {historialLiquidaciones.length > 0 && (
+            <div className="card space-y-2">
+              <h2 className="text-lg font-semibold">{t('historial_pagos')}</h2>
+              <div className="space-y-2">
+                {historialLiquidaciones.map((l) => (
+                  <div key={l.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate">
+                      {l.origen_nombre} → {l.destino_nombre}: {formatImporte(l.importe, simboloMoneda)}
+                      {l.nota ? ` (${l.nota})` : ''}
+                    </span>
+                    {confirmandoLiquidacionId === l.id ? (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => handleEliminarLiquidacion(l.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
+                        <button onClick={() => setConfirmandoLiquidacionId(null)} className="px-2 h-8 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleEliminarLiquidacion(l.id)}
+                        className="w-8 h-8 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
+                        aria-label={t('eliminar')}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

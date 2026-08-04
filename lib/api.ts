@@ -331,6 +331,10 @@ export const gastos = {
   registrarLiquidacion: (datos: { usuario_origen_id: number; usuario_destino_id: number; importe: number; nota?: string }) =>
     apiCall('/api/gastos/liquidaciones', { method: 'POST', body: JSON.stringify(datos) }),
 
+  listarLiquidaciones: () => apiCall('/api/gastos/liquidaciones'),
+
+  eliminarLiquidacion: (id: number) => apiCall(`/api/gastos/liquidaciones/${id}`, { method: 'DELETE' }),
+
   exportarCsv: () => apiDownload('/api/gastos/exportar', 'gastos.csv'),
 }
 

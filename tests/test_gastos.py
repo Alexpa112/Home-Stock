@@ -158,6 +158,55 @@ class GastosTests(unittest.TestCase):
         self.assertAlmostEqual(saldo[self.propietario_id], 0.0)
         self.assertAlmostEqual(saldo[self.editor_id], 0.0)
 
+    def test_listar_liquidaciones_devuelve_historial(self):
+        self._crear_gasto_valido(self.client_propietario)
+        self.client_editor.post(
+            "/api/gastos/liquidaciones",
+            json={"usuario_origen_id": self.editor_id, "usuario_destino_id": self.propietario_id, "importe": 15, "nota": "Bizum"},
+        )
+
+        resp = self.client_viewer.get("/api/gastos/liquidaciones")
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        data = resp.get_json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["usuario_origen_id"], self.editor_id)
+        self.assertEqual(data[0]["usuario_destino_id"], self.propietario_id)
+        self.assertEqual(data[0]["nota"], "Bizum")
+
+    def test_viewer_no_puede_eliminar_liquidacion(self):
+        self._crear_gasto_valido(self.client_propietario)
+        self.client_editor.post(
+            "/api/gastos/liquidaciones",
+            json={"usuario_origen_id": self.editor_id, "usuario_destino_id": self.propietario_id, "importe": 15},
+        )
+        liquidacion_id = self.client_propietario.get("/api/gastos/liquidaciones").get_json()[0]["id"]
+
+        resp = self.client_viewer.delete(f"/api/gastos/liquidaciones/{liquidacion_id}")
+        self.assertEqual(resp.status_code, 403, resp.get_data(as_text=True))
+
+    def test_eliminar_liquidacion_inexistente_da_404(self):
+        resp = self.client_propietario.delete("/api/gastos/liquidaciones/999999")
+        self.assertEqual(resp.status_code, 404, resp.get_data(as_text=True))
+
+    def test_eliminar_liquidacion_revierte_el_saldo(self):
+        self._crear_gasto_valido(self.client_propietario)
+        self.client_editor.post(
+            "/api/gastos/liquidaciones",
+            json={"usuario_origen_id": self.editor_id, "usuario_destino_id": self.propietario_id, "importe": 15},
+        )
+        liquidacion_id = self.client_propietario.get("/api/gastos/liquidaciones").get_json()[0]["id"]
+
+        resp = self.client_propietario.delete(f"/api/gastos/liquidaciones/{liquidacion_id}")
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+
+        saldo = {
+            f["usuario_id"]: f["saldo"]
+            for f in self.client_propietario.get("/api/gastos/saldo").get_json()
+        }
+        self.assertAlmostEqual(saldo[self.propietario_id], 15.0)
+        self.assertAlmostEqual(saldo[self.editor_id], -15.0)
+        self.assertEqual(self.client_propietario.get("/api/gastos/liquidaciones").get_json(), [])
+
     def test_crear_gasto_con_categoria_valida_la_persiste(self):
         resp = self.client_propietario.post(
             "/api/gastos",

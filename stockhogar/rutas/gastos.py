@@ -371,7 +371,7 @@ def exportar_gastos_csv():
     writer.writerow([
         traducir("fecha"), traducir("descripcion"), traducir("categoria"),
         traducir("importe_total"), traducir("pagador"), traducir("participante"),
-        traducir("importe_participante"),
+        traducir("importe_participante"), traducir("tipo"),
     ])
 
     for gasto in gastos:
@@ -391,7 +391,27 @@ def exportar_gastos_csv():
                 gasto["pagador_nombre"],
                 participante["nombre_usuario"],
                 _formatear_decimal_csv(participante["importe"]),
+                traducir("gasto"),
             ])
+
+    liquidaciones = db.execute(
+        """SELECT l.*, uo.nombre_usuario AS origen_nombre, ud.nombre_usuario AS destino_nombre
+           FROM liquidaciones l, usuarios uo, usuarios ud
+           WHERE l.usuario_origen_id = uo.id AND l.usuario_destino_id = ud.id AND l.hogar_id = ?
+           ORDER BY l.fecha, l.id""",
+        (hogar_id,),
+    ).fetchall()
+    for liquidacion in liquidaciones:
+        writer.writerow([
+            liquidacion["fecha"],
+            liquidacion["nota"] or traducir("liquidacion"),
+            "",
+            _formatear_decimal_csv(liquidacion["importe"]),
+            liquidacion["origen_nombre"],
+            liquidacion["destino_nombre"],
+            _formatear_decimal_csv(liquidacion["importe"]),
+            traducir("liquidacion"),
+        ])
 
     contenido = buffer.getvalue().encode("utf-8-sig")
     nombre_fichero = f"gastos_{ahora()[:10]}.csv"
@@ -432,3 +452,56 @@ def crear_liquidacion():
     )
     db.commit()
     return APIResponse.success({"exito": True}, 201)
+
+
+def _liquidacion_a_dict(liquidacion):
+    return {
+        "id": liquidacion["id"],
+        "usuario_origen_id": liquidacion["usuario_origen_id"],
+        "origen_nombre": liquidacion["origen_nombre"],
+        "usuario_destino_id": liquidacion["usuario_destino_id"],
+        "destino_nombre": liquidacion["destino_nombre"],
+        "importe": liquidacion["importe"],
+        "fecha": liquidacion["fecha"],
+        "nota": liquidacion["nota"],
+    }
+
+
+@bp.route("/liquidaciones", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def listar_liquidaciones():
+    """Histórico de liquidaciones del hogar activo, más recientes primero."""
+    db = get_db()
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.success([])
+
+    liquidaciones = db.execute(
+        """SELECT l.*, uo.nombre_usuario AS origen_nombre, ud.nombre_usuario AS destino_nombre
+           FROM liquidaciones l, usuarios uo, usuarios ud
+           WHERE l.usuario_origen_id = uo.id AND l.usuario_destino_id = ud.id AND l.hogar_id = ?
+           ORDER BY l.fecha DESC, l.id DESC""",
+        (hogar_id,),
+    ).fetchall()
+
+    return APIResponse.success([_liquidacion_a_dict(l) for l in liquidaciones])
+
+
+@bp.route("/liquidaciones/<int:liquidacion_id>", methods=["DELETE"])
+@requerir_sesion
+@manejo_errores
+def eliminar_liquidacion(liquidacion_id):
+    """Elimina una liquidación (requiere nivel editar sobre el hogar)."""
+    db = get_db()
+    liquidacion = db.execute("SELECT * FROM liquidaciones WHERE id = ?", (liquidacion_id,)).fetchone()
+    if not liquidacion:
+        return APIResponse.no_encontrado("recurso_liquidacion")
+
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="editar")
+    if not hogar_id or liquidacion["hogar_id"] != hogar_id:
+        return APIResponse.no_permitido()
+
+    db.execute("DELETE FROM liquidaciones WHERE id = ?", (liquidacion_id,))
+    db.commit()
+    return APIResponse.success()
