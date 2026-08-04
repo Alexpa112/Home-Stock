@@ -347,6 +347,24 @@ export const gastos = {
 
   eliminarRecibo: (id: number) => apiCall(`/api/gastos/${id}/recibo`, { method: 'DELETE' }),
 
+  listarRecurrentes: () => apiCall('/api/gastos/recurrentes'),
+
+  crearRecurrente: (datos: {
+    descripcion: string
+    importe_total: number
+    usuario_pagador_id: number
+    categoria?: string | null
+    frecuencia: 'semanal' | 'mensual' | 'anual'
+    fecha_inicio: string
+    fecha_fin?: string | null
+    participantes: Array<{ usuario_id: number; importe: number }>
+  }) => apiCall('/api/gastos/recurrentes', { method: 'POST', body: JSON.stringify(datos) }),
+
+  pausarRecurrente: (id: number, activo: boolean) =>
+    apiCall(`/api/gastos/recurrentes/${id}`, { method: 'PATCH', body: JSON.stringify({ activo }) }),
+
+  eliminarRecurrente: (id: number) => apiCall(`/api/gastos/recurrentes/${id}`, { method: 'DELETE' }),
+
   exportarCsv: () => apiDownload('/api/gastos/exportar', 'gastos.csv'),
 }
 

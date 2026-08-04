@@ -1124,6 +1124,41 @@ def _init_db_impl():
         asegurar_columna(db, "gastos", "imagen_recibo", "BLOB")
         asegurar_columna(db, "gastos", "imagen_recibo_mime", "TEXT")
 
+        # Gastos recurrentes: plantillas que se materializan como gastos
+        # normales (generacion perezosa al listar, ver rutas/gastos.py) en
+        # vez de depender de una tarea programada aparte.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos_recurrentes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                descripcion TEXT NOT NULL,
+                importe_total REAL NOT NULL,
+                categoria TEXT,
+                usuario_pagador_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                frecuencia TEXT NOT NULL,
+                fecha_fin TEXT,
+                proxima_fecha TEXT NOT NULL,
+                activo INTEGER NOT NULL DEFAULT 1,
+                fecha_creacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_gastos_recurrentes_hogar ON gastos_recurrentes(hogar_id, activo)"
+        )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos_recurrentes_participantes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gasto_recurrente_id INTEGER NOT NULL REFERENCES gastos_recurrentes(id) ON DELETE CASCADE,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                importe REAL NOT NULL,
+                UNIQUE(gasto_recurrente_id, usuario_id)
+            )
+            """
+        )
+
         db.commit()
 
         # "Espacios" (stocks independientes tipo casa/oficina) se eliminó: nunca tuvo UI y

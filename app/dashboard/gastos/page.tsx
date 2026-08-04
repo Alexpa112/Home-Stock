@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Pencil, AlertCircle, Receipt, HandCoins, Download, Tags, X, Paperclip } from 'lucide-react'
+import { Plus, Trash2, Pencil, AlertCircle, Receipt, HandCoins, Download, Tags, X, Paperclip, Repeat, Pause, Play } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
 import { IconPicker } from '@/components/dashboard/IconPicker'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
@@ -20,6 +20,7 @@ const CACHE_KEY_GASTOS = 'gastos:lista'
 const CACHE_KEY_SALDO = 'gastos:saldo'
 const CACHE_KEY_SUGERENCIAS = 'gastos:sugerencias'
 const CACHE_KEY_LIQUIDACIONES = 'gastos:liquidaciones'
+const CACHE_KEY_RECURRENTES = 'gastos:recurrentes'
 const CACHE_KEY_CATEGORIAS_GASTO = 'gastos:categorias'
 
 interface Participante {
@@ -71,6 +72,21 @@ interface LiquidacionItem {
   nota: string | null
 }
 
+type FrecuenciaRecurrente = 'semanal' | 'mensual' | 'anual'
+
+interface GastoRecurrente {
+  id: number
+  descripcion: string
+  importe_total: number
+  categoria?: string | null
+  usuario_pagador_id: number
+  frecuencia: FrecuenciaRecurrente
+  proxima_fecha: string
+  fecha_fin: string | null
+  activo: boolean
+  participantes: Participante[]
+}
+
 interface Miembro {
   id: number
   nombre_usuario: string
@@ -118,6 +134,10 @@ export default function GastosPage() {
     () => getCached<LiquidacionItem[]>(CACHE_KEY_LIQUIDACIONES) || []
   )
   const [confirmandoLiquidacionId, setConfirmandoLiquidacionId] = useState<number | null>(null)
+  const [recurrentes, setRecurrentes] = useState<GastoRecurrente[]>(
+    () => getCached<GastoRecurrente[]>(CACHE_KEY_RECURRENTES) || []
+  )
+  const [confirmandoRecurrenteId, setConfirmandoRecurrenteId] = useState<number | null>(null)
   const [miembros, setMiembros] = useState<Miembro[]>([])
   const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>(
     () => getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || []
@@ -166,24 +186,109 @@ export default function GastosPage() {
     setShowLiquidacion(true)
   }
 
+  const FORM_RECURRENTE_VACIO = {
+    descripcion: '',
+    importe_total: '',
+    categoria: null as string | null,
+    usuario_pagador_id: null as number | null,
+    seleccionados: new Set<number>(),
+    frecuencia: 'mensual' as FrecuenciaRecurrente,
+    fecha_inicio: '',
+    fecha_fin: '',
+  }
+  const [showRecurrenteForm, setShowRecurrenteForm] = useState(false)
+  const [formRecurrente, setFormRecurrente] = useState(FORM_RECURRENTE_VACIO)
+
+  const toggleParticipanteRecurrente = (id: number) => {
+    setFormRecurrente((prev) => {
+      const seleccionados = new Set(prev.seleccionados)
+      if (seleccionados.has(id)) seleccionados.delete(id)
+      else seleccionados.add(id)
+      return { ...prev, seleccionados }
+    })
+  }
+
+  const handleCrearRecurrente = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formRecurrente.usuario_pagador_id || formRecurrente.seleccionados.size === 0) return
+
+    const importeTotal = parseFloat(formRecurrente.importe_total) || 0
+    const ids = Array.from(formRecurrente.seleccionados)
+    const porCabeza = Math.round((importeTotal / ids.length) * 100) / 100
+    const participantes = ids.map((id, idx) => ({
+      usuario_id: id,
+      importe: idx === ids.length - 1
+        ? Math.round((importeTotal - porCabeza * (ids.length - 1)) * 100) / 100
+        : porCabeza,
+    }))
+
+    try {
+      setError('')
+      await gastosApi.crearRecurrente({
+        descripcion: formRecurrente.descripcion,
+        importe_total: importeTotal,
+        usuario_pagador_id: formRecurrente.usuario_pagador_id,
+        categoria: formRecurrente.categoria,
+        frecuencia: formRecurrente.frecuencia,
+        fecha_inicio: formRecurrente.fecha_inicio,
+        fecha_fin: formRecurrente.fecha_fin || undefined,
+        participantes,
+      })
+      setShowRecurrenteForm(false)
+      setFormRecurrente(FORM_RECURRENTE_VACIO)
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar'))
+    }
+  }
+
+  const handleTogglePausaRecurrente = async (r: GastoRecurrente) => {
+    try {
+      setError('')
+      await gastosApi.pausarRecurrente(r.id, !r.activo)
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar'))
+    }
+  }
+
+  const handleEliminarRecurrente = async (id: number) => {
+    if (confirmandoRecurrenteId !== id) {
+      setConfirmandoRecurrenteId(id)
+      return
+    }
+    setConfirmandoRecurrenteId(null)
+    try {
+      setError('')
+      await gastosApi.eliminarRecurrente(id)
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_eliminar_articulo'))
+    }
+  }
+
   const cargarDatos = async () => {
     try {
       setError('')
-      const [gastosData, saldoData, sugerenciasData, liquidacionesData] = await Promise.all([
+      const [gastosData, saldoData, sugerenciasData, liquidacionesData, recurrentesData] = await Promise.all([
         gastosApi.listar(), gastosApi.saldo(), gastosApi.simplificar(), gastosApi.listarLiquidaciones(),
+        gastosApi.listarRecurrentes(),
       ])
       const gastosArr = Array.isArray(gastosData) ? gastosData : []
       const saldoArr = Array.isArray(saldoData) ? saldoData : []
       const sugerenciasArr = Array.isArray(sugerenciasData) ? sugerenciasData : []
       const liquidacionesArr = Array.isArray(liquidacionesData) ? liquidacionesData : []
+      const recurrentesArr = Array.isArray(recurrentesData) ? recurrentesData : []
       setGastos(gastosArr)
       setSaldo(saldoArr)
       setSugerencias(sugerenciasArr)
       setHistorialLiquidaciones(liquidacionesArr)
+      setRecurrentes(recurrentesArr)
       setCached(CACHE_KEY_GASTOS, gastosArr)
       setCached(CACHE_KEY_SALDO, saldoArr)
       setCached(CACHE_KEY_SUGERENCIAS, sugerenciasArr)
       setCached(CACHE_KEY_LIQUIDACIONES, liquidacionesArr)
+      setCached(CACHE_KEY_RECURRENTES, recurrentesArr)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error_conexion_titulo'))
     } finally {
@@ -212,7 +317,7 @@ export default function GastosPage() {
 
   usePollingRefresh(
     () => cargarDatos(),
-    () => showForm || modalEdicionId !== null || showLiquidacion || gestionandoCategoriasGasto
+    () => showForm || modalEdicionId !== null || showLiquidacion || gestionandoCategoriasGasto || showRecurrenteForm
   )
 
   const getCategoriaGastoIcon = (nombre: string | null | undefined) => {
@@ -741,6 +846,10 @@ export default function GastosPage() {
             <HandCoins className="w-5 h-5" />
             <span className="hidden sm:inline">{t('registrar_pago')}</span>
           </button>
+          <button onClick={() => setShowRecurrenteForm(true)} className="btn-secondary flex items-center gap-2 min-h-[44px]">
+            <Repeat className="w-5 h-5" />
+            <span className="hidden sm:inline">{t('gasto_recurrente')}</span>
+          </button>
           <button onClick={abrirModalNuevo} className="btn-primary flex items-center gap-2 min-h-[44px]">
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">{t('nuevo_gasto')}</span>
@@ -834,6 +943,48 @@ export default function GastosPage() {
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </button>
                     )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {recurrentes.length > 0 && (
+            <div className="card space-y-2">
+              <h2 className="text-lg font-semibold">{t('gastos_recurrentes')}</h2>
+              <div className="space-y-2">
+                {recurrentes.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className={`truncate ${r.activo ? '' : 'text-muted-foreground line-through'}`}>
+                      {r.descripcion} · {formatImporte(r.importe_total, simboloMoneda)} · {t(
+                        r.frecuencia === 'semanal' ? 'frecuencia_semanal'
+                          : r.frecuencia === 'anual' ? 'frecuencia_anual'
+                          : 'frecuencia_mensual'
+                      )}
+                    </span>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleTogglePausaRecurrente(r)}
+                        className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
+                        aria-label={t(r.activo ? 'pausar' : 'reanudar')}
+                      >
+                        {r.activo ? <Pause className="w-4 h-4 text-muted-foreground" /> : <Play className="w-4 h-4 text-muted-foreground" />}
+                      </button>
+                      {confirmandoRecurrenteId === r.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleEliminarRecurrente(r.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
+                          <button onClick={() => setConfirmandoRecurrenteId(null)} className="px-2 h-8 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleEliminarRecurrente(r.id)}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                          aria-label={t('eliminar')}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1065,6 +1216,114 @@ export default function GastosPage() {
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1">{t('guardar')}</button>
               <button type="button" onClick={() => setShowLiquidacion(false)} className="btn-secondary flex-1">{t('cancelar')}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showRecurrenteForm && (
+        <Modal onCerrar={() => { setShowRecurrenteForm(false); setFormRecurrente(FORM_RECURRENTE_VACIO) }}>
+          <form onSubmit={handleCrearRecurrente} className="space-y-4">
+            <h2 className="text-lg font-semibold">{t('gasto_recurrente')}</h2>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">{t('descripcion')}</label>
+              <input
+                type="text"
+                value={formRecurrente.descripcion}
+                onChange={(e) => setFormRecurrente({ ...formRecurrente, descripcion: e.target.value })}
+                className="input-field"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">{t('importe_total')}</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={formRecurrente.importe_total}
+                onChange={(e) => setFormRecurrente({ ...formRecurrente, importe_total: e.target.value })}
+                className="input-field"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">{t('pagado_por')}</label>
+              <select
+                value={formRecurrente.usuario_pagador_id ?? ''}
+                onChange={(e) => setFormRecurrente({ ...formRecurrente, usuario_pagador_id: Number(e.target.value) })}
+                className="input-field"
+                required
+              >
+                <option value="" disabled>—</option>
+                {miembros.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nombre_usuario}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">{t('participantes')}</label>
+              <div className="space-y-2">
+                {miembros.map((m) => (
+                  <label key={m.id} className="flex items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={formRecurrente.seleccionados.has(m.id)}
+                      onChange={() => toggleParticipanteRecurrente(m.id)}
+                    />
+                    {m.nombre_usuario}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">{t('frecuencia')}</label>
+              <select
+                value={formRecurrente.frecuencia}
+                onChange={(e) => setFormRecurrente({ ...formRecurrente, frecuencia: e.target.value as FrecuenciaRecurrente })}
+                className="input-field"
+              >
+                <option value="semanal">{t('frecuencia_semanal')}</option>
+                <option value="mensual">{t('frecuencia_mensual')}</option>
+                <option value="anual">{t('frecuencia_anual')}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">{t('fecha_inicio')}</label>
+              <input
+                type="date"
+                value={formRecurrente.fecha_inicio}
+                onChange={(e) => setFormRecurrente({ ...formRecurrente, fecha_inicio: e.target.value })}
+                className="input-field"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">{t('fecha_fin_opcional')}</label>
+              <input
+                type="date"
+                value={formRecurrente.fecha_fin}
+                onChange={(e) => setFormRecurrente({ ...formRecurrente, fecha_fin: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary flex-1">{t('guardar')}</button>
+              <button
+                type="button"
+                onClick={() => { setShowRecurrenteForm(false); setFormRecurrente(FORM_RECURRENTE_VACIO) }}
+                className="btn-secondary flex-1"
+              >
+                {t('cancelar')}
+              </button>
             </div>
           </form>
         </Modal>
