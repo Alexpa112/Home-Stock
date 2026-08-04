@@ -77,7 +77,7 @@ def validar_instalacion():
         "opencv": False,
         "pytesseract": False,
         "fuzzywuzzy": False,
-        "gemini": bool(os.getenv("GEMINI_API_KEY")),
+        "groq": bool(os.getenv("GROQ_API_KEY")),
     }
 
     try:

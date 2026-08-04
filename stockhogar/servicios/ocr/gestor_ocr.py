@@ -5,7 +5,7 @@ from .procesador_imagen import ProcesadorImagen
 from .extractor_texto import ExtractorTexto
 from .parseador_ticket import ParseadorTicket, LineaTicket
 from .matcher_productos import MatcherProductos
-from .gemini_ocr import GeminiOCR
+from .groq_ocr import GroqOCR
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 class GestorOCR:
     """Orquesta el flujo completo OCR.
 
-    Motor principal: Gemini (API gratuita) - manda la foto + el catálogo de
-    productos del usuario y hace OCR y emparejamiento semántico en un solo
-    paso. Si no hay GEMINI_API_KEY configurada, o la llamada falla (sin
-    conexión, cuota agotada...), cae al pipeline local:
+    Motor principal: Groq/Llama 4 Scout (API gratuita) - manda la foto + el
+    catálogo de productos del usuario y hace OCR y emparejamiento semántico
+    en un solo paso. Si no hay GROQ_API_KEY configurada, o la llamada falla
+    (sin conexión, cuota agotada...), cae al pipeline local:
     1. Procesa imagen
     2. Extrae texto (OCR con Tesseract)
     3. Parsea líneas de producto
@@ -29,7 +29,7 @@ class GestorOCR:
         self.extractor = ExtractorTexto(idioma="spa")
         self.parseador = ParseadorTicket()
         self.matcher = MatcherProductos()
-        self.gemini = GeminiOCR()
+        self.groq = GroqOCR()
 
     def procesar_ticket(self, imagen_bytes, db) -> Dict:
         """Procesa ticket completo.
@@ -56,18 +56,18 @@ class GestorOCR:
             ).fetchall()
         ]
 
-        if self.gemini.disponible():
-            respuesta_gemini = self.gemini.procesar(imagen_bytes, productos_catalogo)
-            if respuesta_gemini is not None:
-                resultado["productos"] = self._mapear_respuesta_gemini(
-                    respuesta_gemini, productos_catalogo
+        if self.groq.disponible():
+            respuesta_ia = self.groq.procesar(imagen_bytes, productos_catalogo)
+            if respuesta_ia is not None:
+                resultado["productos"] = self._mapear_respuesta_ia(
+                    respuesta_ia, productos_catalogo
                 )
                 resultado["confianza_ocr"] = 100
                 resultado["exito"] = len(resultado["productos"]) > 0
                 if not resultado["exito"]:
                     resultado["error"] = "No se detectaron productos en el ticket"
                 return resultado
-            logger.warning("Gemini no disponible o fallo la llamada, usando pipeline local")
+            logger.warning("Groq no disponible o fallo la llamada, usando pipeline local")
 
         try:
             # 1. Procesar imagen
@@ -105,8 +105,8 @@ class GestorOCR:
             resultado["error"] = f"Error procesando ticket: {str(e)}"
             return resultado
 
-    def _mapear_respuesta_gemini(self, respuesta: Dict, productos_catalogo: List[Dict]) -> List[Dict]:
-        """Convierte la respuesta JSON de Gemini al formato que espera el frontend."""
+    def _mapear_respuesta_ia(self, respuesta: Dict, productos_catalogo: List[Dict]) -> List[Dict]:
+        """Convierte la respuesta JSON de la IA al formato que espera el frontend."""
         catalogo_por_id = {p["id"]: p for p in productos_catalogo}
         productos_finales = []
 

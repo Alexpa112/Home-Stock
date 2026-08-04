@@ -7,7 +7,7 @@ from .gestor_ocr import GestorOCR
 from .parser_mejorado import ParserMejorado
 from .matcher_inteligente import MatcherInteligente
 from .procesador_tickets_v2 import ProcesadorTicketsV2, crear_respuesta_usuario
-from .gemini_ocr import GeminiOCR
+from .groq_ocr import GroqOCR
 
 __all__ = [
     "ProcesadorImagen",
@@ -19,5 +19,5 @@ __all__ = [
     "MatcherInteligente",
     "ProcesadorTicketsV2",
     "crear_respuesta_usuario",
-    "GeminiOCR",
+    "GroqOCR",
 ]

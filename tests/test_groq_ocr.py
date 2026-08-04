@@ -1,5 +1,5 @@
-"""Tests de GeminiOCR (motor principal de reconocimiento de tickets) y de
-que GestorOCR cae al pipeline local (Tesseract) cuando Gemini no está
+"""Tests de GroqOCR (motor principal de reconocimiento de tickets) y de
+que GestorOCR cae al pipeline local (Tesseract) cuando Groq no está
 disponible o falla la llamada.
 
 Sin red real: se mockea requests.post. Sin servidor externo ni stock.db real:
@@ -11,30 +11,28 @@ from unittest.mock import patch, MagicMock
 
 from stockhogar import create_app
 from stockhogar.db import get_db
-from stockhogar.servicios.ocr.gemini_ocr import GeminiOCR
+from stockhogar.servicios.ocr.groq_ocr import GroqOCR
 from stockhogar.servicios.ocr.gestor_ocr import GestorOCR
 
 
-class GeminiOCRTests(unittest.TestCase):
+class GroqOCRTests(unittest.TestCase):
     def test_no_disponible_sin_api_key(self):
         with patch.dict("os.environ", {}, clear=False):
             import os
-            os.environ.pop("GEMINI_API_KEY", None)
-            motor = GeminiOCR()
+            os.environ.pop("GROQ_API_KEY", None)
+            motor = GroqOCR()
             self.assertFalse(motor.disponible())
             self.assertIsNone(motor.procesar(b"fake", [{"id": 1, "nombre": "Leche"}]))
 
-    @patch("stockhogar.servicios.ocr.gemini_ocr.requests.post")
+    @patch("stockhogar.servicios.ocr.groq_ocr.requests.post")
     def test_procesa_respuesta_valida(self, mock_post):
         respuesta_json = {
-            "candidates": [{
-                "content": {
-                    "parts": [{
-                        "text": (
-                            '{"productos": [{"nombre_ticket": "LECHE PASC 1L", '
-                            '"producto_id": 5, "cantidad": 2, "unidad": "ud"}]}'
-                        )
-                    }]
+            "choices": [{
+                "message": {
+                    "content": (
+                        '{"productos": [{"nombre_ticket": "LECHE PASC 1L", '
+                        '"producto_id": 5, "cantidad": 2, "unidad": "ud"}]}'
+                    )
                 }
             }]
         }
@@ -43,36 +41,36 @@ class GeminiOCRTests(unittest.TestCase):
         mock_resp.raise_for_status.return_value = None
         mock_post.return_value = mock_resp
 
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "clave_falsa"}):
-            motor = GeminiOCR()
+        with patch.dict("os.environ", {"GROQ_API_KEY": "clave_falsa"}):
+            motor = GroqOCR()
             resultado = motor.procesar(b"fake", [{"id": 5, "nombre": "Leche entera"}])
 
         self.assertIsNotNone(resultado)
         self.assertEqual(resultado["productos"][0]["producto_id"], 5)
         self.assertEqual(resultado["productos"][0]["cantidad"], 2)
 
-    @patch("stockhogar.servicios.ocr.gemini_ocr.requests.post")
+    @patch("stockhogar.servicios.ocr.groq_ocr.requests.post")
     def test_fallo_de_red_devuelve_none(self, mock_post):
         mock_post.side_effect = Exception("sin conexion")
 
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "clave_falsa"}):
-            motor = GeminiOCR()
+        with patch.dict("os.environ", {"GROQ_API_KEY": "clave_falsa"}):
+            motor = GroqOCR()
             resultado = motor.procesar(b"fake", [{"id": 1, "nombre": "Leche"}])
 
         self.assertIsNone(resultado)
 
 
 class GestorOCRFallbackTests(unittest.TestCase):
-    """Verifica que, si Gemini falla, el gestor sigue funcionando con el
+    """Verifica que, si Groq falla, el gestor sigue funcionando con el
     pipeline local en vez de romperse."""
 
     def setUp(self):
         self.app = create_app()
         self.app.config.update(TESTING=True)
 
-    def test_gemini_no_disponible_usa_pipeline_local(self):
+    def test_groq_no_disponible_usa_pipeline_local(self):
         gestor = GestorOCR()
-        with patch.object(gestor.gemini, "disponible", return_value=False):
+        with patch.object(gestor.groq, "disponible", return_value=False):
             with self.app.app_context():
                 db = get_db()
                 # Imagen invalida: el pipeline local debe fallar de forma
@@ -82,9 +80,9 @@ class GestorOCRFallbackTests(unittest.TestCase):
         self.assertFalse(resultado["exito"])
         self.assertIsNotNone(resultado["error"])
 
-    def test_respuesta_gemini_mapea_encontrado_y_no_encontrado(self):
+    def test_respuesta_ia_mapea_encontrado_y_no_encontrado(self):
         gestor = GestorOCR()
-        respuesta_gemini = {
+        respuesta_ia = {
             "productos": [
                 {"nombre_ticket": "LECHE PASC 1L", "producto_id": 999999, "cantidad": 2, "unidad": "ud"},
                 {"nombre_ticket": "ARTICULO RARO XYZ", "producto_id": None, "cantidad": 1, "unidad": "ud"},
@@ -92,7 +90,7 @@ class GestorOCRFallbackTests(unittest.TestCase):
         }
         catalogo = [{"id": 999999, "nombre": "Leche entera", "categoria": "Lácteos y Huevos", "icono": "🥛"}]
 
-        productos = gestor._mapear_respuesta_gemini(respuesta_gemini, catalogo)
+        productos = gestor._mapear_respuesta_ia(respuesta_ia, catalogo)
 
         self.assertEqual(len(productos), 2)
         self.assertTrue(productos[0]["encontrado"])

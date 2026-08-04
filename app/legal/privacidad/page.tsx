@@ -58,11 +58,13 @@ export default function PrivacidadPage() {
       <p>Dreame! no vende ni cede tus datos a terceros con fines comerciales. Sí recurre a estos encargados del tratamiento, imprescindibles para el funcionamiento del servicio:</p>
       <ul>
         <li>
-          <strong>Google LLC:</strong> si inicias sesión con Google, y para el escaneo automático
-          de tickets (API de Gemini), a la que se envía la foto del ticket para extraer los
-          artículos. Al ser una empresa estadounidense, esto implica una transferencia
-          internacional de datos, amparada en las Cláusulas Contractuales Tipo de la Comisión
-          Europea.
+          <strong>Google LLC:</strong> únicamente si inicias sesión con "Continuar con Google".
+        </li>
+        <li>
+          <strong>Groq Inc.:</strong> para el escaneo automático de tickets, a cuya API se envía la
+          foto del ticket para extraer los artículos. Al ser una empresa estadounidense, esto
+          implica una transferencia internacional de datos, amparada en las Cláusulas
+          Contractuales Tipo de la Comisión Europea.
         </li>
         <li><strong>Apple Inc.:</strong> únicamente si inicias sesión con "Continuar con Apple".</li>
       </ul>

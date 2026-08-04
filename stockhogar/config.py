@@ -916,4 +916,4 @@ EMAIL_CONTACTO_LEGAL = "pazsilva.alejandro@gmail.com"
 # Version vigente de Terminos y Condiciones / Politica de Privacidad. Al
 # subir esta fecha, todo usuario (incluido el que ya tenia cuenta) debe
 # volver a aceptar antes de seguir usando la app (ver rutas/auth.py).
-VERSION_TERMINOS = "2026-08-04-2"
+VERSION_TERMINOS = "2026-08-04-3"
