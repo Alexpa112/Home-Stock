@@ -1,6 +1,7 @@
 """Tests de la funcionalidad de gastos compartidos del hogar (tipo Tricount):
 permisos de escritura, validacion del reparto, calculo de saldo neto y
 registro de liquidaciones. Ver stockhogar/rutas/gastos.py."""
+import io
 import unittest
 import uuid
 
@@ -330,6 +331,76 @@ class GastosTests(unittest.TestCase):
         self.assertEqual(sugerencias[0]["usuario_origen_id"], self.propietario_id)
         self.assertEqual(sugerencias[0]["usuario_destino_id"], self.viewer_id)
         self.assertAlmostEqual(sugerencias[0]["importe"], 15.0)
+
+    def test_gasto_sin_recibo_indica_tiene_recibo_false(self):
+        resp = self._crear_gasto_valido(self.client_propietario)
+        self.assertFalse(resp.get_json()["tiene_recibo"])
+
+    def test_viewer_no_puede_subir_recibo(self):
+        resp_gasto = self._crear_gasto_valido(self.client_propietario)
+        gasto_id = resp_gasto.get_json()["id"]
+
+        resp = self.client_viewer.post(
+            f"/api/gastos/{gasto_id}/recibo",
+            data={"foto": (io.BytesIO(b"contenido-fake"), "recibo.jpg")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 403, resp.get_data(as_text=True))
+
+    def test_subir_recibo_formato_no_permitido(self):
+        resp_gasto = self._crear_gasto_valido(self.client_propietario)
+        gasto_id = resp_gasto.get_json()["id"]
+
+        resp = self.client_propietario.post(
+            f"/api/gastos/{gasto_id}/recibo",
+            data={"foto": (io.BytesIO(b"no es una imagen"), "recibo.txt")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+
+    def test_subir_y_obtener_recibo(self):
+        resp_gasto = self._crear_gasto_valido(self.client_propietario)
+        gasto_id = resp_gasto.get_json()["id"]
+        contenido = b"contenido-fake-de-imagen"
+
+        resp_subida = self.client_propietario.post(
+            f"/api/gastos/{gasto_id}/recibo",
+            data={"foto": (io.BytesIO(contenido), "recibo.jpg")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp_subida.status_code, 200, resp_subida.get_data(as_text=True))
+        self.assertTrue(resp_subida.get_json()["tiene_recibo"])
+
+        resp_get = self.client_viewer.get(f"/api/gastos/{gasto_id}/recibo")
+        self.assertEqual(resp_get.status_code, 200, resp_get.get_data(as_text=True))
+        self.assertEqual(resp_get.data, contenido)
+        self.assertEqual(resp_get.content_type, "image/jpeg")
+
+        resp_lista = self.client_propietario.get("/api/gastos")
+        gasto = next(g for g in resp_lista.get_json() if g["id"] == gasto_id)
+        self.assertTrue(gasto["tiene_recibo"])
+
+    def test_recibo_de_gasto_sin_adjuntar_da_404(self):
+        resp_gasto = self._crear_gasto_valido(self.client_propietario)
+        gasto_id = resp_gasto.get_json()["id"]
+
+        resp = self.client_propietario.get(f"/api/gastos/{gasto_id}/recibo")
+        self.assertEqual(resp.status_code, 404, resp.get_data(as_text=True))
+
+    def test_eliminar_recibo(self):
+        resp_gasto = self._crear_gasto_valido(self.client_propietario)
+        gasto_id = resp_gasto.get_json()["id"]
+        self.client_propietario.post(
+            f"/api/gastos/{gasto_id}/recibo",
+            data={"foto": (io.BytesIO(b"contenido-fake"), "recibo.jpg")},
+            content_type="multipart/form-data",
+        )
+
+        resp_delete = self.client_propietario.delete(f"/api/gastos/{gasto_id}/recibo")
+        self.assertEqual(resp_delete.status_code, 200, resp_delete.get_data(as_text=True))
+
+        resp_get = self.client_propietario.get(f"/api/gastos/{gasto_id}/recibo")
+        self.assertEqual(resp_get.status_code, 404)
 
 
 if __name__ == "__main__":

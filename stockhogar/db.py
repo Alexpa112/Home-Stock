@@ -1117,6 +1117,13 @@ def _init_db_impl():
         )
         asegurar_columna(db, "gastos", "categoria", "TEXT")
 
+        # Foto de recibo adjunta a un gasto (opcional): se guarda como BLOB en
+        # la propia stock.db (igual que el resto de datos) en vez de en una
+        # carpeta aparte, para no tener que respaldar/gestionar un directorio
+        # adicional en la Raspberry Pi.
+        asegurar_columna(db, "gastos", "imagen_recibo", "BLOB")
+        asegurar_columna(db, "gastos", "imagen_recibo_mime", "TEXT")
+
         db.commit()
 
         # "Espacios" (stocks independientes tipo casa/oficina) se eliminó: nunca tuvo UI y

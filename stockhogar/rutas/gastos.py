@@ -3,6 +3,7 @@ pago que y como se reparte entre los miembros, y saldo neto de cada uno."""
 import csv
 import heapq
 import io
+from pathlib import Path
 
 from flask import Blueprint, Response, request, session
 
@@ -16,6 +17,13 @@ from .categorias_gasto import normalizar_categoria_gasto
 bp = Blueprint("gastos", __name__, url_prefix="/api/gastos")
 
 TOLERANCIA_REPARTO = 0.01
+
+RECIBO_EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "webp", "heic", "heif"}
+RECIBO_TAMANO_MAXIMO_MB = 8
+RECIBO_MIME_POR_EXTENSION = {
+    "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+    "gif": "image/gif", "webp": "image/webp", "heic": "image/heic", "heif": "image/heif",
+}
 
 
 def _miembros_hogar_ids(db, hogar_id):
@@ -44,6 +52,7 @@ def _gasto_a_dict(db, gasto):
         "categoria": gasto["categoria"],
         "usuario_pagador_id": gasto["usuario_pagador_id"],
         "pagador_nombre": gasto["pagador_nombre"],
+        "tiene_recibo": bool(gasto["imagen_recibo"]),
         "participantes": [
             {"usuario_id": p["usuario_id"], "importe": p["importe"], "nombre_usuario": p["nombre_usuario"]}
             for p in participantes
@@ -503,5 +512,74 @@ def eliminar_liquidacion(liquidacion_id):
         return APIResponse.no_permitido()
 
     db.execute("DELETE FROM liquidaciones WHERE id = ?", (liquidacion_id,))
+    db.commit()
+    return APIResponse.success()
+
+
+def _extension_recibo_permitida(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in RECIBO_EXTENSIONES_PERMITIDAS
+
+
+@bp.route("/<int:gasto_id>/recibo", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def subir_recibo(gasto_id):
+    """Adjunta (o reemplaza) la foto de recibo de un gasto."""
+    db = get_db()
+    gasto, error = _obtener_gasto_con_permiso(db, gasto_id, nivel_requerido="editar")
+    if error:
+        return error
+
+    archivo = request.files.get("foto")
+    if archivo is None or archivo.filename == "":
+        return APIResponse.validacion("err_sin_imagen")
+    if not _extension_recibo_permitida(archivo.filename):
+        return APIResponse.validacion("err_formato_no_permitido")
+
+    archivo.seek(0, 2)
+    tamano_bytes = archivo.tell()
+    archivo.seek(0)
+    if tamano_bytes > RECIBO_TAMANO_MAXIMO_MB * 1024 * 1024:
+        return APIResponse.validacion(
+            traducir("err_archivo_muy_grande").replace("{mb}", str(RECIBO_TAMANO_MAXIMO_MB))
+        )
+
+    extension = Path(archivo.filename).suffix.lower().lstrip(".")
+    mime_type = RECIBO_MIME_POR_EXTENSION.get(extension, "application/octet-stream")
+
+    db.execute(
+        "UPDATE gastos SET imagen_recibo = ?, imagen_recibo_mime = ? WHERE id = ?",
+        (archivo.read(), mime_type, gasto_id),
+    )
+    db.commit()
+    return APIResponse.success({"tiene_recibo": True})
+
+
+@bp.route("/<int:gasto_id>/recibo", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def obtener_recibo(gasto_id):
+    """Sirve la foto de recibo adjunta a un gasto."""
+    db = get_db()
+    gasto, error = _obtener_gasto_con_permiso(db, gasto_id, nivel_requerido="ver")
+    if error:
+        return error
+    if not gasto["imagen_recibo"]:
+        return APIResponse.no_encontrado("recurso_recibo")
+
+    return Response(gasto["imagen_recibo"], mimetype=gasto["imagen_recibo_mime"] or "application/octet-stream")
+
+
+@bp.route("/<int:gasto_id>/recibo", methods=["DELETE"])
+@requerir_sesion
+@manejo_errores
+def eliminar_recibo(gasto_id):
+    """Elimina la foto de recibo adjunta a un gasto."""
+    db = get_db()
+    gasto, error = _obtener_gasto_con_permiso(db, gasto_id, nivel_requerido="editar")
+    if error:
+        return error
+
+    db.execute("UPDATE gastos SET imagen_recibo = NULL, imagen_recibo_mime = NULL WHERE id = ?", (gasto_id,))
     db.commit()
     return APIResponse.success()

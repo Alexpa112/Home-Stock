@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Pencil, AlertCircle, Receipt, HandCoins, Download, Tags, X } from 'lucide-react'
+import { Plus, Trash2, Pencil, AlertCircle, Receipt, HandCoins, Download, Tags, X, Paperclip } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
 import { IconPicker } from '@/components/dashboard/IconPicker'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
@@ -36,6 +36,7 @@ interface Gasto {
   categoria?: string | null
   usuario_pagador_id: number
   pagador_nombre: string
+  tiene_recibo: boolean
   participantes: Participante[]
 }
 
@@ -444,6 +445,26 @@ export default function GastosPage() {
     }
   }
 
+  const handleSubirRecibo = async (gastoId: number, file: File) => {
+    try {
+      setError('')
+      await gastosApi.subirRecibo(gastoId, file)
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar'))
+    }
+  }
+
+  const handleEliminarRecibo = async (gastoId: number) => {
+    try {
+      setError('')
+      await gastosApi.eliminarRecibo(gastoId)
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_eliminar_articulo'))
+    }
+  }
+
   const handleRegistrarLiquidacion = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!liquidacion.usuario_origen_id || !liquidacion.usuario_destino_id) return
@@ -463,7 +484,9 @@ export default function GastosPage() {
     }
   }
 
-  const renderFormularioGasto = () => (
+  const renderFormularioGasto = () => {
+    const gastoEnEdicion = modalEdicionId !== null ? gastos.find((g) => g.id === modalEdicionId) : null
+    return (
     <form onSubmit={handleGuardar} className="space-y-4">
       <div>
         <label className="block text-sm font-medium mb-2">{t('descripcion')}</label>
@@ -652,6 +675,41 @@ export default function GastosPage() {
         </div>
       </div>
 
+      {gastoEnEdicion && (
+        <div>
+          <label className="block text-sm font-medium mb-2">{t('recibo')}</label>
+          {gastoEnEdicion.tiene_recibo ? (
+            <div className="flex items-center gap-3">
+              <a
+                href={gastosApi.reciboUrl(gastoEnEdicion.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-accent hover:underline flex items-center gap-1"
+              >
+                <Paperclip className="w-4 h-4" /> {t('ver_recibo')}
+              </a>
+              <button
+                type="button"
+                onClick={() => handleEliminarRecibo(gastoEnEdicion.id)}
+                className="text-sm text-red-500 hover:underline"
+              >
+                {t('eliminar')}
+              </button>
+            </div>
+          ) : (
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleSubirRecibo(gastoEnEdicion.id, file)
+              }}
+              className="text-sm"
+            />
+          )}
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button type="submit" className="btn-primary flex-1">{t('guardar')}</button>
         <button
@@ -663,7 +721,8 @@ export default function GastosPage() {
         </button>
       </div>
     </form>
-  )
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
@@ -849,7 +908,20 @@ export default function GastosPage() {
                     <IconRenderer name={iconoCategoria} className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{gasto.descripcion}</p>
+                    <p className="font-medium text-foreground truncate flex items-center gap-1.5">
+                      {gasto.descripcion}
+                      {gasto.tiene_recibo && (
+                        <a
+                          href={gastosApi.reciboUrl(gasto.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={t('ver_recibo')}
+                        >
+                          <Paperclip className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        </a>
+                      )}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {formatImporte(gasto.importe_total, simboloMoneda)} · {t('pagado_por')} {gasto.pagador_nombre}
                     </p>

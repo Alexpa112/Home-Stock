@@ -335,6 +335,18 @@ export const gastos = {
 
   eliminarLiquidacion: (id: number) => apiCall(`/api/gastos/liquidaciones/${id}`, { method: 'DELETE' }),
 
+  subirRecibo: (id: number, foto: File) => {
+    const formData = new FormData()
+    formData.append('foto', foto)
+    return apiUpload(`/api/gastos/${id}/recibo`, formData)
+  },
+
+  // URL de la foto de recibo adjunta (para <img src>): el navegador la pide
+  // con la cookie de sesión, sin pasar por apiCall.
+  reciboUrl: (id: number) => `/api/gastos/${id}/recibo`,
+
+  eliminarRecibo: (id: number) => apiCall(`/api/gastos/${id}/recibo`, { method: 'DELETE' }),
+
   exportarCsv: () => apiDownload('/api/gastos/exportar', 'gastos.csv'),
 }
 
