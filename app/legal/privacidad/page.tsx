@@ -74,7 +74,8 @@ export default function PrivacidadPage() {
       <p>
         Mientras tu cuenta permanezca activa. Puedes eliminarla en cualquier momento desde
         Ajustes → Eliminar cuenta: al hacerlo se borran de forma permanente tu perfil, tu
-        inventario, tus listas y las fotos de tickets asociadas.
+        inventario, tus listas, tus gastos compartidos y liquidaciones, y las fotos de tickets
+        y recibos asociadas.
       </p>
 
       <h2>Tus derechos</h2>
