@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Camera, FileUp, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
 import { tickets } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { suspenderPorEdicion, reanudarPorEdicion } from '@/lib/editSuspension'
 
 // Shape real: ver stockhogar/servicios/ocr/procesador_tickets_v2.py:crear_respuesta_usuario
 interface ItemTicket {
@@ -33,6 +34,7 @@ export default function EscanearTicketPage() {
     setError('')
     setResultado(null)
     setAnalizando(true)
+    suspenderPorEdicion()
     try {
       const data: any = await tickets.analizar(file)
       const conIncluir = (data.items || []).map((it: ItemTicket) => ({ ...it, incluir: true }))
@@ -40,9 +42,11 @@ export default function EscanearTicketPage() {
       setAdvertencias(data.advertencias || [])
       if ((data.items || []).length === 0) {
         setError(t('err_no_detecto_producto_imagen'))
+        reanudarPorEdicion()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error_procesar'))
+      reanudarPorEdicion()
     } finally {
       setAnalizando(false)
       e.target.value = ''
@@ -70,6 +74,7 @@ export default function EscanearTicketPage() {
       )
       setResultado(data)
       setItems([])
+      reanudarPorEdicion()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_importando_productos'))
     } finally {
@@ -238,7 +243,7 @@ export default function EscanearTicketPage() {
               {confirmando ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {t('confirmar_e_importar_stock')}
             </button>
-            <button onClick={() => setItems([])} className="btn-secondary">
+            <button onClick={() => { setItems([]); reanudarPorEdicion() }} className="btn-secondary">
               {t('cancelar')}
             </button>
           </div>
