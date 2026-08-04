@@ -77,6 +77,7 @@ def validar_instalacion():
         "opencv": False,
         "pytesseract": False,
         "fuzzywuzzy": False,
+        "gemini": bool(os.getenv("GEMINI_API_KEY")),
     }
 
     try:
