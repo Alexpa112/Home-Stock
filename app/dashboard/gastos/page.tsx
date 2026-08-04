@@ -1,18 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Pencil, AlertCircle, Receipt, HandCoins } from 'lucide-react'
+import { Plus, Trash2, Pencil, AlertCircle, Receipt, HandCoins, Download, Tags, X } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
-import { gastos as gastosApi, hogares as hogaresApi } from '@/lib/api'
+import { IconPicker } from '@/components/dashboard/IconPicker'
+import { IconRenderer } from '@/components/dashboard/IconRenderer'
+import { BarraHorizontal } from '@/components/dashboard/BarraHorizontal'
+import { GraficoColumnas } from '@/components/dashboard/GraficoColumnas'
+import { gastos as gastosApi, hogares as hogaresApi, categoriasGasto as categoriasGastoApi } from '@/lib/api'
 import { useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached } from '@/lib/dataCache'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { formatImporte } from '@/lib/format'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
+import { totalesPorCategoria, evolucionMensual, balancePorPersona } from '@/lib/gastosStats'
 
 const CACHE_KEY_GASTOS = 'gastos:lista'
 const CACHE_KEY_SALDO = 'gastos:saldo'
+const CACHE_KEY_CATEGORIAS_GASTO = 'gastos:categorias'
 
 interface Participante {
   usuario_id: number
@@ -25,9 +31,16 @@ interface Gasto {
   descripcion: string
   importe_total: number
   fecha: string
+  categoria?: string | null
   usuario_pagador_id: number
   pagador_nombre: string
   participantes: Participante[]
+}
+
+interface CategoriaGasto {
+  id: number
+  nombre: string
+  icono: string
 }
 
 interface SaldoItem {
@@ -41,22 +54,28 @@ interface Miembro {
   nombre_usuario: string
 }
 
+type ModoReparto = 'igual' | 'porcentaje' | 'personalizado'
+
 interface FormularioGasto {
   descripcion: string
   importe_total: string
+  categoria: string | null
   usuario_pagador_id: number | null
   seleccionados: Set<number>
   importesPorMiembro: Record<number, string>
-  dividirIgual: boolean
+  porcentajesPorMiembro: Record<number, string>
+  modoReparto: ModoReparto
 }
 
 const FORM_VACIO = (pagadorPorDefecto: number | null): FormularioGasto => ({
   descripcion: '',
   importe_total: '',
+  categoria: null,
   usuario_pagador_id: pagadorPorDefecto,
   seleccionados: new Set(pagadorPorDefecto ? [pagadorPorDefecto] : []),
   importesPorMiembro: {},
-  dividirIgual: true,
+  porcentajesPorMiembro: {},
+  modoReparto: 'igual',
 })
 
 export default function GastosPage() {
@@ -69,13 +88,23 @@ export default function GastosPage() {
   const [gastos, setGastos] = useState<Gasto[]>(() => getCached<Gasto[]>(CACHE_KEY_GASTOS) || [])
   const [saldo, setSaldo] = useState<SaldoItem[]>(() => getCached<SaldoItem[]>(CACHE_KEY_SALDO) || [])
   const [miembros, setMiembros] = useState<Miembro[]>([])
+  const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>(
+    () => getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || []
+  )
   const [loading, setLoading] = useState(gastos.length === 0)
   const [error, setError] = useState('')
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
+  const [vista, setVista] = useState<'gastos' | 'estadisticas'>('gastos')
 
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormularioGasto>(FORM_VACIO(null))
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
+
+  const [gestionandoCategoriasGasto, setGestionandoCategoriasGasto] = useState(false)
+  const [nuevaCategoriaGasto, setNuevaCategoriaGasto] = useState('')
+  const [nuevaCategoriaGastoIcono, setNuevaCategoriaGastoIcono] = useState<string | undefined>(undefined)
+  const [mostrarIconPickerCategoriaGasto, setMostrarIconPickerCategoriaGasto] = useState(false)
+  const [confirmandoEliminarCatGastoId, setConfirmandoEliminarCatGastoId] = useState<number | null>(null)
 
   const [showLiquidacion, setShowLiquidacion] = useState(false)
   const [liquidacion, setLiquidacion] = useState({ usuario_origen_id: null as number | null, usuario_destino_id: null as number | null, importe: '', nota: '' })
@@ -108,22 +137,53 @@ export default function GastosPage() {
     }).catch(() => {})
   }, [hogarActivoId])
 
+  useEffect(() => {
+    categoriasGastoApi.listar().then((data: any) => {
+      const arr = Array.isArray(data) ? data : []
+      setCategoriasGasto(arr)
+      setCached(CACHE_KEY_CATEGORIAS_GASTO, arr)
+    }).catch(() => {})
+  }, [])
+
   usePollingRefresh(
     () => cargarDatos(),
-    () => showForm || modalEdicionId !== null || showLiquidacion
+    () => showForm || modalEdicionId !== null || showLiquidacion || gestionandoCategoriasGasto
   )
 
-  const recalcularReparto = (siguiente: FormularioGasto): FormularioGasto => {
-    if (!siguiente.dividirIgual) return siguiente
+  const getCategoriaGastoIcon = (nombre: string | null | undefined) => {
+    if (!nombre) return null
+    return categoriasGasto.find((c) => c.nombre === nombre)?.icono || null
+  }
+
+  const aplicarModoReparto = (siguiente: FormularioGasto): FormularioGasto => {
     const importeTotal = parseFloat(siguiente.importe_total) || 0
-    const n = siguiente.seleccionados.size
-    if (n === 0) return siguiente
-    const porCabeza = Math.round((importeTotal / n) * 100) / 100
-    const importesPorMiembro: Record<number, string> = {}
-    siguiente.seleccionados.forEach((id) => {
-      importesPorMiembro[id] = porCabeza.toFixed(2)
-    })
-    return { ...siguiente, importesPorMiembro }
+    const ids = Array.from(siguiente.seleccionados)
+    if (ids.length === 0) return siguiente
+
+    if (siguiente.modoReparto === 'igual') {
+      const porCabeza = Math.round((importeTotal / ids.length) * 100) / 100
+      const importesPorMiembro: Record<number, string> = {}
+      ids.forEach((id) => { importesPorMiembro[id] = porCabeza.toFixed(2) })
+      return { ...siguiente, importesPorMiembro }
+    }
+
+    if (siguiente.modoReparto === 'porcentaje') {
+      const importesPorMiembro: Record<number, string> = {}
+      let acumulado = 0
+      ids.forEach((id, idx) => {
+        if (idx === ids.length - 1) {
+          importesPorMiembro[id] = (Math.round((importeTotal - acumulado) * 100) / 100).toFixed(2)
+        } else {
+          const pct = parseFloat(siguiente.porcentajesPorMiembro[id] || '0') || 0
+          const importe = Math.round(importeTotal * pct) / 100
+          acumulado += importe
+          importesPorMiembro[id] = importe.toFixed(2)
+        }
+      })
+      return { ...siguiente, importesPorMiembro }
+    }
+
+    return siguiente
   }
 
   const toggleParticipante = (id: number) => {
@@ -134,18 +194,30 @@ export default function GastosPage() {
       } else {
         seleccionados.add(id)
       }
-      return recalcularReparto({ ...prev, seleccionados })
+      return aplicarModoReparto({ ...prev, seleccionados })
     })
   }
 
   const cambiarImporteTotal = (valor: string) => {
-    setForm((prev) => recalcularReparto({ ...prev, importe_total: valor }))
+    setForm((prev) => aplicarModoReparto({ ...prev, importe_total: valor }))
+  }
+
+  const cambiarModoReparto = (modo: ModoReparto) => {
+    setForm((prev) => aplicarModoReparto({ ...prev, modoReparto: modo }))
+  }
+
+  const cambiarPorcentajeParticipante = (id: number, valor: string) => {
+    setForm((prev) => aplicarModoReparto({
+      ...prev,
+      modoReparto: 'porcentaje',
+      porcentajesPorMiembro: { ...prev.porcentajesPorMiembro, [id]: valor },
+    }))
   }
 
   const cambiarImporteParticipante = (id: number, valor: string) => {
     setForm((prev) => ({
       ...prev,
-      dividirIgual: false,
+      modoReparto: 'personalizado',
       importesPorMiembro: { ...prev.importesPorMiembro, [id]: valor },
     }))
   }
@@ -164,12 +236,55 @@ export default function GastosPage() {
     setForm({
       descripcion: gasto.descripcion,
       importe_total: gasto.importe_total.toFixed(2),
+      categoria: gasto.categoria ?? null,
       usuario_pagador_id: gasto.usuario_pagador_id,
       seleccionados,
       importesPorMiembro,
-      dividirIgual: false,
+      porcentajesPorMiembro: {},
+      modoReparto: 'personalizado',
     })
     setModalEdicionId(gasto.id)
+  }
+
+  const handleCrearCategoriaGasto = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!nuevaCategoriaGasto.trim()) return
+    try {
+      setError('')
+      await categoriasGastoApi.crear(nuevaCategoriaGasto.trim(), nuevaCategoriaGastoIcono)
+      setNuevaCategoriaGasto('')
+      setNuevaCategoriaGastoIcono(undefined)
+      const data: any = await categoriasGastoApi.listar()
+      const arr = Array.isArray(data) ? data : []
+      setCategoriasGasto(arr)
+      setCached(CACHE_KEY_CATEGORIAS_GASTO, arr)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_crear_categoria'))
+    }
+  }
+
+  const handleEliminarCategoriaGasto = async (id: number) => {
+    if (confirmandoEliminarCatGastoId !== id) { setConfirmandoEliminarCatGastoId(id); return }
+    setConfirmandoEliminarCatGastoId(null)
+    try {
+      setError('')
+      await categoriasGastoApi.eliminar(id)
+      const data: any = await categoriasGastoApi.listar()
+      const arr = Array.isArray(data) ? data : []
+      setCategoriasGasto(arr)
+      setCached(CACHE_KEY_CATEGORIAS_GASTO, arr)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_eliminar_categoria_uso'))
+    }
+  }
+
+  const handleExportarCsv = async () => {
+    try {
+      setError('')
+      await gastosApi.exportarCsv()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error_conexion_titulo'))
+    }
   }
 
   const construirParticipantes = () =>
@@ -185,6 +300,7 @@ export default function GastosPage() {
     const datos = {
       descripcion: form.descripcion.trim(),
       importe_total: parseFloat(form.importe_total) || 0,
+      categoria: form.categoria,
       usuario_pagador_id: form.usuario_pagador_id,
       participantes: construirParticipantes(),
     }
@@ -281,15 +397,90 @@ export default function GastosPage() {
 
       <div>
         <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium">{t('categoria')}</label>
+          <button
+            type="button"
+            onClick={() => setGestionandoCategoriasGasto(!gestionandoCategoriasGasto)}
+            className="text-sm text-accent hover:underline flex items-center gap-1"
+          >
+            <Tags className="w-4 h-4" /> {t('categorias')}
+          </button>
+        </div>
+
+        {gestionandoCategoriasGasto && (
+          <div className="p-3 bg-muted rounded-lg space-y-2 mb-2">
+            <div className="flex flex-wrap gap-2">
+              {categoriasGasto.map((cat) => (
+                confirmandoEliminarCatGastoId === cat.id ? (
+                  <span key={cat.id} className="flex items-center gap-1 px-2 py-1 bg-card rounded-full text-xs border border-red-300 dark:border-red-700">
+                    <span className="text-red-600 dark:text-red-400 mr-0.5">{t('eliminar_pregunta')}</span>
+                    <button type="button" onClick={() => handleEliminarCategoriaGasto(cat.id)} className="px-1.5 py-0.5 text-white bg-red-500 rounded-md font-medium">{t('si')}</button>
+                    <button type="button" onClick={() => setConfirmandoEliminarCatGastoId(null)} className="px-1.5 py-0.5 bg-muted rounded-md font-medium">{t('no')}</button>
+                  </span>
+                ) : (
+                  <span key={cat.id} className="flex items-center gap-1 px-2 py-1 bg-card rounded-full text-xs border border-border">
+                    {cat.nombre}
+                    <button type="button" onClick={() => handleEliminarCategoriaGasto(cat.id)} aria-label={`${t('eliminar')} ${cat.nombre}`}>
+                      <X className="w-3 h-3 text-red-500" />
+                    </button>
+                  </span>
+                )
+              ))}
+            </div>
+            <form onSubmit={handleCrearCategoriaGasto} className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMostrarIconPickerCategoriaGasto(true)}
+                className="w-9 h-9 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
+                aria-label={t('cambiar_icono')}
+              >
+                {nuevaCategoriaGastoIcono ? (
+                  <IconRenderer name={nuevaCategoriaGastoIcono} className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <Tags className="w-4 h-4 text-muted-foreground" />
+                )}
+              </button>
+              <input
+                type="text"
+                value={nuevaCategoriaGasto}
+                onChange={(e) => setNuevaCategoriaGasto(e.target.value)}
+                placeholder={t('nueva_categoria')}
+                className="input-field !py-1.5 flex-1"
+              />
+              <button type="submit" className="btn-secondary !py-1.5">{t('añadir')}</button>
+            </form>
+          </div>
+        )}
+
+        <select
+          value={form.categoria ?? ''}
+          onChange={(e) => setForm({ ...form, categoria: e.target.value || null })}
+          className="input-field"
+        >
+          <option value="">{t('sin_categoria')}</option>
+          {categoriasGasto.map((cat) => (
+            <option key={cat.id} value={cat.nombre}>{cat.nombre}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium">{t('participantes')}</label>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={form.dividirIgual}
-              onChange={(e) => setForm((prev) => recalcularReparto({ ...prev, dividirIgual: e.target.checked }))}
-            />
-            {t('dividir_partes_iguales')}
-          </label>
+          <div className="flex gap-1">
+            {(['igual', 'porcentaje', 'personalizado'] as const).map((modo) => (
+              <button
+                key={modo}
+                type="button"
+                onClick={() => cambiarModoReparto(modo)}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  form.modoReparto === modo ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {t(modo === 'igual' ? 'dividir_partes_iguales' : modo === 'porcentaje' ? 'dividir_por_porcentaje' : 'dividir_personalizado')}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="space-y-2">
           {miembros.map((m) => (
@@ -300,15 +491,33 @@ export default function GastosPage() {
                 onChange={() => toggleParticipante(m.id)}
               />
               <span className="flex-1 text-sm truncate">{m.nombre_usuario}</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                disabled={!form.seleccionados.has(m.id)}
-                value={form.importesPorMiembro[m.id] ?? ''}
-                onChange={(e) => cambiarImporteParticipante(m.id, e.target.value)}
-                className="input-field !py-1 !px-2 w-24 text-sm"
-              />
+              {form.modoReparto === 'porcentaje' ? (
+                <>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    disabled={!form.seleccionados.has(m.id)}
+                    value={form.porcentajesPorMiembro[m.id] ?? ''}
+                    onChange={(e) => cambiarPorcentajeParticipante(m.id, e.target.value)}
+                    className="input-field !py-1 !px-2 w-16 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground w-16 text-right flex-shrink-0">
+                    {formatImporte(parseFloat(form.importesPorMiembro[m.id] || '0') || 0, simboloMoneda)}
+                  </span>
+                </>
+              ) : (
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  disabled={!form.seleccionados.has(m.id)}
+                  value={form.importesPorMiembro[m.id] ?? ''}
+                  onChange={(e) => cambiarImporteParticipante(m.id, e.target.value)}
+                  className="input-field !py-1 !px-2 w-24 text-sm"
+                />
+              )}
             </div>
           ))}
         </div>
@@ -336,6 +545,10 @@ export default function GastosPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleExportarCsv} className="btn-secondary flex items-center gap-2 min-h-[44px]">
+            <Download className="w-5 h-5" />
+            <span className="hidden sm:inline">{t('exportar_csv')}</span>
+          </button>
           <button onClick={() => setShowLiquidacion(true)} className="btn-secondary flex items-center gap-2 min-h-[44px]">
             <HandCoins className="w-5 h-5" />
             <span className="hidden sm:inline">{t('registrar_pago')}</span>
@@ -347,6 +560,20 @@ export default function GastosPage() {
         </div>
       </div>
 
+      <div className="flex gap-1">
+        {(['gastos', 'estadisticas'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setVista(v)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              vista === v ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {t(v === 'gastos' ? 'nav_gastos' : 'estadisticas')}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -354,64 +581,114 @@ export default function GastosPage() {
         </div>
       )}
 
-      {saldo.length > 0 && (
-        <div className="card space-y-2">
-          <h2 className="text-lg font-semibold">{t('saldo_neto')}</h2>
-          <div className="space-y-2">
-            {saldo.map((s) => (
-              <div key={s.usuario_id} className="flex items-center justify-between text-sm">
-                <span className="truncate">{s.nombre_usuario}</span>
-                <span className={s.saldo > 0 ? 'text-green-600 font-medium' : s.saldo < 0 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
-                  {s.saldo === 0
-                    ? formatImporte(0, simboloMoneda)
-                    : `${s.saldo > 0 ? t('le_deben') : t('debe')}: ${formatImporte(Math.abs(s.saldo), simboloMoneda)}`}
-                </span>
+      {vista === 'gastos' ? (
+        <>
+          {saldo.length > 0 && (
+            <div className="card space-y-2">
+              <h2 className="text-lg font-semibold">{t('saldo_neto')}</h2>
+              <div className="space-y-2">
+                {saldo.map((s) => (
+                  <div key={s.usuario_id} className="flex items-center justify-between text-sm">
+                    <span className="truncate">{s.nombre_usuario}</span>
+                    <span className={s.saldo > 0 ? 'text-green-600 font-medium' : s.saldo < 0 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                      {s.saldo === 0
+                        ? formatImporte(0, simboloMoneda)
+                        : `${s.saldo > 0 ? t('le_deben') : t('debe')}: ${formatImporte(Math.abs(s.saldo), simboloMoneda)}`}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+
+          {loading ? (
+            <SkeletonCards />
+          ) : gastos.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">{t('sin_gastos_aun')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {gastos.map((gasto) => {
+                const iconoCategoria = getCategoriaGastoIcon(gasto.categoria)
+                return (
+                <div key={gasto.id} className="card flex items-center justify-between gap-4">
+                  {iconoCategoria && (
+                    <IconRenderer name={iconoCategoria} className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{gasto.descripcion}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatImporte(gasto.importe_total, simboloMoneda)} · {t('pagado_por')} {gasto.pagador_nombre}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => abrirModalEdicion(gasto)}
+                    className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
+                    aria-label={t('editar')}
+                  >
+                    <Pencil className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  {confirmandoId === gasto.id ? (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => handleEliminar(gasto.id)} className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
+                      <button onClick={() => setConfirmandoId(null)} className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleEliminar(gasto.id)}
+                      className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
+                      aria-label={t('eliminar')}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  )}
+                </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      ) : gastos.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">{t('sin_datos_estadisticas')}</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="card space-y-3">
+            <h2 className="text-lg font-semibold">{t('gasto_total_por_categoria')}</h2>
+            <BarraHorizontal
+              datos={totalesPorCategoria(gastos, t('sin_categoria'))}
+              formatearValor={(v) => formatImporte(v, simboloMoneda)}
+            />
+          </div>
+          <div className="card space-y-3">
+            <h2 className="text-lg font-semibold">{t('evolucion_mensual')}</h2>
+            <GraficoColumnas
+              datos={evolucionMensual(gastos, 12)}
+              formatearValor={(v) => formatImporte(v, simboloMoneda)}
+            />
+          </div>
+          <div className="card space-y-3">
+            <h2 className="text-lg font-semibold">{t('balance_por_persona')}</h2>
+            <BarraHorizontal
+              datos={balancePorPersona(saldo)}
+              diverging
+              formatearValor={(v) => formatImporte(v, simboloMoneda)}
+            />
           </div>
         </div>
       )}
 
-      {loading ? (
-        <SkeletonCards />
-      ) : gastos.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">{t('sin_gastos_aun')}</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {gastos.map((gasto) => (
-            <div key={gasto.id} className="card flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground truncate">{gasto.descripcion}</p>
-                <p className="text-sm text-muted-foreground">
-                  {formatImporte(gasto.importe_total, simboloMoneda)} · {t('pagado_por')} {gasto.pagador_nombre}
-                </p>
-              </div>
-              <button
-                onClick={() => abrirModalEdicion(gasto)}
-                className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
-                aria-label={t('editar')}
-              >
-                <Pencil className="w-4 h-4 text-muted-foreground" />
-              </button>
-              {confirmandoId === gasto.id ? (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => handleEliminar(gasto.id)} className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
-                  <button onClick={() => setConfirmandoId(null)} className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleEliminar(gasto.id)}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
-                  aria-label={t('eliminar')}
-                >
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+      {mostrarIconPickerCategoriaGasto && (
+        <IconPicker
+          valorActual={nuevaCategoriaGastoIcono}
+          onSeleccionar={(icono) => {
+            setNuevaCategoriaGastoIcono(icono)
+            setMostrarIconPickerCategoriaGasto(false)
+          }}
+          onCerrar={() => setMostrarIconPickerCategoriaGasto(false)}
+        />
       )}
 
       {(showForm || modalEdicionId !== null) && (

@@ -68,6 +68,35 @@ export async function apiUpload<T = any>(endpoint: string, formData: FormData): 
   return datos as T
 }
 
+// Como apiCall pero para descargar un blob (CSV/exportaciones): no espera
+// JSON de vuelta, dispara la descarga en el navegador vía un <a> sintético.
+export async function apiDownload(endpoint: string, filenameFallback: string): Promise<void> {
+  const response = await fetch(endpoint, { credentials: 'include' })
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') || ''
+    const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
+    if (response.status === 503 && datos?.mantenimiento) {
+      marcarMantenimiento(true)
+    }
+    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') || ''
+  const match = /filename="?([^"]+)"?/.exec(disposition)
+  const filename = match ? match[1] : filenameFallback
+
+  const url = URL.createObjectURL(blob)
+  const enlace = document.createElement('a')
+  enlace.href = url
+  enlace.download = filename
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function apiCall<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const metodo = (options.method || 'GET').toUpperCase()
   const headers: Record<string, string> = {
@@ -242,6 +271,14 @@ export const categorias = {
   eliminar: (id: number) => apiCall(`/api/categorias/${id}`, { method: 'DELETE' }),
 }
 
+// ===== Categorías de gasto (stockhogar/rutas/categorias_gasto.py) =====
+export const categoriasGasto = {
+  listar: () => apiCall('/api/categorias-gasto'),
+  crear: (nombre: string, icono?: string) =>
+    apiCall('/api/categorias-gasto', { method: 'POST', body: JSON.stringify({ nombre, icono }) }),
+  eliminar: (id: number) => apiCall(`/api/categorias-gasto/${id}`, { method: 'DELETE' }),
+}
+
 // ===== Hogares compartidos / permisos (stockhogar/rutas/permisos.py) =====
 export const permisos = {
   buscarUsuarios: (q: string) => apiCall(`/api/hogares/buscar-usuarios?q=${encodeURIComponent(q)}`),
@@ -276,6 +313,7 @@ export const gastos = {
     importe_total: number
     usuario_pagador_id: number
     fecha?: string
+    categoria?: string | null
     participantes: Array<{ usuario_id: number; importe: number }>
   }) => apiCall('/api/gastos', { method: 'POST', body: JSON.stringify(datos) }),
 
@@ -289,6 +327,8 @@ export const gastos = {
 
   registrarLiquidacion: (datos: { usuario_origen_id: number; usuario_destino_id: number; importe: number; nota?: string }) =>
     apiCall('/api/gastos/liquidaciones', { method: 'POST', body: JSON.stringify(datos) }),
+
+  exportarCsv: () => apiDownload('/api/gastos/exportar', 'gastos.csv'),
 }
 
 // ===== Escaneo de tickets (stockhogar/rutas/tickets.py) =====

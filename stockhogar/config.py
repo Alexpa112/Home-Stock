@@ -65,6 +65,20 @@ CATEGORIAS_DEFECTO = [
 ]
 CATEGORIA_DEFECTO = "Otros"
 
+# Categorias de gasto compartido (tipo Tricount): catalogo independiente del
+# de productos (CATEGORIAS_DEFECTO/CATEGORIA_DEFECTO). Nombres en español,
+# iconos en lucide kebab-case (no emoji) para que IconRenderer los resuelva.
+CATEGORIAS_GASTO_DEFECTO = [
+    ("Alimentación", "shopping-basket"),
+    ("Transporte", "car-front"),
+    ("Vivienda", "home"),
+    ("Ocio", "party-popper"),
+    ("Salud", "heart-pulse"),
+    ("Suministros", "zap"),
+    ("Otros", "h-folder"),
+]
+CATEGORIA_GASTO_DEFECTO = "Otros"
+
 # Catalogo de productos habituales de supermercado en España (investigado:
 # leche, huevos, pan, aceite, pasta, arroz, frutas y verduras son los
 # alimentos que compra la inmensa mayoria de hogares). Se siembra una vez en

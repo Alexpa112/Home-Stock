@@ -1,11 +1,16 @@
 """Gastos compartidos del hogar (division tipo Tricount): registro de quien
 pago que y como se reparte entre los miembros, y saldo neto de cada uno."""
-from flask import Blueprint, request, session
+import csv
+import io
+
+from flask import Blueprint, Response, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
+from ..translator import traducir
 from ..utils import Validator, ValidationError
+from .categorias_gasto import normalizar_categoria_gasto
 
 bp = Blueprint("gastos", __name__, url_prefix="/api/gastos")
 
@@ -35,6 +40,7 @@ def _gasto_a_dict(db, gasto):
         "descripcion": gasto["descripcion"],
         "importe_total": gasto["importe_total"],
         "fecha": gasto["fecha"],
+        "categoria": gasto["categoria"],
         "usuario_pagador_id": gasto["usuario_pagador_id"],
         "pagador_nombre": gasto["pagador_nombre"],
         "participantes": [
@@ -79,6 +85,7 @@ def crear_gasto():
     descripcion = Validator.string_requerido(datos.get("descripcion"), "descripción", 200)
     importe_total = Validator.decimal_positivo(datos.get("importe_total"), "importe total")
     fecha = Validator.string_opcional(datos.get("fecha"), ahora(), 30)
+    categoria = normalizar_categoria_gasto(db, datos.get("categoria"))
     usuario_pagador_id = datos.get("usuario_pagador_id")
     participantes = datos.get("participantes")
 
@@ -105,9 +112,9 @@ def crear_gasto():
     usuario_id_actual = session.get("usuario_id")
     cur = db.execute(
         """INSERT INTO gastos
-           (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, creado_por_usuario_id, fecha_creacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, usuario_id_actual, ahora()),
+           (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, categoria, creado_por_usuario_id, fecha_creacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, categoria, usuario_id_actual, ahora()),
     )
     gasto_id = cur.lastrowid
 
@@ -167,6 +174,10 @@ def actualizar_gasto(gasto_id):
         nuevo_importe_total = Validator.decimal_positivo(datos.get("importe_total"), "importe total")
         actualizaciones["importe_total"] = "?"
         parametros.append(nuevo_importe_total)
+
+    if "categoria" in datos:
+        actualizaciones["categoria"] = "?"
+        parametros.append(normalizar_categoria_gasto(db, datos.get("categoria")))
 
     if "usuario_pagador_id" in datos:
         miembros_ids = _miembros_hogar_ids(db, gasto["hogar_id"])
@@ -269,6 +280,68 @@ def saldo_hogar():
         {"usuario_id": f["id"], "nombre_usuario": f["nombre_usuario"], "saldo": round(f["saldo"], 2)}
         for f in filas
     ])
+
+
+def _formatear_decimal_csv(valor):
+    """Coma decimal (no punto) porque el delimitador de columna es ';':
+    así Excel en español reconoce el número en vez de leerlo como texto."""
+    return f"{valor:.2f}".replace(".", ",")
+
+
+@bp.route("/exportar", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def exportar_gastos_csv():
+    """Exporta los gastos del hogar activo a CSV, formato largo: una fila
+    por (gasto, participante). Solo lectura: mismo nivel de permiso que
+    listar_gastos/saldo_hogar (acceso 'ver' es suficiente)."""
+    db = get_db()
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.no_permitido()
+
+    gastos = db.execute(
+        """SELECT g.*, u.nombre_usuario AS pagador_nombre
+           FROM gastos g, usuarios u
+           WHERE g.usuario_pagador_id = u.id AND g.hogar_id = ?
+           ORDER BY g.fecha, g.id""",
+        (hogar_id,),
+    ).fetchall()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow([
+        traducir("fecha"), traducir("descripcion"), traducir("categoria"),
+        traducir("importe_total"), traducir("pagador"), traducir("participante"),
+        traducir("importe_participante"),
+    ])
+
+    for gasto in gastos:
+        participantes = db.execute(
+            """SELECT gp.importe, u.nombre_usuario
+               FROM gastos_participantes gp, usuarios u
+               WHERE gp.usuario_id = u.id AND gp.gasto_id = ?
+               ORDER BY u.nombre_usuario""",
+            (gasto["id"],),
+        ).fetchall()
+        for participante in participantes:
+            writer.writerow([
+                gasto["fecha"],
+                gasto["descripcion"],
+                gasto["categoria"] or "",
+                _formatear_decimal_csv(gasto["importe_total"]),
+                gasto["pagador_nombre"],
+                participante["nombre_usuario"],
+                _formatear_decimal_csv(participante["importe"]),
+            ])
+
+    contenido = buffer.getvalue().encode("utf-8-sig")
+    nombre_fichero = f"gastos_{ahora()[:10]}.csv"
+    return Response(
+        contenido,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre_fichero}"'},
+    )
 
 
 @bp.route("/liquidaciones", methods=["POST"])

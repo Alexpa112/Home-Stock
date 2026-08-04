@@ -158,6 +158,65 @@ class GastosTests(unittest.TestCase):
         self.assertAlmostEqual(saldo[self.propietario_id], 0.0)
         self.assertAlmostEqual(saldo[self.editor_id], 0.0)
 
+    def test_crear_gasto_con_categoria_valida_la_persiste(self):
+        resp = self.client_propietario.post(
+            "/api/gastos",
+            json={
+                "descripcion": "Billetes de tren",
+                "importe_total": 40,
+                "usuario_pagador_id": self.propietario_id,
+                "categoria": "Transporte",
+                "participantes": [
+                    {"usuario_id": self.propietario_id, "importe": 25},
+                    {"usuario_id": self.editor_id, "importe": 15},
+                ],
+            },
+        )
+        self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json()["categoria"], "Transporte")
+
+    def test_crear_gasto_sin_categoria_queda_none(self):
+        resp = self._crear_gasto_valido(self.client_propietario)
+        self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
+        self.assertIsNone(resp.get_json()["categoria"])
+
+    def test_crear_gasto_con_categoria_desconocida_cae_a_otros(self):
+        resp = self.client_propietario.post(
+            "/api/gastos",
+            json={
+                "descripcion": "Gasto raro",
+                "importe_total": 40,
+                "usuario_pagador_id": self.propietario_id,
+                "categoria": f"NoExiste_{uuid.uuid4().hex[:6]}",
+                "participantes": [
+                    {"usuario_id": self.propietario_id, "importe": 25},
+                    {"usuario_id": self.editor_id, "importe": 15},
+                ],
+            },
+        )
+        self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json()["categoria"], "Otros")
+
+    def test_actualizar_gasto_permite_quitar_categoria(self):
+        resp = self.client_propietario.post(
+            "/api/gastos",
+            json={
+                "descripcion": "Compra con categoría",
+                "importe_total": 40,
+                "usuario_pagador_id": self.propietario_id,
+                "categoria": "Ocio",
+                "participantes": [
+                    {"usuario_id": self.propietario_id, "importe": 25},
+                    {"usuario_id": self.editor_id, "importe": 15},
+                ],
+            },
+        )
+        gasto_id = resp.get_json()["id"]
+
+        resp_patch = self.client_propietario.patch(f"/api/gastos/{gasto_id}", json={"categoria": None})
+        self.assertEqual(resp_patch.status_code, 200, resp_patch.get_data(as_text=True))
+        self.assertIsNone(resp_patch.get_json()["categoria"])
+
     def test_viewer_puede_ver_miembros_basico(self):
         resp = self.client_viewer.get(f"/api/hogares/{self.hogar_id}/miembros-basico")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))

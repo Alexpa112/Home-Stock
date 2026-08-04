@@ -4,7 +4,13 @@ from datetime import datetime
 
 from flask import g
 
-from .config import CATALOGO_DEFECTO, CATEGORIAS_DEFECTO, DB_PATH, DIAS_AVISO_DEFECTO
+from .config import (
+    CATALOGO_DEFECTO,
+    CATEGORIAS_DEFECTO,
+    CATEGORIAS_GASTO_DEFECTO,
+    DB_PATH,
+    DIAS_AVISO_DEFECTO,
+)
 
 try:
     import fcntl  # No disponible en Windows; solo se usa en el contenedor Linux.
@@ -1091,6 +1097,24 @@ def _init_db_impl():
             """
         )
         db.execute("CREATE INDEX IF NOT EXISTS idx_liquidaciones_hogar_fecha ON liquidaciones(hogar_id, fecha)")
+
+        # Categorias de gasto (independientes de las de producto, ver
+        # rutas/categorias_gasto.py) y columna opcional en gastos para
+        # asignarlas. Sin datos previos que migrar aparte de la columna nueva.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS categorias_gasto (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL UNIQUE,
+                icono TEXT NOT NULL DEFAULT 'h-folder'
+            )
+            """
+        )
+        db.executemany(
+            "INSERT OR IGNORE INTO categorias_gasto (nombre, icono) VALUES (?, ?)",
+            CATEGORIAS_GASTO_DEFECTO,
+        )
+        asegurar_columna(db, "gastos", "categoria", "TEXT")
 
         db.commit()
 
