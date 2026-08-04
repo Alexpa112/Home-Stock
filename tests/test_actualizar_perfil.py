@@ -47,7 +47,7 @@ class ActualizarPerfilTests(unittest.TestCase):
             db.commit()
 
     def test_no_permite_cambiar_a_nombre_de_otro_usuario(self):
-        resp = self.client.put("/api/auth/perfil", json={"nombre": self.nombre_b})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_b})
         self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
 
         with self.app.app_context():
@@ -58,12 +58,12 @@ class ActualizarPerfilTests(unittest.TestCase):
             self.assertEqual(fila["nombre_usuario"], self.nombre_a, "El nombre no debe haber cambiado")
 
     def test_no_permite_cambiar_a_nombre_de_otro_usuario_con_distintas_mayusculas(self):
-        resp = self.client.put("/api/auth/perfil", json={"nombre": self.nombre_b.upper()})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_b.upper()})
         self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
 
     def test_permite_cambiar_a_un_nombre_libre(self):
         nuevo_nombre = f"{self.nombre_a}_nuevo"
-        resp = self.client.put("/api/auth/perfil", json={"nombre": nuevo_nombre})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": nuevo_nombre})
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
 
         with self.app.app_context():
@@ -74,8 +74,32 @@ class ActualizarPerfilTests(unittest.TestCase):
             self.assertEqual(fila["nombre_usuario"], nuevo_nombre)
 
     def test_permite_conservar_el_propio_nombre(self):
-        resp = self.client.put("/api/auth/perfil", json={"nombre": self.nombre_a})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_a})
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+
+    def test_permite_cambiar_nombre_a_mostrar_sin_afectar_al_usuario_de_login(self):
+        resp = self.client.put("/api/auth/perfil", json={"nombre": "Alejandro"})
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json()["nombre"], "Alejandro")
+
+        with self.app.app_context():
+            db = get_db()
+            fila = db.execute(
+                "SELECT nombre_usuario, nombre FROM usuarios WHERE id = ?", (self.usuario_a_id,)
+            ).fetchone()
+            self.assertEqual(fila["nombre_usuario"], self.nombre_a, "El usuario de login no debe cambiar")
+            self.assertEqual(fila["nombre"], "Alejandro")
+
+    def test_permite_repetir_nombre_a_mostrar_entre_usuarios(self):
+        resp_a = self.client.put("/api/auth/perfil", json={"nombre": "Mismo Nombre"})
+        self.assertEqual(resp_a.status_code, 200, resp_a.get_data(as_text=True))
+
+        with self.client.session_transaction() as sess:
+            sess["usuario"] = self.nombre_b
+            sess["usuario_id"] = self.usuario_b_id
+
+        resp_b = self.client.put("/api/auth/perfil", json={"nombre": "Mismo Nombre"})
+        self.assertEqual(resp_b.status_code, 200, resp_b.get_data(as_text=True))
 
 
 if __name__ == "__main__":

@@ -49,6 +49,7 @@ def usuario_actual():
 def estado():
     db = get_db()
     email = None
+    nombre = None
     tema_preferido = "auto"
     idioma_preferido = "es"
     teclado_virtual_activo = "on"
@@ -59,11 +60,12 @@ def estado():
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
         fila = db.execute(
-            "SELECT email, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias, doble_factor_activo, terminos_version_aceptada FROM usuarios WHERE id = ?",
+            "SELECT email, nombre, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias, doble_factor_activo, terminos_version_aceptada FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         if fila:
             email = fila["email"]
+            nombre = fila["nombre"]
             tema_preferido = fila["tema_preferido"]
             idioma_preferido = fila["idioma_preferido"]
             teclado_virtual_activo = fila["teclado_virtual_activo"]
@@ -75,6 +77,7 @@ def estado():
         {
             "necesita_setup": not hay_usuarios(db),
             "usuario": usuario_actual(),
+            "nombre": nombre,
             "email": email,
             "tema_preferido": tema_preferido,
             "idioma_preferido": idioma_preferido,
@@ -279,9 +282,10 @@ def logout():
 @requerir_sesion
 @manejo_errores
 def actualizar_perfil():
-    """Actualizar nombre y/o contraseña del usuario actual."""
+    """Actualizar usuario (login), nombre a mostrar y/o contraseña del usuario actual."""
     usuario_id = session.get("usuario_id")
     datos = request.get_json(force=True) or {}
+    nombre_usuario_nuevo = datos.get("usuario", "").strip()
     nombre = datos.get("nombre", "").strip()
     password = datos.get("password", "").strip()
 
@@ -294,21 +298,30 @@ def actualizar_perfil():
     if not usuario:
         return APIResponse.no_autorizado()
 
-    # Actualizar nombre si se proporciona
-    if nombre:
-        if len(nombre) > 80:
+    # Actualizar usuario (login) si se proporciona
+    if nombre_usuario_nuevo:
+        if len(nombre_usuario_nuevo) > 80:
             return APIResponse.validacion("err_nombre_max_80")
         duplicado = db.execute(
             "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE AND id != ?",
-            (nombre, usuario_id)
+            (nombre_usuario_nuevo, usuario_id)
         ).fetchone()
         if duplicado:
             return APIResponse.error("err_usuario_duplicado", 400)
         db.execute(
             "UPDATE usuarios SET nombre_usuario = ? WHERE id = ?",
+            (nombre_usuario_nuevo, usuario_id)
+        )
+        session["usuario"] = nombre_usuario_nuevo
+
+    # Actualizar nombre a mostrar si se proporciona (independiente del usuario de login)
+    if nombre:
+        if len(nombre) > 80:
+            return APIResponse.validacion("err_nombre_max_80")
+        db.execute(
+            "UPDATE usuarios SET nombre = ? WHERE id = ?",
             (nombre, usuario_id)
         )
-        session["usuario"] = nombre
 
     # Actualizar contraseña si se proporciona
     if password:
@@ -321,7 +334,8 @@ def actualizar_perfil():
         )
 
     db.commit()
-    return APIResponse.success({"usuario": session.get("usuario")})
+    fila = db.execute("SELECT nombre FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    return APIResponse.success({"usuario": session.get("usuario"), "nombre": fila["nombre"] if fila else None})
 
 
 @bp.route("/api/auth/tema", methods=["POST"])

@@ -169,7 +169,7 @@ export const auth = {
 
   logout: () => apiCall('/api/auth/logout', { method: 'POST' }),
 
-  actualizarPerfil: (datos: { nombre?: string; password?: string }) =>
+  actualizarPerfil: (datos: { usuario?: string; nombre?: string; password?: string }) =>
     apiCall('/api/auth/perfil', { method: 'PUT', body: JSON.stringify(datos) }),
 
   cambiarTema: (tema: 'light' | 'dark' | 'auto') =>
@@ -324,6 +324,9 @@ export const gastos = {
 
   // Saldo neto por miembro del hogar activo: positivo = le deben, negativo = debe.
   saldo: () => apiCall('/api/gastos/saldo'),
+
+  // Pagos sugeridos que saldan el hogar con el mínimo número de transacciones.
+  simplificar: () => apiCall('/api/gastos/simplificar'),
 
   registrarLiquidacion: (datos: { usuario_origen_id: number; usuario_destino_id: number; importe: number; nota?: string }) =>
     apiCall('/api/gastos/liquidaciones', { method: 'POST', body: JSON.stringify(datos) }),

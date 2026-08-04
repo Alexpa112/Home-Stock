@@ -11,7 +11,7 @@ export default function SettingsPage() {
   const { preferences, updatePreferences } = useListPreferences()
   const { t, cambiarIdioma: aplicarIdiomaContexto } = useTranslation()
   const [darkMode, setDarkMode] = useState(false)
-  const [user, setUser] = useState<{ usuario?: string; email?: string | null; id?: number }>({})
+  const [user, setUser] = useState<{ usuario?: string; nombre?: string | null; email?: string | null; id?: number }>({})
   const [dobleFactorActivo, setDobleFactorActivo] = useState(false)
   const [cargandoDobleFactor, setCargandoDobleFactor] = useState(false)
   const [confirmandoLogout, setConfirmandoLogout] = useState(false)
@@ -20,10 +20,15 @@ export default function SettingsPage() {
   const [idiomasDisponibles, setIdiomasDisponibles] = useState<Record<string, { nombre: string; nativo: string }>>({})
   const [idiomaActual, setIdiomaActual] = useState('es')
 
-  // Estado para editar nombre de usuario
+  // Estado para editar usuario (login)
   const [editandoNombre, setEditandoNombre] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [cargandoNombre, setCargandoNombre] = useState(false)
+
+  // Estado para editar nombre a mostrar (independiente del usuario de login)
+  const [editandoNombreMostrar, setEditandoNombreMostrar] = useState(false)
+  const [nuevoNombreMostrar, setNuevoNombreMostrar] = useState('')
+  const [cargandoNombreMostrar, setCargandoNombreMostrar] = useState(false)
 
   // Estado para cambiar contraseña
   const [editandoPassword, setEditandoPassword] = useState(false)
@@ -82,8 +87,9 @@ export default function SettingsPage() {
       })
       if (response.ok) {
         const data = await response.json()
-        setUser({ usuario: data.usuario, email: data.email, id: data.usuario_id })
+        setUser({ usuario: data.usuario, nombre: data.nombre, email: data.email, id: data.usuario_id })
         setNuevoNombre(data.usuario || '')
+        setNuevoNombreMostrar(data.nombre || '')
         setDobleFactorActivo(!!data.doble_factor_activo)
 
         const pref = data.tema_preferido || 'auto'
@@ -130,7 +136,7 @@ export default function SettingsPage() {
     setError('')
     setExito('')
     try {
-      await auth.actualizarPerfil({ nombre: nuevoNombre })
+      await auth.actualizarPerfil({ usuario: nuevoNombre })
       setUser({ ...user, usuario: nuevoNombre })
       setEditandoNombre(false)
       setExito(t('nombre_usuario_actualizado'))
@@ -139,6 +145,23 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : t('err_actualizar_nombre'))
     } finally {
       setCargandoNombre(false)
+    }
+  }
+
+  const handleActualizarNombreMostrar = async () => {
+    setCargandoNombreMostrar(true)
+    setError('')
+    setExito('')
+    try {
+      await auth.actualizarPerfil({ nombre: nuevoNombreMostrar })
+      setUser({ ...user, nombre: nuevoNombreMostrar })
+      setEditandoNombreMostrar(false)
+      setExito(t('nombre_actualizado'))
+      setTimeout(() => setExito(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar_nombre_mostrar'))
+    } finally {
+      setCargandoNombreMostrar(false)
     }
   }
 
@@ -217,6 +240,51 @@ export default function SettingsPage() {
 
       {/* Grupo: Cuenta */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+        {/* Nombre a mostrar */}
+        <div className="px-4 py-3">
+          {editandoNombreMostrar ? (
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">{t('nombre')}</label>
+              <input
+                type="text"
+                value={nuevoNombreMostrar}
+                onChange={(e) => setNuevoNombreMostrar(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_nuevo_nombre')}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleActualizarNombreMostrar}
+                  disabled={cargandoNombreMostrar}
+                  className="flex-1 px-3 py-2 bg-accent text-white rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
+                >
+                  {cargandoNombreMostrar ? t('guardando') : t('guardar')}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditandoNombreMostrar(false)
+                    setNuevoNombreMostrar(user.nombre || '')
+                  }}
+                  disabled={cargandoNombreMostrar}
+                  className="flex-1 px-3 py-2 bg-muted rounded-lg font-medium transition-colors min-h-[44px]"
+                >
+                  {t('cancelar')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditandoNombreMostrar(true)}
+              className="w-full flex items-center gap-3 min-h-[44px] text-left"
+            >
+              <User className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+              <span className="flex-1 text-sm">{t('nombre')}</span>
+              <span className="text-sm text-muted-foreground truncate max-w-[40%]">{user.nombre || t('placeholder_nuevo_nombre')}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            </button>
+          )}
+        </div>
+
         {/* Usuario */}
         <div className="px-4 py-3">
           {editandoNombre ? (

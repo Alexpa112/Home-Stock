@@ -378,6 +378,9 @@
     "subtitulo_ajustes": "Personaliza tu experiencia",
     "seccion_cuenta": "Cuenta",
     "placeholder_nuevo_nombre_usuario": "Nuevo nombre de usuario",
+    "placeholder_nuevo_nombre": "Tu nombre",
+    "nombre_actualizado": "Nombre actualizado correctamente",
+    "err_actualizar_nombre_mostrar": "Error al actualizar el nombre",
     "guardando": "Guardando...",
     "correo_electronico": "Correo Electrónico",
     "btn_cambiar_password": "Cambiar Contraseña",
@@ -643,7 +646,10 @@
     "importe": "Importe",
     "nota_opcional": "Nota (opcional)",
     "confirmar_eliminar_gasto": "¿Eliminar este gasto?",
-    "err_importe_no_cuadra": "La suma del reparto no coincide con el importe total"
+    "err_importe_no_cuadra": "La suma del reparto no coincide con el importe total",
+    "pagos_sugeridos": "Pagos sugeridos",
+    "pagar": "Pagar",
+    "deudas_saldadas": "Cuentas saldadas"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1024,6 +1030,9 @@
     "subtitulo_ajustes": "Personaliza a túa experiencia",
     "seccion_cuenta": "Conta",
     "placeholder_nuevo_nombre_usuario": "Novo nome de usuario",
+    "placeholder_nuevo_nombre": "O teu nome",
+    "nombre_actualizado": "Nome actualizado correctamente",
+    "err_actualizar_nombre_mostrar": "Erro ao actualizar o nome",
     "guardando": "Gardando...",
     "correo_electronico": "Correo Electrónico",
     "btn_cambiar_password": "Cambiar Contrasinal",
@@ -1289,7 +1298,10 @@
     "importe": "Importe",
     "nota_opcional": "Nota (opcional)",
     "confirmar_eliminar_gasto": "¿Eliminar este gasto?",
-    "err_importe_no_cuadra": "A suma do reparto non coincide co importe total"
+    "err_importe_no_cuadra": "A suma do reparto non coincide co importe total",
+    "pagos_sugeridos": "Pagamentos suxeridos",
+    "pagar": "Pagar",
+    "deudas_saldadas": "Contas liquidadas"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -1670,6 +1682,9 @@
     "subtitulo_ajustes": "Customize your experience",
     "seccion_cuenta": "Account",
     "placeholder_nuevo_nombre_usuario": "New username",
+    "placeholder_nuevo_nombre": "Your name",
+    "nombre_actualizado": "Name updated successfully",
+    "err_actualizar_nombre_mostrar": "Error updating the name",
     "guardando": "Saving...",
     "correo_electronico": "Email Address",
     "btn_cambiar_password": "Change Password",
@@ -1935,7 +1950,10 @@
     "importe": "Amount",
     "nota_opcional": "Note (optional)",
     "confirmar_eliminar_gasto": "Delete this expense?",
-    "err_importe_no_cuadra": "The split total doesn't match the total amount"
+    "err_importe_no_cuadra": "The split total doesn't match the total amount",
+    "pagos_sugeridos": "Suggested payments",
+    "pagar": "Pay",
+    "deudas_saldadas": "All settled up"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -2316,6 +2334,9 @@
     "subtitulo_ajustes": "Personalize sua experiência",
     "seccion_cuenta": "Conta",
     "placeholder_nuevo_nombre_usuario": "Novo nome de usuário",
+    "placeholder_nuevo_nombre": "Seu nome",
+    "nombre_actualizado": "Nome atualizado com sucesso",
+    "err_actualizar_nombre_mostrar": "Erro ao atualizar o nome",
     "guardando": "Salvando...",
     "correo_electronico": "E-mail",
     "btn_cambiar_password": "Alterar Senha",
@@ -2581,7 +2602,10 @@
     "importe": "Valor",
     "nota_opcional": "Nota (opcional)",
     "confirmar_eliminar_gasto": "Excluir esta despesa?",
-    "err_importe_no_cuadra": "A soma da divisão não corresponde ao valor total"
+    "err_importe_no_cuadra": "A soma da divisão não corresponde ao valor total",
+    "pagos_sugeridos": "Pagamentos sugeridos",
+    "pagar": "Pagar",
+    "deudas_saldadas": "Contas quitadas"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -2962,6 +2986,9 @@
     "subtitulo_ajustes": "Personnalisez votre expérience",
     "seccion_cuenta": "Compte",
     "placeholder_nuevo_nombre_usuario": "Nouveau nom d'utilisateur",
+    "placeholder_nuevo_nombre": "Votre nom",
+    "nombre_actualizado": "Nom mis à jour avec succès",
+    "err_actualizar_nombre_mostrar": "Erreur lors de la mise à jour du nom",
     "guardando": "Enregistrement...",
     "correo_electronico": "Adresse e-mail",
     "btn_cambiar_password": "Changer le mot de passe",
@@ -3227,7 +3254,10 @@
     "importe": "Montant",
     "nota_opcional": "Note (facultatif)",
     "confirmar_eliminar_gasto": "Supprimer cette dépense ?",
-    "err_importe_no_cuadra": "La somme de la répartition ne correspond pas au montant total"
+    "err_importe_no_cuadra": "La somme de la répartition ne correspond pas au montant total",
+    "pagos_sugeridos": "Paiements suggérés",
+    "pagar": "Payer",
+    "deudas_saldadas": "Comptes soldés"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -3608,6 +3638,9 @@
     "subtitulo_ajustes": "Personalizza la tua esperienza",
     "seccion_cuenta": "Account",
     "placeholder_nuevo_nombre_usuario": "Nuovo nome utente",
+    "placeholder_nuevo_nombre": "Il tuo nome",
+    "nombre_actualizado": "Nome aggiornato con successo",
+    "err_actualizar_nombre_mostrar": "Errore nell'aggiornamento del nome",
     "guardando": "Salvataggio...",
     "correo_electronico": "Indirizzo email",
     "btn_cambiar_password": "Cambia password",
@@ -3873,7 +3906,10 @@
     "importe": "Importo",
     "nota_opcional": "Nota (facoltativa)",
     "confirmar_eliminar_gasto": "Eliminare questa spesa?",
-    "err_importe_no_cuadra": "La somma della ripartizione non corrisponde all'importo totale"
+    "err_importe_no_cuadra": "La somma della ripartizione non corrisponde all'importo totale",
+    "pagos_sugeridos": "Pagamenti suggeriti",
+    "pagar": "Paga",
+    "deudas_saldadas": "Conti saldati"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -4254,6 +4290,9 @@
     "subtitulo_ajustes": "Passe deine Erfahrung an",
     "seccion_cuenta": "Konto",
     "placeholder_nuevo_nombre_usuario": "Neuer Benutzername",
+    "placeholder_nuevo_nombre": "Dein Name",
+    "nombre_actualizado": "Name erfolgreich aktualisiert",
+    "err_actualizar_nombre_mostrar": "Fehler beim Aktualisieren des Namens",
     "guardando": "Wird gespeichert...",
     "correo_electronico": "E-Mail-Adresse",
     "btn_cambiar_password": "Passwort ändern",
@@ -4519,6 +4558,9 @@
     "importe": "Betrag",
     "nota_opcional": "Notiz (optional)",
     "confirmar_eliminar_gasto": "Diese Ausgabe löschen?",
-    "err_importe_no_cuadra": "Die Summe der Aufteilung stimmt nicht mit dem Gesamtbetrag überein"
+    "err_importe_no_cuadra": "Die Summe der Aufteilung stimmt nicht mit dem Gesamtbetrag überein",
+    "pagos_sugeridos": "Vorgeschlagene Zahlungen",
+    "pagar": "Bezahlen",
+    "deudas_saldadas": "Alle Schulden beglichen"
   }
 }
