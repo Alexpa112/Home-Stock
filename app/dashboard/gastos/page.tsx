@@ -75,7 +75,7 @@ interface Miembro {
   nombre_usuario: string
 }
 
-type ModoReparto = 'igual' | 'porcentaje' | 'personalizado'
+type ModoReparto = 'igual' | 'porcentaje' | 'partes' | 'personalizado'
 
 interface FormularioGasto {
   descripcion: string
@@ -85,6 +85,7 @@ interface FormularioGasto {
   seleccionados: Set<number>
   importesPorMiembro: Record<number, string>
   porcentajesPorMiembro: Record<number, string>
+  partesPorMiembro: Record<number, string>
   modoReparto: ModoReparto
 }
 
@@ -96,6 +97,7 @@ const FORM_VACIO = (pagadorPorDefecto: number | null): FormularioGasto => ({
   seleccionados: new Set(pagadorPorDefecto ? [pagadorPorDefecto] : []),
   importesPorMiembro: {},
   porcentajesPorMiembro: {},
+  partesPorMiembro: {},
   modoReparto: 'igual',
 })
 
@@ -224,6 +226,27 @@ export default function GastosPage() {
       return { ...siguiente, importesPorMiembro }
     }
 
+    if (siguiente.modoReparto === 'partes') {
+      const partes = ids.map((id) => Math.max(0, parseInt(siguiente.partesPorMiembro[id] || '1', 10) || 0))
+      const totalPartes = partes.reduce((acc, p) => acc + p, 0)
+      const importesPorMiembro: Record<number, string> = {}
+      if (totalPartes === 0) {
+        ids.forEach((id) => { importesPorMiembro[id] = '0.00' })
+        return { ...siguiente, importesPorMiembro }
+      }
+      let acumulado = 0
+      ids.forEach((id, idx) => {
+        if (idx === ids.length - 1) {
+          importesPorMiembro[id] = (Math.round((importeTotal - acumulado) * 100) / 100).toFixed(2)
+        } else {
+          const importe = Math.round(importeTotal * (partes[idx] / totalPartes) * 100) / 100
+          acumulado += importe
+          importesPorMiembro[id] = importe.toFixed(2)
+        }
+      })
+      return { ...siguiente, importesPorMiembro }
+    }
+
     return siguiente
   }
 
@@ -255,6 +278,14 @@ export default function GastosPage() {
     }))
   }
 
+  const cambiarPartesParticipante = (id: number, valor: string) => {
+    setForm((prev) => aplicarModoReparto({
+      ...prev,
+      modoReparto: 'partes',
+      partesPorMiembro: { ...prev.partesPorMiembro, [id]: valor },
+    }))
+  }
+
   const cambiarImporteParticipante = (id: number, valor: string) => {
     setForm((prev) => ({
       ...prev,
@@ -282,6 +313,7 @@ export default function GastosPage() {
       seleccionados,
       importesPorMiembro,
       porcentajesPorMiembro: {},
+      partesPorMiembro: {},
       modoReparto: 'personalizado',
     })
     setModalEdicionId(gasto.id)
@@ -524,7 +556,7 @@ export default function GastosPage() {
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium">{t('participantes')}</label>
           <div className="flex gap-1">
-            {(['igual', 'porcentaje', 'personalizado'] as const).map((modo) => (
+            {(['igual', 'porcentaje', 'partes', 'personalizado'] as const).map((modo) => (
               <button
                 key={modo}
                 type="button"
@@ -533,7 +565,12 @@ export default function GastosPage() {
                   form.modoReparto === modo ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
                 }`}
               >
-                {t(modo === 'igual' ? 'dividir_partes_iguales' : modo === 'porcentaje' ? 'dividir_por_porcentaje' : 'dividir_personalizado')}
+                {t(
+                  modo === 'igual' ? 'dividir_partes_iguales'
+                    : modo === 'porcentaje' ? 'dividir_por_porcentaje'
+                    : modo === 'partes' ? 'dividir_por_partes'
+                    : 'dividir_personalizado'
+                )}
               </button>
             ))}
           </div>
@@ -557,6 +594,21 @@ export default function GastosPage() {
                     disabled={!form.seleccionados.has(m.id)}
                     value={form.porcentajesPorMiembro[m.id] ?? ''}
                     onChange={(e) => cambiarPorcentajeParticipante(m.id, e.target.value)}
+                    className="input-field !py-1 !px-2 w-16 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground w-16 text-right flex-shrink-0">
+                    {formatImporte(parseFloat(form.importesPorMiembro[m.id] || '0') || 0, simboloMoneda)}
+                  </span>
+                </>
+              ) : form.modoReparto === 'partes' ? (
+                <>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    disabled={!form.seleccionados.has(m.id)}
+                    value={form.partesPorMiembro[m.id] ?? '1'}
+                    onChange={(e) => cambiarPartesParticipante(m.id, e.target.value)}
                     className="input-field !py-1 !px-2 w-16 text-sm"
                   />
                   <span className="text-xs text-muted-foreground w-16 text-right flex-shrink-0">
