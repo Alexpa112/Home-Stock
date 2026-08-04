@@ -50,12 +50,13 @@ class GeminiOCR:
     def disponible(self) -> bool:
         return bool(self.api_key)
 
-    def procesar(self, imagen_bytes: bytes, productos_catalogo: list) -> dict:
+    def procesar(self, imagen_bytes: bytes, productos_catalogo: list, mime_type: str = "image/jpeg") -> dict:
         """Analiza el ticket y devuelve productos emparejados con el catálogo.
 
         Args:
             imagen_bytes: foto del ticket (jpg/png/etc, tal cual la sube el usuario)
             productos_catalogo: lista de dicts con al menos {"id", "nombre"}
+            mime_type: tipo MIME real de imagen_bytes (jpg por defecto si no se indica)
 
         Returns:
             dict {"productos": [...]} o None si la llamada falla (el llamador
@@ -75,7 +76,7 @@ class GeminiOCR:
                     {"text": prompt},
                     {
                         "inline_data": {
-                            "mime_type": "image/jpeg",
+                            "mime_type": mime_type,
                             "data": base64.b64encode(imagen_bytes).decode("ascii"),
                         }
                     },

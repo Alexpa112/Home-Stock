@@ -32,4 +32,7 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -fsS "http://localhost:${PORT}/" >/dev/null || exit 1
 
-CMD ["sh", "-c", "gunicorn --workers 2 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]
+# --timeout 120 --worker-class gthread --threads 4: igual que en
+# Dockerfile.raspbian, para que el OCR (pytesseract, timeout interno de 45s)
+# no se corte a mitad de petición por el timeout de 30s por defecto de gunicorn.
+CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]

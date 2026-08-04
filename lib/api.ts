@@ -35,12 +35,28 @@ const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 // serializa el body a JSON.
 export async function apiUpload<T = any>(endpoint: string, formData: FormData): Promise<T> {
   const csrfToken = await obtenerCsrfToken()
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'X-CSRFToken': csrfToken },
-    body: formData,
-  })
+  // AbortController con timeout: si el servidor corta la conexión sin cerrar
+  // bien el socket (p.ej. worker de gunicorn matado a mitad de un OCR largo),
+  // fetch se queda esperando indefinidamente y el spinner nunca termina.
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 90_000)
+  let response: Response
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRFToken': csrfToken },
+      body: formData,
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('La operación ha tardado demasiado. Prueba con una foto más ligera o con más luz.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
   const contentType = response.headers.get('content-type') || ''
   const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
   if (response.status === 503 && datos?.mantenimiento) {

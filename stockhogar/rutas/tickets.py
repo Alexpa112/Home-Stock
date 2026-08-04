@@ -12,6 +12,8 @@ from ..db import get_db
 from ..translator import traducir
 from ..integraciones import ticket_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
+from ..servicios.ocr.gemini_ocr import GeminiOCR
+from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..utils import Validator
 from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso
 
@@ -19,6 +21,52 @@ bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
 EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "heif", "pdf"}
 TAMANO_MAXIMO_MB = 10
+
+_MIME_POR_EXTENSION = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+    ".gif": "image/gif", ".bmp": "image/bmp", ".webp": "image/webp",
+}
+
+
+def _items_desde_gemini(respuesta_gemini, productos_catalogo, db):
+    """Convierte la respuesta de Gemini (ya emparejada con el catálogo) al
+    mismo formato de "items" que produce ProcesadorTicketsV2, para que
+    crear_respuesta_usuario() y el resto del flujo (confirmar_ticket, UI) no
+    tengan que distinguir qué motor de OCR se usó.
+    """
+    catalogo_por_id = {p["id"]: p for p in productos_catalogo}
+    matcher = MatcherInteligente()
+    items = []
+    for item in respuesta_gemini.get("productos", []):
+        producto_id = item.get("producto_id")
+        catalogado = catalogo_por_id.get(producto_id) if producto_id is not None else None
+
+        if catalogado:
+            nombre = catalogado["nombre"]
+            categoria = catalogado["categoria"]
+            confianza_match = 1.0
+        else:
+            nombre = (item.get("nombre_ticket") or "").strip().title()
+            if not nombre:
+                continue
+            categoria = matcher.deducir_categoria(nombre) or "Otros"
+            confianza_match = 0
+            producto_id = None
+
+        items.append({
+            "nombre": nombre,
+            "cantidad": item.get("cantidad") or 1,
+            "unidad": item.get("unidad") or "ud",
+            "categoria": categoria,
+            "producto_id": producto_id,
+            "confianza_match": confianza_match,
+            # Gemini no da confianza de OCR por línea ni precios: se asume
+            # cantidad fiable y no se aplica la validación de precio del
+            # pipeline local (pensada para lo que devuelve Tesseract).
+            "confianza_cantidad": 100,
+            "precio_valido": True,
+        })
+    return items
 
 
 def _extension_permitida(filename):
@@ -111,23 +159,49 @@ def analizar_ticket():
                 return APIResponse.error("err_procesando_ticket", 500)
             ruta_imagen = ruta_png_convertida
 
-        # Extraer texto con OCR (Tesseract)
-        texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
-
-        # Procesar con sistema v2 (inteligente, sin IA)
-        proc = ProcesadorTicketsV2()
         db = get_db()
-        items = proc.procesar_completo(texto_ocr, db)
 
-        # Diagnostico: sin esto, un ticket mal reconocido (OCR ilegible o
-        # parser que descarta/lee mal las lineas) no deja ningun rastro para
-        # saber si el fallo esta en Tesseract o en el parser, y el Panel de
-        # Gestion del Servidor es la unica forma de ver que paso en la Pi.
-        logging.getLogger(__name__).info(
-            "Ticket analizado: %d lineas OCR, %d items detectados. Texto OCR:\n%s\nItems: %s",
-            len(texto_ocr.splitlines()), len(items), texto_ocr,
-            [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
-        )
+        # Motor principal: Gemini (foto + catálogo del usuario, OCR y
+        # emparejamiento semántico en un solo paso). Si no hay
+        # GEMINI_API_KEY, o la llamada falla o no reconoce nada, se cae al
+        # pipeline local (Tesseract + ProcesadorTicketsV2) como respaldo.
+        items = None
+        gemini = GeminiOCR()
+        if gemini.disponible():
+            productos_catalogo = [
+                dict(row)
+                for row in db.execute(
+                    "SELECT id, nombre, categoria FROM productos ORDER BY nombre"
+                ).fetchall()
+            ]
+            with open(ruta_imagen, "rb") as f:
+                imagen_bytes = f.read()
+            mime_type = _MIME_POR_EXTENSION.get(Path(ruta_imagen).suffix.lower(), "image/jpeg")
+            respuesta_gemini = gemini.procesar(imagen_bytes, productos_catalogo, mime_type=mime_type)
+            if respuesta_gemini is not None:
+                items = _items_desde_gemini(respuesta_gemini, productos_catalogo, db)
+                logging.getLogger(__name__).info(
+                    "Ticket analizado con Gemini: %d items detectados. Items: %s",
+                    len(items), [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
+                )
+
+        if items is None:
+            # Extraer texto con OCR (Tesseract)
+            texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
+
+            # Procesar con sistema v2 (inteligente, sin IA)
+            proc = ProcesadorTicketsV2()
+            items = proc.procesar_completo(texto_ocr, db)
+
+            # Diagnostico: sin esto, un ticket mal reconocido (OCR ilegible o
+            # parser que descarta/lee mal las lineas) no deja ningun rastro para
+            # saber si el fallo esta en Tesseract o en el parser, y el Panel de
+            # Gestion del Servidor es la unica forma de ver que paso en la Pi.
+            logging.getLogger(__name__).info(
+                "Ticket analizado con Tesseract: %d lineas OCR, %d items detectados. Texto OCR:\n%s\nItems: %s",
+                len(texto_ocr.splitlines()), len(items), texto_ocr,
+                [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
+            )
 
         # Formatear respuesta para UI con sugerencias
         respuesta = crear_respuesta_usuario(items, db)
