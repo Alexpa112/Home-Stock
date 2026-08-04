@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { hayEdicionEnCurso } from '@/lib/editSuspension';
 
 const CACHE_VERSION_KEY = 'stockhogar_cache_version';
 const CHECK_INTERVAL = 15000; // Chequear cada 15s (más frecuente para detectar updates rápido)
@@ -7,8 +8,16 @@ const MAX_RETRIES = 3;
 export function useCacheBuster() {
   useEffect(() => {
     let retryCount = 0;
+    let updatePendiente = false;
 
     const checkVersion = async () => {
+      // Si ya se detecto una actualizacion pendiente, solo se comprueba si
+      // ahora es seguro recargar (pestaña visible, sin edicion en curso).
+      if (updatePendiente) {
+        if (puedeRecargarAhora()) await clearCacheAndReload();
+        return;
+      }
+
       try {
         const res = await fetch('/api/cache-version?t=' + Date.now(), {
           cache: 'no-store',
@@ -21,9 +30,16 @@ export function useCacheBuster() {
         console.debug('[CacheBuster] Server version:', newVersion, 'Saved:', savedVersion);
 
         if (savedVersion && savedVersion !== newVersion) {
-          // Versión cambió, hay actualización
+          // Versión cambió, hay actualización: se aplaza si el usuario esta
+          // editando algo o la pestaña esta en segundo plano, para que el
+          // recargo pase desapercibido.
           console.warn('[CacheBuster] Update detected! Server changed from', savedVersion, 'to', newVersion);
-          await clearCacheAndReload();
+          if (puedeRecargarAhora()) {
+            await clearCacheAndReload();
+          } else {
+            console.debug('[CacheBuster] Recarga aplazada: edicion en curso o pestaña oculta');
+            updatePendiente = true;
+          }
         } else if (!savedVersion) {
           // Primera vez, guardar versión
           console.debug('[CacheBuster] First check, saving version:', newVersion);
@@ -44,6 +60,10 @@ export function useCacheBuster() {
     const interval = setInterval(checkVersion, CHECK_INTERVAL);
     return () => clearInterval(interval);
   }, []);
+}
+
+function puedeRecargarAhora(): boolean {
+  return document.visibilityState === 'visible' && !hayEdicionEnCurso();
 }
 
 async function clearCacheAndReload() {
