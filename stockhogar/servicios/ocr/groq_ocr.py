@@ -25,7 +25,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
-_MODELO = "meta-llama/llama-4-scout-17b-16e-instruct"
+_MODELO = "qwen/qwen3.6-27b"
 _TIMEOUT_SEGUNDOS = 25
 
 _PROMPT = """Eres un lector de tickets de supermercado. Analiza la imagen del ticket y para cada artículo comprado (ignora cabecera con nombre/dirección/CIF de la tienda, el total, la forma de pago, el cambio y cualquier publicidad o programa de fidelización) decide a qué producto del CATALOGO de abajo corresponde.
