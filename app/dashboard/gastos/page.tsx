@@ -999,42 +999,52 @@ export default function GastosPage() {
                   <button onClick={limpiarFiltros} className="text-xs text-primary font-medium">{t('limpiar_filtros')}</button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="date"
-                  value={filtros.desde}
-                  onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })}
-                  className="input-field !py-1.5 text-sm w-auto"
-                  aria-label={t('desde')}
-                />
-                <input
-                  type="date"
-                  value={filtros.hasta}
-                  onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })}
-                  className="input-field !py-1.5 text-sm w-auto"
-                  aria-label={t('hasta')}
-                />
-                <select
-                  value={filtros.categoria}
-                  onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
-                  className="input-field !py-1.5 text-sm w-auto"
-                >
-                  <option value="">{t('todas_las_categorias')}</option>
-                  <option value={SIN_CATEGORIA}>{t('sin_categoria')}</option>
-                  {categoriasGasto.map((cat) => (
-                    <option key={cat.id} value={cat.nombre}>{cat.nombre}</option>
-                  ))}
-                </select>
-                <select
-                  value={filtros.miembroId}
-                  onChange={(e) => setFiltros({ ...filtros, miembroId: e.target.value })}
-                  className="input-field !py-1.5 text-sm w-auto"
-                >
-                  <option value="">{t('todos_los_miembros')}</option>
-                  {miembros.map((m) => (
-                    <option key={m.id} value={m.id}>{m.nombre_usuario}</option>
-                  ))}
-                </select>
+              <div className="flex flex-wrap gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('desde')}</label>
+                  <input
+                    type="date"
+                    value={filtros.desde}
+                    onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })}
+                    className="input-field !py-1.5 text-sm w-auto"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('hasta')}</label>
+                  <input
+                    type="date"
+                    value={filtros.hasta}
+                    onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })}
+                    className="input-field !py-1.5 text-sm w-auto"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('categoria')}</label>
+                  <select
+                    value={filtros.categoria}
+                    onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
+                    className="input-field !py-1.5 text-sm w-auto"
+                  >
+                    <option value="">{t('todas_las_categorias')}</option>
+                    <option value={SIN_CATEGORIA}>{t('sin_categoria')}</option>
+                    {categoriasGasto.map((cat) => (
+                      <option key={cat.id} value={cat.nombre}>{cat.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('miembro')}</label>
+                  <select
+                    value={filtros.miembroId}
+                    onChange={(e) => setFiltros({ ...filtros, miembroId: e.target.value })}
+                    className="input-field !py-1.5 text-sm w-auto"
+                  >
+                    <option value="">{t('todos_los_miembros')}</option>
+                    {miembros.map((m) => (
+                      <option key={m.id} value={m.id}>{m.nombre_usuario}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           )}
