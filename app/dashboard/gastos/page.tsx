@@ -106,12 +106,12 @@ interface FormularioGasto {
   modoReparto: ModoReparto
 }
 
-const FORM_VACIO = (pagadorPorDefecto: number | null): FormularioGasto => ({
+const FORM_VACIO = (participantesPorDefecto: number[] = []): FormularioGasto => ({
   descripcion: '',
   importe_total: '',
   categoria: null,
-  usuario_pagador_id: pagadorPorDefecto,
-  seleccionados: new Set(pagadorPorDefecto ? [pagadorPorDefecto] : []),
+  usuario_pagador_id: null,
+  seleccionados: new Set(participantesPorDefecto),
   importesPorMiembro: {},
   porcentajesPorMiembro: {},
   partesPorMiembro: {},
@@ -148,7 +148,7 @@ export default function GastosPage() {
   const [vista, setVista] = useState<'gastos' | 'estadisticas'>('gastos')
 
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState<FormularioGasto>(FORM_VACIO(null))
+  const [form, setForm] = useState<FormularioGasto>(FORM_VACIO())
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
 
   const SIN_CATEGORIA = '__sin_categoria__'
@@ -181,9 +181,18 @@ export default function GastosPage() {
   const [showLiquidacion, setShowLiquidacion] = useState(false)
   const [liquidacion, setLiquidacion] = useState({ usuario_origen_id: null as number | null, usuario_destino_id: null as number | null, importe: '', nota: '' })
 
-  const abrirLiquidacionSugerida = (s: SugerenciaPago) => {
-    setLiquidacion({ usuario_origen_id: s.usuario_origen_id, usuario_destino_id: s.usuario_destino_id, importe: s.importe.toFixed(2), nota: '' })
-    setShowLiquidacion(true)
+  const handlePagarSugerencia = async (s: SugerenciaPago) => {
+    try {
+      setError('')
+      await gastosApi.registrarLiquidacion({
+        usuario_origen_id: s.usuario_origen_id,
+        usuario_destino_id: s.usuario_destino_id,
+        importe: s.importe,
+      })
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar'))
+    }
   }
 
   const FORM_RECURRENTE_VACIO = {
@@ -422,7 +431,7 @@ export default function GastosPage() {
   }
 
   const abrirModalNuevo = () => {
-    setForm(FORM_VACIO(null))
+    setForm(FORM_VACIO(miembros.map((m) => m.id)))
     setShowForm(true)
   }
 
@@ -711,7 +720,7 @@ export default function GastosPage() {
                 type="button"
                 onClick={() => cambiarModoReparto(modo)}
                 className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  form.modoReparto === modo ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  form.modoReparto === modo ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
                 }`}
               >
                 {t(
@@ -863,7 +872,7 @@ export default function GastosPage() {
             key={v}
             onClick={() => setVista(v)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              vista === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              vista === v ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
             }`}
           >
             {t(v === 'gastos' ? 'nav_gastos' : 'estadisticas')}
@@ -908,7 +917,7 @@ export default function GastosPage() {
                       {s.usuario_origen_nombre} → {s.usuario_destino_nombre}: {formatImporte(s.importe, simboloMoneda)}
                     </span>
                     <button
-                      onClick={() => abrirLiquidacionSugerida(s)}
+                      onClick={() => handlePagarSugerencia(s)}
                       className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
                     >
                       {t('pagar')}

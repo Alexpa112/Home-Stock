@@ -616,7 +616,7 @@ export default function ShoppingPage() {
               onClick={() => updatePreferences({ vista_lista_compra: 'lista' })}
               className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
                 preferences.vista_lista_compra === 'lista'
-                  ? 'bg-accent text-white'
+                  ? 'bg-accent text-accent-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
               title={t('titulo_vista_lista')}
@@ -628,7 +628,7 @@ export default function ShoppingPage() {
               onClick={() => updatePreferences({ vista_lista_compra: 'recuadros' })}
               className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
                 preferences.vista_lista_compra === 'recuadros'
-                  ? 'bg-accent text-white'
+                  ? 'bg-accent text-accent-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
               title={t('titulo_vista_recuadros')}

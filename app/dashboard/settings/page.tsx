@@ -256,7 +256,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleActualizarNombreMostrar}
                   disabled={cargandoNombreMostrar}
-                  className="flex-1 px-3 py-2 bg-accent text-white rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
+                  className="flex-1 px-3 py-2 bg-accent text-accent-foreground rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
                 >
                   {cargandoNombreMostrar ? t('guardando') : t('guardar')}
                 </button>
@@ -301,7 +301,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleActualizarNombre}
                   disabled={cargandoNombre}
-                  className="flex-1 px-3 py-2 bg-accent text-white rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
+                  className="flex-1 px-3 py-2 bg-accent text-accent-foreground rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
                 >
                   {cargandoNombre ? t('guardando') : t('guardar')}
                 </button>
@@ -445,7 +445,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleCambiarPassword}
                   disabled={cargandoPassword}
-                  className="flex-1 px-3 py-3 bg-accent text-white rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
+                  className="flex-1 px-3 py-3 bg-accent text-accent-foreground rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
                 >
                   {cargandoPassword ? t('cambiando') : t('btn_cambiar_password')}
                 </button>
@@ -525,7 +525,7 @@ export default function SettingsPage() {
               onClick={() => updatePreferences({ vista_lista_compra: 'lista' })}
               className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-colors text-sm font-medium ${
                 preferences.vista_lista_compra === 'lista'
-                  ? 'bg-accent text-white'
+                  ? 'bg-accent text-accent-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
@@ -535,7 +535,7 @@ export default function SettingsPage() {
               onClick={() => updatePreferences({ vista_lista_compra: 'recuadros' })}
               className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-colors text-sm font-medium ${
                 preferences.vista_lista_compra === 'recuadros'
-                  ? 'bg-accent text-white'
+                  ? 'bg-accent text-accent-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
