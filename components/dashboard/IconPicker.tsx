@@ -103,9 +103,12 @@ export function IconPicker({ valorActual, onSeleccionar, onCerrar, iconos = ICON
     : iconos
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={onCerrar}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 p-4 pb-[calc(var(--mobile-toolbar-h)+1rem)] lg:pb-4"
+      onClick={onCerrar}
+    >
       <div
-        className="card w-full sm:max-w-md h-[75dvh] sm:h-auto sm:max-h-[75dvh] flex flex-col gap-3"
+        className="card w-full sm:max-w-md h-[75dvh] max-h-[calc(100dvh-var(--mobile-toolbar-h)-2rem)] sm:h-auto sm:max-h-[75dvh] lg:max-h-[75dvh] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

@@ -264,3 +264,8 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+:root {
+  /* Alto real de la bottom tab bar movil (h-16 + safe-area-pb), lg:hidden */
+  --mobile-toolbar-h: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
