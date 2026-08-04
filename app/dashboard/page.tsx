@@ -96,6 +96,8 @@ export default function StockPage() {
   const [formData, setFormData] = useState<FormularioProducto>(FORM_VACIO)
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false)
   const [nuevaCategoria, setNuevaCategoria] = useState('')
+  const [nuevaCategoriaIcono, setNuevaCategoriaIcono] = useState<string | undefined>(undefined)
+  const [mostrarIconPickerCategoria, setMostrarIconPickerCategoria] = useState(false)
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
   const [filtro, setFiltro] = useState<'todos' | 'bajo_minimo' | 'por_revisar'>('todos')
   const [añadiendoIds, setAñadiendoIds] = useState<Set<number>>(new Set())
@@ -311,8 +313,9 @@ export default function StockPage() {
     if (!nuevaCategoria.trim()) return
     try {
       setError('')
-      await categoriasApi.crear(nuevaCategoria.trim())
+      await categoriasApi.crear(nuevaCategoria.trim(), nuevaCategoriaIcono)
       setNuevaCategoria('')
+      setNuevaCategoriaIcono(undefined)
       const categoriasData: any = await categoriasApi.listar()
       setCategorias(Array.isArray(categoriasData) ? categoriasData : [])
     } catch (err) {
@@ -709,6 +712,18 @@ export default function StockPage() {
                 ))}
               </div>
               <form onSubmit={handleCrearCategoria} className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarIconPickerCategoria(true)}
+                  className="w-9 h-9 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
+                  aria-label={t('cambiar_icono')}
+                >
+                  {nuevaCategoriaIcono ? (
+                    <IconRenderer name={nuevaCategoriaIcono} className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <Tags className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
                 <input
                   type="text"
                   value={nuevaCategoria}
@@ -994,6 +1009,17 @@ export default function StockPage() {
             setMostrarIconPicker(false)
           }}
           onCerrar={() => setMostrarIconPicker(false)}
+        />
+      )}
+
+      {mostrarIconPickerCategoria && (
+        <IconPicker
+          valorActual={nuevaCategoriaIcono}
+          onSeleccionar={(icono) => {
+            setNuevaCategoriaIcono(icono)
+            setMostrarIconPickerCategoria(false)
+          }}
+          onCerrar={() => setMostrarIconPickerCategoria(false)}
         />
       )}
     </div>

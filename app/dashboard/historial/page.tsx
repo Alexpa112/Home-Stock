@@ -5,6 +5,7 @@ import { TrendingDown, BookOpen, Trash2, Pencil } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi, articulosPersonalizados as articulosPersonalizadosApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
+import { IconPicker } from '@/components/dashboard/IconPicker'
 
 interface ProductoConsumo {
   nombre: string
@@ -42,6 +43,8 @@ export default function HistorialPage() {
   const [error, setError] = useState('')
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [diasAvisoEdit, setDiasAvisoEdit] = useState<number | ''>(30)
+  const [iconoEdit, setIconoEdit] = useState<string | undefined>(undefined)
+  const [mostrarIconPickerId, setMostrarIconPickerId] = useState<number | null>(null)
   const [guardandoId, setGuardandoId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -60,6 +63,7 @@ export default function HistorialPage() {
   const abrirEdicion = (a: ArticuloPersonalizado) => {
     setEditandoId(a.id)
     setDiasAvisoEdit(a.dias_aviso ?? 30)
+    setIconoEdit(a.icono ?? undefined)
   }
 
   const guardarDiasAviso = async (id: number) => {
@@ -68,8 +72,9 @@ export default function HistorialPage() {
     try {
       const actualizado: any = await articulosPersonalizadosApi.actualizar(id, {
         dias_aviso: diasAvisoEdit === '' ? null : diasAvisoEdit,
+        icono: iconoEdit,
       })
-      setPersonalizados((prev) => prev.map((a) => (a.id === id ? { ...a, dias_aviso: actualizado.dias_aviso } : a)))
+      setPersonalizados((prev) => prev.map((a) => (a.id === id ? { ...a, dias_aviso: actualizado.dias_aviso, icono: actualizado.icono } : a)))
       setEditandoId(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_editar_articulo'))
@@ -225,7 +230,23 @@ export default function HistorialPage() {
                   </button>
                 </div>
                 {editandoId === a.id && (
-                  <div className="flex items-center gap-2 pl-6">
+                  <div className="flex flex-col gap-2 pl-6">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMostrarIconPickerId(a.id)}
+                      className="w-8 h-8 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
+                      aria-label={t('cambiar_icono')}
+                    >
+                      {iconoEdit ? (
+                        <IconRenderer name={iconoEdit} className="w-4 h-4 text-muted-foreground" />
+                      ) : (
+                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </button>
+                    <span className="text-xs text-muted-foreground">{t('cambiar_icono')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <label htmlFor={`dias-aviso-${a.id}`} className="text-xs text-muted-foreground flex-1">
                       {t('dias_sin_actualizar_para_avisar')}
                     </label>
@@ -248,11 +269,23 @@ export default function HistorialPage() {
                       {t('guardar')}
                     </button>
                   </div>
+                  </div>
                 )}
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {mostrarIconPickerId !== null && (
+        <IconPicker
+          valorActual={iconoEdit}
+          onSeleccionar={(icono) => {
+            setIconoEdit(icono)
+            setMostrarIconPickerId(null)
+          }}
+          onCerrar={() => setMostrarIconPickerId(null)}
+        />
       )}
     </div>
   )
