@@ -269,9 +269,14 @@ def historial_precios(producto_id):
 @requerir_sesion
 @manejo_errores
 def actualizar_producto(producto_id):
+    """Mover stock (+/-, campo 'delta') requiere permiso 'comprar'; editar
+    nombre, categoria u otros campos del producto en si requiere 'editar'
+    (P-08)."""
     db = get_db()
 
-    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="editar")
+    # 'comprar' es el nivel minimo aqui: se comprueba mas abajo si hace
+    # falta subir a 'editar' segun que campos traiga la peticion.
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="comprar")
     if not hogar_id:
         return APIResponse.no_permitido()
 
@@ -288,6 +293,9 @@ def actualizar_producto(producto_id):
 
     datos = request.get_json(force=True) or {}
     actual = DataConverter.producto_to_dict(fila)
+
+    if "delta" not in datos and not hogar_actual_con_permiso(db, session, nivel_requerido="editar"):
+        return APIResponse.no_permitido()
 
     if "delta" in datos:
         try:

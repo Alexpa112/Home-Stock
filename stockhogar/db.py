@@ -1382,6 +1382,55 @@ def _init_db_impl():
         # con el mismo mensaje de exito exista o no el usuario.
         asegurar_columna(db, "invitaciones_hogar", "usuario_destino_id", "INTEGER REFERENCES usuarios(id) ON DELETE CASCADE")
 
+        # Nivel de permiso intermedio "comprar" (P-08): puede marcar
+        # articulos de la lista como comprados y mover stock, pero no crear/
+        # editar gastos ni artículos de la lista en sí (ver
+        # stockhogar/autorizacion.py). El CHECK de SQLite no se puede
+        # ampliar con ALTER TABLE, asi que en instalaciones con el CHECK
+        # antiguo ('ver','editar') se recrea la tabla conservando los datos.
+        for tabla in ("permisos_hogar", "invitaciones_hogar"):
+            esquema = db.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (tabla,)
+            ).fetchone()
+            if esquema and "'comprar'" not in esquema["sql"]:
+                db.execute(f"ALTER TABLE {tabla} RENAME TO {tabla}_old")
+                if tabla == "permisos_hogar":
+                    db.execute(
+                        """
+                        CREATE TABLE permisos_hogar (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                            usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                            nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'comprar', 'editar')),
+                            fecha_otorgado TEXT NOT NULL,
+                            UNIQUE(hogar_id, usuario_id)
+                        )
+                        """
+                    )
+                else:
+                    db.execute(
+                        """
+                        CREATE TABLE invitaciones_hogar (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                            email_destino TEXT NOT NULL,
+                            nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'comprar', 'editar')),
+                            codigo_invitacion TEXT NOT NULL UNIQUE,
+                            usado INTEGER NOT NULL DEFAULT 0,
+                            usuario_aceptacion_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                            fecha_creacion TEXT NOT NULL,
+                            fecha_expiracion TEXT NOT NULL,
+                            fecha_aceptacion TEXT,
+                            usuario_destino_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE
+                        )
+                        """
+                    )
+                columnas = [f["name"] for f in db.execute(f"PRAGMA table_info({tabla}_old)").fetchall()]
+                cols_sql = ", ".join(columnas)
+                db.execute(f"INSERT INTO {tabla} ({cols_sql}) SELECT {cols_sql} FROM {tabla}_old")
+                db.execute(f"DROP TABLE {tabla}_old")
+                db.commit()
+
         # Suscripciones a notificaciones push del navegador (P-01). endpoint
         # es UNIQUE porque el navegador puede volver a mandarlo (p.ej. tras
         # reinstalar la PWA) y hay que sobrescribir las claves antiguas, no

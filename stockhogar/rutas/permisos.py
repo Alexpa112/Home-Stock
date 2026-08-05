@@ -110,7 +110,7 @@ def compartir_lista(hogar_id):
     nombre_usuario_destino = (datos.get("nombre_usuario") or datos.get("usuario") or "").strip()
     nivel = Validator.string_opcional(datos.get("nivel"), "editar", 10)
 
-    if nivel not in ["ver", "editar"]:
+    if nivel not in ["ver", "comprar", "editar"]:
         return APIResponse.error("err_nivel_invalido", 400)
 
     # Cuota de invitaciones por hogar y dia (S-21): cubre ambos caminos (por
@@ -225,7 +225,7 @@ def actualizar_permiso(hogar_id, usuario_id):
         return APIResponse.error("err_no_cambiar_permiso_propietario", 400)
 
     nivel = Validator.string_opcional(datos.get("nivel"), "editar", 10)
-    if nivel not in ["ver", "editar"]:
+    if nivel not in ["ver", "comprar", "editar"]:
         return APIResponse.error("err_nivel_invalido", 400)
 
     db.execute(

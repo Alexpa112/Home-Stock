@@ -327,14 +327,14 @@ export const permisos = {
   miembros: (hogarId: number) => apiCall(`/api/hogares/${hogarId}/miembros`),
 
   // Por nombre de usuario (acceso inmediato) o por email (crea invitación).
-  compartir: (hogarId: number, datos: { usuario?: string; email?: string; nivel?: 'ver' | 'editar' }) =>
+  compartir: (hogarId: number, datos: { usuario?: string; email?: string; nivel?: 'ver' | 'comprar' | 'editar' }) =>
     apiCall(`/api/hogares/${hogarId}/compartir`, { method: 'POST', body: JSON.stringify(datos) }),
 
   // Generar enlace compartible público
   generarEnlace: (hogarId: number) =>
     apiCall(`/api/hogares/${hogarId}/enlace-compartible`, { method: 'POST' }),
 
-  actualizarPermiso: (hogarId: number, usuarioId: number, nivel: 'ver' | 'editar') =>
+  actualizarPermiso: (hogarId: number, usuarioId: number, nivel: 'ver' | 'comprar' | 'editar') =>
     apiCall(`/api/hogares/${hogarId}/permisos/${usuarioId}`, { method: 'PATCH', body: JSON.stringify({ nivel }) }),
 
   revocar: (hogarId: number, usuarioId: number) =>

@@ -45,7 +45,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
   const [propietario, setPropietario] = useState<{ nombre_usuario: string } | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [resultados, setResultados] = useState<{ id: number; nombre_usuario: string; email: string | null }[]>([])
-  const [nivelNuevo, setNivelNuevo] = useState<'ver' | 'editar'>('editar')
+  const [nivelNuevo, setNivelNuevo] = useState<'ver' | 'comprar' | 'editar'>('editar')
   const [enlaceCompartible, setEnlaceCompartible] = useState<{ url: string; codigo: string; nombre_lista: string } | null>(null)
   const [cargandoEnlace, setCargandoEnlace] = useState(false)
   const [copiado, setCopiado] = useState(false)
@@ -208,7 +208,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     }
   }
 
-  const cambiarNivel = async (usuarioId: number, nivel: 'ver' | 'editar') => {
+  const cambiarNivel = async (usuarioId: number, nivel: 'ver' | 'comprar' | 'editar') => {
     if (!compartiendoId) return
     try {
       await permisos.actualizarPermiso(compartiendoId, usuarioId, nivel)
@@ -452,10 +452,11 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <select
                                 value={m.nivel}
-                                onChange={(e) => cambiarNivel(m.id, e.target.value as 'ver' | 'editar')}
+                                onChange={(e) => cambiarNivel(m.id, e.target.value as 'ver' | 'comprar' | 'editar')}
                                 className="input-field !py-1 !px-2 text-xs"
                               >
                                 <option value="ver">{t('permiso_ver')}</option>
+                                <option value="comprar">{t('puede_comprar')}</option>
                                 <option value="editar">{t('puede_editar')}</option>
                               </select>
                               {confirmandoRevocarId === m.id ? (
@@ -489,10 +490,11 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                         />
                         <select
                           value={nivelNuevo}
-                          onChange={(e) => setNivelNuevo(e.target.value as 'ver' | 'editar')}
+                          onChange={(e) => setNivelNuevo(e.target.value as 'ver' | 'comprar' | 'editar')}
                           className="input-field w-32"
                         >
                           <option value="editar">{t('editar')}</option>
+                          <option value="comprar">{t('puede_comprar')}</option>
                           <option value="ver">{t('ver')}</option>
                         </select>
                       </div>

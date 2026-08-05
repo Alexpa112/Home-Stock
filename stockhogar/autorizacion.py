@@ -14,12 +14,15 @@ from flask import g, request, session
 from .api import APIResponse
 from .db import get_db
 
-NIVELES = {"ver": 1, "editar": 2, "propietario": 3}
+NIVELES = {"ver": 1, "comprar": 2, "editar": 3, "propietario": 4}
 
 
 def nivel_acceso_hogar(db, hogar_id, usuario_id):
-    """Devuelve "propietario", "editar", "ver" o None (sin acceso) para el
-    usuario dado sobre el hogar dado."""
+    """Devuelve "propietario", "editar", "comprar", "ver" o None (sin
+    acceso) para el usuario dado sobre el hogar dado. "comprar" (P-08) es un
+    nivel intermedio: puede marcar artículos de la lista como comprados y
+    mover stock, pero no crear/editar gastos ni artículos de la lista en sí
+    ni gestionar miembros (eso sigue exigiendo "editar"/"propietario")."""
     hogar = db.execute(
         "SELECT usuario_propietario_id FROM hogares WHERE id = ?", (hogar_id,)
     ).fetchone()

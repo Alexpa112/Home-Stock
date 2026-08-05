@@ -249,7 +249,8 @@ def anadir_articulo():
 @requerir_sesion
 @manejo_errores
 def actualizar_articulo(item_id):
-    """Actualiza un artículo (requiere permiso 'editar')."""
+    """Marcar comprado/pendiente requiere permiso 'comprar'; cambiar nombre,
+    cantidad u otros campos del artículo en sí requiere 'editar' (P-08)."""
     usuario_id = session.get("usuario_id")
     db = get_db()
     fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (item_id,)).fetchone()
@@ -257,14 +258,14 @@ def actualizar_articulo(item_id):
     if fila is None:
         return APIResponse.no_encontrado("recurso_articulo")
 
-    # Validar permisos sobre la lista
-    permiso = _usuario_tiene_permiso(db, fila["hogar_id"], usuario_id, nivel_requerido="editar")
-    if not permiso or (permiso != "propietario" and permiso != "editar"):
-        return APIResponse.no_permitido("err_sin_permiso_editar_hogar")
-
     datos = request.get_json(force=True) or {}
     if not datos:
         return APIResponse.validacion("err_nada_que_actualizar")
+
+    nivel_minimo = "editar" if (CAMPOS_EDITABLES & datos.keys()) else "comprar"
+    permiso = _usuario_tiene_permiso(db, fila["hogar_id"], usuario_id, nivel_requerido=nivel_minimo)
+    if not permiso:
+        return APIResponse.no_permitido("err_sin_permiso_editar_hogar")
 
     if "activo" in datos:
         if datos["activo"]:
