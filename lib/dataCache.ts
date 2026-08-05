@@ -69,3 +69,21 @@ export function clearCache(keys: string[]): void {
     }
   }
 }
+
+/**
+ * Borra TODA la cache (memoria + localStorage), sin necesidad de conocer
+ * las claves de antemano. Pensada para el cierre de sesion (S-19): en un
+ * dispositivo compartido, sin esto el siguiente usuario que entrase veria
+ * por un instante los datos en cache del anterior antes de que la primera
+ * peticion real los sobrescribiera.
+ */
+export function clearAllCache(): void {
+  memoryCache.clear()
+  if (typeof window === 'undefined') return
+  try {
+    const claves = Object.keys(localStorage).filter((k) => k.startsWith(STORAGE_PREFIX))
+    for (const clave of claves) localStorage.removeItem(clave)
+  } catch {
+    // ignorar
+  }
+}

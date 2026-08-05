@@ -5,6 +5,7 @@ from flask import Blueprint, request, session
 from datetime import datetime, timedelta
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..autorizacion import requerir_hogar
 from ..config import APP_URL
 from ..db import ahora, get_db
 from ..red import ip_cliente
@@ -51,20 +52,12 @@ def buscar_usuarios():
 
 @bp.route("/<int:hogar_id>/miembros", methods=["GET"])
 @requerir_sesion
+@requerir_hogar("propietario")
 @manejo_errores
 def obtener_miembros(hogar_id):
     """Obtener lista de usuarios con acceso a una lista."""
     usuario_id = session.get("usuario_id")
     db = get_db()
-
-    # Verificar que el usuario es el propietario
-    lista = db.execute(
-        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
-        (hogar_id,)
-    ).fetchone()
-
-    if not lista or lista["usuario_propietario_id"] != usuario_id:
-        return APIResponse.no_permitido()
 
     # Obtener propietario
     propietario = db.execute(
@@ -104,21 +97,13 @@ def obtener_miembros(hogar_id):
 
 @bp.route("/<int:hogar_id>/compartir", methods=["POST"])
 @requerir_sesion
+@requerir_hogar("propietario")
 @manejo_errores
 def compartir_lista(hogar_id):
     """Compartir lista con otro usuario o por email."""
     usuario_id = session.get("usuario_id")
     db = get_db()
     datos = request.get_json(force=True) or {}
-
-    # Verificar que el usuario es el propietario
-    lista = db.execute(
-        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
-        (hogar_id,)
-    ).fetchone()
-
-    if not lista or lista["usuario_propietario_id"] != usuario_id:
-        return APIResponse.no_permitido()
 
     # Obtener email o nombre de usuario destino (acepta "usuario" como alias)
     email_destino = (datos.get("email") or "").strip()
@@ -212,21 +197,13 @@ def compartir_lista(hogar_id):
 
 @bp.route("/<int:hogar_id>/permisos/<int:usuario_id>", methods=["PATCH"])
 @requerir_sesion
+@requerir_hogar("propietario")
 @manejo_errores
 def actualizar_permiso(hogar_id, usuario_id):
     """Actualizar nivel de permiso de un usuario."""
     usuario_actual_id = session.get("usuario_id")
     db = get_db()
     datos = request.get_json(force=True) or {}
-
-    # Verificar propietario
-    lista = db.execute(
-        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
-        (hogar_id,)
-    ).fetchone()
-
-    if not lista or lista["usuario_propietario_id"] != usuario_actual_id:
-        return APIResponse.no_permitido()
 
     if usuario_id == usuario_actual_id:
         # El propietario no tiene fila en permisos_hogar (su acceso viene de
@@ -250,20 +227,12 @@ def actualizar_permiso(hogar_id, usuario_id):
 
 @bp.route("/<int:hogar_id>/permisos/<int:usuario_id>", methods=["DELETE"])
 @requerir_sesion
+@requerir_hogar("propietario")
 @manejo_errores
 def revocar_acceso(hogar_id, usuario_id):
     """Revocar acceso de un usuario a una lista."""
     usuario_actual_id = session.get("usuario_id")
     db = get_db()
-
-    # Verificar propietario
-    lista = db.execute(
-        "SELECT usuario_propietario_id FROM hogares WHERE id = ?",
-        (hogar_id,)
-    ).fetchone()
-
-    if not lista or lista["usuario_propietario_id"] != usuario_actual_id:
-        return APIResponse.no_permitido()
 
     if usuario_id == usuario_actual_id:
         return APIResponse.error("err_no_revocar_acceso_propietario", 400)
@@ -279,20 +248,17 @@ def revocar_acceso(hogar_id, usuario_id):
 
 @bp.route("/<int:hogar_id>/enlace-compartible", methods=["POST"])
 @requerir_sesion
+@requerir_hogar("propietario")
 @manejo_errores
 def generar_enlace_compartible(hogar_id):
     """Generar un enlace compartible para una lista."""
     usuario_id = session.get("usuario_id")
     db = get_db()
 
-    # Verificar propietario
     lista = db.execute(
-        "SELECT usuario_propietario_id, nombre FROM hogares WHERE id = ?",
+        "SELECT nombre FROM hogares WHERE id = ?",
         (hogar_id,)
     ).fetchone()
-
-    if not lista or lista["usuario_propietario_id"] != usuario_id:
-        return APIResponse.no_permitido()
 
     # Generar código
     codigo = secrets.token_urlsafe(24)

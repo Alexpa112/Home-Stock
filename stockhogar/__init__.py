@@ -65,6 +65,18 @@ class SessionInterfaceOmitible(SecureCookieSessionInterface):
             return None
         return super().save_session(app, session, response)
 
+    def get_signing_serializer(self, app):
+        # Soporte de rotacion de clave (S-18, ver seguridad.rotar_clave()):
+        # itsdangerous.Signer acepta una LISTA de claves - firma siempre con
+        # la primera, pero verifica una firma existente contra CUALQUIERA de
+        # ellas. Sin esto, rotar la clave invalidaria de golpe TODAS las
+        # sesiones ya abiertas, no solo las que se quisiera revocar aposta.
+        serializer = super().get_signing_serializer(app)
+        if serializer is None or not seguridad.CLAVES_VERIFICACION_PREVIAS:
+            return serializer
+        serializer.secret_keys = [app.secret_key, *seguridad.CLAVES_VERIFICACION_PREVIAS]
+        return serializer
+
 
 def create_app():
     _configurar_logging_a_fichero()
@@ -99,6 +111,16 @@ def create_app():
     @app.errorhandler(413)
     def archivo_demasiado_grande(e):
         return jsonify({"error": traducir("err_archivo_demasiado_grande")}), 413
+
+    @app.after_request
+    def cabeceras_seguridad(response):
+        # Defensa en profundidad barata para el caso en que este backend
+        # quede accesible directamente sin pasar por el proxy Next (que es
+        # quien fija la CSP completa). No se duplica la CSP aquí.
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return response
 
     app.register_blueprint(paginas.bp)
     app.register_blueprint(auth.bp)

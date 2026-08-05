@@ -13,6 +13,7 @@
  */
 
 import { marcarMantenimiento } from './mantenimiento'
+import { clearAllCache } from './dataCache'
 
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>
@@ -137,6 +138,14 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
     marcarMantenimiento(true)
   }
 
+  // Sesión invalidada (S-19): p.ej. otro dispositivo cambió la contraseña o
+  // pulsó "cerrar otras sesiones" (ver session_version, stockhogar/api/base.py).
+  // Sin esto, un usuario que vuelve a entrar en el mismo dispositivo con OTRA
+  // cuenta seguiría viendo en caché los datos de la sesión anterior.
+  if (response.status === 401) {
+    clearAllCache()
+  }
+
   if (!response.ok) {
     throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
   }
@@ -167,7 +176,11 @@ export const auth = {
   cambiarDobleFactor: (activo: boolean) =>
     apiCall('/api/auth/doble-factor', { method: 'POST', body: JSON.stringify({ activo }) }),
 
-  logout: () => apiCall('/api/auth/logout', { method: 'POST' }),
+  logout: async () => {
+    const resultado = await apiCall('/api/auth/logout', { method: 'POST' })
+    clearAllCache()
+    return resultado
+  },
 
   actualizarPerfil: (datos: { usuario?: string; nombre?: string; password?: string }) =>
     apiCall('/api/auth/perfil', { method: 'PUT', body: JSON.stringify(datos) }),
