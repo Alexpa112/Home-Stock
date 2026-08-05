@@ -17,7 +17,7 @@ jobs:
       # Los tests de OCR local (tesseract-ocr, ver Dockerfile.raspbian) mockean
       # el motor de reconocimiento; no necesitan el binario real instalado en
       # el runner para pasar.
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: python -m pytest tests/ -q
 
   test-js:
