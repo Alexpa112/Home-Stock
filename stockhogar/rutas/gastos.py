@@ -12,6 +12,7 @@ from flask import Blueprint, Response, request, session
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import LIMITE_RECIBOS_DIARIO_POR_USUARIO
 from ..db import ahora, get_db
+from ..servicios.push_service import enviar_push_a_usuario
 from ..servicios.stock import hogar_actual_con_permiso
 from ..translator import traducir
 from ..utils import Validator, ValidationError
@@ -40,6 +41,44 @@ def _miembros_hogar_ids(db, hogar_id):
         (hogar_id, hogar_id),
     ).fetchall()
     return {f["id"] for f in filas}
+
+
+def _avisar_si_supera_presupuesto(db, hogar_id):
+    """Notifica por push a los miembros del hogar la primera vez que el
+    gasto del mes en curso supera el presupuesto mensual fijado (P-05); solo
+    una vez por mes (presupuesto_ultimo_aviso_mes) para no espamear con cada
+    gasto nuevo mientras se siga por encima."""
+    hogar = db.execute(
+        "SELECT presupuesto_mensual, presupuesto_ultimo_aviso_mes, nombre FROM hogares WHERE id = ?",
+        (hogar_id,),
+    ).fetchone()
+    if not hogar or not hogar["presupuesto_mensual"] or hogar["presupuesto_mensual"] <= 0:
+        return
+
+    mes_actual = date.today().isoformat()[:7]
+    if hogar["presupuesto_ultimo_aviso_mes"] == mes_actual:
+        return
+
+    prefijo_mes = mes_actual
+    fila = db.execute(
+        "SELECT COALESCE(SUM(importe_total), 0) AS total FROM gastos WHERE hogar_id = ? AND fecha LIKE ?",
+        (hogar_id, f"{prefijo_mes}%"),
+    ).fetchone()
+    if fila["total"] < hogar["presupuesto_mensual"]:
+        return
+
+    db.execute(
+        "UPDATE hogares SET presupuesto_ultimo_aviso_mes = ? WHERE id = ?", (mes_actual, hogar_id)
+    )
+    db.commit()
+
+    for usuario_id in _miembros_hogar_ids(db, hogar_id):
+        enviar_push_a_usuario(
+            db, usuario_id,
+            traducir("push_presupuesto_superado_titulo"),
+            traducir("push_presupuesto_superado_cuerpo").format(nombre=hogar["nombre"]),
+            url="/dashboard/gastos",
+        )
 
 
 def _gasto_a_dict(db, gasto):
@@ -87,6 +126,39 @@ def listar_gastos():
     ).fetchall()
 
     return APIResponse.success([_gasto_a_dict(db, g) for g in gastos])
+
+
+@bp.route("/resumen-mes", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def resumen_mes():
+    """Gasto acumulado del mes en curso frente al presupuesto mensual del
+    hogar (P-05), para la barra de progreso/alerta en el frontend."""
+    db = get_db()
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.success({"gasto_mes": 0, "presupuesto_mensual": None, "porcentaje": None})
+
+    prefijo_mes = date.today().isoformat()[:7]
+    fila = db.execute(
+        "SELECT COALESCE(SUM(importe_total), 0) AS total FROM gastos "
+        "WHERE hogar_id = ? AND fecha LIKE ?",
+        (hogar_id, f"{prefijo_mes}%"),
+    ).fetchone()
+    gasto_mes = fila["total"]
+
+    hogar = db.execute("SELECT presupuesto_mensual FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
+    presupuesto_mensual = hogar["presupuesto_mensual"] if hogar else None
+
+    porcentaje = None
+    if presupuesto_mensual and presupuesto_mensual > 0:
+        porcentaje = round((gasto_mes / presupuesto_mensual) * 100, 1)
+
+    return APIResponse.success({
+        "gasto_mes": gasto_mes,
+        "presupuesto_mensual": presupuesto_mensual,
+        "porcentaje": porcentaje,
+    })
 
 
 @bp.route("", methods=["POST"])
@@ -142,6 +214,8 @@ def crear_gasto():
             (gasto_id, usuario_id, importe),
         )
     db.commit()
+
+    _avisar_si_supera_presupuesto(db, hogar_id)
 
     gasto = db.execute(
         """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre

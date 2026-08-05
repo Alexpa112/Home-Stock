@@ -353,6 +353,8 @@ export const permisos = {
 export const gastos = {
   listar: () => apiCall('/api/gastos'),
 
+  resumenMes: () => apiCall('/api/gastos/resumen-mes'),
+
   crear: (datos: {
     descripcion: string
     importe_total: number

@@ -59,6 +59,7 @@ class DataConverter:
             "icono": row["icono"],
             "color": color,
             "simbolo_moneda": simbolo_moneda,
+            "presupuesto_mensual": DataConverter.safe_field(row, "presupuesto_mensual"),
             "privada": bool(row["privada"]),
             "usuario_propietario_id": row["usuario_propietario_id"],
             "fecha_creacion": row["fecha_creacion"],

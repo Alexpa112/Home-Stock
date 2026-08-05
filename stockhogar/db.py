@@ -1103,6 +1103,11 @@ def _init_db_impl():
         )
 
         asegurar_columna(db, "hogares", "simbolo_moneda", "TEXT NOT NULL DEFAULT '€'")
+        # Presupuesto mensual de gastos compartidos (P-05): NULL = sin limite fijado.
+        asegurar_columna(db, "hogares", "presupuesto_mensual", "REAL")
+        # Mes ('YYYY-MM') del ultimo aviso push de presupuesto superado, para
+        # no notificar mas de una vez por mes aunque se sigan anadiendo gastos.
+        asegurar_columna(db, "hogares", "presupuesto_ultimo_aviso_mes", "TEXT")
 
         # Historico de precios por producto (P-04): una fila por cada vez que
         # se confirma un ticket con precio detectado para ese producto en un

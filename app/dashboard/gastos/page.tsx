@@ -130,7 +130,7 @@ const FORM_VACIO = (participantesPorDefecto: number[] = []): EstadoFormularioGas
 
 export default function GastosPage() {
   const { t, idioma } = useTranslation()
-  const { hogarActivoId, propios, compartidos } = useHogar()
+  const { hogarActivoId, propios, compartidos, refrescar: refrescarHogares } = useHogar()
   const { user } = useAuth()
   const usuarioId = user?.usuario_id ?? null
 
@@ -157,6 +157,10 @@ export default function GastosPage() {
   const [error, setError] = useState('')
   const [vista, setVista] = useState<Vista>('gastos')
   const [detalleGasto, setDetalleGasto] = useState<Gasto | null>(null)
+
+  const [resumenMes, setResumenMes] = useState<{ gasto_mes: number; presupuesto_mensual: number | null; porcentaje: number | null } | null>(null)
+  const [editandoPresupuesto, setEditandoPresupuesto] = useState(false)
+  const [presupuestoInput, setPresupuestoInput] = useState('')
 
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<EstadoFormularioGasto>(FORM_VACIO())
@@ -306,6 +310,25 @@ export default function GastosPage() {
       setMiembros(Array.isArray(data) ? data : [])
     }).catch(() => {})
   }, [hogarActivoId])
+
+  useEffect(() => {
+    if (vista !== 'resumen' || !hogarActivoId) return
+    gastosApi.resumenMes().then((data: any) => setResumenMes(data)).catch(() => {})
+  }, [vista, hogarActivoId, gastos])
+
+  const handleGuardarPresupuesto = async () => {
+    if (!hogarActivoId) return
+    const valor = presupuestoInput.trim() === '' ? null : parseFloat(presupuestoInput)
+    try {
+      await hogaresApi.actualizar(hogarActivoId, { presupuesto_mensual: valor })
+      await refrescarHogares()
+      const datos: any = await gastosApi.resumenMes()
+      setResumenMes(datos)
+      setEditandoPresupuesto(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_guardar_presupuesto'))
+    }
+  }
 
   useEffect(() => {
     categoriasGastoApi.listar().then((data: any) => {
@@ -800,6 +823,57 @@ export default function GastosPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          <div className="card space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium">{t('presupuesto_mensual')}</h2>
+              {!editandoPresupuesto && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPresupuestoInput(resumenMes?.presupuesto_mensual != null ? String(resumenMes.presupuesto_mensual) : '')
+                    setEditandoPresupuesto(true)
+                  }}
+                  className="text-xs text-accent hover:underline"
+                >
+                  {t('editar')}
+                </button>
+              )}
+            </div>
+            {editandoPresupuesto ? (
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={presupuestoInput}
+                  onChange={(e) => setPresupuestoInput(e.target.value)}
+                  placeholder="0.00"
+                  className="input-field flex-1"
+                  autoFocus
+                />
+                <button type="button" onClick={handleGuardarPresupuesto} className="btn-primary !px-4">{t('guardar')}</button>
+                <button type="button" onClick={() => setEditandoPresupuesto(false)} className="btn-secondary !px-4">{t('cancelar')}</button>
+              </div>
+            ) : resumenMes?.presupuesto_mensual ? (
+              <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-lg font-bold tabular-nums">{formatImporte(resumenMes.gasto_mes, simboloMoneda)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t('de_presupuesto')} {formatImporte(resumenMes.presupuesto_mensual, simboloMoneda)}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${(resumenMes.porcentaje || 0) >= 100 ? 'bg-red-500' : (resumenMes.porcentaje || 0) >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+                    style={{ width: `${Math.min(100, resumenMes.porcentaje || 0)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{resumenMes.porcentaje}% {t('presupuesto_consumido')}</p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('sin_presupuesto')}</p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="card space-y-1">
               <p className="text-xs text-muted-foreground">{t('total_mes')}</p>

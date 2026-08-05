@@ -5,7 +5,7 @@ from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..autorizacion import nivel_acceso_hogar, nivel_alcanza, requerir_hogar
 from ..config import LIMITE_HOGARES_POR_USUARIO
 from ..db import ahora, get_db
-from ..utils import Validator, DataConverter
+from ..utils import Validator, DataConverter, ValidationError
 
 bp = Blueprint("hogares", __name__, url_prefix="/api/hogares")
 
@@ -157,6 +157,20 @@ def actualizar_lista(hogar_id):
         simbolo_moneda = Validator.string_opcional(datos.get("simbolo_moneda"), "€", 5)
         actualizaciones["simbolo_moneda"] = "?"
         parametros.append(simbolo_moneda)
+
+    if "presupuesto_mensual" in datos:
+        presupuesto_mensual = datos.get("presupuesto_mensual")
+        if presupuesto_mensual in (None, ""):
+            presupuesto_mensual = None
+        else:
+            try:
+                presupuesto_mensual = float(presupuesto_mensual)
+            except (TypeError, ValueError) as e:
+                raise ValidationError("El presupuesto mensual debe ser un número") from e
+            if presupuesto_mensual < 0:
+                raise ValidationError("El presupuesto mensual no puede ser negativo")
+        actualizaciones["presupuesto_mensual"] = "?"
+        parametros.append(presupuesto_mensual)
 
     if "privada" in datos:
         actualizaciones["privada"] = "?"
