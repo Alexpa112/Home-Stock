@@ -18,10 +18,12 @@ function base64UrlADataUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Suscripcion a notificaciones push del navegador (P-01). No implementa
- * cache offline (public/sw.js es deliberadamente minimo, ver P-02 en el
- * roadmap): este hook solo registra el service worker para poder recibir
- * push, y gestiona la suscripcion/desuscripcion contra el backend.
+ * Suscripcion a notificaciones push del navegador (P-01). El registro del
+ * SW ya lo hace RootLayoutClient.tsx de forma global (tambien lo necesita
+ * el modo offline, P-02); el register() de aqui es idempotente (el
+ * navegador reutiliza el registro existente si la URL/scope coincide), se
+ * mantiene para que este hook siga funcionando de forma autonoma si algun
+ * dia se usa fuera de ese layout.
  */
 export function usePushNotifications() {
   const [soportado, setSoportado] = useState(false)
