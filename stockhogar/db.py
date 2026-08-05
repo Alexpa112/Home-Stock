@@ -1231,6 +1231,72 @@ def _init_db_impl():
             """
         )
 
+        # Verificacion de email de-facto nunca comprobada hasta ahora (S-07):
+        # el campo usuarios.email se rellenaba por OAuth o desde el panel sin
+        # confirmar que su dueño realmente controla esa direccion, aunque ya
+        # se le enviara el codigo de doble factor.
+        asegurar_columna(db, "usuarios", "email_verificado", "INTEGER NOT NULL DEFAULT 0")
+
+        # session_version (S-08): alternativa minima a una tabla de sesiones
+        # completa. Se guarda en la cookie de sesion junto a usuario_id; un
+        # valor que no coincida con el de la BD invalida esa sesion (ver
+        # api/base.py::requerir_sesion). Se incrementa al cambiar password,
+        # al restablecerla, al desactivar el 2FA o al pedir explicitamente
+        # "cerrar sesion en otros dispositivos".
+        asegurar_columna(db, "usuarios", "session_version", "INTEGER NOT NULL DEFAULT 0")
+
+        # Tokens de un solo uso para verificar email y restablecer password
+        # (S-07). Se guarda el hash (SHA-256), nunca el token en claro, mismo
+        # patron que codigos_dos_factor.codigo_hash de arriba.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tokens_verificacion (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                tipo TEXT NOT NULL CHECK (tipo IN ('verificar_email', 'reset_password')),
+                token_hash TEXT NOT NULL,
+                expira INTEGER NOT NULL,
+                usado INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tokens_verificacion_hash ON tokens_verificacion(token_hash)"
+        )
+
+        # Auditoria de eventos de seguridad (S-09): login, cambios de
+        # password/2FA, altas/bajas de cuenta, invitaciones... usuario_id
+        # nullable con ON DELETE SET NULL para que el evento sobreviva al
+        # borrado de la cuenta (auditoria util incluso de una cuenta ya
+        # eliminada).
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS eventos_seguridad (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                evento TEXT NOT NULL,
+                ip TEXT,
+                resultado TEXT NOT NULL DEFAULT 'ok',
+                metadatos TEXT,
+                fecha INTEGER NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_eventos_seguridad_usuario_fecha ON eventos_seguridad(usuario_id, fecha)"
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_eventos_seguridad_fecha ON eventos_seguridad(fecha)"
+        )
+
+        # Invitaciones a un hogar dirigidas a un usuario YA registrado (S-10):
+        # antes, compartir por nombre de usuario daba acceso INMEDIATO sin
+        # que el destinatario aceptase nada, y el 404 al no encontrarlo
+        # permitia enumerar usuarios existentes. Ahora ese camino crea una
+        # fila aqui igual que el camino por email (ver invitaciones_hogar),
+        # con el mismo mensaje de exito exista o no el usuario.
+        asegurar_columna(db, "invitaciones_hogar", "usuario_destino_id", "INTEGER REFERENCES usuarios(id) ON DELETE CASCADE")
+
         db.commit()
 
         # "Espacios" (stocks independientes tipo casa/oficina) se eliminó: nunca tuvo UI y

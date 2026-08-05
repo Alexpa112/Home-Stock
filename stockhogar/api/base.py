@@ -64,10 +64,23 @@ def requerir_sesion(f):
         usuario_id = session.get("usuario_id")
         if not usuario_id:
             return APIResponse.no_autorizado()
-        existe = get_db().execute(
-            "SELECT 1 FROM usuarios WHERE id = ?", (usuario_id,)
+        fila = get_db().execute(
+            "SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)
         ).fetchone()
-        if not existe:
+        if not fila:
+            session.clear()
+            return APIResponse.no_autorizado()
+        # session_version (S-08): si no coincide con la BD, esta sesion se
+        # invalido explicitamente (cambio de password, reset, desactivar
+        # 2FA o "cerrar otras sesiones") desde otro dispositivo/momento.
+        # Mismo trato que una cuenta borrada: limpiar y pedir volver a
+        # entrar, en vez de dejar pasar una sesion que ya no deberia valer.
+        # Solo se exige si la cookie YA trae session_version (todas las
+        # rutas de login/registro/OAuth lo fijan desde este cambio): una
+        # sesion de ANTES de este despliegue no lo tiene y se deja pasar tal
+        # cual hasta que se renueve con un login nuevo, para no forzar un
+        # cierre de sesion masivo de cookies validas ya emitidas.
+        if "session_version" in session and session.get("session_version") != fila["session_version"]:
             session.clear()
             return APIResponse.no_autorizado()
         return f(*args, **kwargs)

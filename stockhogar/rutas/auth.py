@@ -7,11 +7,12 @@ from flask import Blueprint, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
-from ..config import REGISTRO_ABIERTO, VERSION_TERMINOS
+from ..config import APP_URL, LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
 from ..db import ahora, get_db
-from ..red import ip_cliente
-from ..servicios import intentos_login
+from ..red import ip_cliente, limite_por_ip
+from ..servicios import auditoria, intentos_login
 from ..servicios.email_service import EmailService
+from ..servicios.password_pwned import es_password_filtrada
 from ..utils import Validator, DataConverter
 
 bp = Blueprint("auth", __name__)
@@ -24,6 +25,9 @@ RUTAS_PUBLICAS = {
     "auth.registrar",
     "auth.verificar_codigo_dos_pasos",
     "auth.reenviar_codigo_dos_pasos",
+    "auth.verificar_email",
+    "auth.solicitar_reset_password",
+    "auth.restablecer_password",
     "oauth.oauth_google",
     "oauth.oauth_google_callback",
     "oauth.oauth_apple",
@@ -35,6 +39,13 @@ RUTAS_PUBLICAS = {
     "idiomas.obtener_idioma",
     "legal.configuracion_legal",
 }
+
+DURACION_TOKEN_VERIFICACION_SEGUNDOS = 24 * 60 * 60
+DURACION_TOKEN_RESET_SEGUNDOS = 60 * 60
+
+
+def _hash_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def hay_usuarios(db):
@@ -57,11 +68,12 @@ def estado():
     vista_lista_compra = "lista"
     agrupar_categorias = "off"
     doble_factor_activo = False
+    email_verificado = False
     terminos_pendientes = False
     usuario_id = session.get("usuario_id")
     if usuario_id is not None:
         fila = db.execute(
-            "SELECT email, nombre, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias, doble_factor_activo, terminos_version_aceptada FROM usuarios WHERE id = ?",
+            "SELECT email, nombre, tema_preferido, idioma_preferido, teclado_virtual_activo, vista_lista_compra, agrupar_categorias, doble_factor_activo, email_verificado, terminos_version_aceptada FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         if fila:
@@ -73,6 +85,7 @@ def estado():
             vista_lista_compra = fila["vista_lista_compra"]
             agrupar_categorias = fila["agrupar_categorias"]
             doble_factor_activo = bool(fila["doble_factor_activo"])
+            email_verificado = bool(fila["email_verificado"])
             terminos_pendientes = fila["terminos_version_aceptada"] != VERSION_TERMINOS
     return APIResponse.success(
         {
@@ -87,6 +100,7 @@ def estado():
             "vista_lista_compra": vista_lista_compra,
             "agrupar_categorias": agrupar_categorias,
             "doble_factor_activo": doble_factor_activo,
+            "email_verificado": email_verificado,
             "terminos_pendientes": terminos_pendientes,
         }
     )
@@ -103,11 +117,14 @@ def registrar():
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
     password = datos.get("password") or ""
 
-    if len(password) < 8:
+    if len(password) < LONGITUD_PASSWORD_MINIMA:
         return APIResponse.validacion("err_password_min_8")
 
     if not datos.get("acepta_terminos"):
         return APIResponse.validacion("err_debe_aceptar_terminos")
+
+    if es_password_filtrada(password):
+        return APIResponse.validacion("err_password_filtrada")
 
     existente = db.execute(
         "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
@@ -120,16 +137,19 @@ def registrar():
         "VALUES (?, ?, ?, ?, ?)",
         (nombre_usuario, generate_password_hash(password), ahora(), VERSION_TERMINOS, ahora()),
     )
-    db.commit()
 
     # Iniciar sesión automáticamente después de registrar
     usuario = db.execute(
         "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
     ).fetchone()
 
+    auditoria.registrar(db, "registro", usuario_id=usuario["id"], ip=ip_cliente())
+    db.commit()
+
     session.permanent = True
     session["usuario"] = nombre_usuario
     session["usuario_id"] = usuario["id"]
+    session["session_version"] = 0
 
     return APIResponse.success({"creado": True, "usuario": nombre_usuario}, 201)
 
@@ -152,9 +172,13 @@ def login():
     ).fetchone()
     if fila is None or not check_password_hash(fila["password_hash"], password):
         intentos_login.registrar_fallo(ip, nombre_usuario)
+        auditoria.registrar(db, "login", usuario_id=fila["id"] if fila else None, ip=ip, resultado="fallo", usuario_intentado=nombre_usuario)
+        db.commit()
         return APIResponse.no_autorizado()
 
     intentos_login.limpiar_exito(ip, nombre_usuario)
+    auditoria.registrar(db, "login", usuario_id=fila["id"], ip=ip, resultado="ok")
+    db.commit()
 
     if fila["doble_factor_activo"] and fila["email"]:
         _generar_y_enviar_codigo(db, fila["id"], fila["email"])
@@ -164,6 +188,7 @@ def login():
     session.permanent = True
     session["usuario"] = fila["nombre_usuario"]
     session["usuario_id"] = fila["id"]
+    session["session_version"] = fila["session_version"]
     return APIResponse.success({"usuario": fila["nombre_usuario"]})
 
 
@@ -212,12 +237,13 @@ def verificar_codigo_dos_pasos():
 
     db.execute("DELETE FROM codigos_dos_factor WHERE usuario_id = ?", (usuario_id,))
     db.commit()
-    usuario = db.execute("SELECT nombre_usuario FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    usuario = db.execute("SELECT nombre_usuario, session_version FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
 
     session.pop("pendiente_2fa_usuario_id", None)
     session.permanent = True
     session["usuario"] = usuario["nombre_usuario"]
     session["usuario_id"] = usuario_id
+    session["session_version"] = usuario["session_version"]
     return APIResponse.success({"usuario": usuario["nombre_usuario"]})
 
 
@@ -252,6 +278,15 @@ def cambiar_doble_factor():
             return APIResponse.error("err_doble_factor_requiere_email", 400)
 
     db.execute("UPDATE usuarios SET doble_factor_activo = ? WHERE id = ?", (int(activar), usuario_id))
+    if not activar:
+        # Desactivar 2FA reduce la seguridad de la cuenta: invalida otras
+        # sesiones que pudieran haber quedado abiertas con el 2FA aun
+        # activo, para que el cambio se note de verdad (S-08). Refresca la
+        # propia sesion a la nueva version para no cerrarse a si mismo.
+        db.execute("UPDATE usuarios SET session_version = session_version + 1 WHERE id = ?", (usuario_id,))
+        nueva_version = db.execute("SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["session_version"]
+        session["session_version"] = nueva_version
+    auditoria.registrar(db, "cambio_2fa", usuario_id=usuario_id, ip=ip_cliente(), activo=activar)
     db.commit()
     return APIResponse.success({"doble_factor_activo": activar})
 
@@ -331,13 +366,17 @@ def actualizar_perfil():
 
     # Actualizar contraseña si se proporciona
     if password:
-        if len(password) < 8:
+        if len(password) < LONGITUD_PASSWORD_MINIMA:
             return APIResponse.validacion("err_password_min_8")
         nuevo_hash = generate_password_hash(password)
         db.execute(
-            "UPDATE usuarios SET password_hash = ? WHERE id = ?",
+            "UPDATE usuarios SET password_hash = ?, session_version = session_version + 1 WHERE id = ?",
             (nuevo_hash, usuario_id)
         )
+        session["session_version"] = db.execute(
+            "SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)
+        ).fetchone()["session_version"]
+        auditoria.registrar(db, "cambio_password", usuario_id=usuario_id, ip=ip_cliente())
 
     db.commit()
     fila = db.execute("SELECT nombre FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
@@ -394,7 +433,7 @@ def cambiar_password():
     password_confirmacion = datos.get("password_confirmacion") or ""
 
     # Validar contraseña nueva
-    if len(password_nueva) < 8:
+    if len(password_nueva) < LONGITUD_PASSWORD_MINIMA:
         return APIResponse.validacion("err_nueva_password_min_8")
 
     if password_nueva != password_confirmacion:
@@ -413,15 +452,184 @@ def cambiar_password():
     if not check_password_hash(usuario["password_hash"], password_actual):
         return APIResponse.error("err_password_actual_incorrecta", 400)
 
-    # Actualizar contraseña
+    # Actualizar contraseña. session_version + 1 invalida cualquier otra
+    # sesion abierta con esta cuenta (S-08) - la propia se refresca abajo.
     nuevo_hash = generate_password_hash(password_nueva)
     db.execute(
-        "UPDATE usuarios SET password_hash = ? WHERE id = ?",
+        "UPDATE usuarios SET password_hash = ?, session_version = session_version + 1 WHERE id = ?",
         (nuevo_hash, usuario_id)
     )
+    session["session_version"] = db.execute(
+        "SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)
+    ).fetchone()["session_version"]
+    auditoria.registrar(db, "cambio_password", usuario_id=usuario_id, ip=ip_cliente())
     db.commit()
 
     return APIResponse.success({"mensaje": "Contraseña cambiada correctamente"})
+
+
+@bp.route("/api/auth/cerrar-otras-sesiones", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def cerrar_otras_sesiones():
+    """Invalida cualquier otra sesion abierta con esta cuenta (S-08), sin
+    cerrar la que hace la peticion: incrementa session_version en BD y
+    refresca la propia sesion al nuevo valor."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+    db.execute("UPDATE usuarios SET session_version = session_version + 1 WHERE id = ?", (usuario_id,))
+    session["session_version"] = db.execute(
+        "SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)
+    ).fetchone()["session_version"]
+    auditoria.registrar(db, "cerrar_otras_sesiones", usuario_id=usuario_id, ip=ip_cliente())
+    db.commit()
+    return APIResponse.success({"mensaje": "sesiones_cerradas_confirmacion"})
+
+
+@bp.route("/api/auth/mis-eventos-seguridad", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def mis_eventos_seguridad():
+    """Los ultimos 50 eventos de seguridad DEL PROPIO usuario autenticado
+    (S-09): informacion legitima para el dueño de la cuenta, nunca de otros."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+    filas = db.execute(
+        "SELECT evento, resultado, fecha FROM eventos_seguridad WHERE usuario_id = ? ORDER BY fecha DESC LIMIT 50",
+        (usuario_id,),
+    ).fetchall()
+    return APIResponse.success([dict(f) for f in filas])
+
+
+@bp.route("/api/auth/enviar-verificacion-email", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def enviar_verificacion_email():
+    """Genera un token de un solo uso y envia el enlace de verificacion de
+    email (S-07). Invalida cualquier token previo no usado del mismo tipo
+    para este usuario, para que solo el ultimo enlace enviado sea valido."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+    fila = db.execute("SELECT nombre_usuario, email, email_verificado FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+
+    if not fila or not fila["email"]:
+        return APIResponse.error("err_email_no_configurado", 400)
+    if fila["email_verificado"]:
+        return APIResponse.error("err_email_ya_verificado", 400)
+
+    db.execute(
+        "UPDATE tokens_verificacion SET usado = 1 WHERE usuario_id = ? AND tipo = 'verificar_email' AND usado = 0",
+        (usuario_id,),
+    )
+    token = secrets.token_urlsafe(32)
+    db.execute(
+        "INSERT INTO tokens_verificacion (usuario_id, tipo, token_hash, expira) VALUES (?, 'verificar_email', ?, ?)",
+        (usuario_id, _hash_token(token), int(time.time()) + DURACION_TOKEN_VERIFICACION_SEGUNDOS),
+    )
+    db.commit()
+
+    EmailService.enviar_verificacion_email(fila["email"], fila["nombre_usuario"], token)
+    return APIResponse.success({"mensaje": "verificacion_email_enviada"})
+
+
+@bp.route("/api/auth/verificar-email/<token>", methods=["GET"])
+@manejo_errores
+def verificar_email(token):
+    db = get_db()
+    fila = db.execute(
+        "SELECT id, usuario_id, expira, usado FROM tokens_verificacion WHERE token_hash = ? AND tipo = 'verificar_email'",
+        (_hash_token(token),),
+    ).fetchone()
+
+    if fila is None:
+        return APIResponse.error("err_token_invalido", 400)
+    if fila["usado"]:
+        return APIResponse.error("err_token_usado", 400)
+    if fila["expira"] < int(time.time()):
+        return APIResponse.error("err_token_expirado", 400)
+
+    db.execute("UPDATE usuarios SET email_verificado = 1 WHERE id = ?", (fila["usuario_id"],))
+    db.execute("UPDATE tokens_verificacion SET usado = 1 WHERE id = ?", (fila["id"],))
+    db.commit()
+    return APIResponse.success({"mensaje": "email_verificado_ok"})
+
+
+@bp.route("/api/auth/solicitar-reset-password", methods=["POST"])
+@manejo_errores
+def solicitar_reset_password():
+    """Solicitud publica de restablecimiento de contraseña. Responde SIEMPRE
+    con el mismo mensaje generico, exista o no la cuenta (S-10, mismo
+    principio anti-enumeracion), y solo envia email si existe y tiene un
+    email verificado."""
+    ip = ip_cliente()
+    if limite_por_ip(f"reset_password:{ip}", 5, 60 * 60):
+        return APIResponse.error("err_demasiadas_peticiones", 429)
+
+    datos = request.get_json(force=True) or {}
+    identificador = (datos.get("usuario_o_email") or "").strip()
+    respuesta_generica = APIResponse.success({"mensaje": "mensaje_reset_generico"})
+    if not identificador:
+        return respuesta_generica
+
+    db = get_db()
+    fila = db.execute(
+        "SELECT id, nombre_usuario, email, email_verificado FROM usuarios "
+        "WHERE nombre_usuario = ? COLLATE NOCASE OR email = ? COLLATE NOCASE",
+        (identificador, identificador),
+    ).fetchone()
+
+    if fila and fila["email"] and fila["email_verificado"]:
+        db.execute(
+            "UPDATE tokens_verificacion SET usado = 1 WHERE usuario_id = ? AND tipo = 'reset_password' AND usado = 0",
+            (fila["id"],),
+        )
+        token = secrets.token_urlsafe(32)
+        db.execute(
+            "INSERT INTO tokens_verificacion (usuario_id, tipo, token_hash, expira) VALUES (?, 'reset_password', ?, ?)",
+            (fila["id"], _hash_token(token), int(time.time()) + DURACION_TOKEN_RESET_SEGUNDOS),
+        )
+        db.commit()
+        EmailService.enviar_recuperacion_password(fila["email"], fila["nombre_usuario"], token)
+
+    return respuesta_generica
+
+
+@bp.route("/api/auth/restablecer-password", methods=["POST"])
+@manejo_errores
+def restablecer_password():
+    datos = request.get_json(force=True) or {}
+    token = (datos.get("token") or "").strip()
+    password_nueva = datos.get("password_nueva") or ""
+
+    if len(password_nueva) < LONGITUD_PASSWORD_MINIMA:
+        return APIResponse.validacion("err_password_min_8")
+    if es_password_filtrada(password_nueva):
+        return APIResponse.validacion("err_password_filtrada")
+
+    db = get_db()
+    fila = db.execute(
+        "SELECT id, usuario_id, expira, usado FROM tokens_verificacion WHERE token_hash = ? AND tipo = 'reset_password'",
+        (_hash_token(token),),
+    ).fetchone()
+
+    if fila is None:
+        return APIResponse.error("err_token_invalido", 400)
+    if fila["usado"]:
+        return APIResponse.error("err_token_usado", 400)
+    if fila["expira"] < int(time.time()):
+        return APIResponse.error("err_token_expirado", 400)
+
+    # session_version + 1 invalida todas las sesiones activas de esta cuenta
+    # (S-08): si el token se filtro/uso por error, quien tuviera una sesion
+    # abierta con la contraseña vieja tambien queda fuera.
+    db.execute(
+        "UPDATE usuarios SET password_hash = ?, session_version = session_version + 1 WHERE id = ?",
+        (generate_password_hash(password_nueva), fila["usuario_id"]),
+    )
+    db.execute("UPDATE tokens_verificacion SET usado = 1 WHERE id = ?", (fila["id"],))
+    auditoria.registrar(db, "reset_password", usuario_id=fila["usuario_id"], ip=ip_cliente())
+    db.commit()
+    return APIResponse.success({"mensaje": "password_restablecida_ok"})
 
 
 @bp.route("/api/auth/preferencias-listas", methods=["POST"])
@@ -501,6 +709,10 @@ def borrar_usuario(usuario_id):
     if total <= 1:
         return APIResponse.error("err_ultimo_usuario", 400)
 
+    # El evento se inserta ANTES del DELETE, en la misma transaccion: la FK
+    # de eventos_seguridad.usuario_id es ON DELETE SET NULL, asi que la fila
+    # sobrevive al borrado (queda con usuario_id NULL) en vez de perderse.
+    auditoria.registrar(db, "baja_cuenta", usuario_id=usuario_id, ip=ip_cliente())
     db.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
     db.commit()
     session.clear()

@@ -175,6 +175,26 @@ export const auth = {
   cambiarTema: (tema: 'light' | 'dark' | 'auto') =>
     apiCall('/api/auth/tema', { method: 'POST', body: JSON.stringify({ tema }) }),
 
+  enviarVerificacionEmail: () => apiCall('/api/auth/enviar-verificacion-email', { method: 'POST' }),
+
+  verificarEmail: (token: string) => apiCall(`/api/auth/verificar-email/${token}`),
+
+  solicitarResetPassword: (usuarioOEmail: string) =>
+    apiCall('/api/auth/solicitar-reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ usuario_o_email: usuarioOEmail }),
+    }),
+
+  restablecerPassword: (token: string, passwordNueva: string) =>
+    apiCall('/api/auth/restablecer-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password_nueva: passwordNueva }),
+    }),
+
+  cerrarOtrasSesiones: () => apiCall('/api/auth/cerrar-otras-sesiones', { method: 'POST' }),
+
+  misEventosSeguridad: () => apiCall('/api/auth/mis-eventos-seguridad'),
+
   cambiarPassword: (password_actual: string, password_nueva: string, password_confirmacion: string) =>
     apiCall('/api/auth/cambiar-password', {
       method: 'POST',
@@ -302,6 +322,11 @@ export const permisos = {
 
   aceptarInvitacion: (codigo: string) =>
     apiCall(`/api/hogares/aceptar-invitacion/${codigo}`, { method: 'POST' }),
+
+  invitacionesPendientes: () => apiCall('/api/hogares/invitaciones-pendientes'),
+
+  rechazarInvitacion: (codigo: string) =>
+    apiCall(`/api/hogares/invitaciones-pendientes/${codigo}`, { method: 'DELETE' }),
 }
 
 // ===== Gastos compartidos del hogar (stockhogar/rutas/gastos.py) =====

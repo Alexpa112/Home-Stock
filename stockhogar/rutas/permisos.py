@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import APP_URL
 from ..db import ahora, get_db
+from ..red import ip_cliente
+from ..servicios import auditoria
 from ..utils import Validator
 from ..servicios.email_service import EmailService
 
@@ -126,27 +128,36 @@ def compartir_lista(hogar_id):
     if nivel not in ["ver", "editar"]:
         return APIResponse.error("err_nivel_invalido", 400)
 
-    # Si es por nombre de usuario
+    # Si es por nombre de usuario: se crea una invitacion pendiente igual que
+    # con email (S-10), en vez de dar acceso INMEDIATO sin que el destinatario
+    # acepte nada. Se responde con el MISMO mensaje exista o no ese usuario,
+    # para no permitir enumerar nombres de usuario registrados probando uno
+    # a uno; solo si existe de verdad se crea la fila en invitaciones_hogar.
     if nombre_usuario_destino:
+        respuesta_generica = APIResponse.success({"mensaje": "mensaje_compartir_generico"})
+
         usuario_destino = db.execute(
             "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE",
             (nombre_usuario_destino,)
         ).fetchone()
 
         if not usuario_destino:
-            return APIResponse.error("err_usuario_no_encontrado", 404)
+            return respuesta_generica
 
-        # Agregar permiso. Cualquier fallo inesperado (p.ej. FK invalida) lo
-        # captura el @manejo_errores del endpoint con un 500 generico, en vez
-        # de devolver el texto crudo de la excepcion al cliente.
+        if usuario_destino["id"] == usuario_id:
+            return respuesta_generica
+
+        codigo = secrets.token_urlsafe(24)
+        fecha_expiracion = (datetime.now() + timedelta(days=7)).isoformat(timespec="seconds")
         db.execute(
-            """INSERT OR REPLACE INTO permisos_hogar
-               (hogar_id, usuario_id, nivel, fecha_otorgado)
-               VALUES (?, ?, ?, ?)""",
-            (hogar_id, usuario_destino["id"], nivel, ahora())
+            """INSERT INTO invitaciones_hogar
+               (hogar_id, email_destino, usuario_destino_id, nivel, codigo_invitacion, fecha_creacion, fecha_expiracion)
+               VALUES (?, '', ?, ?, ?, ?, ?)""",
+            (hogar_id, usuario_destino["id"], nivel, codigo, ahora(), fecha_expiracion)
         )
+        auditoria.registrar(db, "compartir_hogar", usuario_id=usuario_id, ip=ip_cliente(), hogar_id=hogar_id, via="usuario")
         db.commit()
-        return APIResponse.success({"mensaje": "Lista compartida correctamente"})
+        return respuesta_generica
 
     # Si es por email, crear invitación
     elif email_destino:
@@ -176,6 +187,7 @@ def compartir_lista(hogar_id):
                VALUES (?, ?, ?, ?, ?, ?)""",
             (hogar_id, email_destino, nivel, codigo, ahora(), fecha_expiracion)
         )
+        auditoria.registrar(db, "compartir_hogar", usuario_id=usuario_id, ip=ip_cliente(), hogar_id=hogar_id, via="email")
         db.commit()
 
         # Enviar email de invitación. Cualquier fallo inesperado (BD o envio)
@@ -333,6 +345,13 @@ def aceptar_invitacion(codigo):
     if datetime.now() > fecha_expiracion:
         return APIResponse.error("err_invitacion_expirada", 400)
 
+    # Si la invitacion iba dirigida a un usuario concreto (compartir por
+    # nombre de usuario, S-10), solo ese usuario puede aceptarla - evita que
+    # el codigo, si se filtrase, lo use cualquiera en nombre de otro.
+    destino_id = invitacion["usuario_destino_id"]
+    if destino_id is not None and destino_id != usuario_id:
+        return APIResponse.no_permitido()
+
     # Agregar permiso. Cualquier fallo inesperado lo captura el
     # @manejo_errores del endpoint con un 500 generico, en vez de devolver el
     # texto crudo de la excepcion al cliente.
@@ -356,3 +375,45 @@ def aceptar_invitacion(codigo):
     session["hogar_actual_id"] = invitacion["hogar_id"]
 
     return APIResponse.success({"mensaje": "¡Invitación aceptada!", "hogar_id": invitacion["hogar_id"]})
+
+
+@bp.route("/invitaciones-pendientes", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def invitaciones_pendientes():
+    """Invitaciones a hogares dirigidas al usuario autenticado (S-10): las
+    creadas al compartir por nombre de usuario, aun no aceptadas/rechazadas
+    ni caducadas."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+    filas = db.execute(
+        """SELECT i.id, i.codigo_invitacion, i.nivel, i.fecha_expiracion,
+                  h.nombre AS nombre_hogar, u.nombre_usuario AS nombre_propietario
+           FROM invitaciones_hogar i
+           JOIN hogares h ON h.id = i.hogar_id
+           JOIN usuarios u ON u.id = h.usuario_propietario_id
+           WHERE i.usuario_destino_id = ? AND i.usado = 0 AND i.fecha_expiracion >= ?
+           ORDER BY i.fecha_creacion DESC""",
+        (usuario_id, ahora()),
+    ).fetchall()
+    return APIResponse.success([dict(f) for f in filas])
+
+
+@bp.route("/invitaciones-pendientes/<codigo>", methods=["DELETE"])
+@requerir_sesion
+@manejo_errores
+def rechazar_invitacion(codigo):
+    """Rechaza (marca como usada, sin conceder permiso) una invitación
+    dirigida al usuario autenticado."""
+    usuario_id = session.get("usuario_id")
+    db = get_db()
+    invitacion = db.execute(
+        "SELECT id FROM invitaciones_hogar WHERE codigo_invitacion = ? AND usuario_destino_id = ? AND usado = 0",
+        (codigo, usuario_id),
+    ).fetchone()
+    if not invitacion:
+        return APIResponse.no_encontrado("recurso_invitacion")
+
+    db.execute("UPDATE invitaciones_hogar SET usado = 1 WHERE id = ?", (invitacion["id"],))
+    db.commit()
+    return APIResponse.success({"mensaje": "invitacion_rechazada_ok"})

@@ -58,6 +58,10 @@ function HomeContent() {
   const [aceptaTerminos, setAceptaTerminos] = useState(false)
   const [reenviando, setReenviando] = useState(false)
   const [reenviado, setReenviado] = useState(false)
+  const [mostrarOlvidoPassword, setMostrarOlvidoPassword] = useState(false)
+  const [identificadorReset, setIdentificadorReset] = useState('')
+  const [resetEnviando, setResetEnviando] = useState(false)
+  const [resetMensaje, setResetMensaje] = useState('')
 
   // Si ya hay sesión activa, redirigir directamente al dashboard
   useEffect(() => {
@@ -80,8 +84,8 @@ function HomeContent() {
       return
     }
 
-    // El backend exige mínimo 8 caracteres al registrar (stockhogar/rutas/auth.py)
-    if (!isLogin && password.length < 8) {
+    // El backend exige minimo 10 caracteres al registrar (stockhogar/config.py LONGITUD_PASSWORD_MINIMA)
+    if (!isLogin && password.length < 10) {
       setError(t('err_password_min_8'))
       setLoading(false)
       return
@@ -150,6 +154,20 @@ function HomeContent() {
     }
   }
 
+  const handleSolicitarReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setResetEnviando(true)
+    setResetMensaje('')
+    try {
+      const datos: any = await auth.solicitarResetPassword(identificadorReset)
+      setResetMensaje(t(datos.mensaje || 'mensaje_reset_generico'))
+    } catch (err) {
+      setResetMensaje(err instanceof Error ? err.message : t('err_conexion_servidor'))
+    } finally {
+      setResetEnviando(false)
+    }
+  }
+
   const resetForm = () => {
     setIsLogin(!isLogin)
     setError('')
@@ -158,6 +176,8 @@ function HomeContent() {
     setRequiereCodigo(false)
     setCodigo('')
     setAceptaTerminos(false)
+    setMostrarOlvidoPassword(false)
+    setResetMensaje('')
   }
 
   return (
@@ -341,7 +361,39 @@ function HomeContent() {
                 {loading ? t('procesando') : isLogin ? t('btn_iniciar_sesion') : t('btn_registrarse')}
                 {!loading && <ArrowRight className="h-4 w-4" />}
               </button>
+
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => { setMostrarOlvidoPassword(!mostrarOlvidoPassword); setResetMensaje('') }}
+                  className="w-full text-center text-sm text-accent hover:underline"
+                >
+                  {t('olvidaste_password')}
+                </button>
+              )}
             </form>
+            )}
+
+            {isLogin && mostrarOlvidoPassword && !requiereCodigo && (
+              <form onSubmit={handleSolicitarReset} className="mt-4 space-y-3 border-t border-border pt-4">
+                <input
+                  type="text"
+                  value={identificadorReset}
+                  onChange={(e) => setIdentificadorReset(e.target.value)}
+                  placeholder={t('placeholder_usuario_o_email')}
+                  className="input-field"
+                  required
+                  disabled={resetEnviando}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                />
+                {resetMensaje && (
+                  <p className="text-sm text-muted-foreground">{resetMensaje}</p>
+                )}
+                <button type="submit" disabled={resetEnviando} className="btn-secondary w-full">
+                  {resetEnviando ? t('procesando') : t('btn_enviar_enlace_reset')}
+                </button>
+              </form>
             )}
 
           </div>

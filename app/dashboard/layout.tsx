@@ -7,6 +7,7 @@ import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, Chevron
 import { useEffect, useState } from 'react'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { SelectorHogarPantallaCompleta } from '@/components/shared/SelectorHogarPantallaCompleta'
+import { InvitacionesPendientes } from '@/components/shared/InvitacionesPendientes'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { HogarProvider, useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
@@ -104,6 +105,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
       <div className="min-h-screen bg-background text-foreground lg:flex lg:h-screen lg:overflow-hidden">
+
+        <InvitacionesPendientes />
 
         {/* ── Sidebar desktop ── */}
         <aside className="hidden lg:flex lg:flex-col lg:w-60 shrink-0 border-r border-border bg-card">

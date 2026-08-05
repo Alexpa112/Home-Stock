@@ -14,6 +14,18 @@ DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "stock.db"
 CLAVES_PATH = DATA_DIR / "secret.json"
 
+# Motor de base de datos: "sqlite" (defecto, el unico soportado en produccion
+# hoy) o "postgres" (opt-in, experimental - ver stockhogar/db_backend.py y
+# docs/PROPUESTA_SEGURIDAD_Y_FUNCIONALIDADES.md, Fase 1.5).
+DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").strip().lower()
+
+# Solo relevantes si DB_ENGINE=postgres.
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
+POSTGRES_DB = os.getenv("POSTGRES_DB", "stockhogar")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "stockhogar")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
+
 # Directorio de logs de la aplicacion (montado como volumen en docker-compose.yml
 # para que sobrevivan a la reconstruccion del contenedor). El Panel de Gestion
 # del Servidor (proyecto independiente) lee de aqui para mostrar los logs en vivo.
@@ -927,3 +939,9 @@ REGISTRO_ABIERTO = os.getenv("REGISTRO_ABIERTO", "true").strip().lower() == "tru
 # ningun plan de pago: solo limites razonables para contener el abuso.
 LIMITE_HOGARES_POR_USUARIO = 5
 LIMITE_OCR_DIARIO = 20
+
+# Politica de contraseñas (S-20): 10 en vez de 8, siguiendo NIST SP 800-63B
+# (longitud minima razonable, sin exigir reglas de composicion). Ver tambien
+# servicios/password_pwned.py para la comprobacion contra contraseñas
+# filtradas (Have I Been Pwned).
+LONGITUD_PASSWORD_MINIMA = 10

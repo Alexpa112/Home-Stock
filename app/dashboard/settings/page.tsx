@@ -14,6 +14,11 @@ export default function SettingsPage() {
   const [user, setUser] = useState<{ usuario?: string; nombre?: string | null; email?: string | null; id?: number }>({})
   const [dobleFactorActivo, setDobleFactorActivo] = useState(false)
   const [cargandoDobleFactor, setCargandoDobleFactor] = useState(false)
+  const [emailVerificado, setEmailVerificado] = useState(true)
+  const [enviandoVerificacion, setEnviandoVerificacion] = useState(false)
+  const [verificacionEnviada, setVerificacionEnviada] = useState(false)
+  const [cerrandoOtrasSesiones, setCerrandoOtrasSesiones] = useState(false)
+  const [eventosSeguridad, setEventosSeguridad] = useState<{ evento: string; resultado: string; fecha: number }[]>([])
   const [confirmandoLogout, setConfirmandoLogout] = useState(false)
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
@@ -46,6 +51,7 @@ export default function SettingsPage() {
     const isDark = document.documentElement.classList.contains('dark')
     setDarkMode(isDark)
     loadUser()
+    cargarEventosSeguridad()
     idiomasApi
       .disponibles()
       .then((data: any) => {
@@ -91,6 +97,7 @@ export default function SettingsPage() {
         setNuevoNombre(data.usuario || '')
         setNuevoNombreMostrar(data.nombre || '')
         setDobleFactorActivo(!!data.doble_factor_activo)
+        setEmailVerificado(!!data.email_verificado)
 
         const pref = data.tema_preferido || 'auto'
         const aplicarOscuro =
@@ -124,6 +131,43 @@ export default function SettingsPage() {
     } catch {
       setError(t('err_cerrar_sesion'))
       setConfirmandoLogout(false)
+    }
+  }
+
+  const handleEnviarVerificacionEmail = async () => {
+    setEnviandoVerificacion(true)
+    setError('')
+    try {
+      await auth.enviarVerificacionEmail()
+      setVerificacionEnviada(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
+    } finally {
+      setEnviandoVerificacion(false)
+    }
+  }
+
+  const handleCerrarOtrasSesiones = async () => {
+    setCerrandoOtrasSesiones(true)
+    setError('')
+    setExito('')
+    try {
+      const datos: any = await auth.cerrarOtrasSesiones()
+      setExito(t(datos.mensaje || 'sesiones_cerradas_confirmacion'))
+      setTimeout(() => setExito(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
+    } finally {
+      setCerrandoOtrasSesiones(false)
+    }
+  }
+
+  const cargarEventosSeguridad = async () => {
+    try {
+      const eventos: any = await auth.misEventosSeguridad()
+      setEventosSeguridad(eventos || [])
+    } catch {
+      // No critico: si falla, simplemente no se muestra la lista.
     }
   }
 
@@ -174,7 +218,7 @@ export default function SettingsPage() {
       setError(t('error_contrasenas_no_coinciden'))
       return
     }
-    if (passwordNueva.length < 8) {
+    if (passwordNueva.length < 10) {
       setError(t('err_password_min_8'))
       return
     }
@@ -336,6 +380,25 @@ export default function SettingsPage() {
             <Mail className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
             <span className="flex-1 text-sm">{t('correo_electronico')}</span>
             <span className="text-sm text-muted-foreground truncate max-w-[50%]">{user.email}</span>
+          </div>
+        )}
+
+        {/* Aviso de email sin verificar (S-07) */}
+        {user.email && !emailVerificado && (
+          <div className="px-4 py-3 flex items-center gap-3 min-h-[44px] bg-amber-50 dark:bg-amber-950/20">
+            <AlertCircle className="w-[18px] h-[18px] text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="flex-1 text-sm text-amber-700 dark:text-amber-300">{t('email_no_verificado_aviso')}</span>
+            {verificacionEnviada ? (
+              <span className="text-xs text-muted-foreground">{t('verificacion_email_enviada')}</span>
+            ) : (
+              <button
+                onClick={handleEnviarVerificacionEmail}
+                disabled={enviandoVerificacion}
+                className="text-sm font-medium text-accent hover:underline disabled:opacity-50 shrink-0"
+              >
+                {t('btn_verificar_email')}
+              </button>
+            )}
           </div>
         )}
 
@@ -588,6 +651,36 @@ export default function SettingsPage() {
           <span className="flex-1 text-sm">{t('categorias_gasto')}</span>
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </Link>
+      </div>
+
+      {/* Actividad de la cuenta y sesiones (S-08, S-09) */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+        <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+          <ShieldCheck className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+          <span className="flex-1 text-sm">{t('btn_cerrar_otras_sesiones')}</span>
+          <button
+            onClick={handleCerrarOtrasSesiones}
+            disabled={cerrandoOtrasSesiones}
+            className="text-sm font-medium text-accent hover:underline disabled:opacity-50 shrink-0"
+          >
+            {cerrandoOtrasSesiones ? t('procesando') : t('btn_cerrar_otras_sesiones')}
+          </button>
+        </div>
+        {eventosSeguridad.length > 0 && (
+          <div className="px-4 py-3">
+            <p className="text-sm font-medium mb-2">{t('titulo_eventos_seguridad')}</p>
+            <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+              {eventosSeguridad.map((ev, i) => (
+                <li key={i} className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{ev.evento}</span>
+                  <span className={ev.resultado === 'fallo' ? 'text-red-500' : ''}>
+                    {new Date(ev.fecha * 1000).toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Legal */}
