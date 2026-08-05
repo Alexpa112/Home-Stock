@@ -80,10 +80,10 @@ def crear_lista():
     cur = db.execute(
         """INSERT INTO hogares
            (nombre, descripcion, usuario_propietario_id, privada, icono, color, simbolo_moneda, fecha_creacion, fecha_actualizacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
         (nombre, descripcion, usuario_id, int(privada), icono, color, simbolo_moneda, ahora(), ahora()),
     )
-    nueva_lista_id = cur.lastrowid
+    nueva_lista_id = cur.fetchone()["id"]
 
     # Cada lista nace sin stock: el usuario añade sus propios productos
     # (antes se poblaba con TODOS los productos de TODAS las hogares/usuarios,

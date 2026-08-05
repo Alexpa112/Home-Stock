@@ -185,10 +185,10 @@ def _migrar_lista_compra_a_articulos(db):
         if not lista_existente:
             cur = db.execute(
                 "INSERT INTO listas (nombre, descripcion, usuario_propietario_id, privada, "
-                "fecha_creacion, fecha_actualizacion, icono) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "fecha_creacion, fecha_actualizacion, icono) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 ("Mi lista", "Lista de compra principal", usuario_id, 1, ahora(), ahora(), "📋"),
             )
-            lista_id = cur.lastrowid
+            lista_id = cur.fetchone()["id"]
         else:
             lista_id = lista_existente["id"]
 
@@ -547,9 +547,10 @@ def _init_db_impl():
                 for prod in productos:
                     try:
                         db.execute(
-                            """INSERT OR IGNORE INTO stock_lista
+                            """INSERT INTO stock_lista
                                (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
-                               VALUES (?, ?, ?, ?, ?, ?)""",
+                               VALUES (?, ?, ?, ?, ?, ?)
+                               ON CONFLICT(lista_id, producto_id) DO NOTHING""",
                             (lista_id, prod["id"], prod["cantidad"], prod["stock_minimo"], ahora(), ahora())
                         )
                     except Exception as e:
@@ -580,7 +581,7 @@ def _init_db_impl():
             """
         )
         db.executemany(
-            "INSERT OR IGNORE INTO categorias (nombre, icono) VALUES (?, ?)",
+            "INSERT INTO categorias (nombre, icono) VALUES (?, ?) ON CONFLICT(nombre) DO NOTHING",
             CATEGORIAS_DEFECTO,
         )
 
@@ -805,12 +806,12 @@ def _init_db_impl():
                         """INSERT INTO articulos_personalizados
                            (nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto,
                             fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
                         (original["nombre"], original["categoria"], original["icono"], original["unidad"],
                          original["sub_descripcion"], original["cantidad_defecto"], original["fecha_creacion"],
                          original["fecha_actualizacion"], propietario_extra)
                     )
-                    nuevo_id = cur.lastrowid
+                    nuevo_id = cur.fetchone()["id"]
 
                     db.execute(
                         """UPDATE articulos_lista SET articulo_personalizado_id = ?
@@ -941,9 +942,10 @@ def _init_db_impl():
         # siembra una vez via INSERT OR IGNORE, asi que nunca pisa un articulo
         # que el usuario ya haya personalizado con el mismo nombre.
         db.executemany(
-            "INSERT OR IGNORE INTO historial_articulos "
+            "INSERT INTO historial_articulos "
             "(nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
-            "VALUES (?, ?, ?, ?, ?, 1, ?)",
+            "VALUES (?, ?, ?, ?, ?, 1, ?) "
+            "ON CONFLICT(nombre) DO NOTHING",
             [(n, c, i, u, s, ahora()) for (n, c, i, u, s) in CATALOGO_DEFECTO],
         )
 
@@ -1156,7 +1158,7 @@ def _init_db_impl():
             """
         )
         db.executemany(
-            "INSERT OR IGNORE INTO categorias_gasto (nombre, icono) VALUES (?, ?)",
+            "INSERT INTO categorias_gasto (nombre, icono) VALUES (?, ?) ON CONFLICT(nombre) DO NOTHING",
             CATEGORIAS_GASTO_DEFECTO,
         )
         asegurar_columna(db, "gastos", "categoria", "TEXT")

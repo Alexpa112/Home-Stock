@@ -21,7 +21,7 @@ def buscar_historial(db, nombre):
         return None
     fila = db.execute(
         "SELECT icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso FROM historial_articulos "
-        "WHERE nombre = ? COLLATE NOCASE",
+        "WHERE LOWER(nombre) = LOWER(?)",
         (nombre,),
     ).fetchone()
     return dict(fila) if fila else None
@@ -59,7 +59,7 @@ def listar_historial():
     db = get_db()
     filas = db.execute(
         "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso "
-        "FROM historial_articulos ORDER BY nombre COLLATE NOCASE",
+        "FROM historial_articulos ORDER BY LOWER(nombre)",
     ).fetchall()
     return APIResponse.success([dict(fila) for fila in filas])
 
@@ -79,13 +79,13 @@ def buscar_catalogo():
     if query:
         estandar = db.execute(
             "SELECT nombre, icono, categoria, unidad FROM historial_articulos "
-            "WHERE nombre LIKE ? COLLATE NOCASE ORDER BY nombre COLLATE NOCASE LIMIT 30",
+            "WHERE LOWER(nombre) LIKE LOWER(?) ORDER BY LOWER(nombre) LIMIT 30",
             (like,),
         ).fetchall()
     else:
         estandar = db.execute(
             "SELECT nombre, icono, categoria, unidad FROM historial_articulos "
-            "ORDER BY nombre COLLATE NOCASE LIMIT 30",
+            "ORDER BY LOWER(nombre) LIMIT 30",
         ).fetchall()
 
     from ..servicios.stock import hogar_actual_con_permiso
@@ -100,14 +100,14 @@ def buscar_catalogo():
             if query:
                 personalizados = db.execute(
                     "SELECT nombre, icono, categoria, unidad FROM articulos_personalizados "
-                    "WHERE usuario_propietario_id = ? AND nombre LIKE ? COLLATE NOCASE "
-                    "ORDER BY nombre COLLATE NOCASE LIMIT 30",
+                    "WHERE usuario_propietario_id = ? AND LOWER(nombre) LIKE LOWER(?) "
+                    "ORDER BY LOWER(nombre) LIMIT 30",
                     (propietario["usuario_propietario_id"], like),
                 ).fetchall()
             else:
                 personalizados = db.execute(
                     "SELECT nombre, icono, categoria, unidad FROM articulos_personalizados "
-                    "WHERE usuario_propietario_id = ? ORDER BY nombre COLLATE NOCASE LIMIT 30",
+                    "WHERE usuario_propietario_id = ? ORDER BY LOWER(nombre) LIMIT 30",
                     (propietario["usuario_propietario_id"],),
                 ).fetchall()
 

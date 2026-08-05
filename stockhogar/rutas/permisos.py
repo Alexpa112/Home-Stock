@@ -134,7 +134,7 @@ def compartir_lista(hogar_id):
         respuesta_generica = APIResponse.success({"mensaje": "mensaje_compartir_generico"})
 
         usuario_destino = db.execute(
-            "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE",
+            "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)",
             (nombre_usuario_destino,)
         ).fetchone()
 
@@ -334,9 +334,11 @@ def aceptar_invitacion(codigo):
     # @manejo_errores del endpoint con un 500 generico, en vez de devolver el
     # texto crudo de la excepcion al cliente.
     db.execute(
-        """INSERT OR REPLACE INTO permisos_hogar
+        """INSERT INTO permisos_hogar
            (hogar_id, usuario_id, nivel, fecha_otorgado)
-           VALUES (?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(hogar_id, usuario_id) DO UPDATE SET
+               nivel = excluded.nivel, fecha_otorgado = excluded.fecha_otorgado""",
         (invitacion["hogar_id"], usuario_id, invitacion["nivel"], ahora())
     )
 

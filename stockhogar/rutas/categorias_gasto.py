@@ -26,7 +26,7 @@ def normalizar_categoria_gasto(db, nombre):
 @manejo_errores
 def listar_categorias_gasto():
     db = get_db()
-    filas = db.execute("SELECT * FROM categorias_gasto ORDER BY nombre COLLATE NOCASE").fetchall()
+    filas = db.execute("SELECT * FROM categorias_gasto ORDER BY LOWER(nombre)").fetchall()
     return APIResponse.success([DataConverter.categoria_to_dict(f) for f in filas])
 
 
@@ -40,14 +40,15 @@ def crear_categoria_gasto():
 
     db = get_db()
     existente = db.execute(
-        "SELECT id FROM categorias_gasto WHERE nombre = ? COLLATE NOCASE", (nombre,)
+        "SELECT id FROM categorias_gasto WHERE LOWER(nombre) = LOWER(?)", (nombre,)
     ).fetchone()
     if existente:
         return APIResponse.error("err_categoria_duplicada", 400)
 
-    cur = db.execute("INSERT INTO categorias_gasto (nombre, icono) VALUES (?, ?)", (nombre, icono))
+    cur = db.execute("INSERT INTO categorias_gasto (nombre, icono) VALUES (?, ?) RETURNING id", (nombre, icono))
+    nueva_id = cur.fetchone()["id"]
     db.commit()
-    fila = db.execute("SELECT * FROM categorias_gasto WHERE id = ?", (cur.lastrowid,)).fetchone()
+    fila = db.execute("SELECT * FROM categorias_gasto WHERE id = ?", (nueva_id,)).fetchone()
     return APIResponse.success(DataConverter.categoria_to_dict(fila), 201)
 
 

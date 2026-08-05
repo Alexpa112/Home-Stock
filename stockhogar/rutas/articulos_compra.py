@@ -53,7 +53,7 @@ def listar_articulos():
 
     pendientes = db.execute(
         "SELECT * FROM articulos_compra WHERE activo = 1 AND hogar_id = ? "
-        "ORDER BY categoria, nombre COLLATE NOCASE",
+        "ORDER BY categoria, LOWER(nombre)",
         (hogar_id,),
     ).fetchall()
     completados = db.execute(
@@ -99,7 +99,7 @@ def anadir_articulo():
 
     # Si ya está en la lista activa, sumar cantidad
     existente = db.execute(
-        "SELECT * FROM articulos_compra WHERE nombre = ? COLLATE NOCASE AND activo = 1 AND hogar_id = ?",
+        "SELECT * FROM articulos_compra WHERE LOWER(nombre) = LOWER(?) AND activo = 1 AND hogar_id = ?",
         (nombre, hogar_id),
     ).fetchone()
     if existente:
@@ -113,7 +113,7 @@ def anadir_articulo():
 
     # Si hay uno completado, reutilizarlo
     completado = db.execute(
-        "SELECT * FROM articulos_compra WHERE nombre = ? COLLATE NOCASE AND activo = 0 AND hogar_id = ?",
+        "SELECT * FROM articulos_compra WHERE LOWER(nombre) = LOWER(?) AND activo = 0 AND hogar_id = ?",
         (nombre, hogar_id),
     ).fetchone()
     if completado:
@@ -148,7 +148,7 @@ def anadir_articulo():
         propietario_id = propietario["usuario_propietario_id"]
 
         articulo_personal = db.execute(
-            "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE AND usuario_propietario_id = ?",
+            "SELECT id FROM articulos_personalizados WHERE LOWER(nombre) = LOWER(?) AND usuario_propietario_id = ?",
             (nombre, propietario_id)
         ).fetchone()
 
@@ -159,10 +159,10 @@ def anadir_articulo():
             cur = db.execute(
                 """INSERT INTO articulos_personalizados
                    (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
                 (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id)
             )
-            articulo_personalizado_id = cur.lastrowid
+            articulo_personalizado_id = cur.fetchone()["id"]
 
             # Traducir automáticamente el artículo personalizado
             try:
@@ -195,20 +195,24 @@ def anadir_articulo():
             except Exception as e:
                 logger.error(f"Error traduciendo artículo: {e}")
 
-    # Crear artículo en lista
+    # Crear artículo en lista. El id se lee INMEDIATAMENTE con RETURNING (no
+    # con .lastrowid, que no existe en Postgres): un cursor con RETURNING
+    # queda con la fila pendiente de consumir, y SQLite no permite ni otra
+    # `execute()` ni `commit()` en la misma conexión hasta leerla.
     cur = db.execute(
         """INSERT INTO articulos_compra
            (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, dias_aviso, origen, fecha_creacion, fecha_actualizacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
         (hogar_id, articulo_personalizado_id, nombre, unidad, categoria, icono, cantidad_sumar, sub_descripcion, dias_aviso, 'manual', ahora(), ahora())
     )
+    nuevo_id = cur.fetchone()["id"]
 
     # Recordar para historial si tiene icono
     if icono and recuerdo:
         recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion, dias_aviso=dias_aviso)
 
     db.commit()
-    fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (cur.lastrowid,)).fetchone()
+    fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (nuevo_id,)).fetchone()
     return APIResponse.success(DataConverter.articulo_lista_to_dict(fila), 201)
 
 
@@ -272,7 +276,7 @@ def actualizar_articulo(item_id):
             propietario_id = propietario["usuario_propietario_id"]
 
             existente_personal = db.execute(
-                "SELECT id FROM articulos_personalizados WHERE nombre = ? COLLATE NOCASE AND usuario_propietario_id = ?",
+                "SELECT id FROM articulos_personalizados WHERE LOWER(nombre) = LOWER(?) AND usuario_propietario_id = ?",
                 (nombre, propietario_id),
             ).fetchone()
             if existente_personal:
@@ -286,10 +290,10 @@ def actualizar_articulo(item_id):
                 cur = db.execute(
                     """INSERT INTO articulos_personalizados
                        (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
                     (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id),
                 )
-                articulo_personalizado_id = cur.lastrowid
+                articulo_personalizado_id = cur.fetchone()["id"]
 
             db.execute(
                 "UPDATE articulos_compra SET nombre=?, cantidad=?, unidad=?, categoria=?, icono=?, "
@@ -390,7 +394,7 @@ def listar_articulos_personalizados():
 
     filas = db.execute(
         "SELECT id, nombre, icono, categoria, unidad, dias_aviso FROM articulos_personalizados "
-        "WHERE usuario_propietario_id = ? ORDER BY nombre COLLATE NOCASE",
+        "WHERE usuario_propietario_id = ? ORDER BY LOWER(nombre)",
         (propietario["usuario_propietario_id"],),
     ).fetchall()
     return APIResponse.success([dict(fila) for fila in filas])

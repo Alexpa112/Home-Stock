@@ -44,7 +44,7 @@ def listar_productos():
            FROM stock_hogar sl
            JOIN productos p ON p.id = sl.producto_id
            WHERE sl.hogar_id = ?
-           ORDER BY p.categoria, p.nombre COLLATE NOCASE""",
+           ORDER BY p.categoria, LOWER(p.nombre)""",
         (hogar_id,),
     ).fetchall()
 
@@ -146,9 +146,13 @@ def _traducir_y_guardar_en_segundo_plano(app, nombre, descripcion, producto_id, 
                 if idioma != "es":  # No guardar original
                     try:
                         db.execute(
-                            """INSERT OR REPLACE INTO traducciones_productos
+                            """INSERT INTO traducciones_productos
                                (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                               VALUES (?, ?, ?, ?, ?, ?, ?)
+                               ON CONFLICT(producto_id, articulo_id, tipo, idioma) DO UPDATE SET
+                                   texto_original = excluded.texto_original,
+                                   texto_traducido = excluded.texto_traducido,
+                                   fecha_creacion = excluded.fecha_creacion""",
                             (producto_id, articulo_id, "nombre", idioma, nombre, traducciones_nombre[idioma], ahora())
                         )
                     except Exception as e:
@@ -158,9 +162,13 @@ def _traducir_y_guardar_en_segundo_plano(app, nombre, descripcion, producto_id, 
                 if idioma != "es" and descripcion:
                     try:
                         db.execute(
-                            """INSERT OR REPLACE INTO traducciones_productos
+                            """INSERT INTO traducciones_productos
                                (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                               VALUES (?, ?, ?, ?, ?, ?, ?)
+                               ON CONFLICT(producto_id, articulo_id, tipo, idioma) DO UPDATE SET
+                                   texto_original = excluded.texto_original,
+                                   texto_traducido = excluded.texto_traducido,
+                                   fecha_creacion = excluded.fecha_creacion""",
                             (producto_id, articulo_id, "descripcion", idioma, descripcion, traducciones_desc[idioma], ahora())
                         )
                     except Exception as e:

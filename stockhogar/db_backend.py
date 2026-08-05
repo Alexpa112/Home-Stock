@@ -9,59 +9,57 @@ Postgres es opt-in mediante DB_ENGINE=postgres y NO ha sido validado con una
 migracion de datos real todavia (ver scripts/migrar_a_postgres.py); no
 activar en produccion sin haber corrido esa migracion y verificado los datos.
 
-Inventario de sintaxis especifica de SQLite en stockhogar/ (grep sobre todos
-los .py, 2026-08-05), que motiva por que esta capa hace falta y que se
-tradujo (o no) en el Paso 3 de la tarea de migracion:
+Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
+2026-08-05 tras completar la traduccion de las rutas activas):
 
-    - `.lastrowid` (tras INSERT, estilo sqlite3.Cursor): 14 apariciones en
-      stockhogar/db.py, rutas/articulos_compra.py, rutas/categorias.py,
+    - `.lastrowid` (tras INSERT, estilo sqlite3.Cursor): TRADUCIDO. Los 14
+      sitios (db.py, rutas/articulos_compra.py, rutas/categorias.py,
       rutas/categorias_gasto.py, rutas/gastos.py, rutas/hogares.py,
-      rutas/oauth.py, servicios/stock.py. Postgres no tiene `.lastrowid`; el
-      equivalente portable es `INSERT ... RETURNING id`. NO se ha tocado en
-      esta tarea (alcance demasiado amplio y sensible para hacerlo a la vez
-      que el resto de cambios sin una revision mas detenida - ver informe).
-    - `INSERT OR REPLACE`: 4 apariciones (rutas/permisos.py,
-      rutas/productos.py). Equivalente Postgres: `INSERT ... ON CONFLICT
-      (col_unica) DO UPDATE SET ...`. Pendiente, mismo motivo que arriba.
-    - `INSERT OR IGNORE`: 6 apariciones (db.py, servicios/stock.py).
-      Equivalente: `INSERT ... ON CONFLICT (col_unica) DO NOTHING`.
-      Pendiente.
-    - `COLLATE NOCASE`: 37 apariciones (db.py y varios blueprints en
-      rutas/). Equivalente portable sin configuracion especial de collation
-      en el servidor Postgres: `LOWER(columna) = LOWER(?)`. Pendiente.
-    - `PRAGMA table_info(...)` / `PRAGMA writable_schema`: 20 apariciones,
-      todas en db.py (asegurar_columna, quitar_columna_si_existe y varias
-      migraciones ad-hoc de una sola vez). Equivalente Postgres:
-      `information_schema.columns`. Pendiente (habria que centralizarlo en
-      asegurar_columna/quitar_columna_si_existe, que son los unicos puntos
-      de entrada).
-    - `strftime(...)`: 1 aparicion. `julianday(...)`: 0. No se ha revisado
-      su equivalente Postgres por no bloquear el resto de la tarea.
-    - `AUTOINCREMENT` (SQLite): 30 apariciones, todas en `CREATE TABLE ...
-      id INTEGER PRIMARY KEY AUTOINCREMENT`. En Postgres el equivalente es
-      `SERIAL`/`GENERATED ALWAYS AS IDENTITY`; lo resuelve
-      scripts/migrar_a_postgres.py al recrear el esquema en destino, no
-      hace falta tocar db.py para esto salvo que se quiera un init_db()
-      que cree tablas nativamente en Postgres (no implementado: la via
-      soportada para tener esquema en Postgres es migrar datos ya
-      existentes desde SQLite con el script, no arrancar en Postgres desde
-      cero).
-    - `?` como marcador de parametro (estilo sqlite3): omnipresente en todo
-      el codigo. Postgres/psycopg2 usa `%s`. Resuelto por el wrapper de
-      cursor de este modulo (ver CursorCompatPostgres mas abajo): traduce
-      automaticamente `?` -> `%s` solo cuando el motor activo es Postgres,
-      para no tener que tocar cientos de lineas de SQL ya escritas.
+      rutas/oauth.py, servicios/stock.py) usan ahora `INSERT ... RETURNING
+      id` + `cursor.fetchone()["id"]`, sintaxis identica valida en SQLite
+      3.35+ y en Postgres. OJO al leerlo: el fetchone() debe hacerse
+      INMEDIATAMENTE tras el INSERT, antes de cualquier otro `execute()` u
+      `commit()` en la misma conexion - un cursor con RETURNING sin
+      consumir bloquea ambas cosas en SQLite ("cannot commit transaction -
+      SQL statements in progress").
+    - `INSERT OR REPLACE`: TRADUCIDO (rutas/permisos.py, rutas/productos.py)
+      a `INSERT ... ON CONFLICT (col_unica) DO UPDATE SET ...`.
+    - `INSERT OR IGNORE`: TRADUCIDO (db.py, servicios/stock.py) a
+      `INSERT ... ON CONFLICT (col_unica) DO NOTHING`.
+    - `COLLATE NOCASE` en queries (WHERE/ORDER BY/LIKE): TRADUCIDO en todos
+      los blueprints de rutas/ a `LOWER(columna) = LOWER(?)` /
+      `ORDER BY LOWER(columna)` / `LOWER(columna) LIKE LOWER(?)`. Quedan
+      SIN tocar (a proposito) las declaraciones `COLLATE NOCASE` a nivel de
+      columna en `CREATE TABLE` de db.py (historial_articulos,
+      articulos_personalizados) y las migraciones legacy de una sola vez
+      gateadas por `PRAGMA table_info` (ver punto siguiente): son DDL que
+      solo se ejecuta en el camino SQLite (init_db() nunca corre contra
+      Postgres, ver mas abajo), asi que no bloquean nada real.
+    - `PRAGMA table_info(...)` / `PRAGMA writable_schema`: PENDIENTE
+      (~20 apariciones, todas en db.py: asegurar_columna,
+      quitar_columna_si_existe y migraciones legacy ad-hoc). Equivalente
+      Postgres: `information_schema.columns`. No se ha traducido porque
+      solo importa si alguien ejecutase init_db() contra Postgres, y la via
+      soportada es la contraria (migrar datos ya existentes con
+      scripts/migrar_a_postgres.py, que recrea el esquema por su cuenta sin
+      pasar por asegurar_columna). Bajo valor/alto esfuerzo para el
+      alcance actual.
+    - `strftime(...)` / `julianday(...)`: no aplica - la unica aparicion
+      encontrada (rutas/gastos.py) es `datetime.strftime` de Python, no la
+      funcion SQL de SQLite.
+    - `AUTOINCREMENT` (SQLite): no requiere traduccion en el codigo de la
+      app; lo resuelve scripts/migrar_a_postgres.py al recrear el esquema
+      en destino (SERIAL/GENERATED ALWAYS AS IDENTITY), no init_db().
+    - `?` como marcador de parametro (estilo sqlite3): resuelto por el
+      wrapper de cursor de este modulo (ver CursorCompatPostgres mas abajo).
 
-    NOTA IMPORTANTE: dado que el Paso 3 (traduccion de .lastrowid,
-    INSERT OR REPLACE/IGNORE, COLLATE NOCASE y PRAGMA table_info en
-    stockhogar/db.py y en los blueprints de rutas/) NO se ha aplicado, el
-    camino DB_ENGINE=postgres de este modulo permite CONECTAR y ejecutar
-    SQL simple contra Postgres, pero init_db() y buena parte de las rutas
-    fallaran contra Postgres real hasta que ese trabajo se complete (usan
-    sintaxis SQLite que Postgres no entiende). Ver el informe final de la
-    tarea para el razonamiento de por que se prioriza no tocar esas ~77
-    apariciones repartidas en 8+ ficheros en la misma tanda que el resto de
-    esta migracion.
+    ESTADO ACTUAL: con la traduccion de arriba completada, el camino
+    DB_ENGINE=postgres deberia funcionar para el trafico normal de la app
+    contra un esquema ya migrado con scripts/migrar_a_postgres.py. NO
+    verificado contra un Postgres real en esta tanda (sin servidor Postgres
+    disponible en el entorno de desarrollo) - antes de activar en
+    produccion, probar el flujo completo (migrar datos + arrancar con
+    DB_ENGINE=postgres + ejercitar los endpoints) contra una instancia real.
 """
 import os
 import re

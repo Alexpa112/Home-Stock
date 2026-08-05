@@ -186,18 +186,19 @@ def crear_producto_nuevo(
     cur = db.execute(
         "INSERT INTO productos (nombre, categoria, cantidad, unidad, stock_minimo, "
         "fecha_creacion, fecha_actualizacion, dias_aviso, icono) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         (nombre, categoria, cantidad, unidad, stock_minimo, ahora(), ahora(), dias_aviso, icono),
     )
-    producto_id = cur.lastrowid
+    producto_id = cur.fetchone()["id"]
 
     # El stock del producto solo pertenece a la lista en la que se crea, no a todas
     if hogar_id:
         try:
             db.execute(
-                """INSERT OR IGNORE INTO stock_hogar
+                """INSERT INTO stock_hogar
                    (hogar_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(hogar_id, producto_id) DO NOTHING""",
                 (hogar_id, producto_id, cantidad, stock_minimo, ahora(), ahora())
             )
         except Exception as e:

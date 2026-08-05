@@ -131,10 +131,10 @@ def crear_gasto():
     cur = db.execute(
         """INSERT INTO gastos
            (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, categoria, creado_por_usuario_id, fecha_creacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
         (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, categoria, usuario_id_actual, ahora()),
     )
-    gasto_id = cur.lastrowid
+    gasto_id = cur.fetchone()["id"]
 
     for usuario_id, importe in reparto:
         db.execute(
@@ -664,13 +664,13 @@ def _generar_gastos_recurrentes_pendientes(db, hogar_id, usuario_id_actual):
             cur = db.execute(
                 """INSERT INTO gastos
                    (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, categoria, creado_por_usuario_id, fecha_creacion)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
                 (
                     hogar_id, recurrente["descripcion"], recurrente["importe_total"], proxima_fecha + "T00:00:00",
                     recurrente["usuario_pagador_id"], recurrente["categoria"], usuario_id_actual, ahora(),
                 ),
             )
-            gasto_id = cur.lastrowid
+            gasto_id = cur.fetchone()["id"]
             for p in participantes:
                 db.execute(
                     "INSERT INTO gastos_participantes (gasto_id, usuario_id, importe) VALUES (?, ?, ?)",
@@ -787,11 +787,11 @@ def crear_gasto_recurrente():
         """INSERT INTO gastos_recurrentes
            (hogar_id, descripcion, importe_total, categoria, usuario_pagador_id, frecuencia,
             fecha_fin, proxima_fecha, activo, fecha_creacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?) RETURNING id""",
         (hogar_id, descripcion, importe_total, categoria, usuario_pagador_id, frecuencia,
          fecha_fin, fecha_inicio, ahora()),
     )
-    recurrente_id = cur.lastrowid
+    recurrente_id = cur.fetchone()["id"]
     for usuario_id, importe in reparto:
         db.execute(
             "INSERT INTO gastos_recurrentes_participantes (gasto_recurrente_id, usuario_id, importe) VALUES (?, ?, ?)",

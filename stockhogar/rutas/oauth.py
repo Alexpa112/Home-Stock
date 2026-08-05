@@ -142,10 +142,10 @@ def oauth_google_callback():
                     contador += 1
 
                 cur = db.execute(
-                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion, email_verificado) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion, email_verificado) VALUES (?, ?, ?, ?) RETURNING id",
                     (nombre_usuario, email, ahora(), int(bool(email_verificado)))
                 )
-                usuario_id = cur.lastrowid
+                usuario_id = cur.fetchone()["id"]
 
             # Crear cuenta OAuth
             db.execute(
@@ -271,10 +271,10 @@ def oauth_apple_callback():
                     contador += 1
 
                 cur = db.execute(
-                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion, email_verificado) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion, email_verificado) VALUES (?, ?, ?, ?) RETURNING id",
                     (nombre_usuario, email, ahora(), int(bool(email_verificado)))
                 )
-                usuario_id = cur.lastrowid
+                usuario_id = cur.fetchone()["id"]
 
             # Crear cuenta OAuth
             db.execute(

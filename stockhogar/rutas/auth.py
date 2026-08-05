@@ -133,7 +133,7 @@ def registrar():
         return APIResponse.validacion("err_password_filtrada")
 
     existente = db.execute(
-        "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
+        "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
     ).fetchone()
     if existente:
         return APIResponse.error("err_usuario_duplicado", 400)
@@ -146,7 +146,7 @@ def registrar():
 
     # Iniciar sesión automáticamente después de registrar
     usuario = db.execute(
-        "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
+        "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
     ).fetchone()
 
     auditoria.registrar(db, "registro", usuario_id=usuario["id"], ip=ip_cliente())
@@ -174,7 +174,7 @@ def login():
 
     db = get_db()
     fila = db.execute(
-        "SELECT * FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
+        "SELECT * FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
     ).fetchone()
     if fila is None or not check_password_hash(fila["password_hash"], password):
         intentos_login.registrar_fallo(ip, nombre_usuario)
@@ -350,7 +350,7 @@ def actualizar_perfil():
         if len(nombre_usuario_nuevo) > 80:
             return APIResponse.validacion("err_nombre_max_80")
         duplicado = db.execute(
-            "SELECT id FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE AND id != ?",
+            "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?) AND id != ?",
             (nombre_usuario_nuevo, usuario_id)
         ).fetchone()
         if duplicado:
@@ -707,7 +707,7 @@ def solicitar_reset_password():
     db = get_db()
     fila = db.execute(
         "SELECT id, nombre_usuario, email, email_verificado FROM usuarios "
-        "WHERE nombre_usuario = ? COLLATE NOCASE OR email = ? COLLATE NOCASE",
+        "WHERE LOWER(nombre_usuario) = LOWER(?) OR LOWER(email) = LOWER(?)",
         (identificador, identificador),
     ).fetchone()
 
