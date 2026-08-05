@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Palette, X, Receipt } from 'lucide-react'
+import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Palette, X, Receipt, ChefHat } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { SelectorHogarPantallaCompleta } from '@/components/shared/SelectorHogarPantallaCompleta'
@@ -69,6 +69,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const sidebarItems = [
     { href: '/dashboard/ticket', label: t('escanear_ticket'), icon: Camera },
     { href: '/dashboard/gastos', label: t('nav_gastos'), icon: Receipt },
+    { href: '/dashboard/recetas', label: t('nav_recetas'), icon: ChefHat },
     { href: '/dashboard/historial', label: t('historial'), icon: History },
     { href: '/dashboard/settings', label: t('ajustes'), icon: Settings },
   ]

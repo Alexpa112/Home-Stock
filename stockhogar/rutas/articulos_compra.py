@@ -68,34 +68,18 @@ def listar_articulos():
     })
 
 
-@bp.route("", methods=["POST"])
-@requerir_sesion
-@manejo_errores
-def anadir_articulo():
-    """Añade un artículo a una lista (requiere permiso 'editar')."""
-    usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
-    nombre = (datos.get("nombre") or "").strip()
-
-    if not nombre:
-        return APIResponse.error("err_nombre_obligatorio", 400)
-
-    db = get_db()
-    # Igual que en listar_articulos: si el hogar_id que manda el cliente
-    # (guardado en localStorage) no coincide con la lista activa real de la
-    # sesión, se ignora y se usa la de sesión, para que el artículo quede
-    # siempre en la misma lista que el stock que lo disparó.
-    hogar_id = _resolver_hogar_id(db, session)
-
-    if not hogar_id:
-        return APIResponse.error("err_no_hay_hogar_activo", 400)
-
-    # Validar permisos
-    permiso = _usuario_tiene_permiso(db, hogar_id, usuario_id, nivel_requerido="editar")
-    if not permiso or (permiso != "propietario" and permiso != "editar"):
-        return APIResponse.no_permitido()
-
-    cantidad_sumar = Validator.entero_minimo(datos.get("cantidad") or 1, "cantidad")
+def anadir_o_sumar_articulo(
+    db, hogar_id, nombre, cantidad=1, categoria=None, icono=None, unidad=None,
+    sub_descripcion=None, dias_aviso=None, codigo_barras=None,
+):
+    """Añade un artículo a la lista de un hogar, o suma cantidad/reactiva si
+    ya existe (misma lógica que POST /api/articulos). Extraída para poder
+    reutilizarla al añadir varios ingredientes de una receta de golpe
+    (P-06), sin duplicar la resolución de historial/artículo personalizado.
+    Hace su propio commit por artículo: pensada para bucles fuera de
+    request/response HTTP donde no hace falta atomicidad entre artículos."""
+    nombre = (nombre or "").strip()
+    cantidad_sumar = Validator.entero_minimo(cantidad or 1, "cantidad")
 
     # Si ya está en la lista activa, sumar cantidad
     existente = db.execute(
@@ -109,7 +93,7 @@ def anadir_articulo():
         )
         db.commit()
         fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (existente["id"],)).fetchone()
-        return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
+        return DataConverter.articulo_lista_to_dict(fila)
 
     # Si hay uno completado, reutilizarlo
     completado = db.execute(
@@ -123,18 +107,18 @@ def anadir_articulo():
         )
         db.commit()
         fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (completado["id"],)).fetchone()
-        return APIResponse.success(DataConverter.articulo_lista_to_dict(fila))
+        return DataConverter.articulo_lista_to_dict(fila)
 
     # Buscar en historial estándar
     recuerdo = buscar_historial(db, nombre)
-    categoria = normalizar_categoria(db, datos.get("categoria") or (recuerdo["categoria"] if recuerdo else None))
-    icono = (datos.get("icono") or "").strip() or (recuerdo["icono"] if recuerdo else None)
-    unidad = (datos.get("unidad") or "").strip() or (recuerdo["unidad"] if recuerdo else "ud")
-    sub_descripcion = (datos.get("sub_descripcion") or "").strip() or (
+    categoria = normalizar_categoria(db, categoria or (recuerdo["categoria"] if recuerdo else None))
+    icono = (icono or "").strip() or (recuerdo["icono"] if recuerdo else None)
+    unidad = (unidad or "").strip() or (recuerdo["unidad"] if recuerdo else "ud")
+    sub_descripcion = (sub_descripcion or "").strip() or (
         recuerdo["sub_descripcion"] if recuerdo else None
     )
-    dias_aviso = int(datos.get("dias_aviso") or (recuerdo["dias_aviso"] if recuerdo else DIAS_AVISO_DEFECTO))
-    codigo_barras = (datos.get("codigo_barras") or "").strip() or None
+    dias_aviso = int(dias_aviso or (recuerdo["dias_aviso"] if recuerdo else DIAS_AVISO_DEFECTO))
+    codigo_barras = (codigo_barras or "").strip() or None
 
     # ===== LÓGICA NUEVA: Artículos Personalizados =====
     # Si el artículo NO está en historial estándar → crearlo en articulos_personalizados
@@ -218,7 +202,47 @@ def anadir_articulo():
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (nuevo_id,)).fetchone()
-    return APIResponse.success(DataConverter.articulo_lista_to_dict(fila), 201)
+    return DataConverter.articulo_lista_to_dict(fila)
+
+
+@bp.route("", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def anadir_articulo():
+    """Añade un artículo a una lista (requiere permiso 'editar')."""
+    usuario_id = session.get("usuario_id")
+    datos = request.get_json(force=True) or {}
+    nombre = (datos.get("nombre") or "").strip()
+
+    if not nombre:
+        return APIResponse.error("err_nombre_obligatorio", 400)
+
+    db = get_db()
+    # Igual que en listar_articulos: si el hogar_id que manda el cliente
+    # (guardado en localStorage) no coincide con la lista activa real de la
+    # sesión, se ignora y se usa la de sesión, para que el artículo quede
+    # siempre en la misma lista que el stock que lo disparó.
+    hogar_id = _resolver_hogar_id(db, session)
+
+    if not hogar_id:
+        return APIResponse.error("err_no_hay_hogar_activo", 400)
+
+    # Validar permisos
+    permiso = _usuario_tiene_permiso(db, hogar_id, usuario_id, nivel_requerido="editar")
+    if not permiso or (permiso != "propietario" and permiso != "editar"):
+        return APIResponse.no_permitido()
+
+    articulo = anadir_o_sumar_articulo(
+        db, hogar_id, nombre,
+        cantidad=datos.get("cantidad") or 1,
+        categoria=datos.get("categoria"),
+        icono=datos.get("icono"),
+        unidad=datos.get("unidad"),
+        sub_descripcion=datos.get("sub_descripcion"),
+        dias_aviso=datos.get("dias_aviso"),
+        codigo_barras=datos.get("codigo_barras"),
+    )
+    return APIResponse.success(articulo, 201)
 
 
 @bp.route("/<int:item_id>", methods=["PATCH"])

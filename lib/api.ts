@@ -434,6 +434,21 @@ export const historial = {
   listar: () => apiCall('/api/historial'),
 }
 
+// ===== Recetas (stockhogar/rutas/recetas.py) =====
+export const recetas = {
+  listar: () => apiCall('/api/recetas'),
+
+  crear: (datos: { nombre: string; icono?: string; ingredientes: Array<{ nombre: string; cantidad?: number; unidad?: string }> }) =>
+    apiCall('/api/recetas', { method: 'POST', body: JSON.stringify(datos) }),
+
+  actualizar: (id: number, datos: Record<string, unknown>) =>
+    apiCall(`/api/recetas/${id}`, { method: 'PATCH', body: JSON.stringify(datos) }),
+
+  eliminar: (id: number) => apiCall(`/api/recetas/${id}`, { method: 'DELETE' }),
+
+  anadirALista: (id: number) => apiCall(`/api/recetas/${id}/anadir-a-lista`, { method: 'POST' }),
+}
+
 // ===== Consumo / auditoría de stock (stockhogar/rutas/consumo.py) =====
 export const consumo = {
   movimientosProducto: (productoId: number) => apiCall(`/api/consumo/producto/${productoId}`),

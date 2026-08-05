@@ -18,7 +18,7 @@ from .translator import traducir
 
 csrf = CSRFProtect()
 
-from .rutas import auth, articulos_compra, categorias, categorias_gasto, consumo, gastos, historial, hogares, paginas, productos, tickets, ocr_tickets, permisos, oauth, idiomas, formularios, version, legal, push
+from .rutas import auth, articulos_compra, categorias, categorias_gasto, consumo, gastos, historial, hogares, paginas, productos, recetas, tickets, ocr_tickets, permisos, oauth, idiomas, formularios, version, legal, push
 from .rutas.auth import RUTAS_PUBLICAS
 
 
@@ -146,6 +146,7 @@ def create_app():
     app.register_blueprint(version.bp)
     app.register_blueprint(legal.bp)
     app.register_blueprint(push.bp)
+    app.register_blueprint(recetas.bp)
 
     @app.before_request
     def comprobar_mantenimiento():
