@@ -5,10 +5,19 @@ import io
 import unittest
 import uuid
 
+from PIL import Image
 from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
+
+
+def _jpeg_de_prueba() -> bytes:
+    """JPEG minimo valido (1x1 px): desde S-16, subir_recibo valida y
+    recodifica el contenido real, ya no basta con bytes cualquiera."""
+    buffer = io.BytesIO()
+    Image.new("RGB", (1, 1), color="red").save(buffer, format="JPEG")
+    return buffer.getvalue()
 
 
 class GastosTests(unittest.TestCase):
@@ -383,22 +392,66 @@ class GastosTests(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
 
+    def test_subir_recibo_respeta_limite_diario_por_usuario(self):
+        from stockhogar.config import LIMITE_RECIBOS_DIARIO_POR_USUARIO
+        from stockhogar.db import ahora as _ahora  # noqa: F401 (solo para claridad de intención)
+        from datetime import date
+
+        resp_gasto = self._crear_gasto_valido(self.client_propietario)
+        gasto_id = resp_gasto.get_json()["id"]
+
+        with self.app.app_context():
+            db = get_db()
+            db.execute(
+                "INSERT INTO uso_recibos_diario (usuario_id, fecha, contador) VALUES (?, ?, ?)",
+                (self.propietario_id, date.today().isoformat(), LIMITE_RECIBOS_DIARIO_POR_USUARIO),
+            )
+            db.commit()
+
+        resp = self.client_propietario.post(
+            f"/api/gastos/{gasto_id}/recibo",
+            data={"foto": (io.BytesIO(_jpeg_de_prueba()), "recibo.jpg")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 429)
+
+        with self.app.app_context():
+            db = get_db()
+            db.execute("DELETE FROM uso_recibos_diario WHERE usuario_id = ?", (self.propietario_id,))
+            db.commit()
+
+    def test_subir_recibo_con_contenido_falso_pero_extension_valida_se_rechaza(self):
+        """S-16: la extension ya no basta, el contenido tiene que ser una
+        imagen real del formato declarado."""
+        resp_gasto = self._crear_gasto_valido(self.client_propietario)
+        gasto_id = resp_gasto.get_json()["id"]
+
+        resp = self.client_propietario.post(
+            f"/api/gastos/{gasto_id}/recibo",
+            data={"foto": (io.BytesIO(b"esto no es un jpeg de verdad"), "recibo.jpg")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+
     def test_subir_y_obtener_recibo(self):
         resp_gasto = self._crear_gasto_valido(self.client_propietario)
         gasto_id = resp_gasto.get_json()["id"]
-        contenido = b"contenido-fake-de-imagen"
 
         resp_subida = self.client_propietario.post(
             f"/api/gastos/{gasto_id}/recibo",
-            data={"foto": (io.BytesIO(contenido), "recibo.jpg")},
+            data={"foto": (io.BytesIO(_jpeg_de_prueba()), "recibo.jpg")},
             content_type="multipart/form-data",
         )
         self.assertEqual(resp_subida.status_code, 200, resp_subida.get_data(as_text=True))
         self.assertTrue(resp_subida.get_json()["tiene_recibo"])
 
         resp_get = self.client_viewer.get(f"/api/gastos/{gasto_id}/recibo")
-        self.assertEqual(resp_get.status_code, 200, resp_get.get_data(as_text=True))
-        self.assertEqual(resp_get.data, contenido)
+        # La respuesta es binaria (JPEG recodificado), no texto: no se puede
+        # usar get_data(as_text=True) como mensaje de fallo.
+        self.assertEqual(resp_get.status_code, 200)
+        # No se compara byte a byte con el original: se recodifica al
+        # guardarla (S-16), pero debe seguir siendo un JPEG valido.
+        Image.open(io.BytesIO(resp_get.data)).verify()
         self.assertEqual(resp_get.content_type, "image/jpeg")
 
         resp_lista = self.client_propietario.get("/api/gastos")
@@ -417,7 +470,7 @@ class GastosTests(unittest.TestCase):
         gasto_id = resp_gasto.get_json()["id"]
         self.client_propietario.post(
             f"/api/gastos/{gasto_id}/recibo",
-            data={"foto": (io.BytesIO(b"contenido-fake"), "recibo.jpg")},
+            data={"foto": (io.BytesIO(_jpeg_de_prueba()), "recibo.jpg")},
             content_type="multipart/form-data",
         )
 

@@ -940,6 +940,11 @@ REGISTRO_ABIERTO = os.getenv("REGISTRO_ABIERTO", "true").strip().lower() == "tru
 LIMITE_HOGARES_POR_USUARIO = 5
 LIMITE_OCR_DIARIO = 20
 
+# S-21: mismo motivo que las cuotas de arriba, para contener el abuso una
+# vez el registro es publico.
+LIMITE_INVITACIONES_DIARIO_POR_HOGAR = 20
+LIMITE_RECIBOS_DIARIO_POR_USUARIO = 30
+
 # Politica de contraseñas (S-20): 10 en vez de 8, siguiendo NIST SP 800-63B
 # (longitud minima razonable, sin exigir reglas de composicion). Ver tambien
 # servicios/password_pwned.py para la comprobacion contra contraseñas

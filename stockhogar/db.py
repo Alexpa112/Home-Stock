@@ -1231,11 +1231,31 @@ def _init_db_impl():
             """
         )
 
+        # Uso diario de subida de recibos por usuario (S-21), mismo patron
+        # que uso_ocr_diario pero en tabla separada: son cuotas de conceptos
+        # distintos (escaneo OCR vs. adjuntar foto de un gasto ya existente),
+        # mezclarlas en la misma tabla confundiria el limite de cada una.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS uso_recibos_diario (
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                fecha TEXT NOT NULL,
+                contador INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (usuario_id, fecha)
+            )
+            """
+        )
+
         # Verificacion de email de-facto nunca comprobada hasta ahora (S-07):
         # el campo usuarios.email se rellenaba por OAuth o desde el panel sin
         # confirmar que su dueño realmente controla esa direccion, aunque ya
         # se le enviara el codigo de doble factor.
         asegurar_columna(db, "usuarios", "email_verificado", "INTEGER NOT NULL DEFAULT 0")
+
+        # Opt-out del OCR en la nube (S-26): con esto activo, el escaneo de
+        # tickets usa solo el pipeline local (Tesseract), sin enviar la foto
+        # a Groq. Ver stockhogar/rutas/tickets.py::analizar_ticket.
+        asegurar_columna(db, "usuarios", "usuario_ocr_local", "INTEGER NOT NULL DEFAULT 0")
 
         # session_version (S-08): alternativa minima a una tabla de sesiones
         # completa. Se guarda en la cookie de sesion junto a usuario_id; un

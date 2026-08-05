@@ -176,6 +176,9 @@ export const auth = {
   cambiarDobleFactor: (activo: boolean) =>
     apiCall('/api/auth/doble-factor', { method: 'POST', body: JSON.stringify({ activo }) }),
 
+  cambiarPreferenciaOcr: (ocrLocal: boolean) =>
+    apiCall('/api/auth/preferencia-ocr', { method: 'POST', body: JSON.stringify({ ocr_local: ocrLocal }) }),
+
   logout: async () => {
     const resultado = await apiCall('/api/auth/logout', { method: 'POST' })
     clearAllCache()
@@ -207,6 +210,8 @@ export const auth = {
   cerrarOtrasSesiones: () => apiCall('/api/auth/cerrar-otras-sesiones', { method: 'POST' }),
 
   misEventosSeguridad: () => apiCall('/api/auth/mis-eventos-seguridad'),
+
+  exportarMisDatos: () => apiDownload('/api/auth/exportar-mis-datos', 'mis-datos-dreame.zip'),
 
   cambiarPassword: (password_actual: string, password_nueva: string, password_confirmacion: string) =>
     apiCall('/api/auth/cambiar-password', {

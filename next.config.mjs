@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // S-23: se desplegaba con los errores de TypeScript silenciados. Se quita
+  // porque `npm run build` ya compila limpio (verificado 2026-08-05); si en
+  // el futuro aparece un error real de tipos, ahora bloquea el build en vez
+  // de llegar a produccion en silencio.
   images: {
     unoptimized: true,
   },

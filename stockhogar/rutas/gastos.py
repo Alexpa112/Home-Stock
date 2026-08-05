@@ -4,16 +4,18 @@ import calendar
 import csv
 import heapq
 import io
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from flask import Blueprint, Response, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..config import LIMITE_RECIBOS_DIARIO_POR_USUARIO
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
 from ..translator import traducir
 from ..utils import Validator, ValidationError
+from ..utils.imagenes import validar_y_recodificar
 from .categorias_gasto import normalizar_categoria_gasto
 
 bp = Blueprint("gastos", __name__, url_prefix="/api/gastos")
@@ -538,6 +540,14 @@ def subir_recibo(gasto_id):
     if error:
         return error
 
+    usuario_id = session.get("usuario_id")
+    hoy = date.today().isoformat()
+    uso_hoy = db.execute(
+        "SELECT contador FROM uso_recibos_diario WHERE usuario_id = ? AND fecha = ?", (usuario_id, hoy)
+    ).fetchone()
+    if uso_hoy and uso_hoy["contador"] >= LIMITE_RECIBOS_DIARIO_POR_USUARIO:
+        return APIResponse.error("err_limite_recibos_diario", 429)
+
     archivo = request.files.get("foto")
     if archivo is None or archivo.filename == "":
         return APIResponse.validacion("err_sin_imagen")
@@ -555,9 +565,23 @@ def subir_recibo(gasto_id):
     extension = Path(archivo.filename).suffix.lower().lstrip(".")
     mime_type = RECIBO_MIME_POR_EXTENSION.get(extension, "application/octet-stream")
 
+    # Recodificar (S-16): confirma que el contenido es de verdad una imagen
+    # del formato que dice la extension (no solo un fichero renombrado) y
+    # descarta metadatos/bytes extra antes de guardarla en la BD a largo
+    # plazo. HEIC/HEIF no pasa por Pillow (ver utils/imagenes.py) y se
+    # guarda tal cual, igual que antes de este cambio.
+    imagen_validada, error_validacion = validar_y_recodificar(archivo.read(), extension)
+    if error_validacion:
+        return APIResponse.validacion(error_validacion)
+
     db.execute(
         "UPDATE gastos SET imagen_recibo = ?, imagen_recibo_mime = ? WHERE id = ?",
-        (archivo.read(), mime_type, gasto_id),
+        (imagen_validada, mime_type, gasto_id),
+    )
+    db.execute(
+        "INSERT INTO uso_recibos_diario (usuario_id, fecha, contador) VALUES (?, ?, 1) "
+        "ON CONFLICT(usuario_id, fecha) DO UPDATE SET contador = contador + 1",
+        (usuario_id, hoy),
     )
     db.commit()
     return APIResponse.success({"tiene_recibo": True})

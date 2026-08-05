@@ -15,6 +15,7 @@ from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..servicios.ocr.groq_ocr import GroqOCR
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..utils import Validator
+from ..utils.imagenes import validar_y_recodificar
 from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
@@ -158,8 +159,29 @@ def analizar_ticket():
             if not ruta_png_convertida:
                 return APIResponse.error("err_procesando_ticket", 500)
             ruta_imagen = ruta_png_convertida
+        else:
+            # Validacion de contenido real (S-16): el .pdf y el .heic/.heif
+            # de arriba ya se "validan" al intentar convertirlos (si no son
+            # de verdad ese formato, la conversion falla); para el resto de
+            # extensiones no habia ninguna comprobacion mas alla del nombre
+            # del fichero. No se recodifica aqui (a diferencia de los
+            # recibos de gastos.py, que se guardan a largo plazo): esta
+            # imagen es efimera, se descarta tras el OCR, y recodificarla
+            # podria degradar la calidad que necesita Tesseract/Groq.
+            with open(tmp.name, "rb") as f:
+                _, error_validacion = validar_y_recodificar(f.read(), sufijo.lstrip("."))
+            if error_validacion:
+                return APIResponse.validacion(error_validacion)
 
         db = get_db()
+
+        # Opt-out del OCR en la nube (S-26): si el usuario lo ha desactivado
+        # en sus ajustes, se salta Groq directamente y se usa solo el
+        # pipeline local, igual que si GROQ_API_KEY no estuviera configurada.
+        usuario_id = session.get("usuario_id")
+        prefiere_ocr_local = bool(
+            db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
+        )
 
         # Motor principal: Groq/Llama 4 Scout (foto + catálogo del usuario,
         # OCR y emparejamiento semántico en un solo paso). Si no hay
@@ -167,7 +189,7 @@ def analizar_ticket():
         # pipeline local (Tesseract + ProcesadorTicketsV2) como respaldo.
         items = None
         groq = GroqOCR()
-        if groq.disponible():
+        if groq.disponible() and not prefiere_ocr_local:
             productos_catalogo = [
                 dict(row)
                 for row in db.execute(

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..autorizacion import requerir_hogar
-from ..config import APP_URL
+from ..config import APP_URL, LIMITE_INVITACIONES_DIARIO_POR_HOGAR
 from ..db import ahora, get_db
 from ..red import ip_cliente
 from ..servicios import auditoria
@@ -112,6 +112,18 @@ def compartir_lista(hogar_id):
 
     if nivel not in ["ver", "editar"]:
         return APIResponse.error("err_nivel_invalido", 400)
+
+    # Cuota de invitaciones por hogar y dia (S-21): cubre ambos caminos (por
+    # nombre de usuario y por email), ya que las dos crean una fila en
+    # invitaciones_hogar. Protege contra un hogar comprometido usado para
+    # espamear invitaciones.
+    inicio_de_hoy = datetime.now().date().isoformat()
+    invitaciones_hoy = db.execute(
+        "SELECT COUNT(*) AS n FROM invitaciones_hogar WHERE hogar_id = ? AND fecha_creacion >= ?",
+        (hogar_id, inicio_de_hoy),
+    ).fetchone()["n"]
+    if invitaciones_hoy >= LIMITE_INVITACIONES_DIARIO_POR_HOGAR:
+        return APIResponse.error("err_limite_invitaciones_diario", 429)
 
     # Si es por nombre de usuario: se crea una invitacion pendiente igual que
     # con email (S-10), en vez de dar acceso INMEDIATO sin que el destinatario

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck, ScrollText, Cookie, Tags } from 'lucide-react'
+import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck, ScrollText, Cookie, Tags, CloudOff } from 'lucide-react'
 import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -15,10 +15,13 @@ export default function SettingsPage() {
   const [dobleFactorActivo, setDobleFactorActivo] = useState(false)
   const [cargandoDobleFactor, setCargandoDobleFactor] = useState(false)
   const [emailVerificado, setEmailVerificado] = useState(true)
+  const [ocrLocal, setOcrLocal] = useState(false)
+  const [cargandoOcrLocal, setCargandoOcrLocal] = useState(false)
   const [enviandoVerificacion, setEnviandoVerificacion] = useState(false)
   const [verificacionEnviada, setVerificacionEnviada] = useState(false)
   const [cerrandoOtrasSesiones, setCerrandoOtrasSesiones] = useState(false)
   const [eventosSeguridad, setEventosSeguridad] = useState<{ evento: string; resultado: string; fecha: number }[]>([])
+  const [exportandoDatos, setExportandoDatos] = useState(false)
   const [confirmandoLogout, setConfirmandoLogout] = useState(false)
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
@@ -98,6 +101,7 @@ export default function SettingsPage() {
         setNuevoNombreMostrar(data.nombre || '')
         setDobleFactorActivo(!!data.doble_factor_activo)
         setEmailVerificado(!!data.email_verificado)
+        setOcrLocal(!!data.ocr_local)
 
         const pref = data.tema_preferido || 'auto'
         const aplicarOscuro =
@@ -134,6 +138,19 @@ export default function SettingsPage() {
     }
   }
 
+  const cambiarOcrLocal = async (activo: boolean) => {
+    setCargandoOcrLocal(true)
+    setError('')
+    try {
+      await auth.cambiarPreferenciaOcr(activo)
+      setOcrLocal(activo)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
+    } finally {
+      setCargandoOcrLocal(false)
+    }
+  }
+
   const handleEnviarVerificacionEmail = async () => {
     setEnviandoVerificacion(true)
     setError('')
@@ -159,6 +176,18 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
     } finally {
       setCerrandoOtrasSesiones(false)
+    }
+  }
+
+  const handleExportarMisDatos = async () => {
+    setExportandoDatos(true)
+    setError('')
+    try {
+      await auth.exportarMisDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_conexion_servidor'))
+    } finally {
+      setExportandoDatos(false)
     }
   }
 
@@ -431,6 +460,33 @@ export default function SettingsPage() {
           </button>
         </div>
 
+        {/* Opt-out del OCR en la nube (S-26) */}
+        <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+          <CloudOff className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm">{t('ocr_local_titulo')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('ocr_local_descripcion')}</p>
+          </div>
+          <button
+            onClick={() => cambiarOcrLocal(!ocrLocal)}
+            disabled={cargandoOcrLocal}
+            role="switch"
+            aria-checked={ocrLocal}
+            aria-label={t('ocr_local_titulo')}
+            className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 disabled:opacity-50 border-2 ${
+              ocrLocal
+                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
+                : 'bg-muted border-border hover:border-muted-foreground'
+            }`}
+          >
+            <span
+              className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
+                ocrLocal ? 'translate-x-6' : ''
+              }`}
+            />
+          </button>
+        </div>
+
         {/* Contraseña */}
         <div className="px-4 py-3">
           <button
@@ -681,6 +737,18 @@ export default function SettingsPage() {
             </ul>
           </div>
         )}
+        {/* Exportacion de datos personales (S-22, RGPD) */}
+        <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+          <History className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+          <span className="flex-1 text-sm">{t('btn_exportar_mis_datos')}</span>
+          <button
+            onClick={handleExportarMisDatos}
+            disabled={exportandoDatos}
+            className="text-sm font-medium text-accent hover:underline disabled:opacity-50 shrink-0"
+          >
+            {exportandoDatos ? t('procesando') : t('btn_exportar_mis_datos')}
+          </button>
+        </div>
       </div>
 
       {/* Legal */}

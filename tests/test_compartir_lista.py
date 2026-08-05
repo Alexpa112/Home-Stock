@@ -120,6 +120,26 @@ class CompartirListaTests(unittest.TestCase):
         self.assertEqual(resp_inexistente.status_code, resp_existente.status_code)
         self.assertEqual(resp_inexistente.get_json(), resp_existente.get_json())
 
+    def test_compartir_respeta_limite_diario_de_invitaciones_por_hogar(self):
+        """S-21: protege un hogar de ser usado para espamear invitaciones."""
+        from stockhogar.config import LIMITE_INVITACIONES_DIARIO_POR_HOGAR
+
+        with self.app.app_context():
+            db = get_db()
+            for i in range(LIMITE_INVITACIONES_DIARIO_POR_HOGAR):
+                db.execute(
+                    "INSERT INTO invitaciones_hogar (hogar_id, email_destino, nivel, codigo_invitacion, "
+                    "fecha_creacion, fecha_expiracion) VALUES (?, ?, 'ver', ?, ?, ?)",
+                    (self.hogar_id, f"relleno{i}@example.com", f"codigo-relleno-{i}-{uuid.uuid4().hex[:6]}", ahora(), ahora()),
+                )
+            db.commit()
+
+        resp = self.client.post(
+            f"/api/hogares/{self.hogar_id}/compartir",
+            json={"email": "otro@example.com", "nivel": "ver"},
+        )
+        self.assertEqual(resp.status_code, 429, resp.get_data(as_text=True))
+
     def test_fallo_inesperado_al_compartir_por_email_no_expone_texto_crudo(self):
         mensaje_interno_sensible = "boom: credenciales SMTP invalidas en servidor interno XYZ"
         with patch(
