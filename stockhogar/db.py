@@ -470,6 +470,10 @@ def _init_db_impl():
         asegurar_columna(db, "productos", "fecha_creacion", "TEXT")
         asegurar_columna(db, "productos", "fecha_actualizacion", "TEXT")
         asegurar_columna(db, "productos", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
+        # Ultimo aviso de caducidad enviado por push (P-07): evita re-notificar
+        # cada dia mientras el producto siga sin tocarse, ver
+        # scripts/enviar_avisos_caducidad.py.
+        asegurar_columna(db, "productos", "fecha_ultimo_aviso_caducidad", "TEXT")
         asegurar_columna(db, "productos", "icono", "TEXT")
         # Rellena fechas de productos ya existentes que no las tuvieran (migraciones previas).
         db.execute("UPDATE productos SET fecha_creacion = ? WHERE fecha_creacion IS NULL", (ahora(),))
@@ -1316,6 +1320,26 @@ def _init_db_impl():
         # fila aqui igual que el camino por email (ver invitaciones_hogar),
         # con el mismo mensaje de exito exista o no el usuario.
         asegurar_columna(db, "invitaciones_hogar", "usuario_destino_id", "INTEGER REFERENCES usuarios(id) ON DELETE CASCADE")
+
+        # Suscripciones a notificaciones push del navegador (P-01). endpoint
+        # es UNIQUE porque el navegador puede volver a mandarlo (p.ej. tras
+        # reinstalar la PWA) y hay que sobrescribir las claves antiguas, no
+        # duplicar la fila.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                endpoint TEXT NOT NULL UNIQUE,
+                p256dh TEXT NOT NULL,
+                auth TEXT NOT NULL,
+                fecha_creacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_push_subscriptions_usuario ON push_subscriptions(usuario_id)"
+        )
 
         db.commit()
 

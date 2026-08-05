@@ -76,10 +76,12 @@ EXPOSE 3000
 # Usuario no privilegiado (S-06): Next.js en modo "start" no necesita escribir
 # en ningun bind mount de este servicio (no hay volumes en docker-compose.yml
 # para "frontend"), asi que a diferencia del backend no hace falta ningun
-# chown adicional.
-RUN groupadd -g 1000 appuser && useradd -u 1000 -g appuser -M -s /usr/sbin/nologin appuser \
-    && chown -R appuser:appuser /app
-USER appuser
+# chown adicional. Se reutiliza el usuario "node" que ya trae la imagen base
+# node:*-slim (UID/GID 1000) en vez de crear uno propio: crear "appuser" con
+# -u 1000 -g 1000 chocaba con ese usuario ya existente ("useradd: UID 1000
+# is not unique", exit code 4) y rompia el build.
+RUN chown -R node:node /app
+USER node
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -fsS "http://localhost:3000/" >/dev/null || exit 1

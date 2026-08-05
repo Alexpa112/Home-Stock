@@ -448,3 +448,14 @@ export const legal = {
   configuracion: (): Promise<{ titular: string; email_contacto: string; dominio: string; version_terminos: string }> =>
     apiCall('/api/legal/config'),
 }
+
+// ===== Notificaciones push (stockhogar/rutas/push.py, P-01) =====
+export const push = {
+  vapidClavePublica: (): Promise<{ clave_publica: string }> => apiCall('/api/push/vapid-clave-publica'),
+
+  suscribir: (endpoint: string, keys: { p256dh: string; auth: string }) =>
+    apiCall('/api/push/suscribir', { method: 'POST', body: JSON.stringify({ endpoint, keys }) }),
+
+  desuscribir: (endpoint: string) =>
+    apiCall('/api/push/desuscribir', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+}

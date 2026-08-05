@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck, ScrollText, Cookie, Tags, CloudOff } from 'lucide-react'
+import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck, ScrollText, Cookie, Tags, CloudOff, Bell } from 'lucide-react'
 import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { usePushNotifications } from '@/lib/usePushNotifications'
 
 export default function SettingsPage() {
   const { preferences, updatePreferences } = useListPreferences()
   const { t, cambiarIdioma: aplicarIdiomaContexto } = useTranslation()
+  const notificacionesPush = usePushNotifications()
   const [darkMode, setDarkMode] = useState(false)
   const [user, setUser] = useState<{ usuario?: string; nombre?: string | null; email?: string | null; id?: number }>({})
   const [dobleFactorActivo, setDobleFactorActivo] = useState(false)
@@ -459,6 +461,38 @@ export default function SettingsPage() {
             />
           </button>
         </div>
+
+        {/* Notificaciones push (P-01) */}
+        {notificacionesPush.soportado && (
+          <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+            <Bell className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm">{t('notificaciones_push_titulo')}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('notificaciones_push_descripcion')}</p>
+              {notificacionesPush.error && (
+                <p className="text-xs text-red-500 mt-0.5">{t(notificacionesPush.error)}</p>
+              )}
+            </div>
+            <button
+              onClick={() => (notificacionesPush.suscrito ? notificacionesPush.desactivar() : notificacionesPush.activar())}
+              disabled={notificacionesPush.cargando}
+              role="switch"
+              aria-checked={notificacionesPush.suscrito}
+              aria-label={t('notificaciones_push_titulo')}
+              className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 disabled:opacity-50 border-2 ${
+                notificacionesPush.suscrito
+                  ? 'bg-accent border-accent shadow-lg shadow-accent/30'
+                  : 'bg-muted border-border hover:border-muted-foreground'
+              }`}
+            >
+              <span
+                className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
+                  notificacionesPush.suscrito ? 'translate-x-6' : ''
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Opt-out del OCR en la nube (S-26) */}
         <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
