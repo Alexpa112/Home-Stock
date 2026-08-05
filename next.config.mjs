@@ -48,27 +48,10 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains',
           },
-          {
-            // 'unsafe-inline' en script-src: el anti-FOUC de app/layout.tsx
-            // usa dangerouslySetInnerHTML con un <script> inline (aplica el
-            // tema oscuro/claro antes del primer render). 'unsafe-eval' se
-            // deja por compatibilidad con el runtime de Next/webpack; si en
-            // el futuro se confirma que la build de produccion no lo
-            // necesita, se puede retirar para endurecer la politica.
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob:",
-              "font-src 'self' data:",
-              "connect-src 'self'",
-              "frame-ancestors 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-              "object-src 'none'",
-            ].join('; '),
-          },
+          // Content-Security-Policy (S-12): se fija por peticion desde
+          // middleware.ts, no aqui. Un fichero de configuracion estatico
+          // como este no puede generar un nonce distinto en cada respuesta,
+          // que es lo que permite quitar 'unsafe-inline' de script-src.
         ],
       },
       {

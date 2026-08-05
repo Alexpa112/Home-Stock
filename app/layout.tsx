@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import './globals.css'
 import RootLayoutClient from './RootLayoutClient'
 
@@ -28,11 +29,18 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // S-12: nonce generado por peticion en middleware.ts (cabecera de request
+  // x-nonce), leido aqui para que el script anti-FOUC pueda ejecutarse bajo
+  // una CSP sin 'unsafe-inline'. Sin este nonce exacto, el navegador
+  // bloquearia el script y la app arrancaria siempre en el tema por
+  // defecto, ignorando la preferencia guardada del usuario.
+  const nonce = (await headers()).get('x-nonce') ?? undefined
+
   return (
     <html lang="es" className="bg-background">
       <head>
@@ -48,6 +56,7 @@ export default function RootLayout({
       <body className="antialiased text-foreground">
         {/* Anti-FOUC: aplica clase dark/light antes del primer render */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.add('light')}})()`,
           }}
