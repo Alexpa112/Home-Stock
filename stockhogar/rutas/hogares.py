@@ -2,6 +2,7 @@
 from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..autorizacion import nivel_acceso_hogar, nivel_alcanza, requerir_hogar
 from ..config import LIMITE_HOGARES_POR_USUARIO
 from ..db import ahora, get_db
 from ..utils import Validator, DataConverter
@@ -10,26 +11,18 @@ bp = Blueprint("hogares", __name__, url_prefix="/api/hogares")
 
 
 def _usuario_tiene_permiso(db, hogar_id, usuario_id, nivel_requerido=None):
-    """Verifica si usuario tiene acceso a lista. Retorna: 'propietario'|'editar'|'ver'|None"""
-    lista = db.execute("SELECT usuario_propietario_id FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
-    if not lista:
+    """Verifica si usuario tiene acceso a lista. Retorna: 'propietario'|'editar'|'ver'|None
+
+    Delegado en autorizacion.nivel_acceso_hogar (S-15): este era, hasta
+    ahora, el UNICO sitio con la consulta real (hogares.usuario_propietario_id
+    + permisos_hogar); servicios/stock.py::hogar_actual_con_permiso y
+    rutas/articulos_compra.py lo importan de aqui, asi que centralizar la
+    consulta en autorizacion.py los beneficia a ambos sin tocarlos.
+    """
+    nivel = nivel_acceso_hogar(db, hogar_id, usuario_id)
+    if nivel_requerido and not nivel_alcanza(nivel, nivel_requerido):
         return None
-
-    if lista["usuario_propietario_id"] == usuario_id:
-        return "propietario"
-
-    permiso = db.execute(
-        "SELECT nivel FROM permisos_hogar WHERE hogar_id = ? AND usuario_id = ?",
-        (hogar_id, usuario_id),
-    ).fetchone()
-
-    if permiso:
-        nivel = permiso["nivel"]
-        if nivel_requerido and nivel_requerido != "ver" and nivel == "ver":
-            return None
-        return nivel
-
-    return None
+    return nivel
 
 
 @bp.route("", methods=["GET"])
@@ -107,6 +100,7 @@ def crear_lista():
 
 @bp.route("/<int:hogar_id>", methods=["GET"])
 @requerir_sesion
+@requerir_hogar("ver", recurso_no_encontrado="recurso_hogar")
 @manejo_errores
 def obtener_lista(hogar_id):
     """Obtiene detalles de una lista (requiere acceso)."""
@@ -119,13 +113,6 @@ def obtener_lista(hogar_id):
         (hogar_id,),
     ).fetchone()
 
-    if not lista:
-        return APIResponse.no_encontrado("recurso_hogar")
-
-    permiso = _usuario_tiene_permiso(db, hogar_id, usuario_id)
-    if not permiso:
-        return APIResponse.no_permitido()
-
     data = DataConverter.lista_to_dict(lista, usuario_id, include_detalles=True)
     count = db.execute("SELECT COUNT(*) as total FROM articulos_compra WHERE hogar_id = ?", (hogar_id,)).fetchone()
     data["total_articulos"] = count["total"]
@@ -134,18 +121,13 @@ def obtener_lista(hogar_id):
 
 @bp.route("/<int:hogar_id>", methods=["PUT", "PATCH"])
 @requerir_sesion
+@requerir_hogar("propietario", recurso_no_encontrado="recurso_hogar")
 @manejo_errores
 def actualizar_lista(hogar_id):
     """Actualiza una lista (solo el propietario)."""
     usuario_id = session.get("usuario_id")
     db = get_db()
     lista = db.execute("SELECT * FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
-
-    if not lista:
-        return APIResponse.no_encontrado("recurso_hogar")
-
-    if lista["usuario_propietario_id"] != usuario_id:
-        return APIResponse.no_permitido()
 
     datos = request.get_json(force=True) or {}
     actualizaciones = {}
@@ -209,19 +191,11 @@ def actualizar_lista(hogar_id):
 
 @bp.route("/<int:hogar_id>", methods=["DELETE"])
 @requerir_sesion
+@requerir_hogar("propietario", recurso_no_encontrado="recurso_hogar")
 @manejo_errores
 def eliminar_lista(hogar_id):
     """Elimina una lista (solo el propietario, cascade de artículos)."""
-    usuario_id = session.get("usuario_id")
     db = get_db()
-    lista = db.execute("SELECT * FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
-
-    if not lista:
-        return APIResponse.no_encontrado("recurso_hogar")
-
-    if lista["usuario_propietario_id"] != usuario_id:
-        return APIResponse.no_permitido()
-
     db.execute("DELETE FROM hogares WHERE id = ?", (hogar_id,))
     db.commit()
 
@@ -237,20 +211,10 @@ def eliminar_lista(hogar_id):
 
 @bp.route("/<int:hogar_id>/seleccionar", methods=["POST"])
 @requerir_sesion
+@requerir_hogar("ver", recurso_no_encontrado="recurso_hogar")
 @manejo_errores
 def seleccionar_lista(hogar_id):
     """Selecciona una lista como la actual del usuario."""
-    usuario_id = session.get("usuario_id")
-    db = get_db()
-    lista = db.execute("SELECT * FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
-
-    if not lista:
-        return APIResponse.no_encontrado("recurso_hogar")
-
-    permiso = _usuario_tiene_permiso(db, hogar_id, usuario_id)
-    if not permiso:
-        return APIResponse.no_permitido()
-
     session["hogar_actual_id"] = hogar_id
     session.modified = True
     return APIResponse.success({"exito": True, "hogar_id": hogar_id})
@@ -324,17 +288,14 @@ def version_hogar_actual():
 
 @bp.route("/<int:hogar_id>/miembros-basico", methods=["GET"])
 @requerir_sesion
+@requerir_hogar("ver")
 @manejo_errores
 def miembros_basico(hogar_id):
     """Lista básica (id + nombre) de los miembros del hogar, accesible a
     cualquiera con acceso (a diferencia de /miembros en rutas/permisos.py,
     que reserva la gestión de permisos al propietario). Pensado para
     selectores de participantes en funcionalidades como gastos compartidos."""
-    usuario_id = session.get("usuario_id")
     db = get_db()
-
-    if not _usuario_tiene_permiso(db, hogar_id, usuario_id):
-        return APIResponse.no_permitido()
 
     filas = db.execute(
         "SELECT id, COALESCE(nombre, nombre_usuario) AS nombre_usuario FROM usuarios "

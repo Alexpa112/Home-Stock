@@ -36,7 +36,14 @@ def nivel_acceso_hogar(db, hogar_id, usuario_id):
     return None
 
 
-def requerir_hogar(nivel_minimo="ver"):
+def nivel_alcanza(nivel_actual, nivel_minimo):
+    """True si `nivel_actual` (resultado de nivel_acceso_hogar, puede ser
+    None) cubre al menos `nivel_minimo` en la jerarquia ver < editar <
+    propietario."""
+    return nivel_actual is not None and NIVELES[nivel_actual] >= NIVELES[nivel_minimo]
+
+
+def requerir_hogar(nivel_minimo="ver", recurso_no_encontrado=None):
     """Decorador de ruta: exige que el usuario autenticado tenga, sobre el
     hogar de la URL, al menos `nivel_minimo` ("ver", "editar" o
     "propietario"). Debe usarse SIEMPRE junto a @requerir_sesion (lee
@@ -48,6 +55,11 @@ def requerir_hogar(nivel_minimo="ver"):
     Si un endpoint concreto resuelve el hogar de otra forma (p.ej.
     _resolver_hogar_id en articulos_compra.py, que puede depender de la
     sesión en vez de venir en la URL), no uses este decorador en él.
+
+    `recurso_no_encontrado`: si se indica (clave de traduccion, p.ej.
+    "recurso_hogar"), un hogar_id que no exista devuelve 404 con esa clave
+    en vez del 403 generico - para endpoints que ya distinguian ambos casos
+    antes de centralizar aqui la comprobacion.
     """
     if nivel_minimo not in NIVELES:
         raise ValueError(f"nivel_minimo desconocido: {nivel_minimo}")
@@ -57,8 +69,13 @@ def requerir_hogar(nivel_minimo="ver"):
         def decorated(*args, **kwargs):
             hogar_id = kwargs.get("hogar_id")
             usuario_id = session.get("usuario_id")
-            nivel = nivel_acceso_hogar(get_db(), hogar_id, usuario_id) if hogar_id is not None else None
-            if nivel is None or NIVELES[nivel] < NIVELES[nivel_minimo]:
+            db = get_db()
+            if recurso_no_encontrado is not None:
+                existe = db.execute("SELECT 1 FROM hogares WHERE id = ?", (hogar_id,)).fetchone() if hogar_id is not None else None
+                if not existe:
+                    return APIResponse.no_encontrado(recurso_no_encontrado)
+            nivel = nivel_acceso_hogar(db, hogar_id, usuario_id) if hogar_id is not None else None
+            if not nivel_alcanza(nivel, nivel_minimo):
                 return APIResponse.no_permitido()
             g.nivel_acceso_hogar = nivel
             return f(*args, **kwargs)
