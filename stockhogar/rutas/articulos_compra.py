@@ -134,6 +134,7 @@ def anadir_articulo():
         recuerdo["sub_descripcion"] if recuerdo else None
     )
     dias_aviso = int(datos.get("dias_aviso") or (recuerdo["dias_aviso"] if recuerdo else DIAS_AVISO_DEFECTO))
+    codigo_barras = (datos.get("codigo_barras") or "").strip() or None
 
     # ===== LÓGICA NUEVA: Artículos Personalizados =====
     # Si el artículo NO está en historial estándar → crearlo en articulos_personalizados
@@ -207,9 +208,13 @@ def anadir_articulo():
     )
     nuevo_id = cur.fetchone()["id"]
 
-    # Recordar para historial si tiene icono
-    if icono and recuerdo:
-        recordar_articulo(db, nombre, icono, categoria, unidad, sub_descripcion, dias_aviso=dias_aviso)
+    # Recordar para historial si tiene icono (o si se acaba de escanear un
+    # código de barras nuevo: así el catálogo lo reconoce la próxima vez).
+    if icono and (recuerdo or codigo_barras):
+        recordar_articulo(
+            db, nombre, icono, categoria, unidad, sub_descripcion, dias_aviso=dias_aviso,
+            codigo_barras=codigo_barras,
+        )
 
     db.commit()
     fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (nuevo_id,)).fetchone()

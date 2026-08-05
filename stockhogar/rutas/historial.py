@@ -27,8 +27,22 @@ def buscar_historial(db, nombre):
     return dict(fila) if fila else None
 
 
+def buscar_historial_por_codigo(db, codigo_barras):
+    """Busca en el catálogo un artículo ya asociado a un código de barras/EAN (P-03)."""
+    codigo_barras = (codigo_barras or "").strip()
+    if not codigo_barras:
+        return None
+    fila = db.execute(
+        "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso "
+        "FROM historial_articulos WHERE codigo_barras = ?",
+        (codigo_barras,),
+    ).fetchone()
+    return dict(fila) if fila else None
+
+
 def recordar_articulo(
-    db, nombre, icono, categoria=None, unidad=None, sub_descripcion=None, cantidad_defecto=None, dias_aviso=None
+    db, nombre, icono, categoria=None, unidad=None, sub_descripcion=None, cantidad_defecto=None, dias_aviso=None,
+    codigo_barras=None,
 ):
     """Aprende/actualiza un artículo en el catálogo compartido."""
     nombre = (nombre or "").strip()
@@ -36,18 +50,19 @@ def recordar_articulo(
         return
     db.execute(
         "INSERT INTO historial_articulos "
-        "(nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, fecha_actualizacion) "
-        "VALUES (?, ?, ?, COALESCE(?, 'ud'), ?, COALESCE(?, 1), COALESCE(?, 30), ?) "
+        "(nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras, fecha_actualizacion) "
+        "VALUES (?, ?, ?, COALESCE(?, 'ud'), ?, COALESCE(?, 1), COALESCE(?, 30), ?, ?) "
         "ON CONFLICT(nombre) DO UPDATE SET icono = excluded.icono, "
         "categoria = COALESCE(?, historial_articulos.categoria), "
         "unidad = COALESCE(?, historial_articulos.unidad), "
         "sub_descripcion = COALESCE(?, historial_articulos.sub_descripcion), "
         "cantidad_defecto = COALESCE(?, historial_articulos.cantidad_defecto), "
         "dias_aviso = COALESCE(?, historial_articulos.dias_aviso), "
+        "codigo_barras = COALESCE(?, historial_articulos.codigo_barras), "
         "fecha_actualizacion = excluded.fecha_actualizacion",
         (
-            nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, ahora(),
-            categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso,
+            nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras, ahora(),
+            categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras,
         ),
     )
 
@@ -62,6 +77,18 @@ def listar_historial():
         "FROM historial_articulos ORDER BY LOWER(nombre)",
     ).fetchall()
     return APIResponse.success([dict(fila) for fila in filas])
+
+
+@bp.route("/codigo/<codigo_barras>", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def buscar_por_codigo(codigo_barras):
+    """Busca un artículo del catálogo por su código de barras/EAN escaneado (P-03)."""
+    db = get_db()
+    encontrado = buscar_historial_por_codigo(db, codigo_barras)
+    if not encontrado:
+        return APIResponse.error("err_codigo_no_reconocido", status_code=404)
+    return APIResponse.success(encontrado)
 
 
 @bp.route("/catalogo", methods=["GET"])

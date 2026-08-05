@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X, ScanBarcode } from 'lucide-react'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { Modal } from '@/components/dashboard/Modal'
+import { BarcodeScanner } from '@/components/shared/BarcodeScanner'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
-import { buscarCatalogo } from '@/lib/catalogo'
+import { buscarCatalogo, buscarPorCodigoBarras } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
@@ -78,6 +79,9 @@ export default function ShoppingPage() {
   })
   const [formIcono, setFormIcono] = useState<string | undefined>(undefined)
   const [formUnidad, setFormUnidad] = useState<string | undefined>(undefined)
+  const [formCodigoBarras, setFormCodigoBarras] = useState<string | undefined>(undefined)
+  const [mostrarEscaner, setMostrarEscaner] = useState(false)
+  const [errorEscaner, setErrorEscaner] = useState('')
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
   const [edicionCompleta, setEdicionCompleta] = useState<{ nombre: string; cantidad: number | null; unidad: string; categoria: string; dias_aviso: number | null }>({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros', dias_aviso: 30 })
@@ -199,16 +203,36 @@ export default function ShoppingPage() {
         cantidad: formData.cantidad ?? undefined,
         icono: formIcono,
         unidad: formUnidad,
+        codigo_barras: formCodigoBarras,
       })
       setFormData({ nombre: '', categoria: categoriaPrevia, cantidad: 1 })
       setFormIcono(undefined)
       setFormUnidad(undefined)
+      setFormCodigoBarras(undefined)
       setShowForm(false)
       setCatalogoQuery('')
       if (creado?.id) fusionarArticulo(creado)
     } catch (err) {
       const message = err instanceof Error ? err.message : t('err_anadir_articulo')
       setError(message)
+    }
+  }
+
+  // Código escaneado (P-03): si el catálogo ya lo tiene asociado, se
+  // rellena el formulario; si no, se deja el nombre en blanco para que el
+  // usuario lo escriba y así se aprenda para la próxima vez (ver
+  // recordar_articulo en stockhogar/rutas/historial.py).
+  const handleCodigoDetectado = async (codigo: string) => {
+    setMostrarEscaner(false)
+    setFormCodigoBarras(codigo)
+    try {
+      const encontrado: any = await buscarPorCodigoBarras(codigo)
+      setFormData((prev) => ({ ...prev, nombre: encontrado.nombre, categoria: encontrado.categoria || prev.categoria }))
+      setFormIcono(encontrado.icono || undefined)
+      setFormUnidad(encontrado.unidad || undefined)
+      setErrorEscaner('')
+    } catch {
+      setErrorEscaner(t('codigo_no_reconocido'))
     }
   }
 
@@ -680,7 +704,18 @@ export default function ShoppingPage() {
 
           <form onSubmit={handleAddItem} className="space-y-4">
             <div className="relative">
-              <label htmlFor="art-nombre" className="block text-sm font-medium mb-2">{t('articulo')}</label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="art-nombre" className="block text-sm font-medium">{t('articulo')}</label>
+                <button
+                  type="button"
+                  onClick={() => { setErrorEscaner(''); setMostrarEscaner(true) }}
+                  className="flex items-center gap-1 text-xs font-medium text-primary"
+                >
+                  <ScanBarcode className="w-4 h-4" />
+                  {t('escanear_codigo_barras')}
+                </button>
+              </div>
+              {errorEscaner && <p className="text-xs text-destructive mb-2">{errorEscaner}</p>}
               <input
                 id="art-nombre"
                 type="text"
@@ -689,6 +724,7 @@ export default function ShoppingPage() {
                   setFormData({ ...formData, nombre: e.target.value })
                   setFormIcono(undefined)
                   setFormUnidad(undefined)
+                  setFormCodigoBarras(undefined)
                   setMostrarSugerencias(true)
                 }}
                 onFocus={() => setMostrarSugerencias(true)}
@@ -766,6 +802,10 @@ export default function ShoppingPage() {
           </form>
         </div>
         </Modal>
+      )}
+
+      {mostrarEscaner && (
+        <BarcodeScanner onDetectado={handleCodigoDetectado} onCerrar={() => setMostrarEscaner(false)} />
       )}
 
       {/* Search Bar */}

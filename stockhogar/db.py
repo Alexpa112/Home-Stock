@@ -603,6 +603,7 @@ def _init_db_impl():
         asegurar_columna(db, "historial_articulos", "sub_descripcion", "TEXT")
         asegurar_columna(db, "historial_articulos", "cantidad_defecto", "INTEGER NOT NULL DEFAULT 1")
         asegurar_columna(db, "historial_articulos", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
+        asegurar_columna(db, "historial_articulos", "codigo_barras", "TEXT")
 
         # Migración: instalaciones que aún tengan la columna espacio_id (de cuando existían
         # "espacios" como stocks independientes, funcionalidad eliminada por no tener UI y
@@ -630,6 +631,10 @@ def _init_db_impl():
         # UNIQUE(nombre) global: ya no hay espacios entre los que distinguir.
         db.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre ON historial_articulos(nombre COLLATE NOCASE)"
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_historial_codigo_barras ON historial_articulos(codigo_barras) "
+            "WHERE codigo_barras IS NOT NULL"
         )
 
         # Tabla articulos_personalizados: artículos únicos del catálogo de cada

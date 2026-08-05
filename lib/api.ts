@@ -278,7 +278,7 @@ export const articulosLista = {
   // Devuelve { pendientes: [...], completados: [...] }
   listar: () => apiCall('/api/articulos'),
 
-  anadir: (nombre: string, opciones: { cantidad?: number; unidad?: string; categoria?: string; icono?: string } = {}) =>
+  anadir: (nombre: string, opciones: { cantidad?: number; unidad?: string; categoria?: string; icono?: string; codigo_barras?: string } = {}) =>
     apiCall('/api/articulos', { method: 'POST', body: JSON.stringify({ nombre, ...opciones }) }),
 
   marcarComprado: (id: number) =>
