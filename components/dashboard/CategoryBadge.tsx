@@ -4,7 +4,7 @@ import { IconRenderer } from './IconRenderer'
 
 // Paleta fija para categorías predefinidas; para el resto se genera un color
 // determinista a partir del nombre para que sea consistente entre renders.
-const CATEGORY_STYLES: Record<string, string> = {
+export const CATEGORY_STYLES: Record<string, string> = {
   Alimentos:  'bg-orange-100  text-orange-800  dark:bg-orange-900/40  dark:text-orange-300',
   Bebidas:    'bg-blue-100    text-blue-800    dark:bg-blue-900/40    dark:text-blue-300',
   Limpieza:   'bg-violet-100  text-violet-800  dark:bg-violet-900/40  dark:text-violet-300',
@@ -15,7 +15,7 @@ const CATEGORY_STYLES: Record<string, string> = {
 }
 
 // Paleta de fallback para categorías personalizadas (rotación por hash)
-const FALLBACK_PALETTES = [
+export const FALLBACK_PALETTES = [
   'bg-teal-100   text-teal-800   dark:bg-teal-900/40   dark:text-teal-300',
   'bg-rose-100   text-rose-800   dark:bg-rose-900/40   dark:text-rose-300',
   'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',

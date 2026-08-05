@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck, ScrollText, Cookie } from 'lucide-react'
+import { Moon, Sun, LogOut, AlertCircle, Globe, History, Grid3x3, List, Layers, Eye, EyeOff, Lock, Trash2, ChevronRight, User, Mail, ShieldCheck, ScrollText, Cookie, Tags } from 'lucide-react'
 import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -570,14 +570,22 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Historial — acceso directo ya que no está en el tab bar móvil */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      {/* Historial y categorías de gasto — accesos directos que no están en el tab bar móvil */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
         <Link
           href="/dashboard/historial"
           className="px-4 py-3 flex items-center gap-3 min-h-[44px] hover:bg-muted transition-colors"
         >
           <History className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
           <span className="flex-1 text-sm">{t('historial_consumo')}</span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </Link>
+        <Link
+          href="/dashboard/gastos/categorias"
+          className="px-4 py-3 flex items-center gap-3 min-h-[44px] hover:bg-muted transition-colors"
+        >
+          <Tags className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+          <span className="flex-1 text-sm">{t('categorias_gasto')}</span>
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </Link>
       </div>

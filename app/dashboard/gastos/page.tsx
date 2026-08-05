@@ -1,20 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Pencil, AlertCircle, Receipt, HandCoins, Download, Tags, X, Paperclip, Repeat, Pause, Play } from 'lucide-react'
+import { Plus, AlertCircle, Receipt, HandCoins, Download, Repeat, Pause, Play, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
-import { IconPicker } from '@/components/dashboard/IconPicker'
-import { IconRenderer } from '@/components/dashboard/IconRenderer'
+import { HojaCompleta } from '@/components/dashboard/HojaCompleta'
+import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
 import { BarraHorizontal } from '@/components/dashboard/BarraHorizontal'
 import { GraficoColumnas } from '@/components/dashboard/GraficoColumnas'
+import { SegmentedControl } from '@/components/dashboard/SegmentedControl'
+import { ListaGastos } from '@/components/dashboard/gastos/ListaGastos'
+import { GastosVacio } from '@/components/dashboard/gastos/GastosVacio'
+import { GastoDetalle } from '@/components/dashboard/gastos/GastoDetalle'
+import { BalanceHero } from '@/components/dashboard/gastos/BalanceHero'
+import { BalancesPanel } from '@/components/dashboard/gastos/BalancesPanel'
+import { HistorialLiquidaciones } from '@/components/dashboard/gastos/HistorialLiquidaciones'
+import { FormularioGasto, EstadoFormularioGasto } from '@/components/dashboard/gastos/FormularioGasto'
 import { gastos as gastosApi, hogares as hogaresApi, categoriasGasto as categoriasGastoApi } from '@/lib/api'
 import { useHogar } from '@/contexts/HogarContext'
+import { useAuth } from '@/hooks/useAuth'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached } from '@/lib/dataCache'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { formatImporte } from '@/lib/format'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
-import { totalesPorCategoria, evolucionMensual, balancePorPersona } from '@/lib/gastosStats'
+import {
+  totalesPorCategoria,
+  evolucionMensual,
+  balancePorPersona,
+  totalMes,
+  variacionMensual,
+  parteDeUsuario,
+} from '@/lib/gastosStats'
 
 const CACHE_KEY_GASTOS = 'gastos:lista'
 const CACHE_KEY_SALDO = 'gastos:saldo'
@@ -22,6 +38,8 @@ const CACHE_KEY_SUGERENCIAS = 'gastos:sugerencias'
 const CACHE_KEY_LIQUIDACIONES = 'gastos:liquidaciones'
 const CACHE_KEY_RECURRENTES = 'gastos:recurrentes'
 const CACHE_KEY_CATEGORIAS_GASTO = 'gastos:categorias'
+const ID_FORMULARIO_GASTO = 'formulario-gasto'
+const SIN_CATEGORIA = '__sin_categoria__'
 
 interface Participante {
   usuario_id: number
@@ -93,23 +111,15 @@ interface Miembro {
 }
 
 type ModoReparto = 'igual' | 'porcentaje' | 'partes' | 'personalizado'
+type Vista = 'gastos' | 'balances' | 'resumen'
 
-interface FormularioGasto {
-  descripcion: string
-  importe_total: string
-  categoria: string | null
-  usuario_pagador_id: number | null
-  seleccionados: Set<number>
-  importesPorMiembro: Record<number, string>
-  porcentajesPorMiembro: Record<number, string>
-  partesPorMiembro: Record<number, string>
-  modoReparto: ModoReparto
-}
+const fechaHoy = () => new Date().toISOString().slice(0, 10)
 
-const FORM_VACIO = (participantesPorDefecto: number[] = []): FormularioGasto => ({
+const FORM_VACIO = (participantesPorDefecto: number[] = []): EstadoFormularioGasto => ({
   descripcion: '',
   importe_total: '',
   categoria: null,
+  fecha: fechaHoy(),
   usuario_pagador_id: null,
   seleccionados: new Set(participantesPorDefecto),
   importesPorMiembro: {},
@@ -119,8 +129,10 @@ const FORM_VACIO = (participantesPorDefecto: number[] = []): FormularioGasto => 
 })
 
 export default function GastosPage() {
-  const { t } = useTranslation()
+  const { t, idioma } = useTranslation()
   const { hogarActivoId, propios, compartidos } = useHogar()
+  const { user } = useAuth()
+  const usuarioId = user?.usuario_id ?? null
 
   const hogarActivo = [...propios, ...compartidos].find((h: any) => h.id === hogarActivoId)
   const simboloMoneda = hogarActivo?.simbolo_moneda || '€'
@@ -133,7 +145,6 @@ export default function GastosPage() {
   const [historialLiquidaciones, setHistorialLiquidaciones] = useState<LiquidacionItem[]>(
     () => getCached<LiquidacionItem[]>(CACHE_KEY_LIQUIDACIONES) || []
   )
-  const [confirmandoLiquidacionId, setConfirmandoLiquidacionId] = useState<number | null>(null)
   const [recurrentes, setRecurrentes] = useState<GastoRecurrente[]>(
     () => getCached<GastoRecurrente[]>(CACHE_KEY_RECURRENTES) || []
   )
@@ -144,14 +155,13 @@ export default function GastosPage() {
   )
   const [loading, setLoading] = useState(gastos.length === 0)
   const [error, setError] = useState('')
-  const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
-  const [vista, setVista] = useState<'gastos' | 'estadisticas'>('gastos')
+  const [vista, setVista] = useState<Vista>('gastos')
+  const [detalleGasto, setDetalleGasto] = useState<Gasto | null>(null)
 
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState<FormularioGasto>(FORM_VACIO())
+  const [form, setForm] = useState<EstadoFormularioGasto>(FORM_VACIO())
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
 
-  const SIN_CATEGORIA = '__sin_categoria__'
   const [filtros, setFiltros] = useState({ desde: '', hasta: '', categoria: '', miembroId: '' })
   const hayFiltrosActivos = Boolean(filtros.desde || filtros.hasta || filtros.categoria || filtros.miembroId)
   const limpiarFiltros = () => setFiltros({ desde: '', hasta: '', categoria: '', miembroId: '' })
@@ -172,28 +182,9 @@ export default function GastosPage() {
     return true
   })
 
-  const [gestionandoCategoriasGasto, setGestionandoCategoriasGasto] = useState(false)
-  const [nuevaCategoriaGasto, setNuevaCategoriaGasto] = useState('')
-  const [nuevaCategoriaGastoIcono, setNuevaCategoriaGastoIcono] = useState<string | undefined>(undefined)
-  const [mostrarIconPickerCategoriaGasto, setMostrarIconPickerCategoriaGasto] = useState(false)
-  const [confirmandoEliminarCatGastoId, setConfirmandoEliminarCatGastoId] = useState<number | null>(null)
-
   const [showLiquidacion, setShowLiquidacion] = useState(false)
   const [liquidacion, setLiquidacion] = useState({ usuario_origen_id: null as number | null, usuario_destino_id: null as number | null, importe: '', nota: '' })
-
-  const handlePagarSugerencia = async (s: SugerenciaPago) => {
-    try {
-      setError('')
-      await gastosApi.registrarLiquidacion({
-        usuario_origen_id: s.usuario_origen_id,
-        usuario_destino_id: s.usuario_destino_id,
-        importe: s.importe,
-      })
-      await cargarDatos()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_actualizar'))
-    }
-  }
+  const [confirmandoLiquidacionId, setConfirmandoLiquidacionId] = useState<number | null>(null)
 
   const FORM_RECURRENTE_VACIO = {
     descripcion: '',
@@ -326,7 +317,7 @@ export default function GastosPage() {
 
   usePollingRefresh(
     () => cargarDatos(),
-    () => showForm || modalEdicionId !== null || showLiquidacion || gestionandoCategoriasGasto || showRecurrenteForm
+    () => showForm || modalEdicionId !== null || showLiquidacion || showRecurrenteForm || detalleGasto !== null
   )
 
   const getCategoriaGastoIcon = (nombre: string | null | undefined) => {
@@ -334,7 +325,7 @@ export default function GastosPage() {
     return categoriasGasto.find((c) => c.nombre === nombre)?.icono || null
   }
 
-  const aplicarModoReparto = (siguiente: FormularioGasto): FormularioGasto => {
+  const aplicarModoReparto = (siguiente: EstadoFormularioGasto): EstadoFormularioGasto => {
     const importeTotal = parseFloat(siguiente.importe_total) || 0
     const ids = Array.from(siguiente.seleccionados)
     if (ids.length === 0) return siguiente
@@ -445,6 +436,7 @@ export default function GastosPage() {
       descripcion: gasto.descripcion,
       importe_total: gasto.importe_total.toFixed(2),
       categoria: gasto.categoria ?? null,
+      fecha: (gasto.fecha || fechaHoy()).slice(0, 10),
       usuario_pagador_id: gasto.usuario_pagador_id,
       seleccionados,
       importesPorMiembro,
@@ -452,39 +444,8 @@ export default function GastosPage() {
       partesPorMiembro: {},
       modoReparto: 'personalizado',
     })
+    setDetalleGasto(null)
     setModalEdicionId(gasto.id)
-  }
-
-  const handleCrearCategoriaGasto = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!nuevaCategoriaGasto.trim()) return
-    try {
-      setError('')
-      await categoriasGastoApi.crear(nuevaCategoriaGasto.trim(), nuevaCategoriaGastoIcono)
-      setNuevaCategoriaGasto('')
-      setNuevaCategoriaGastoIcono(undefined)
-      const data: any = await categoriasGastoApi.listar()
-      const arr = Array.isArray(data) ? data : []
-      setCategoriasGasto(arr)
-      setCached(CACHE_KEY_CATEGORIAS_GASTO, arr)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_crear_categoria'))
-    }
-  }
-
-  const handleEliminarCategoriaGasto = async (id: number) => {
-    if (confirmandoEliminarCatGastoId !== id) { setConfirmandoEliminarCatGastoId(id); return }
-    setConfirmandoEliminarCatGastoId(null)
-    try {
-      setError('')
-      await categoriasGastoApi.eliminar(id)
-      const data: any = await categoriasGastoApi.listar()
-      const arr = Array.isArray(data) ? data : []
-      setCategoriasGasto(arr)
-      setCached(CACHE_KEY_CATEGORIAS_GASTO, arr)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_eliminar_categoria_uso'))
-    }
   }
 
   const handleExportarCsv = async () => {
@@ -510,6 +471,7 @@ export default function GastosPage() {
       descripcion: form.descripcion.trim(),
       importe_total: parseFloat(form.importe_total) || 0,
       categoria: form.categoria,
+      fecha: form.fecha,
       usuario_pagador_id: form.usuario_pagador_id,
       participantes: construirParticipantes(),
     }
@@ -530,14 +492,10 @@ export default function GastosPage() {
   }
 
   const handleEliminar = async (id: number) => {
-    if (confirmandoId !== id) {
-      setConfirmandoId(id)
-      return
-    }
-    setConfirmandoId(null)
     try {
       setError('')
       await gastosApi.eliminar(id)
+      setDetalleGasto(null)
       await cargarDatos()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_eliminar_articulo'))
@@ -545,11 +503,6 @@ export default function GastosPage() {
   }
 
   const handleEliminarLiquidacion = async (id: number) => {
-    if (confirmandoLiquidacionId !== id) {
-      setConfirmandoLiquidacionId(id)
-      return
-    }
-    setConfirmandoLiquidacionId(null)
     try {
       setError('')
       await gastosApi.eliminarLiquidacion(id)
@@ -598,245 +551,58 @@ export default function GastosPage() {
     }
   }
 
-  const renderFormularioGasto = () => {
-    const gastoEnEdicion = modalEdicionId !== null ? gastos.find((g) => g.id === modalEdicionId) : null
-    return (
-    <form onSubmit={handleGuardar} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-2">{t('descripcion')}</label>
-        <input
-          type="text"
-          value={form.descripcion}
-          onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-          className="input-field"
-          required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">{t('importe_total')}</label>
-        <input
-          type="number"
-          step="0.01"
-          min="0.01"
-          value={form.importe_total}
-          onChange={(e) => cambiarImporteTotal(e.target.value)}
-          className="input-field"
-          required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">{t('pagado_por')}</label>
-        <select
-          value={form.usuario_pagador_id ?? ''}
-          onChange={(e) => setForm({ ...form, usuario_pagador_id: Number(e.target.value) })}
-          className="input-field"
-          required
-        >
-          <option value="" disabled>—</option>
-          {miembros.map((m) => (
-            <option key={m.id} value={m.id}>{m.nombre_usuario}</option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium">{t('categoria')}</label>
-          <button
-            type="button"
-            onClick={() => setGestionandoCategoriasGasto(!gestionandoCategoriasGasto)}
-            className="text-sm text-accent hover:underline flex items-center gap-1"
-          >
-            <Tags className="w-4 h-4" /> {t('categorias')}
-          </button>
-        </div>
-
-        {gestionandoCategoriasGasto && (
-          <div className="p-3 bg-muted rounded-lg space-y-2 mb-2">
-            <div className="flex flex-wrap gap-2">
-              {categoriasGasto.map((cat) => (
-                confirmandoEliminarCatGastoId === cat.id ? (
-                  <span key={cat.id} className="flex items-center gap-1 px-2 py-1 bg-card rounded-full text-xs border border-red-300 dark:border-red-700">
-                    <span className="text-red-600 dark:text-red-400 mr-0.5">{t('eliminar_pregunta')}</span>
-                    <button type="button" onClick={() => handleEliminarCategoriaGasto(cat.id)} className="px-1.5 py-0.5 text-white bg-red-500 rounded-md font-medium">{t('si')}</button>
-                    <button type="button" onClick={() => setConfirmandoEliminarCatGastoId(null)} className="px-1.5 py-0.5 bg-muted rounded-md font-medium">{t('no')}</button>
-                  </span>
-                ) : (
-                  <span key={cat.id} className="flex items-center gap-1 px-2 py-1 bg-card rounded-full text-xs border border-border">
-                    {cat.nombre}
-                    <button type="button" onClick={() => handleEliminarCategoriaGasto(cat.id)} aria-label={`${t('eliminar')} ${cat.nombre}`}>
-                      <X className="w-3 h-3 text-red-500" />
-                    </button>
-                  </span>
-                )
-              ))}
-            </div>
-            <form onSubmit={handleCrearCategoriaGasto} className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setMostrarIconPickerCategoriaGasto(true)}
-                className="w-9 h-9 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
-                aria-label={t('cambiar_icono')}
-              >
-                {nuevaCategoriaGastoIcono ? (
-                  <IconRenderer name={nuevaCategoriaGastoIcono} className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <Tags className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-              <input
-                type="text"
-                value={nuevaCategoriaGasto}
-                onChange={(e) => setNuevaCategoriaGasto(e.target.value)}
-                placeholder={t('nueva_categoria')}
-                className="input-field !py-1.5 flex-1"
-              />
-              <button type="submit" className="btn-secondary !py-1.5">{t('añadir')}</button>
-            </form>
-          </div>
-        )}
-
-        <select
-          value={form.categoria ?? ''}
-          onChange={(e) => setForm({ ...form, categoria: e.target.value || null })}
-          className="input-field"
-        >
-          <option value="">{t('sin_categoria')}</option>
-          {categoriasGasto.map((cat) => (
-            <option key={cat.id} value={cat.nombre}>{cat.nombre}</option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium">{t('participantes')}</label>
-          <div className="flex gap-1">
-            {(['igual', 'porcentaje', 'partes', 'personalizado'] as const).map((modo) => (
-              <button
-                key={modo}
-                type="button"
-                onClick={() => cambiarModoReparto(modo)}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  form.modoReparto === modo ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {t(
-                  modo === 'igual' ? 'dividir_partes_iguales'
-                    : modo === 'porcentaje' ? 'dividir_por_porcentaje'
-                    : modo === 'partes' ? 'dividir_por_partes'
-                    : 'dividir_personalizado'
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-2">
-          {miembros.map((m) => (
-            <div key={m.id} className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={form.seleccionados.has(m.id)}
-                onChange={() => toggleParticipante(m.id)}
-              />
-              <span className="flex-1 text-sm truncate">{m.nombre_usuario}</span>
-              {form.modoReparto === 'porcentaje' ? (
-                <>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="100"
-                    disabled={!form.seleccionados.has(m.id)}
-                    value={form.porcentajesPorMiembro[m.id] ?? ''}
-                    onChange={(e) => cambiarPorcentajeParticipante(m.id, e.target.value)}
-                    className="input-field !py-1 !px-2 w-16 text-sm"
-                  />
-                  <span className="text-xs text-muted-foreground w-16 text-right flex-shrink-0">
-                    {formatImporte(parseFloat(form.importesPorMiembro[m.id] || '0') || 0, simboloMoneda)}
-                  </span>
-                </>
-              ) : form.modoReparto === 'partes' ? (
-                <>
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    disabled={!form.seleccionados.has(m.id)}
-                    value={form.partesPorMiembro[m.id] ?? '1'}
-                    onChange={(e) => cambiarPartesParticipante(m.id, e.target.value)}
-                    className="input-field !py-1 !px-2 w-16 text-sm"
-                  />
-                  <span className="text-xs text-muted-foreground w-16 text-right flex-shrink-0">
-                    {formatImporte(parseFloat(form.importesPorMiembro[m.id] || '0') || 0, simboloMoneda)}
-                  </span>
-                </>
-              ) : (
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  disabled={!form.seleccionados.has(m.id)}
-                  value={form.importesPorMiembro[m.id] ?? ''}
-                  onChange={(e) => cambiarImporteParticipante(m.id, e.target.value)}
-                  className="input-field !py-1 !px-2 w-24 text-sm"
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {gastoEnEdicion && (
-        <div>
-          <label className="block text-sm font-medium mb-2">{t('recibo')}</label>
-          {gastoEnEdicion.tiene_recibo ? (
-            <div className="flex items-center gap-3">
-              <a
-                href={gastosApi.reciboUrl(gastoEnEdicion.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-accent hover:underline flex items-center gap-1"
-              >
-                <Paperclip className="w-4 h-4" /> {t('ver_recibo')}
-              </a>
-              <button
-                type="button"
-                onClick={() => handleEliminarRecibo(gastoEnEdicion.id)}
-                className="text-sm text-red-500 hover:underline"
-              >
-                {t('eliminar')}
-              </button>
-            </div>
-          ) : (
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleSubirRecibo(gastoEnEdicion.id, file)
-              }}
-              className="text-sm"
-            />
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        <button type="submit" className="btn-primary flex-1">{t('guardar')}</button>
-        <button
-          type="button"
-          onClick={() => { setShowForm(false); setModalEdicionId(null) }}
-          className="btn-secondary flex-1"
-        >
-          {t('cancelar')}
-        </button>
-      </div>
-    </form>
-    )
+  const abrirLiquidacionManual = () => {
+    setLiquidacion({ usuario_origen_id: null, usuario_destino_id: null, importe: '', nota: '' })
+    setShowLiquidacion(true)
   }
+
+  const abrirLiquidacionPrellenada = (s: SugerenciaPago) => {
+    setLiquidacion({
+      usuario_origen_id: s.usuario_origen_id,
+      usuario_destino_id: s.usuario_destino_id,
+      importe: s.importe.toFixed(2),
+      nota: '',
+    })
+    setShowLiquidacion(true)
+  }
+
+  const handlePagarSugerencia = async (s: SugerenciaPago) => {
+    try {
+      setError('')
+      await gastosApi.registrarLiquidacion({
+        usuario_origen_id: s.usuario_origen_id,
+        usuario_destino_id: s.usuario_destino_id,
+        importe: s.importe,
+      })
+      await cargarDatos()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar'))
+    }
+  }
+
+  const cerrarFormulario = () => {
+    setShowForm(false)
+    setModalEdicionId(null)
+  }
+
+  const gastoEnEdicion = modalEdicionId !== null ? gastos.find((g) => g.id === modalEdicionId) : null
+
+  const sugerenciasPropias = sugerencias.filter(
+    (s) => s.usuario_origen_id === usuarioId || s.usuario_destino_id === usuarioId
+  )
+
+  const ymActual = new Date().toISOString().slice(0, 7)
+  const fechaMesAnterior = new Date()
+  fechaMesAnterior.setDate(1)
+  fechaMesAnterior.setMonth(fechaMesAnterior.getMonth() - 1)
+  const ymAnterior = fechaMesAnterior.toISOString().slice(0, 7)
+
+  const totalMesActual = totalMes(gastos, ymActual)
+  const variacionMes = variacionMensual(gastos, ymActual, ymAnterior)
+  const tuParteMes = gastos
+    .filter((g) => (g.fecha || '').slice(0, 7) === ymActual)
+    .reduce((acc, g) => acc + parteDeUsuario(g, usuarioId), 0)
+  const pctTuParte = totalMesActual > 0 ? Math.round((tuParteMes / totalMesActual) * 100) : null
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
@@ -846,39 +612,25 @@ export default function GastosPage() {
             <Receipt className="w-7 h-7" /> {t('nav_gastos')}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleExportarCsv} className="btn-secondary flex items-center gap-2 min-h-[44px]">
-            <Download className="w-5 h-5" />
-            <span className="hidden sm:inline">{t('exportar_csv')}</span>
-          </button>
-          <button onClick={() => setShowLiquidacion(true)} className="btn-secondary flex items-center gap-2 min-h-[44px]">
-            <HandCoins className="w-5 h-5" />
-            <span className="hidden sm:inline">{t('registrar_pago')}</span>
-          </button>
-          <button onClick={() => setShowRecurrenteForm(true)} className="btn-secondary flex items-center gap-2 min-h-[44px]">
-            <Repeat className="w-5 h-5" />
-            <span className="hidden sm:inline">{t('gasto_recurrente')}</span>
-          </button>
-          <button onClick={abrirModalNuevo} className="btn-primary flex items-center gap-2 min-h-[44px]">
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">{t('nuevo_gasto')}</span>
-          </button>
-        </div>
+        <MenuAcciones
+          label={t('acciones_gastos')}
+          acciones={[
+            { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
+            { icono: <HandCoins className="w-4 h-4" />, etiqueta: t('registrar_pago'), onClick: abrirLiquidacionManual },
+            { icono: <Repeat className="w-4 h-4" />, etiqueta: t('gasto_recurrente'), onClick: () => setShowRecurrenteForm(true) },
+          ]}
+        />
       </div>
 
-      <div className="flex gap-1">
-        {(['gastos', 'estadisticas'] as const).map((v) => (
-          <button
-            key={v}
-            onClick={() => setVista(v)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              vista === v ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            {t(v === 'gastos' ? 'nav_gastos' : 'estadisticas')}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        valor={vista}
+        onCambiar={setVista}
+        opciones={[
+          { valor: 'gastos', etiqueta: t('nav_gastos') },
+          { valor: 'balances', etiqueta: t('balances') },
+          { valor: 'resumen', etiqueta: t('resumen') },
+        ]}
+      />
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
@@ -889,75 +641,6 @@ export default function GastosPage() {
 
       {vista === 'gastos' ? (
         <>
-          {saldo.length > 0 && (
-            <div className="card space-y-2">
-              <h2 className="text-lg font-semibold">{t('saldo_neto')}</h2>
-              <div className="space-y-2">
-                {saldo.map((s) => (
-                  <div key={s.usuario_id} className="flex items-center justify-between text-sm">
-                    <span className="truncate">{s.nombre_usuario}</span>
-                    <span className={s.saldo > 0 ? 'text-green-600 font-medium' : s.saldo < 0 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
-                      {s.saldo === 0
-                        ? formatImporte(0, simboloMoneda)
-                        : `${s.saldo > 0 ? t('le_deben') : t('debe')}: ${formatImporte(Math.abs(s.saldo), simboloMoneda)}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {sugerencias.length > 0 && (
-            <div className="card space-y-2">
-              <h2 className="text-lg font-semibold">{t('pagos_sugeridos')}</h2>
-              <div className="space-y-2">
-                {sugerencias.map((s, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate">
-                      {s.usuario_origen_nombre} → {s.usuario_destino_nombre}: {formatImporte(s.importe, simboloMoneda)}
-                    </span>
-                    <button
-                      onClick={() => handlePagarSugerencia(s)}
-                      className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
-                    >
-                      {t('pagar')}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {historialLiquidaciones.length > 0 && (
-            <div className="card space-y-2">
-              <h2 className="text-lg font-semibold">{t('historial_pagos')}</h2>
-              <div className="space-y-2">
-                {historialLiquidaciones.map((l) => (
-                  <div key={l.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate">
-                      {l.origen_nombre} → {l.destino_nombre}: {formatImporte(l.importe, simboloMoneda)}
-                      {l.nota ? ` (${l.nota})` : ''}
-                    </span>
-                    {confirmandoLiquidacionId === l.id ? (
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={() => handleEliminarLiquidacion(l.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
-                        <button onClick={() => setConfirmandoLiquidacionId(null)} className="px-2 h-8 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleEliminarLiquidacion(l.id)}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
-                        aria-label={t('eliminar')}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {recurrentes.length > 0 && (
             <div className="card space-y-2">
               <h2 className="text-lg font-semibold">{t('gastos_recurrentes')}</h2>
@@ -1061,74 +744,80 @@ export default function GastosPage() {
           {loading ? (
             <SkeletonCards />
           ) : gastos.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">{t('sin_gastos_aun')}</p>
-            </div>
+            <GastosVacio
+              titulo={t('sin_gastos_titulo')}
+              descripcion={t('sin_gastos_descripcion')}
+              textoBoton={t('nuevo_gasto')}
+              onAnadir={abrirModalNuevo}
+            />
           ) : gastosFiltrados.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">{t('sin_resultados_filtro')}</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {gastosFiltrados.map((gasto) => {
-                const iconoCategoria = getCategoriaGastoIcon(gasto.categoria)
-                return (
-                <div key={gasto.id} className="card flex items-center justify-between gap-4">
-                  {iconoCategoria && (
-                    <IconRenderer name={iconoCategoria} className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate flex items-center gap-1.5">
-                      {gasto.descripcion}
-                      {gasto.tiene_recibo && (
-                        <a
-                          href={gastosApi.reciboUrl(gasto.id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={t('ver_recibo')}
-                        >
-                          <Paperclip className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                        </a>
-                      )}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatImporte(gasto.importe_total, simboloMoneda)} · {t('pagado_por')} {gasto.pagador_nombre}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => abrirModalEdicion(gasto)}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
-                    aria-label={t('editar')}
-                  >
-                    <Pencil className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                  {confirmandoId === gasto.id ? (
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button onClick={() => handleEliminar(gasto.id)} className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
-                      <button onClick={() => setConfirmandoId(null)} className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleEliminar(gasto.id)}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
-                      aria-label={t('eliminar')}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  )}
-                </div>
-                )
-              })}
-            </div>
+            <ListaGastos
+              gastos={gastosFiltrados}
+              simboloMoneda={simboloMoneda}
+              idioma={idioma}
+              getCategoriaGastoIcon={getCategoriaGastoIcon}
+              onAbrirDetalle={setDetalleGasto}
+              labelDetalle={t('ver_detalle_gasto')}
+            />
           )}
         </>
+      ) : vista === 'balances' ? (
+        saldo.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">{t('sin_gastos_aun')}</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <BalanceHero
+              saldo={saldo}
+              sugerenciasPropias={sugerenciasPropias}
+              usuarioId={usuarioId}
+              simboloMoneda={simboloMoneda}
+              t={t}
+            />
+            <BalancesPanel
+              sugerencias={sugerencias}
+              simboloMoneda={simboloMoneda}
+              onSaldar={abrirLiquidacionPrellenada}
+              t={t}
+            />
+            <HistorialLiquidaciones
+              liquidaciones={historialLiquidaciones}
+              simboloMoneda={simboloMoneda}
+              idioma={idioma}
+              onDeshacer={handleEliminarLiquidacion}
+              t={t}
+            />
+          </div>
+        )
       ) : gastos.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">{t('sin_datos_estadisticas')}</p>
         </div>
       ) : (
         <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="card space-y-1">
+              <p className="text-xs text-muted-foreground">{t('total_mes')}</p>
+              <p className="text-xl lg:text-2xl font-bold tabular-nums">{formatImporte(totalMesActual, simboloMoneda)}</p>
+              {variacionMes !== null && (
+                <p className={`text-xs font-medium ${variacionMes > 0 ? 'text-red-600 dark:text-red-400' : variacionMes < 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                  {variacionMes > 0 ? '+' : ''}{variacionMes}% {t('vs_mes_anterior')}
+                </p>
+              )}
+            </div>
+            <div className="card space-y-1">
+              <p className="text-xs text-muted-foreground">{t('tu_parte')}</p>
+              <p className="text-xl lg:text-2xl font-bold tabular-nums">{formatImporte(tuParteMes, simboloMoneda)}</p>
+              {pctTuParte !== null && (
+                <p className="text-xs text-muted-foreground">{pctTuParte}% {t('del_total')}</p>
+              )}
+            </div>
+          </div>
           <div className="card space-y-3">
             <h2 className="text-lg font-semibold">{t('gasto_total_por_categoria')}</h2>
             <BarraHorizontal
@@ -1154,24 +843,54 @@ export default function GastosPage() {
         </div>
       )}
 
-      {mostrarIconPickerCategoriaGasto && (
-        <IconPicker
-          valorActual={nuevaCategoriaGastoIcono}
-          onSeleccionar={(icono) => {
-            setNuevaCategoriaGastoIcono(icono)
-            setMostrarIconPickerCategoriaGasto(false)
-          }}
-          onCerrar={() => setMostrarIconPickerCategoriaGasto(false)}
-        />
+      {(showForm || modalEdicionId !== null) && (
+        <HojaCompleta
+          titulo={modalEdicionId !== null ? t('editar_gasto') : t('nuevo_gasto')}
+          onCerrar={cerrarFormulario}
+          cabeceraDerecha={
+            <button type="submit" form={ID_FORMULARIO_GASTO} className="text-accent font-semibold text-sm px-1">
+              {t('guardar')}
+            </button>
+          }
+        >
+          <FormularioGasto
+            id={ID_FORMULARIO_GASTO}
+            form={form}
+            miembros={miembros}
+            categoriasGasto={categoriasGasto}
+            simboloMoneda={simboloMoneda}
+            gastoEnEdicion={gastoEnEdicion ? { id: gastoEnEdicion.id, tiene_recibo: gastoEnEdicion.tiene_recibo } : null}
+            reciboUrl={gastosApi.reciboUrl}
+            onSubmit={handleGuardar}
+            onCambiarDescripcion={(valor) => setForm({ ...form, descripcion: valor })}
+            onCambiarImporteTotal={cambiarImporteTotal}
+            onCambiarCategoria={(valor) => setForm({ ...form, categoria: valor })}
+            onCambiarFecha={(valor) => setForm({ ...form, fecha: valor })}
+            onCambiarPagador={(id) => setForm({ ...form, usuario_pagador_id: id })}
+            onToggleParticipante={toggleParticipante}
+            onCambiarModoReparto={cambiarModoReparto}
+            onCambiarPorcentajeParticipante={cambiarPorcentajeParticipante}
+            onCambiarPartesParticipante={cambiarPartesParticipante}
+            onCambiarImporteParticipante={cambiarImporteParticipante}
+            onSubirRecibo={handleSubirRecibo}
+            onEliminarRecibo={handleEliminarRecibo}
+            t={t}
+          />
+        </HojaCompleta>
       )}
 
-      {(showForm || modalEdicionId !== null) && (
-        <Modal onCerrar={() => { setShowForm(false); setModalEdicionId(null) }}>
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">{modalEdicionId !== null ? t('editar_gasto') : t('nuevo_gasto')}</h2>
-            {renderFormularioGasto()}
-          </div>
-        </Modal>
+      {detalleGasto && (
+        <GastoDetalle
+          gasto={detalleGasto}
+          icono={getCategoriaGastoIcon(detalleGasto.categoria)}
+          simboloMoneda={simboloMoneda}
+          idioma={idioma}
+          reciboUrl={gastosApi.reciboUrl(detalleGasto.id)}
+          onCerrar={() => setDetalleGasto(null)}
+          onEditar={abrirModalEdicion}
+          onEliminar={handleEliminar}
+          t={t}
+        />
       )}
 
       {showLiquidacion && (
@@ -1347,6 +1066,14 @@ export default function GastosPage() {
           </form>
         </Modal>
       )}
+
+      <button
+        onClick={abrirModalNuevo}
+        aria-label={t('nuevo_gasto')}
+        className="fixed z-40 right-5 bottom-[calc(var(--mobile-toolbar-h)+1.25rem)] lg:bottom-6 w-14 h-14 rounded-2xl bg-accent text-accent-foreground shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
     </div>
   )
 }

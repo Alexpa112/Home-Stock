@@ -77,6 +77,7 @@ def estado():
         {
             "necesita_setup": not hay_usuarios(db),
             "usuario": usuario_actual(),
+            "usuario_id": usuario_id,
             "nombre": nombre,
             "email": email,
             "tema_preferido": tema_preferido,

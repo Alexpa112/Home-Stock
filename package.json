@@ -8,9 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest",
+    "test": "jest && jest -c jest.config.lib.js",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:lib": "jest -c jest.config.lib.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -29,7 +30,10 @@
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
