@@ -917,3 +917,13 @@ EMAIL_CONTACTO_LEGAL = "pazsilva.alejandro@gmail.com"
 # subir esta fecha, todo usuario (incluido el que ya tenia cuenta) debe
 # volver a aceptar antes de seguir usando la app (ver rutas/auth.py).
 VERSION_TERMINOS = "2026-08-04-3"
+
+# Interruptor de emergencia para el registro publico (S-05): abierto por
+# defecto, pero permite cerrarlo sin desplegar codigo si hace falta (p.ej.
+# abuso detectado) solo cambiando la variable de entorno.
+REGISTRO_ABIERTO = os.getenv("REGISTRO_ABIERTO", "true").strip().lower() == "true"
+
+# Cuotas basicas para el registro abierto al publico (S-05), sin relacion con
+# ningun plan de pago: solo limites razonables para contener el abuso.
+LIMITE_HOGARES_POR_USUARIO = 5
+LIMITE_OCR_DIARIO = 20

@@ -2,6 +2,7 @@
 from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..config import LIMITE_HOGARES_POR_USUARIO
 from ..db import ahora, get_db
 from ..utils import Validator, DataConverter
 
@@ -77,6 +78,12 @@ def crear_lista():
     privada = datos.get("privada", True)
 
     db = get_db()
+    total_propios = db.execute(
+        "SELECT COUNT(*) AS n FROM hogares WHERE usuario_propietario_id = ?", (usuario_id,)
+    ).fetchone()["n"]
+    if total_propios >= LIMITE_HOGARES_POR_USUARIO:
+        return APIResponse.error("err_limite_hogares", 400)
+
     cur = db.execute(
         """INSERT INTO hogares
            (nombre, descripcion, usuario_propietario_id, privada, icono, color, simbolo_moneda, fecha_creacion, fecha_actualizacion)

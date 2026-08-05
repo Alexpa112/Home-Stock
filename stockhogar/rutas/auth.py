@@ -7,8 +7,9 @@ from flask import Blueprint, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
-from ..config import VERSION_TERMINOS
+from ..config import REGISTRO_ABIERTO, VERSION_TERMINOS
 from ..db import ahora, get_db
+from ..red import ip_cliente
 from ..servicios import intentos_login
 from ..servicios.email_service import EmailService
 from ..utils import Validator, DataConverter
@@ -29,7 +30,7 @@ RUTAS_PUBLICAS = {
     "oauth.oauth_apple_callback",
     "paginas.log_client_error",
     "paginas.csrf_token",
-    "paginas.mantenimiento_stream",
+    "paginas.mantenimiento_estado",
     "idiomas.obtener_todas_traducciones",
     "idiomas.obtener_idioma",
     "legal.configuracion_legal",
@@ -94,6 +95,9 @@ def estado():
 @bp.route("/api/auth/registrar", methods=["POST"])
 @manejo_errores
 def registrar():
+    if not REGISTRO_ABIERTO:
+        return APIResponse.error("err_registro_cerrado", 403)
+
     db = get_db()
     datos = request.get_json(force=True) or {}
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
@@ -133,12 +137,13 @@ def registrar():
 @bp.route("/api/auth/login", methods=["POST"])
 @manejo_errores
 def login():
-    ip = request.remote_addr or "desconocida"
-    if intentos_login.bloqueada(ip):
-        return APIResponse.error("err_demasiados_intentos_login", 429)
-
+    ip = ip_cliente()
     datos = request.get_json(force=True) or {}
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
+
+    if intentos_login.bloqueada(ip, nombre_usuario):
+        return APIResponse.error("err_demasiados_intentos_login", 429)
+
     password = datos.get("password") or ""
 
     db = get_db()
@@ -146,10 +151,10 @@ def login():
         "SELECT * FROM usuarios WHERE nombre_usuario = ? COLLATE NOCASE", (nombre_usuario,)
     ).fetchone()
     if fila is None or not check_password_hash(fila["password_hash"], password):
-        intentos_login.registrar_fallo(ip)
+        intentos_login.registrar_fallo(ip, nombre_usuario)
         return APIResponse.no_autorizado()
 
-    intentos_login.limpiar_exito(ip)
+    intentos_login.limpiar_exito(ip, nombre_usuario)
 
     if fila["doble_factor_activo"] and fila["email"]:
         _generar_y_enviar_codigo(db, fila["id"], fila["email"])

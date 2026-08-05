@@ -1,10 +1,12 @@
 """API endpoints para procesamiento OCR de tickets."""
 import os
 import tempfile
-from flask import Blueprint, request
+from datetime import date
+from flask import Blueprint, request, session
 from werkzeug.utils import secure_filename
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..config import LIMITE_OCR_DIARIO
 from ..db import get_db
 from ..translator import traducir
 from ..servicios.ocr import GestorOCR
@@ -22,6 +24,24 @@ gestor_ocr = GestorOCR()
 def archivo_permitido(filename):
     """Valida que el archivo sea una imagen permitida."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in EXTENSIONES_PERMITIDAS
+
+
+def _uso_ocr_hoy(db, usuario_id):
+    fila = db.execute(
+        "SELECT contador FROM uso_ocr_diario WHERE usuario_id = ? AND fecha = ?",
+        (usuario_id, date.today().isoformat()),
+    ).fetchone()
+    return fila["contador"] if fila else 0
+
+
+def _incrementar_uso_ocr(db, usuario_id):
+    hoy = date.today().isoformat()
+    db.execute(
+        "INSERT INTO uso_ocr_diario (usuario_id, fecha, contador) VALUES (?, ?, 1) "
+        "ON CONFLICT(usuario_id, fecha) DO UPDATE SET contador = contador + 1",
+        (usuario_id, hoy),
+    )
+    db.commit()
 
 
 @bp.route("/procesar-ticket", methods=["POST"])
@@ -58,11 +78,16 @@ def procesar_ticket():
             traducir("err_archivo_muy_grande").replace("{mb}", str(TAMAÑO_MAXIMO_MB))
         )
 
-    imagen_bytes = archivo.read()
     db = get_db()
+    usuario_id = session.get("usuario_id")
+    if _uso_ocr_hoy(db, usuario_id) >= LIMITE_OCR_DIARIO:
+        return APIResponse.error("err_limite_ocr_diario", 429)
+
+    imagen_bytes = archivo.read()
     resultado = gestor_ocr.procesar_ticket(imagen_bytes, db)
 
     if resultado["exito"]:
+        _incrementar_uso_ocr(db, usuario_id)
         return APIResponse.success(resultado, 200)
     else:
         return APIResponse.error(resultado.get("error", traducir("err_procesando_ticket")), 400)

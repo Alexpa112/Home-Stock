@@ -1199,6 +1199,38 @@ def _init_db_impl():
             """
         )
 
+        # Intentos de login fallidos, persistidos (en vez de en memoria del
+        # proceso) porque gunicorn corre --workers 2 (procesos separados que
+        # no comparten memoria, ver Dockerfile.raspbian): un dict en memoria
+        # dejaria el contador visible solo para el worker que registro el
+        # fallo. clave = ip, o "ip:usuario" para el cubo por-cuenta (ver
+        # servicios/intentos_login.py).
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS intentos_login (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                clave TEXT NOT NULL,
+                fecha_intento INTEGER NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_intentos_login_clave ON intentos_login(clave, fecha_intento)"
+        )
+
+        # Uso diario de OCR por usuario, para el limite de cuota (ver config.py
+        # LIMITE_OCR_DIARIO y rutas/ocr_tickets.py).
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS uso_ocr_diario (
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                fecha TEXT NOT NULL,
+                contador INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (usuario_id, fecha)
+            )
+            """
+        )
+
         db.commit()
 
         # "Espacios" (stocks independientes tipo casa/oficina) se eliminó: nunca tuvo UI y

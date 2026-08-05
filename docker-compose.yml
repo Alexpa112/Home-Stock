@@ -27,6 +27,15 @@ services:
     restart: unless-stopped
     networks:
       - stockhogar-network
+    # S-06: sin privilegios extra sobre el host (no-new-privileges bloquea
+    # setuid/setgid ganar mas capacidades de las que ya tiene el proceso) y
+    # limites de recursos acordes a una Raspberry Pi. read_only queda fuera
+    # de esta fase (necesitaria auditar todo lo que la app escriba fuera de
+    # data/logs/uploads).
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 768m
+    cpus: 1.5
 
   frontend:
     image: ghcr.io/alexpa112/home-stock-frontend:latest
@@ -45,6 +54,10 @@ services:
     restart: unless-stopped
     networks:
       - stockhogar-network
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 512m
+    cpus: 1.5
 
 networks:
   stockhogar-network:

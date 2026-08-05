@@ -9,6 +9,7 @@ from datetime import timedelta
 from flask import Flask, g, jsonify, redirect, request, session, url_for
 from flask.sessions import SecureCookieSessionInterface
 from flask_wtf.csrf import CSRFProtect, CSRFError
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import db, seguridad
 from .config import DIAS_SESION, USAR_COOKIE_SEGURA, LOG_FILE_PATH
@@ -69,6 +70,12 @@ def create_app():
     _configurar_logging_a_fichero()
 
     app = Flask(__name__)
+    # Un solo salto de proxy de confianza: el contenedor Next (rewrite de
+    # /api/*). Sin esto, request.remote_addr siempre es la IP del contenedor
+    # Next, nunca la del cliente real (ver stockhogar/red.py::ip_cliente()).
+    # x_for=1 exactamente: mas de un salto permitiria a un cliente falsear su
+    # propia IP añadiendo entradas propias a X-Forwarded-For.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0)
     app.config["SECRET_KEY"] = seguridad.FLASK_SECRET_KEY
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=DIAS_SESION)
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -122,9 +129,9 @@ def create_app():
         # El flag de mantenimiento lo activa/desactiva el Panel de Gestion del
         # Servidor (proyecto independiente) escribiendo/borrando el mismo
         # fichero (data/mantenimiento.flag); esta app solo lo respeta.
-        # El frontend Next.js se suscribe a /api/mantenimiento/stream para
-        # mostrar la pantalla de mantenimiento.
-        if (request.endpoint or "") in ("paginas.mantenimiento_stream",):
+        # El frontend Next.js hace polling a /api/mantenimiento/estado para
+        # mostrar la pantalla de mantenimiento (ver lib/useMantenimientoStream.ts).
+        if (request.endpoint or "") in ("paginas.mantenimiento_estado",):
             return None
         # El HEALTHCHECK de Docker (curl a "/" desde dentro del propio
         # contenedor, ver Dockerfile) y el `wait_healthy` de install.sh usan
