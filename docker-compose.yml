@@ -59,6 +59,37 @@ services:
     mem_limit: 512m
     cpus: 1.5
 
+  # Postgres opt-in (Fase 1.5, ver docs/PROPUESTA_SEGURIDAD_Y_FUNCIONALIDADES.md).
+  # NO se levanta con "docker compose up" a secas: solo con
+  # "docker compose --profile postgres up". Mientras no se active, el
+  # despliegue actual (SQLite) no cambia en nada.
+  postgres:
+    image: postgres:16-alpine
+    container_name: stockhogar-postgres
+    profiles:
+      - postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-stockhogar}
+      - POSTGRES_USER=${POSTGRES_USER:-stockhogar}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - stockhogar-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stockhogar} -d ${POSTGRES_DB:-stockhogar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - stockhogar-network
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 512m
+    cpus: 1.0
+
 networks:
   stockhogar-network:
     driver: bridge
+
+volumes:
+  stockhogar-postgres-data:
