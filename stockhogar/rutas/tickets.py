@@ -16,7 +16,7 @@ from ..servicios.ocr.groq_ocr import GroqOCR
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..utils import Validator
 from ..utils.imagenes import validar_y_recodificar
-from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso
+from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso, registrar_precio
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 
@@ -275,14 +275,19 @@ def confirmar_ticket():
         cantidad = Validator.entero_no_negativo(Validator.con_defecto(item, "cantidad", 1), "cantidad")
         unidad = (item.get("unidad") or "ud").strip() or "ud"
 
+        precio_unitario = Validator.con_defecto(item, "precio_unitario", None)
+
         producto_id = item.get("producto_id")
         if producto_id:
-            sumar_stock(db, int(producto_id), cantidad, hogar_id)
+            producto_id = int(producto_id)
+            sumar_stock(db, producto_id, cantidad, hogar_id)
             actualizados += 1
         else:
             categoria = item.get("categoria") or "Otros"
-            crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, hogar_id=hogar_id)
+            producto_id = crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, hogar_id=hogar_id)
             creados += 1
+
+        registrar_precio(db, producto_id, hogar_id, precio_unitario)
 
     db.commit()
     return APIResponse.success({"creados": creados, "actualizados": actualizados})

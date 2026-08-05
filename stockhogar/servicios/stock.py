@@ -16,6 +16,18 @@ from ..rutas.hogares import _usuario_tiene_permiso
 logger = logging.getLogger(__name__)
 
 
+def registrar_precio(db, producto_id, hogar_id, precio):
+    """Guarda una entrada de historial de precios (P-04) si el precio es
+    valido (>0); se llama al confirmar un ticket con precio detectado por
+    OCR para ese producto."""
+    if not producto_id or not hogar_id or not precio or precio <= 0:
+        return
+    db.execute(
+        "INSERT INTO historial_precios (producto_id, hogar_id, precio, fecha) VALUES (?, ?, ?, ?)",
+        (producto_id, hogar_id, precio, ahora()),
+    )
+
+
 def hogar_actual_con_permiso(db, session, nivel_requerido=None):
     """Devuelve el hogar_id activo del usuario si tiene permiso, o None."""
     usuario_id = session.get("usuario_id")

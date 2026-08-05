@@ -271,6 +271,8 @@ export const productos = {
     apiCall(`/api/productos/${id}`, { method: 'PATCH', body: JSON.stringify(datos) }),
 
   eliminar: (id: number) => apiCall(`/api/productos/${id}`, { method: 'DELETE' }),
+
+  historialPrecios: (id: number) => apiCall(`/api/productos/${id}/precios`),
 }
 
 // ===== Lista de la compra (stockhogar/rutas/articulos_compra.py) =====

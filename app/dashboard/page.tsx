@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { IconPicker } from '@/components/dashboard/IconPicker'
 import { Modal } from '@/components/dashboard/Modal'
+import { HistorialPreciosModal } from '@/components/dashboard/HistorialPreciosModal'
 import { productos as productosApi, categorias as categoriasApi, articulosLista } from '@/lib/api'
 import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
@@ -108,6 +109,7 @@ export default function StockPage() {
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [mostrarIconPicker, setMostrarIconPicker] = useState(false)
+  const [mostrarHistorialPreciosId, setMostrarHistorialPreciosId] = useState<number | null>(null)
 
   useEffect(() => {
     // Cargar preferencias guardadas
@@ -682,13 +684,25 @@ export default function StockPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">{editandoId ? t('editar_producto') : t('nuevo_producto')}</h2>
-            <button
-              type="button"
-              onClick={() => setGestionandoCategorias(!gestionandoCategorias)}
-              className="text-sm text-accent hover:underline flex items-center gap-1"
-            >
-              <Tags className="w-4 h-4" /> {t('categorias')}
-            </button>
+            <div className="flex items-center gap-3">
+              {editandoId && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarHistorialPreciosId(editandoId)}
+                  className="text-sm text-accent hover:underline flex items-center gap-1"
+                  title={t('ver_historial_precios')}
+                >
+                  <LineChart className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setGestionandoCategorias(!gestionandoCategorias)}
+                className="text-sm text-accent hover:underline flex items-center gap-1"
+              >
+                <Tags className="w-4 h-4" /> {t('categorias')}
+              </button>
+            </div>
           </div>
 
           {gestionandoCategorias && (
@@ -899,6 +913,14 @@ export default function StockPage() {
           </form>
         </div>
         </Modal>
+      )}
+
+      {mostrarHistorialPreciosId !== null && (
+        <HistorialPreciosModal
+          productoId={mostrarHistorialPreciosId}
+          nombreProducto={formData.nombre}
+          onCerrar={() => setMostrarHistorialPreciosId(null)}
+        />
       )}
 
       {/* Error Message */}

@@ -1104,6 +1104,26 @@ def _init_db_impl():
 
         asegurar_columna(db, "hogares", "simbolo_moneda", "TEXT NOT NULL DEFAULT '€'")
 
+        # Historico de precios por producto (P-04): una fila por cada vez que
+        # se confirma un ticket con precio detectado para ese producto en un
+        # hogar. Por hogar (no global) porque el precio pagado depende de la
+        # tienda de cada uno.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS historial_precios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                precio REAL NOT NULL,
+                fecha TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_historial_precios_producto "
+            "ON historial_precios(producto_id, hogar_id, fecha)"
+        )
+
         # Gastos compartidos del hogar (division tipo Tricount): tablas nuevas,
         # sin datos previos que migrar, por eso basta CREATE TABLE IF NOT EXISTS simple.
         db.execute(

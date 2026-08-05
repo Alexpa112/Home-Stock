@@ -240,6 +240,31 @@ def traducir_producto_auto():
     return APIResponse.success({"encolado": True})
 
 
+@bp.route("/<int:producto_id>/precios", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def historial_precios(producto_id):
+    """Evolucion de precios de un producto en la lista activa (P-04), a
+    partir de los tickets confirmados con precio detectado."""
+    db = get_db()
+
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.no_permitido()
+
+    pertenece = db.execute(
+        "SELECT 1 FROM stock_hogar WHERE hogar_id = ? AND producto_id = ?", (hogar_id, producto_id)
+    ).fetchone()
+    if not pertenece:
+        return APIResponse.no_encontrado("recurso_producto")
+
+    filas = db.execute(
+        "SELECT precio, fecha FROM historial_precios WHERE hogar_id = ? AND producto_id = ? ORDER BY fecha",
+        (hogar_id, producto_id),
+    ).fetchall()
+    return APIResponse.success([dict(fila) for fila in filas])
+
+
 @bp.route("/<int:producto_id>", methods=["PATCH"])
 @requerir_sesion
 @manejo_errores
