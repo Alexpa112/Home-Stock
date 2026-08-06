@@ -2,7 +2,10 @@ module.exports = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'],
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/worktrees/'],
+  // lib/**/__tests__ son TS y corren en su propio proyecto (jest.config.lib.js,
+  // ver npm run test:lib) con transform de Babel+TypeScript; se excluyen aquí
+  // para no cambiar el comportamiento de este proyecto legacy (JS vanilla).
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/worktrees/', '/lib/__tests__/'],
   collectCoverageFrom: [
     'stockhogar/static/modules/**/*.js',
     'stockhogar/static/core/**/*.js',

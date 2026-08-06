@@ -298,6 +298,8 @@ antes de tocar el stock:
 
 ## Actualizar la app
 
+### Manual
+
 ```bash
 cd ~/Home-Stock
 git pull
@@ -306,3 +308,28 @@ docker compose up -d --build
 
 Esto descarga los cambios, reconstruye la imagen con el código nuevo y
 reinicia el contenedor. Los datos en `data/stock.db` no se ven afectados.
+
+### Automática (Raspberry Pi)
+
+`install.sh` deja instalado automáticamente (si la rama activa es
+`produccion` y hay `crontab` disponible) el cron de
+`scripts/auto_update.sh`, que cada 5 minutos comprueba si hay commits
+nuevos en `origin/produccion`:
+
+- Si no hay cambios, no hace nada.
+- Si los hay, ejecuta `install.sh --update` (`git pull --ff-only` +
+  reconstrucción del contenedor Docker), igual que el proceso manual.
+- Se salta la comprobación si hay cambios locales sin commitear o si ya
+  hay una instalación en curso (usa un lock, `.install.lock`).
+- Se puede pausar temporalmente creando el flag
+  `data/auto_actualizacion_pausada.flag` (gestionable desde el endpoint
+  `/api/auto-actualizacion` o desde el Panel de Gestión).
+- El log queda en `logs/auto_update.log`.
+
+**Refresco del frontend:** la app no usa Service Worker. El frontend
+consulta cada 15 s el endpoint `/api/cache-version` (que cambia con cada
+`git pull`, al variar el `mtime` de `docker-compose.yml`). En cuanto
+detecta una versión distinta, limpia cualquier caché/Service Worker
+residual y fuerza un `location.reload()`, de modo que tras una
+actualización automática los clientes abiertos recargan solos y ven el
+código nuevo sin intervención manual.

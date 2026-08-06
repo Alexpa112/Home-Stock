@@ -5,6 +5,8 @@ import { auth } from '@/lib/api'
 
 interface User {
   usuario: string
+  usuario_id: number
+  nombre: string | null
   email: string | null
   tema_preferido: string
   idioma_preferido: string
@@ -35,6 +37,8 @@ export function useAuth() {
         setState({
           user: {
             usuario: datos.usuario,
+            usuario_id: datos.usuario_id,
+            nombre: datos.nombre,
             email: datos.email,
             tema_preferido: datos.tema_preferido,
             idioma_preferido: datos.idioma_preferido,

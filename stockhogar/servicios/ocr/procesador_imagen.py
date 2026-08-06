@@ -1,7 +1,7 @@
 """Procesamiento y preprocesamiento de imágenes de tickets."""
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 
 
@@ -26,9 +26,16 @@ class ProcesadorImagen:
         Returns:
             np.ndarray: Imagen procesada en escala de grises
         """
-        # Cargar imagen
-        nparr = np.frombuffer(imagen_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # Cargar imagen respetando el tag EXIF Orientation: cv2.imdecode lo
+        # ignora por completo, y las fotos de movil en vertical (el caso
+        # normal al fotografiar un ticket, sobre todo en iOS) guardan el
+        # pixel en horizontal con ese tag puesto. Sin esta correccion el
+        # ticket llega a Tesseract tumbado de lado y no reconoce nada.
+        img = self._decodificar_respetando_exif(imagen_bytes)
+
+        if img is None:
+            nparr = np.frombuffer(imagen_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
             raise ValueError("No se pudo decodificar la imagen")
@@ -46,6 +53,18 @@ class ProcesadorImagen:
         # Redimensionar para OCR óptimo
         gray = self._redimensionar_optimo(gray)
 
+        # Quitar ruido ISO (fotos con poca luz) ANTES del CLAHE de abajo:
+        # CLAHE amplifica el contraste local, y sobre una foto ruidosa
+        # amplifica igual de fuerte el grano del sensor que las letras,
+        # enterrando el texto bajo "nieve" (visto con una foto real tomada
+        # con poca luz: Tesseract leía basura pese a que el recorte era
+        # perfecto). medianBlur(5) quita ese grano de alta frecuencia sin
+        # difuminar los trazos del texto (que son más gruesos que el ruido).
+        # Se probó fastNlMeansDenoising (mejor calidad) pero tarda ~15s en
+        # la Pi a 2000px de ancho, muy por encima del objetivo de <20s
+        # total; medianBlur da una mejora casi tan buena en <1s.
+        gray = cv2.medianBlur(gray, 5)
+
         # Mejorar contraste (CLAHE)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         gray = clahe.apply(gray)
@@ -59,6 +78,26 @@ class ProcesadorImagen:
         # procesa realmente rápido y bien en este tipo de tickets.
         return gray
 
+    @staticmethod
+    def _decodificar_respetando_exif(imagen_bytes):
+        """Decodifica bytes de imagen a un array BGR de OpenCV, aplicando
+        antes la rotación del tag EXIF Orientation si lo hay.
+
+        Las fotos de móvil en vertical (el caso normal al fotografiar un
+        ticket) suelen guardar el píxel en horizontal con un tag EXIF que
+        indica "rota 90°" para verse en vertical -asi es como la app Camara
+        de iOS guarda practicamente todas las fotos en vertical, y muchos
+        Android hacen lo mismo-. cv2.imdecode ignora ese tag por completo,
+        asi que sin esto el ticket llegaba a Tesseract tumbado de lado.
+        """
+        try:
+            with Image.open(io.BytesIO(imagen_bytes)) as pil_img:
+                pil_img = ImageOps.exif_transpose(pil_img)
+                pil_img = pil_img.convert("RGB")
+                return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        except Exception:
+            return None
+
     def _detectar_y_recortar_ticket(self, img):
         """Detecta el papel del ticket en la foto y recorta/endereza esa
         zona por perspectiva, descartando el fondo (mesa, mano, teclado...).
@@ -71,23 +110,37 @@ class ProcesadorImagen:
         h, w = img.shape[:2]
         escala = 800 / w if w > 800 else 1.0
         muestra = cv2.resize(img, (int(w * escala), int(h * escala))) if escala != 1.0 else img
-
-        gray = cv2.cvtColor(muestra, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
-        _, umbral = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # Cierre morfológico: rellena huecos del QR/texto para que el papel
-        # se detecte como un único contorno sólido.
-        kernel = np.ones((25, 25), np.uint8)
-        cerrado = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)
-
-        contornos, _ = cv2.findContours(cerrado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contornos:
-            return img
-
-        contorno = max(contornos, key=cv2.contourArea)
         area_muestra = muestra.shape[0] * muestra.shape[1]
-        if cv2.contourArea(contorno) < 0.15 * area_muestra:
-            # Contorno demasiado pequeño: no es fiable, no recortamos.
+        kernel = np.ones((25, 25), np.uint8)
+
+        # 1er intento: aislar el papel por SATURACIÓN (HSV), no por brillo.
+        # El papel del ticket es blanco/gris (saturación casi nula) sea cual
+        # sea la luz; fondos con color propio -piel, madera, tela vaquera-
+        # tienen saturación alta aunque su brillo (escala de grises) sea
+        # parecido al del papel, y en ese caso el umbral de grises de abajo
+        # no distingue papel de fondo en absoluto (contorno == casi toda la
+        # foto, se recortaba fatal). Ver ticket real que fallaba: foto sobre
+        # la pierna, el papel y la piel tenían brillo similar pero
+        # saturación muy distinta.
+        hsv = cv2.cvtColor(muestra, cv2.COLOR_BGR2HSV)
+        mascara_papel = cv2.inRange(hsv, (0, 0, 120), (180, 60, 255))
+        cerrado = cv2.morphologyEx(mascara_papel, cv2.MORPH_CLOSE, kernel)
+        contornos, _ = cv2.findContours(cerrado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contorno = max(contornos, key=cv2.contourArea) if contornos else None
+
+        if contorno is None or cv2.contourArea(contorno) < 0.15 * area_muestra:
+            # 2º intento (fallback): el umbral de grises de siempre. Sirve
+            # para fondos oscuros/uniformes donde la saturación no separa
+            # bien el papel (poca luz, fondo también gris).
+            gray = cv2.cvtColor(muestra, cv2.COLOR_BGR2GRAY)
+            blur = cv2.GaussianBlur(gray, (5, 5), 0)
+            _, umbral = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            cerrado = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)
+            contornos, _ = cv2.findContours(cerrado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contorno = max(contornos, key=cv2.contourArea) if contornos else None
+
+        if contorno is None or cv2.contourArea(contorno) < 0.15 * area_muestra:
+            # Ningún método encontró un contorno fiable: no recortamos.
             return img
 
         hull = cv2.convexHull(contorno)

@@ -3,7 +3,7 @@ from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..db import get_db
-from ..servicios.stock import lista_actual_con_permiso
+from ..servicios.stock import hogar_actual_con_permiso
 
 bp = Blueprint("consumo", __name__, url_prefix="/api/consumo")
 
@@ -25,18 +25,18 @@ def _dias_solicitados():
 def movimientos_producto(producto_id):
     """Historial de movimientos de un producto (auditoría) en la lista activa."""
     db = get_db()
-    lista_id = lista_actual_con_permiso(db, session)
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
         return APIResponse.success([])
 
     filas = db.execute(
         """SELECT m.id, m.delta, m.cantidad_resultante, m.origen, m.fecha, u.nombre_usuario
            FROM movimientos_stock m
            LEFT JOIN usuarios u ON u.id = m.usuario_id
-           WHERE m.producto_id = ? AND m.lista_id = ?
+           WHERE m.producto_id = ? AND m.hogar_id = ?
            ORDER BY m.fecha DESC
            LIMIT 100""",
-        (producto_id, lista_id),
+        (producto_id, hogar_id),
     ).fetchall()
 
     return APIResponse.success([
@@ -62,8 +62,8 @@ def resumen_consumo():
     las subidas (compras/reposición) no cuentan como consumo.
     """
     db = get_db()
-    lista_id = lista_actual_con_permiso(db, session)
-    if not lista_id:
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
         return APIResponse.success({"dias": [], "por_producto": []})
 
     dias = _dias_solicitados()
@@ -77,23 +77,23 @@ def resumen_consumo():
     por_dia = db.execute(
         """SELECT substr(m.fecha, 1, 10) AS dia, SUM(-m.delta) AS consumo
             FROM movimientos_stock m
-            WHERE m.lista_id = ? AND m.delta < 0
+            WHERE m.hogar_id = ? AND m.delta < 0
               AND m.fecha >= datetime('now', ?)
             GROUP BY dia
             ORDER BY dia ASC""",
-        (lista_id, desde),
+        (hogar_id, desde),
     ).fetchall()
 
     por_producto = db.execute(
         """SELECT p.nombre, p.icono, SUM(-m.delta) AS consumo
             FROM movimientos_stock m
             JOIN productos p ON p.id = m.producto_id
-            WHERE m.lista_id = ? AND m.delta < 0
+            WHERE m.hogar_id = ? AND m.delta < 0
               AND m.fecha >= datetime('now', ?)
             GROUP BY m.producto_id
             ORDER BY consumo DESC
             LIMIT 10""",
-        (lista_id, desde),
+        (hogar_id, desde),
     ).fetchall()
 
     return APIResponse.success({

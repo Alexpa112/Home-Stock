@@ -1,66 +1,24 @@
-"""Ruta de la pagina principal (SPA)."""
+"""Endpoints de API y configuración (frontend manejado por Next.js)."""
 import logging
-from flask import Blueprint, render_template, session, redirect, url_for, request, current_app, send_from_directory
+from flask import Blueprint, request
 from flask_wtf.csrf import generate_csrf
 
 from .. import csrf
 from ..api import manejo_errores, APIResponse
-from ..db import get_db
+from ..red import ip_cliente, limite_por_ip
+from ..servicios import mantenimiento
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("paginas", __name__)
 
-
-@bp.route("/")
-@manejo_errores
-def index():
-    tema_preferido = "auto"
-    idioma_preferido = "es"
-    teclado_virtual_activo = "on"
-    usuario_id = session.get("usuario_id")
-    if usuario_id is not None:
-        fila = get_db().execute(
-            "SELECT tema_preferido, idioma_preferido, teclado_virtual_activo FROM usuarios WHERE id = ?",
-            (usuario_id,)
-        ).fetchone()
-        if fila:
-            tema_preferido = fila["tema_preferido"]
-            idioma_preferido = fila["idioma_preferido"]
-            teclado_virtual_activo = fila["teclado_virtual_activo"]
-    return render_template(
-        "index.html",
-        tema_preferido=tema_preferido,
-        idioma_preferido=idioma_preferido,
-        teclado_virtual_activo=teclado_virtual_activo,
-    )
-
-
-@bp.route("/sw.js")
-@manejo_errores
-def service_worker():
-    """Sirve el Service Worker desde la raíz para que su scope cubra toda la app."""
-    respuesta = send_from_directory(current_app.static_folder, "sw.js", mimetype="application/javascript")
-    respuesta.headers["Service-Worker-Allowed"] = "/"
-    respuesta.headers["Cache-Control"] = "no-cache"
-    return respuesta
-
-
-@bp.route("/aceptar-invitacion/<codigo>")
-@manejo_errores
-def aceptar_invitacion_pagina(codigo):
-    """Página para aceptar invitación (solo si está logueado)."""
-    usuario_id = session.get("usuario_id")
-
-    # Si no está logueado, redirigir a login
-    # (nota: el guardián global en __init__.py:exigir_sesion ya intercepta
-    # esta ruta antes de llegar aquí y preserva el "next"; este chequeo queda
-    # como defensa adicional).
-    if not usuario_id:
-        return redirect(url_for("auth.pagina_login"))
-
-    # Renderizar página de aceptación
-    return render_template("aceptar_invitacion.html", codigo=codigo)
+# Limite de /api/log/client (S-14): mucho mas permisivo que el de login,
+# solo para contener un cliente roto en bucle o un abuso deliberado del
+# endpoint como vector de "log injection". En memoria del proceso (ver
+# red.limite_por_ip): no hace falta exactitud entre workers para este caso.
+MAX_LOGS_POR_MINUTO = 30
+LOG_MENSAJE_MAX = 500
+LOG_CONTEXTO_MAX = 1000
 
 
 @bp.route("/api/csrf-token", methods=["GET"])
@@ -70,6 +28,24 @@ def csrf_token():
     Next.js separada del backend): sin esto no hay forma de rellenar la
     cabecera X-CSRFToken que exige Flask-WTF en toda petición mutable."""
     return APIResponse.success({"csrf_token": generate_csrf()})
+
+
+@bp.route("/api/mantenimiento/estado")
+@csrf.exempt
+@manejo_errores
+def mantenimiento_estado():
+    """Sustituye al antiguo SSE /api/mantenimiento/stream (S-02): ese endpoint
+    bloqueaba un hilo de gunicorn por cliente conectado (Condition.wait()), y
+    con --workers 2 --threads 4 (8 hilos totales, ver Dockerfile.raspbian)
+    unas pocas pestañas ya saturaban el backend. Este responde al instante,
+    sin retener ningun hilo; el frontend hace polling corto (ver
+    lib/useMantenimientoStream.ts), igual que ya hace usePollingRefresh.ts
+    para otros datos.
+
+    No requiere sesión: tambien debe llegar a usuarios no logueados en la
+    pantalla de mantenimiento.
+    """
+    return APIResponse.success({"activo": mantenimiento.activo()})
 
 
 @bp.route("/api/log/client", methods=["POST"])
@@ -82,13 +58,21 @@ def log_client_error():
     personalizadas como X-CSRFToken) y también en el momento en que el propio
     error de la página puede impedir que el token esté disponible.
     """
+    if limite_por_ip(f"log_client:{ip_cliente()}", MAX_LOGS_POR_MINUTO, 60):
+        return APIResponse.error("err_demasiadas_peticiones", 429)
+
     datos = request.get_json(force=True) or {}
     nivel = datos.get("nivel", "info").lower()  # info, warning, error
-    mensaje = datos.get("mensaje", "")
+    mensaje = str(datos.get("mensaje", ""))
     contexto = datos.get("contexto", {})
 
-    # Loguear según nivel
+    # Sanear saltos de linea y truncar (S-14): sin esto, un cliente (o un
+    # atacante llamando directamente al endpoint, que no exige CSRF) podia
+    # fabricar entradas de log falsas multi-linea que aparentaran venir de
+    # otro proceso/nivel al leerse en el fichero de logs.
+    mensaje = mensaje.replace("\r", " ").replace("\n", " ")[:LOG_MENSAJE_MAX]
     contexto_str = f" | Contexto: {contexto}" if contexto else ""
+    contexto_str = contexto_str.replace("\r", " ").replace("\n", " ")[:LOG_CONTEXTO_MAX]
     if nivel == "error":
         logger.error(f"[CLIENT] {mensaje}{contexto_str}")
     elif nivel == "warning":

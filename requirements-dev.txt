@@ -1,0 +1,7 @@
+# Dependencias solo para desarrollo/CI (tests), no para producción.
+# ci.yml (job test-python) instala requirements.txt + este fichero antes de
+# ejecutar la suite; requirements.txt por si solo no trae pytest, por lo que
+# "python -m pytest" fallaba en el runner con "No module named pytest"
+# (localmente pasaba inadvertido porque el venv de desarrollo ya lo tenia
+# instalado a mano).
+pytest==9.1.1

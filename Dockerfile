@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Dockerfile genérico (x86_64) para desarrollo/pruebas.
 # Para despliegue en Raspberry Pi usa Dockerfile.raspbian (ver docker-compose.yml).
 FROM python:3.11-slim
@@ -7,14 +8,15 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=5000
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa curl \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils libheif-examples curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 COPY . .
 
@@ -30,4 +32,7 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -fsS "http://localhost:${PORT}/" >/dev/null || exit 1
 
-CMD ["sh", "-c", "gunicorn --workers 2 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - run:app"]
+# --timeout 120 --worker-class gthread --threads 4: igual que en
+# Dockerfile.raspbian, para que el OCR (pytesseract, timeout interno de 45s)
+# no se corte a mitad de petición por el timeout de 30s por defecto de gunicorn.
+CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]

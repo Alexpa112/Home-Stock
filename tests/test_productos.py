@@ -27,11 +27,11 @@ class ProductosValidationTests(unittest.TestCase):
             )
             usuario_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 ("Lista de test", usuario_id, ahora(), ahora()),
             )
-            self.lista_id = cur.lastrowid
+            self.hogar_id = cur.lastrowid
             db.commit()
 
         self.usuario_id = usuario_id
@@ -41,26 +41,26 @@ class ProductosValidationTests(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess["usuario"] = nombre_usuario
             sess["usuario_id"] = usuario_id
-            sess["lista_actual_id"] = self.lista_id
+            sess["hogar_actual_id"] = self.hogar_id
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
             db.execute(
-                "DELETE FROM stock_lista WHERE lista_id IN "
-                "(SELECT id FROM listas WHERE usuario_propietario_id = ?)",
+                "DELETE FROM stock_hogar WHERE hogar_id IN "
+                "(SELECT id FROM hogares WHERE usuario_propietario_id = ?)",
                 (self.usuario_id,),
             )
             db.execute(
-                "DELETE FROM articulos_lista WHERE lista_id IN "
-                "(SELECT id FROM listas WHERE usuario_propietario_id = ?)",
+                "DELETE FROM articulos_compra WHERE hogar_id IN "
+                "(SELECT id FROM hogares WHERE usuario_propietario_id = ?)",
                 (self.usuario_id,),
             )
-            db.execute("DELETE FROM listas WHERE usuario_propietario_id = ?", (self.usuario_id,))
-            for lista_id in self.otras_listas_creadas:
-                db.execute("DELETE FROM stock_lista WHERE lista_id = ?", (lista_id,))
-                db.execute("DELETE FROM articulos_lista WHERE lista_id = ?", (lista_id,))
-                db.execute("DELETE FROM listas WHERE id = ?", (lista_id,))
+            db.execute("DELETE FROM hogares WHERE usuario_propietario_id = ?", (self.usuario_id,))
+            for hogar_id in self.otras_listas_creadas:
+                db.execute("DELETE FROM stock_hogar WHERE hogar_id = ?", (hogar_id,))
+                db.execute("DELETE FROM articulos_compra WHERE hogar_id = ?", (hogar_id,))
+                db.execute("DELETE FROM hogares WHERE id = ?", (hogar_id,))
             db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             for otro_id in self.otros_usuarios_creados:
                 db.execute("DELETE FROM usuarios WHERE id = ?", (otro_id,))
@@ -83,7 +83,7 @@ class ProductosValidationTests(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             pendiente = db.execute(
-                "SELECT id FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
+                "SELECT id FROM articulos_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
                 (producto["id"],),
             ).fetchone()
         # cantidad <= stock_minimo dispara el aviso automático (igual O menor).
@@ -106,7 +106,7 @@ class ProductosValidationTests(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             pendiente = db.execute(
-                "SELECT id FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
+                "SELECT id FROM articulos_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
                 (producto["id"],),
             ).fetchone()
         self.assertIsNotNone(pendiente)
@@ -128,7 +128,7 @@ class ProductosValidationTests(unittest.TestCase):
         with self.app.app_context():
             db = get_db()
             pendiente = db.execute(
-                "SELECT id FROM articulos_lista WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
+                "SELECT id FROM articulos_compra WHERE producto_id = ? AND origen = 'auto' AND activo = 1",
                 (producto["id"],),
             ).fetchone()
         self.assertIsNone(pendiente)
@@ -148,6 +148,56 @@ class ProductosValidationTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("cantidad", resp.get_json()["error"].lower())
 
+    def test_campos_nulos_al_crear_usan_valor_por_defecto_de_esquema(self):
+        """Dejar cantidad/stock_minimo/dias_aviso en blanco (null) al crear no
+        debe dar error: debe insertarse el mismo valor por defecto que fija
+        el esquema (stockhogar/db.py) para esas columnas."""
+        resp = self.client.post(
+            "/api/productos",
+            json={
+                "nombre": "Sal",
+                "categoria": "Despensa",
+                "cantidad": None,
+                "stock_minimo": None,
+                "dias_aviso": None,
+                "unidad": None,
+            },
+        )
+        self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
+        producto = resp.get_json()
+        self.assertEqual(producto["cantidad"], 0)
+        self.assertEqual(producto["stock_minimo"], 1)
+        self.assertEqual(producto["dias_aviso"], 30)
+        self.assertEqual(producto["unidad"], "ud")
+
+    def test_campos_nulos_al_editar_conservan_el_valor_anterior(self):
+        """Al editar, si un campo llega explícitamente a null (input vaciado
+        por el usuario), no debe fallar ni perderse el dato: se conserva el
+        valor que ya tenía el producto en vez de romper la petición."""
+        resp = self.client.post(
+            "/api/productos",
+            json={
+                "nombre": "Pimienta",
+                "categoria": "Despensa",
+                "cantidad": 4,
+                "stock_minimo": 2,
+                "dias_aviso": 45,
+                "unidad": "bote",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        producto_id = resp.get_json()["id"]
+
+        resp = self.client.patch(
+            f"/api/productos/{producto_id}",
+            json={"cantidad": None, "stock_minimo": None, "dias_aviso": None},
+        )
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        actualizado = resp.get_json()
+        self.assertEqual(actualizado["cantidad"], 4)
+        self.assertEqual(actualizado["stock_minimo"], 2)
+        self.assertEqual(actualizado["dias_aviso"], 45)
+
     def test_producto_solo_visible_en_su_propia_lista(self):
         """El stock creado en una lista no debe filtrarse a otra lista/usuario."""
         self.client.post(
@@ -162,7 +212,7 @@ class ProductosValidationTests(unittest.TestCase):
                 (f"otro_{uuid.uuid4().hex[:8]}", generate_password_hash("password123"), ahora()),
             ).lastrowid
             otra_lista_id = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 ("Otra lista", otro_usuario_id, ahora(), ahora()),
             ).lastrowid
@@ -171,7 +221,7 @@ class ProductosValidationTests(unittest.TestCase):
         self.otros_usuarios_creados = [otro_usuario_id]
 
         with self.client.session_transaction() as sess:
-            sess["lista_actual_id"] = otra_lista_id
+            sess["hogar_actual_id"] = otra_lista_id
 
         resp = self.client.get("/api/productos")
         # Sin permiso sobre "otra_lista_id" (propietario distinto): no debe ver el stock.

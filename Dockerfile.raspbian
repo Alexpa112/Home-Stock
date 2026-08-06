@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Dockerfile para StockHogar en Raspberry Pi / Debian (ARM o x86)
 # Bookworm (no Bullseye): los wheels de piwheels.org para numpy/opencv en armv7l
 # están compilados contra glibc >= 2.34, que Bullseye (2.31) no tiene; Bookworm
@@ -32,11 +33,20 @@ ENV PYTHONUNBUFFERED=1 \
 #     de OpenCV (ffmpeg)
 #   - liblapack3, libatlas3-base: LAPACK/CBLAS de OpenCV (libatlas3-base
 #     provee libcblas.so.3 vía el sistema de alternativas de Debian)
+#
+# build-essential/pkg-config/libffi-dev/libssl-dev se conservan como red de
+# seguridad por si una futura versión de alguna dependencia deja de publicar
+# wheel para armv7l (ver opencv-python-headless en requirements.txt: pasó
+# justo eso el 2026-07-28), aunque hoy nada se compila desde fuente. cryptography
+# (que sí requería Rust) ya publica wheel armv7l prebuilt desde hace tiempo,
+# así que se ha retirado el toolchain de Rust que se instalaba aquí antes.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-spa \
         libtesseract-dev \
+        poppler-utils \
+        libheif-examples \
         curl \
         build-essential \
         pkg-config \
@@ -59,15 +69,6 @@ RUN apt-get update && \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# cryptography (ver requirements.txt) trae extensiones en Rust y no hay wheel
-# precompilada para armv7l en PyPI, así que se compila desde fuente en el build.
-# Se instala Rust vía rustup en vez del rustc/cargo de apt porque la versión de
-# Debian puede quedarse corta para el MSRV de crates recientes.
-ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/usr/local/cargo \
-    PATH=/usr/local/cargo/bin:$PATH
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
-
 WORKDIR /app
 
 # Se copian primero solo las dependencias para aprovechar la cache de capas
@@ -76,35 +77,61 @@ COPY requirements.txt .
 # piwheels.org publica wheels precompiladas para Raspberry Pi (armv7l/aarch64);
 # se usa como índice extra (no sustituye a PyPI) para que opencv-python-headless
 # no se compile desde fuente en la Pi, que es lo que más tarda del build entero.
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+#
+# --mount=type=cache monta un caché de BuildKit persistente (fuera de las capas
+# de la imagen) para los .whl ya descargados: aunque el instalador borre la
+# caché de capas tras cada build (para no llenar el disco), esta caché de
+# paquetes sigue viva y evita volver a descargar de red en cada actualización.
+# Por eso aquí SÍ se quita --no-cache-dir (si no, pip no usaría este directorio).
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    pip install --upgrade pip setuptools wheel && \
+    pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
 
 COPY . /app/
 
+# Los tres pasos de abajo (directorios, Argos Translate, verificación de
+# paquetes) van en un ÚNICO RUN a propósito: en el almacenamiento (SD/eMMC) de
+# una Raspberry Pi, crear una capa nueva tiene un coste fijo de decenas de
+# segundos casi independiente de lo que haga el comando (confirmado en
+# install.log: tres RUN triviales de ~1s de trabajo real tardaron 70s+52s+109s
+# = 231s solo en overhead de capa). Fusionarlos paga ese coste una vez.
+#
 # data/, logs/ y uploads/ ya se montan como volúmenes desde docker-compose.yml;
 # se crean aquí también para que el healthcheck y una ejecución sin compose
 # (docker run suelto) no fallen por directorios inexistentes.
-RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr
-
-# Descarga en build-time de los paquetes de idioma de Argos Translate
-# (es-en, en-es, en-fr, en-it, en-de, es-pt): requiere red durante el build,
-# pero así el contenedor queda funcional sin conexión desde el primer arranque
-# (importante en Raspberry Pi, donde la red puede ser lenta o intermitente).
-# ctranslate2 (dependencia de argostranslate) no publica binarios para armv7l
-# (ver requirements.txt), así que en esa arquitectura no está instalado y se
-# omite: traductor_auto.py ya cae automáticamente al diccionario propio.
-RUN if [ "$(uname -m)" = "armv7l" ]; then \
+#
+# Argos Translate (es-en, en-es, en-fr, en-it, en-de, es-pt) se descarga en
+# build-time (requiere red durante el build, pero deja el contenedor funcional
+# sin conexión desde el primer arranque). ctranslate2 (dependencia de
+# argostranslate) no publica binarios para armv7l (ver requirements.txt), así
+# que en esa arquitectura se omite y traductor_auto.py cae al diccionario
+# propio.
+#
+# La verificación final de imports/tesseract hace fallar el build aquí si
+# falta algún paquete crítico, en vez de fallar en producción al primer
+# request.
+RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr \
+    && groupadd -g 1000 appuser && useradd -u 1000 -g appuser -M -s /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app/data /app/logs /app/uploads \
+    && if [ "$(uname -m)" = "armv7l" ]; then \
         echo "[INFO] armv7l: Argos Translate no soportado (sin ctranslate2), se omite. Traduccion automatica usara el diccionario de fallback."; \
     else \
         python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"; \
-    fi
-
-# Verificación en build-time: si falta algún paquete crítico, el build falla
-# aquí en vez de fallar en producción al primer request.
-RUN python3 -c "import flask, flask_wtf, cv2, pytesseract, fuzzywuzzy, gunicorn, platform, importlib; (importlib.import_module('argostranslate') if platform.machine() != 'armv7l' else None); print('[OK] Paquetes Python verificados')" \
-    && tesseract --version | head -1 && echo "[OK] Tesseract instalado"
+    fi \
+    && python3 -c "import flask, flask_wtf, cv2, pytesseract, fuzzywuzzy, gunicorn, platform, importlib; (importlib.import_module('argostranslate') if platform.machine() != 'armv7l' else None); print('[OK] Paquetes Python verificados')" \
+    && tesseract --version | head -1 && echo "[OK] Tesseract instalado" \
+    && pdftoppm -v > /dev/null 2>&1 && echo "[OK] Poppler (pdftoppm) instalado" \
+    && command -v heif-convert > /dev/null && echo "[OK] libheif (heif-convert) instalado"
 
 EXPOSE 5000
+
+# NOTA (S-06): el propietario REAL en tiempo de ejecucion de ./data, ./logs y
+# ./uploads (bind mounts, ver docker-compose.yml) depende de los permisos ya
+# existentes en el HOST, no de este chown (que solo afecta a la capa de la
+# imagen). Si el host no tiene esas carpetas con UID/GID 1000 (o world
+# writable), appuser puede quedarse sin permiso de escritura al arrancar; hay
+# que ajustar los permisos en el host, no intentar resolverlo aqui.
+USER appuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -fsS "http://localhost:${PORT}/" >/dev/null || exit 1
@@ -121,4 +148,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # peticiones (p.ej. los botones +/- de stock) se quedaban en cola y el proxy
 # delante de la app acababa devolviendo 502. Con hilos, el resto de peticiones
 # se siguen atendiendo en paralelo dentro del mismo worker mientras el OCR corre.
-CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - run:app"]
+CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 120 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]

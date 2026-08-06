@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Camera, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
+import { Camera, FileUp, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
 import { tickets } from '@/lib/api'
+import { useTranslation } from '@/contexts/TranslationContext'
+import { suspenderPorEdicion, reanudarPorEdicion } from '@/lib/editSuspension'
 
 // Shape real: ver stockhogar/servicios/ocr/procesador_tickets_v2.py:crear_respuesta_usuario
 interface ItemTicket {
   nombre: string
-  cantidad: number
+  cantidad: number | ''
   unidad: string
   categoria: string
   producto_id: number | null
@@ -18,6 +20,7 @@ interface ItemTicket {
 }
 
 export default function EscanearTicketPage() {
+  const { t } = useTranslation()
   const [analizando, setAnalizando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [items, setItems] = useState<ItemTicket[]>([])
@@ -31,16 +34,19 @@ export default function EscanearTicketPage() {
     setError('')
     setResultado(null)
     setAnalizando(true)
+    suspenderPorEdicion()
     try {
       const data: any = await tickets.analizar(file)
       const conIncluir = (data.items || []).map((it: ItemTicket) => ({ ...it, incluir: true }))
       setItems(conIncluir)
       setAdvertencias(data.advertencias || [])
       if ((data.items || []).length === 0) {
-        setError('No se detectó ningún producto en la imagen. Prueba con una foto más nítida y bien encuadrada.')
+        setError(t('err_no_detecto_producto_imagen'))
+        reanudarPorEdicion()
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error analizando el ticket')
+      setError(err instanceof Error ? err.message : t('error_procesar'))
+      reanudarPorEdicion()
     } finally {
       setAnalizando(false)
       e.target.value = ''
@@ -60,7 +66,7 @@ export default function EscanearTicketPage() {
       const data: any = await tickets.confirmar(
         seleccionados.map((it) => ({
           nombre: it.nombre,
-          cantidad: it.cantidad,
+          cantidad: it.cantidad === '' ? 1 : it.cantidad,
           unidad: it.unidad,
           categoria: it.categoria,
           producto_id: it.producto_id,
@@ -68,8 +74,9 @@ export default function EscanearTicketPage() {
       )
       setResultado(data)
       setItems([])
+      reanudarPorEdicion()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error importando los productos')
+      setError(err instanceof Error ? err.message : t('err_importando_productos'))
     } finally {
       setConfirmando(false)
     }
@@ -78,9 +85,9 @@ export default function EscanearTicketPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">Escanear Ticket</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('escanear_ticket_simple')}</h1>
         <p className="text-muted-foreground mt-1">
-          Haz una foto del ticket de compra y añade los productos al stock automáticamente
+          {t('subtitulo_escanear_ticket')}
         </p>
       </div>
 
@@ -93,30 +100,44 @@ export default function EscanearTicketPage() {
 
       {resultado && (
         <div className="p-4 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-200 rounded-lg text-sm">
-          Ticket importado: {resultado.creados} producto(s) nuevo(s), {resultado.actualizados} actualizado(s).{' '}
-          <a href="/dashboard" className="underline font-medium">Ver stock</a>
+          {t('ticket_importado_resumen').replace('{creados}', String(resultado.creados)).replace('{actualizados}', String(resultado.actualizados))}{' '}
+          <a href="/dashboard" className="underline font-medium">{t('ver_stock')}</a>
         </div>
       )}
 
       {items.length === 0 && !analizando && (
-        <label className="card flex flex-col items-center justify-center gap-3 py-12 cursor-pointer border-2 border-dashed border-border hover:border-accent transition-colors">
-          <Camera className="w-10 h-10 text-muted-foreground" />
-          <span className="font-medium">Toca para hacer una foto o elegir una imagen</span>
-          <span className="text-xs text-muted-foreground">JPG, PNG, hasta 10 MB</span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp"
-            capture="environment"
-            className="hidden"
-            onChange={handleFile}
-          />
-        </label>
+        <div className="card flex flex-col items-center justify-center gap-4 py-12 border-2 border-dashed border-border">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <label className="btn-primary flex items-center justify-center gap-2 cursor-pointer">
+              <Camera className="w-5 h-5" />
+              {t('hacer_foto_boton')}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,image/webp,image/heic,image/heif"
+                capture="environment"
+                className="hidden"
+                onChange={handleFile}
+              />
+            </label>
+            <label className="btn-secondary flex items-center justify-center gap-2 cursor-pointer">
+              <FileUp className="w-5 h-5" />
+              {t('subir_archivo_boton')}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,image/webp,image/heic,image/heif,application/pdf"
+                className="hidden"
+                onChange={handleFile}
+              />
+            </label>
+          </div>
+          <span className="text-xs text-muted-foreground">{t('jpg_png_hasta_10mb')}</span>
+        </div>
       )}
 
       {analizando && (
         <div className="card flex flex-col items-center justify-center gap-3 py-12">
           <Loader className="w-8 h-8 animate-spin text-accent" />
-          <span className="text-muted-foreground">Analizando ticket (OCR)... puede tardar un poco</span>
+          <span className="text-muted-foreground">{t('analizando_ticket_ocr')}</span>
         </div>
       )}
 
@@ -134,7 +155,7 @@ export default function EscanearTicketPage() {
       {items.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">{items.length} producto(s) detectado(s)</h2>
+            <h2 className="text-base font-semibold">{t('productos_detectados_contador').replace('{n}', String(items.length))}</h2>
             <button
               onClick={() => {
                 const todosIncluidos = items.every(i => i.incluir)
@@ -142,7 +163,7 @@ export default function EscanearTicketPage() {
               }}
               className="text-sm text-accent hover:underline font-medium"
             >
-              {items.every(i => i.incluir) ? 'Deseleccionar todos' : 'Seleccionar todos'}
+              {items.every(i => i.incluir) ? t('deseleccionar_todos') : t('seleccionar_todos')}
             </button>
           </div>
           <div className="space-y-2">
@@ -162,7 +183,7 @@ export default function EscanearTicketPage() {
                         ? 'bg-accent border-accent'
                         : 'border-border bg-card'
                     }`}
-                    aria-label={item.incluir ? 'Excluir producto' : 'Incluir producto'}
+                    aria-label={item.incluir ? t('aria_excluir_producto') : t('aria_incluir_producto')}
                   >
                     {item.incluir && <Check className="w-3.5 h-3.5 text-white" />}
                   </button>
@@ -180,17 +201,21 @@ export default function EscanearTicketPage() {
                         type="number"
                         value={item.cantidad}
                         min={0}
-                        onChange={(e) => actualizarItem(idx, { cantidad: parseInt(e.target.value) || 0 })}
+                        onChange={(e) =>
+                          actualizarItem(idx, {
+                            cantidad: e.target.value === '' ? '' : parseInt(e.target.value) || 0,
+                          })
+                        }
                         className="input-field"
                         inputMode="numeric"
-                        placeholder="Cantidad"
+                        placeholder={t('cantidad')}
                       />
                       <input
                         type="text"
                         value={item.categoria}
                         onChange={(e) => actualizarItem(idx, { categoria: e.target.value })}
                         className="input-field"
-                        placeholder="Categoría"
+                        placeholder={t('categoria')}
                       />
                     </div>
                   </div>
@@ -198,10 +223,10 @@ export default function EscanearTicketPage() {
                   <div className="flex-shrink-0 mt-1">
                     {item.producto_id ? (
                       <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
-                        <Check className="w-4 h-4" /> Conocido
+                        <Check className="w-4 h-4" /> {t('conocido')}
                       </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Nuevo</span>
+                      <span className="text-xs text-muted-foreground">{t('nuevo_badge')}</span>
                     )}
                   </div>
                 </div>
@@ -216,10 +241,10 @@ export default function EscanearTicketPage() {
               className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {confirmando ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Confirmar e importar al stock
+              {t('confirmar_e_importar_stock')}
             </button>
-            <button onClick={() => setItems([])} className="btn-secondary">
-              Cancelar
+            <button onClick={() => { setItems([]); reanudarPorEdicion() }} className="btn-secondary">
+              {t('cancelar')}
             </button>
           </div>
         </div>

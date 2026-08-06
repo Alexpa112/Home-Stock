@@ -142,10 +142,10 @@ def oauth_google_callback():
                     contador += 1
 
                 cur = db.execute(
-                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion) VALUES (?, ?, ?)",
-                    (nombre_usuario, email, ahora())
+                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion, email_verificado) VALUES (?, ?, ?, ?) RETURNING id",
+                    (nombre_usuario, email, ahora(), int(bool(email_verificado)))
                 )
-                usuario_id = cur.lastrowid
+                usuario_id = cur.fetchone()["id"]
 
             # Crear cuenta OAuth
             db.execute(
@@ -159,14 +159,15 @@ def oauth_google_callback():
 
         # Crear sesión
         fila_usuario = db.execute(
-            "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+            "SELECT nombre_usuario, session_version FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         session["usuario"] = fila_usuario["nombre_usuario"]
         session["usuario_id"] = usuario_id
+        session["session_version"] = fila_usuario["session_version"]
         session.permanent = True
 
-        return redirect("/")
+        return redirect(f"{APP_URL}/dashboard")
 
     except requests.RequestException:
         logging.getLogger(__name__).exception("Error en autenticación Google")
@@ -270,10 +271,10 @@ def oauth_apple_callback():
                     contador += 1
 
                 cur = db.execute(
-                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion) VALUES (?, ?, ?)",
-                    (nombre_usuario, email, ahora())
+                    "INSERT INTO usuarios (nombre_usuario, email, fecha_creacion, email_verificado) VALUES (?, ?, ?, ?) RETURNING id",
+                    (nombre_usuario, email, ahora(), int(bool(email_verificado)))
                 )
-                usuario_id = cur.lastrowid
+                usuario_id = cur.fetchone()["id"]
 
             # Crear cuenta OAuth
             db.execute(
@@ -287,14 +288,15 @@ def oauth_apple_callback():
 
         # Crear sesión
         fila_usuario = db.execute(
-            "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+            "SELECT nombre_usuario, session_version FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
         session["usuario"] = fila_usuario["nombre_usuario"]
         session["usuario_id"] = usuario_id
+        session["session_version"] = fila_usuario["session_version"]
         session.permanent = True
 
-        return redirect("/")
+        return redirect(f"{APP_URL}/dashboard")
 
     except Exception:
         logging.getLogger(__name__).exception("Error en autenticación Apple")

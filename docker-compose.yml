@@ -1,5 +1,10 @@
 services:
   stockhogar:
+    # "image" fija el tag que usan tanto "docker compose pull" (descarga la
+    # imagen precompilada por .github/workflows/docker-publish.yml, evitando
+    # compilar en la Pi) como "docker compose build" (compilación local de
+    # respaldo si el pull falla o no hay red hacia GHCR).
+    image: ghcr.io/alexpa112/home-stock-backend:latest
     build:
       context: .
       dockerfile: Dockerfile.raspbian
@@ -22,8 +27,18 @@ services:
     restart: unless-stopped
     networks:
       - stockhogar-network
+    # S-06: sin privilegios extra sobre el host (no-new-privileges bloquea
+    # setuid/setgid ganar mas capacidades de las que ya tiene el proceso) y
+    # limites de recursos acordes a una Raspberry Pi. read_only queda fuera
+    # de esta fase (necesitaria auditar todo lo que la app escriba fuera de
+    # data/logs/uploads).
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 768m
+    cpus: 1.5
 
   frontend:
+    image: ghcr.io/alexpa112/home-stock-frontend:latest
     build:
       context: .
       dockerfile: Dockerfile.frontend
@@ -39,7 +54,42 @@ services:
     restart: unless-stopped
     networks:
       - stockhogar-network
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 512m
+    cpus: 1.5
+
+  # Postgres opt-in (Fase 1.5, ver docs/PROPUESTA_SEGURIDAD_Y_FUNCIONALIDADES.md).
+  # NO se levanta con "docker compose up" a secas: solo con
+  # "docker compose --profile postgres up". Mientras no se active, el
+  # despliegue actual (SQLite) no cambia en nada.
+  postgres:
+    image: postgres:16-alpine
+    container_name: stockhogar-postgres
+    profiles:
+      - postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-stockhogar}
+      - POSTGRES_USER=${POSTGRES_USER:-stockhogar}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - stockhogar-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stockhogar} -d ${POSTGRES_DB:-stockhogar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - stockhogar-network
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 512m
+    cpus: 1.0
 
 networks:
   stockhogar-network:
     driver: bridge
+
+volumes:
+  stockhogar-postgres-data:

@@ -22,7 +22,7 @@ class ConfirmarTicketPermisoTests(unittest.TestCase):
         self.app = create_app()
         self.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
 
-        self.propietario_id, self.lista_id, self.client_propietario = self._crear_usuario_con_lista("owner")
+        self.propietario_id, self.hogar_id, self.client_propietario = self._crear_usuario_con_lista("owner")
         self.lector_id, _, self.client_lector = self._crear_usuario_con_lista("viewer")
 
         with self.app.app_context():
@@ -30,13 +30,13 @@ class ConfirmarTicketPermisoTests(unittest.TestCase):
             # El lector tiene acceso de solo lectura ('ver') a la lista del
             # propietario, y la tiene seleccionada como lista activa.
             db.execute(
-                "INSERT INTO permisos_lista (lista_id, usuario_id, nivel, fecha_otorgado) VALUES (?, ?, 'ver', ?)",
-                (self.lista_id, self.lector_id, ahora()),
+                "INSERT INTO permisos_hogar (hogar_id, usuario_id, nivel, fecha_otorgado) VALUES (?, ?, 'ver', ?)",
+                (self.hogar_id, self.lector_id, ahora()),
             )
             db.commit()
 
         with self.client_lector.session_transaction() as sess:
-            sess["lista_actual_id"] = self.lista_id
+            sess["hogar_actual_id"] = self.hogar_id
 
     def _crear_usuario_con_lista(self, sufijo):
         nombre_usuario = f"test_{sufijo}_{uuid.uuid4().hex[:8]}"
@@ -48,20 +48,20 @@ class ConfirmarTicketPermisoTests(unittest.TestCase):
             )
             usuario_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 (f"Lista de {sufijo}", usuario_id, ahora(), ahora()),
             )
-            lista_id = cur.lastrowid
+            hogar_id = cur.lastrowid
             db.commit()
 
         client = self.app.test_client()
         with client.session_transaction() as sess:
             sess["usuario"] = nombre_usuario
             sess["usuario_id"] = usuario_id
-            sess["lista_actual_id"] = lista_id
+            sess["hogar_actual_id"] = hogar_id
 
-        return usuario_id, lista_id, client
+        return usuario_id, hogar_id, client
 
     def tearDown(self):
         with self.app.app_context():
@@ -69,9 +69,9 @@ class ConfirmarTicketPermisoTests(unittest.TestCase):
             db.execute(
                 "DELETE FROM productos WHERE nombre = 'ZzzTicketPermisoTest'"
             )
-            db.execute("DELETE FROM permisos_lista WHERE lista_id = ?", (self.lista_id,))
+            db.execute("DELETE FROM permisos_hogar WHERE hogar_id = ?", (self.hogar_id,))
             db.execute(
-                "DELETE FROM listas WHERE usuario_propietario_id IN (?, ?)",
+                "DELETE FROM hogares WHERE usuario_propietario_id IN (?, ?)",
                 (self.propietario_id, self.lector_id),
             )
             db.execute("DELETE FROM usuarios WHERE id IN (?, ?)", (self.propietario_id, self.lector_id))

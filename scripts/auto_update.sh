@@ -45,6 +45,18 @@ if [[ "$CURRENT_BRANCH" != "$BRANCH" ]]; then
     exit 0
 fi
 
+# Mismo lock que usa install.sh: si hay una instalación en curso (lanzada a
+# mano o desde el panel), su `git pull` puede pisarse con este `git fetch` y
+# dejar el repo en un estado ambiguo ("no se puede hacer fast-forward en
+# múltiples ramas"). Si está tomado, no es un error: se reintenta en el
+# siguiente tick del cron.
+LOCK_FILE="$REPO_DIR/.install.lock"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    # Ya hay una instalación en curso; sale sin error para reintentar después.
+    exit 0
+fi
+
 if ! git fetch origin "$BRANCH" --quiet 2>/tmp/auto_update_fetch_err; then
     echo "[$(ts)] [ERROR] Fallo al hacer git fetch: $(cat /tmp/auto_update_fetch_err)"
     exit 1
@@ -57,6 +69,14 @@ if [[ "$LOCAL_REV" == "$REMOTE_REV" ]]; then
     # Sin cambios; no se escribe nada para no ensuciar el log en cada ejecución.
     exit 0
 fi
+
+# Soltamos el lock antes de llamar a install.sh: él toma el suyo propio sobre
+# el mismo fichero y, si lo mantuviéramos abierto aquí, se bloquearía a sí
+# mismo (flock es sobre el descriptor de fichero, no reentrante entre padre
+# e hijo). La ventana entre soltar y que install.sh lo retome es la misma
+# carrera de siempre, pero ahora la resuelve install.sh con su propio flock
+# en vez de fallar a medio "git pull".
+exec 200>&-
 
 echo "[$(ts)] [INFO] Nuevos commits en origin/$BRANCH ($LOCAL_REV -> $REMOTE_REV). Actualizando..."
 
