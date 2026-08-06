@@ -5,7 +5,7 @@
 # necesarios para Raspberry Pi (32-bit y 64-bit respectivamente). Si en el
 # futuro Node deja de publicar armv7, este build fallará en Pi de 32-bit y
 # habrá que fijar una version anterior o migrar a 64-bit.
-FROM node:20-bookworm-slim AS builder
+FROM node:25-bookworm-slim AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* pnpm-lock.yaml* ./
@@ -56,7 +56,7 @@ RUN if [ -f pnpm-lock.yaml ]; then \
         NODE_OPTIONS=--unhandled-rejections=warn npm run build -- --webpack; \
     fi
 
-FROM node:20-bookworm-slim
+FROM node:25-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
