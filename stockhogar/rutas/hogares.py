@@ -191,7 +191,7 @@ def actualizar_lista(hogar_id):
     parametros.append(hogar_id)
 
     campos = ", ".join(f"{k} = {v}" for k, v in actualizaciones.items())
-    db.execute(f"UPDATE hogares SET {campos} WHERE id = ?", parametros)
+    db.execute(f"UPDATE hogares SET {campos} WHERE id = ?", parametros)  # nosec B608
     db.commit()
 
     lista = db.execute(

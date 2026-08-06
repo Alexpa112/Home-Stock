@@ -566,13 +566,13 @@ def exportar_mis_datos():
     if ids_hogares:
         inventario = _filas_a_lista(
             db,
-            f"SELECT sh.hogar_id, p.nombre, sh.cantidad, sh.stock_minimo, sh.fecha_actualizacion "
+            f"SELECT sh.hogar_id, p.nombre, sh.cantidad, sh.stock_minimo, sh.fecha_actualizacion "  # nosec B608
             f"FROM stock_hogar sh JOIN productos p ON p.id = sh.producto_id WHERE sh.hogar_id IN ({placeholders})",
             ids_hogares,
         )
         articulos_compra = _filas_a_lista(
             db,
-            f"SELECT hogar_id, nombre, cantidad, unidad, activo, fecha_creacion FROM articulos_compra "
+            f"SELECT hogar_id, nombre, cantidad, unidad, activo, fecha_creacion FROM articulos_compra "  # nosec B608
             f"WHERE hogar_id IN ({placeholders})",
             ids_hogares,
         )

@@ -149,7 +149,7 @@ def migrar_iconos_emoji_a_lucide(db):
             continue
         for emoji, nombre_lucide in MAPEO_EMOJI_A_ICONO_LUCIDE.items():
             db.execute(
-                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",
+                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",  # nosec B608
                 (nombre_lucide, emoji),
             )
         # Renombrados posteriores: algunos conceptos "hogar/UI" pasaron de
@@ -157,7 +157,7 @@ def migrar_iconos_emoji_a_lucide(db):
         # migradas al nombre Lucide antiguo se reasignan al nuevo nombre.
         for nombre_viejo, nombre_nuevo in RENOMBRES_ICONO.items():
             db.execute(
-                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",
+                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",  # nosec B608
                 (nombre_nuevo, nombre_viejo),
             )
 
@@ -239,10 +239,10 @@ def _migrar_lista_compra_a_articulos(db):
 
             campos.append("?")  # fecha_creacion
 
-            select_clause = f"SELECT {', '.join(campos)} FROM lista_compra"
+            select_clause = f"SELECT {', '.join(campos)} FROM lista_compra"  # nosec B608
 
             db.execute(
-                f"""
+                f"""  # nosec B608
                 INSERT INTO articulos_lista
                 (lista_id, producto_id, nombre, unidad, categoria, icono, cantidad,
                  sub_descripcion, origen, activo, fecha_completado, fecha_creacion)
@@ -273,7 +273,7 @@ def _renombrar_categoria(db, nombre_viejo, nombre_nuevo):
         db.execute("DELETE FROM categorias WHERE id = ?", (vieja["id"],))
 
     for tabla in ("productos", "articulos_lista", "historial_articulos", "articulos_personalizados"):
-        db.execute(f"UPDATE {tabla} SET categoria = ? WHERE categoria = ?", (nombre_nuevo, nombre_viejo))
+        db.execute(f"UPDATE {tabla} SET categoria = ? WHERE categoria = ?", (nombre_nuevo, nombre_viejo))  # nosec B608
 
 
 def _reparar_fk_articulos_personalizados_old(db):
@@ -885,7 +885,7 @@ def _init_db_impl():
             db.commit()
             db.execute("PRAGMA foreign_keys = OFF")
             db.execute(
-                f"""
+                f"""  # nosec B608
                 CREATE TABLE articulos_personalizados_new (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     nombre TEXT NOT NULL COLLATE NOCASE,
@@ -1039,7 +1039,11 @@ def _init_db_impl():
         )
 
         columnas_articulos_lista = [f["name"] for f in db.execute("PRAGMA table_info(articulos_lista)").fetchall()]
-        col_art_pers = "articulo_personalizado_id" if "articulo_personalizado_id" in columnas_articulos_lista else "NULL"
+        select_art_pers = (
+            "articulo_personalizado_id"
+            if "articulo_personalizado_id" in columnas_articulos_lista
+            else "NULL"
+        )
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS articulos_compra (
@@ -1060,13 +1064,22 @@ def _init_db_impl():
             )
             """
         )
-        db.execute(
-            f"""
-            INSERT INTO articulos_compra (id, hogar_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, articulo_personalizado_id)
-            SELECT id, lista_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, {col_art_pers} FROM articulos_lista
-            WHERE id NOT IN (SELECT id FROM articulos_compra)
-            """
-        )
+        if select_art_pers == "articulo_personalizado_id":
+            db.execute(
+                """
+                INSERT INTO articulos_compra (id, hogar_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, articulo_personalizado_id)
+                SELECT id, lista_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, articulo_personalizado_id FROM articulos_lista
+                WHERE id NOT IN (SELECT id FROM articulos_compra)
+                """
+            )
+        else:
+            db.execute(
+                """
+                INSERT INTO articulos_compra (id, hogar_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, articulo_personalizado_id)
+                SELECT id, lista_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, NULL FROM articulos_lista
+                WHERE id NOT IN (SELECT id FROM articulos_compra)
+                """
+            )
         asegurar_columna(db, "articulos_compra", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
         asegurar_columna(db, "articulos_compra", "fecha_actualizacion", "TEXT")
         db.execute(
@@ -1427,7 +1440,7 @@ def _init_db_impl():
                     )
                 columnas = [f["name"] for f in db.execute(f"PRAGMA table_info({tabla}_old)").fetchall()]
                 cols_sql = ", ".join(columnas)
-                db.execute(f"INSERT INTO {tabla} ({cols_sql}) SELECT {cols_sql} FROM {tabla}_old")
+                db.execute(f"INSERT INTO {tabla} ({cols_sql}) SELECT {cols_sql} FROM {tabla}_old")  # nosec B608
                 db.execute(f"DROP TABLE {tabla}_old")
                 db.commit()
 

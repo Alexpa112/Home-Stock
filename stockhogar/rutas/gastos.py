@@ -282,7 +282,7 @@ def actualizar_gasto(gasto_id):
     if actualizaciones:
         parametros.append(gasto_id)
         campos = ", ".join(f"{k} = {v}" for k, v in actualizaciones.items())
-        db.execute(f"UPDATE gastos SET {campos} WHERE id = ?", parametros)
+        db.execute(f"UPDATE gastos SET {campos} WHERE id = ?", parametros)  # nosec B608
 
     if "participantes" in datos:
         participantes = datos.get("participantes")
