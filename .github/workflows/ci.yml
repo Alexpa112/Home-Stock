@@ -56,7 +56,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install pip-audit
-      - run: pip-audit -r requirements.txt
+      # PYSEC-2026-3075: stanza 1.10.1 pinned by argostranslate (latest 1.x);
+      # no upstream fix available until argostranslate releases a version that
+      # supports stanza>=1.12.2. Ignored until then.
+      - run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-3075
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
