@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X, ScanBarcode } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X, ScanBarcode, Download, Upload } from 'lucide-react'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { Modal } from '@/components/dashboard/Modal'
+import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
 import { BarcodeScanner } from '@/components/shared/BarcodeScanner'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
 import { buscarCatalogo, buscarPorCodigoBarras } from '@/lib/catalogo'
@@ -82,6 +83,7 @@ export default function ShoppingPage() {
   const [formCodigoBarras, setFormCodigoBarras] = useState<string | undefined>(undefined)
   const [mostrarEscaner, setMostrarEscaner] = useState(false)
   const [errorEscaner, setErrorEscaner] = useState('')
+  const inputImportarRef = useRef<HTMLInputElement>(null)
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
   const [edicionCompleta, setEdicionCompleta] = useState<{ nombre: string; cantidad: number | null; unidad: string; categoria: string; dias_aviso: number | null }>({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros', dias_aviso: 30 })
@@ -157,6 +159,28 @@ export default function ShoppingPage() {
       setError(message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleExportarCsv = async () => {
+    try {
+      setError('')
+      await articulosLista.exportarCsv()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error_conexion_titulo'))
+    }
+  }
+
+  const handleImportarCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fichero = e.target.files?.[0]
+    e.target.value = ''
+    if (!fichero) return
+    try {
+      setError('')
+      await articulosLista.importarCsv(fichero)
+      loadItems()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_importar_csv'))
     }
   }
 
@@ -622,14 +646,24 @@ export default function ShoppingPage() {
             {pendientes.length} {t('articulos_pendientes')}
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="btn-primary flex items-center gap-2 min-h-[44px]"
-        >
-          <Plus className="w-5 h-5" />
-          <span className="hidden sm:inline">{t('añadir_articulo')}</span>
-          <span className="sm:hidden">{t('añadir')}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn-primary flex items-center gap-2 min-h-[44px]"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">{t('añadir_articulo')}</span>
+            <span className="sm:hidden">{t('añadir')}</span>
+          </button>
+          <MenuAcciones
+            label={t('mas_acciones')}
+            acciones={[
+              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
+              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click() },
+            ]}
+          />
+          <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
+        </div>
       </div>
 
       {/* Vista Controls */}

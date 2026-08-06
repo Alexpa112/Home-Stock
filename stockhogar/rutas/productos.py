@@ -1,7 +1,9 @@
 """Rutas del inventario de productos (stock)."""
+import csv
+import io
 import logging
 import threading
-from flask import Blueprint, current_app, g, request, session
+from flask import Blueprint, Response, current_app, g, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import DIAS_AVISO_DEFECTO
@@ -21,6 +23,104 @@ from ..servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 logger = logging.getLogger(__name__)
+
+CABECERAS_CSV_INVENTARIO = ["nombre", "categoria", "unidad", "cantidad", "stock_minimo", "dias_aviso"]
+MAX_FILAS_IMPORTACION = 500
+
+
+@bp.route("/exportar", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def exportar_inventario_csv():
+    """Exporta el inventario (stock) del hogar activo a CSV (P-09), para
+    respaldo o migrar a otro hogar. Solo lectura: nivel 'ver' basta."""
+    db = get_db()
+    hogar_id = hogar_actual_con_permiso(db, session)
+    if not hogar_id:
+        return APIResponse.no_permitido()
+
+    filas = db.execute(
+        """SELECT p.nombre, p.categoria, p.unidad, p.dias_aviso, sl.cantidad, sl.stock_minimo
+           FROM stock_hogar sl JOIN productos p ON p.id = sl.producto_id
+           WHERE sl.hogar_id = ? ORDER BY p.categoria, LOWER(p.nombre)""",
+        (hogar_id,),
+    ).fetchall()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(CABECERAS_CSV_INVENTARIO)
+    for fila in filas:
+        writer.writerow([
+            fila["nombre"], fila["categoria"], fila["unidad"],
+            fila["cantidad"], fila["stock_minimo"], fila["dias_aviso"],
+        ])
+
+    contenido = buffer.getvalue().encode("utf-8-sig")
+    nombre_fichero = f"inventario_{ahora()[:10]}.csv"
+    return Response(
+        contenido,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre_fichero}"'},
+    )
+
+
+@bp.route("/importar", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def importar_inventario_csv():
+    """Importa un CSV con el mismo formato de /exportar (P-09): por nombre
+    (case-insensitive), actualiza cantidad/stock_minimo si el producto ya
+    esta en el stock de esta lista, o lo crea si no."""
+    db = get_db()
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="editar")
+    if not hogar_id:
+        return APIResponse.no_permitido()
+
+    archivo = request.files.get("fichero")
+    if archivo is None or archivo.filename == "":
+        return APIResponse.validacion("err_sin_fichero")
+
+    try:
+        texto = archivo.read().decode("utf-8-sig")
+    except UnicodeDecodeError as e:
+        raise ValidationError("El fichero debe ser un CSV de texto") from e
+
+    lector = csv.DictReader(io.StringIO(texto), delimiter=";")
+    creados = 0
+    actualizados = 0
+    for i, fila in enumerate(lector):
+        if i >= MAX_FILAS_IMPORTACION:
+            break
+        nombre = (fila.get("nombre") or "").strip()
+        if not nombre:
+            continue
+        categoria = normalizar_categoria(db, fila.get("categoria") or "Otros")
+        unidad = (fila.get("unidad") or "ud").strip() or "ud"
+        try:
+            cantidad = max(0, int(fila.get("cantidad") or 0))
+            stock_minimo = max(0, int(fila.get("stock_minimo") or 1))
+            dias_aviso = int(fila.get("dias_aviso") or DIAS_AVISO_DEFECTO)
+        except (TypeError, ValueError):
+            continue
+
+        existente = db.execute(
+            """SELECT p.id FROM productos p JOIN stock_hogar sl ON sl.producto_id = p.id
+               WHERE sl.hogar_id = ? AND LOWER(p.nombre) = LOWER(?)""",
+            (hogar_id, nombre),
+        ).fetchone()
+        if existente:
+            db.execute(
+                "UPDATE stock_hogar SET cantidad = ?, stock_minimo = ?, fecha_actualizacion = ? "
+                "WHERE hogar_id = ? AND producto_id = ?",
+                (cantidad, stock_minimo, ahora(), hogar_id, existente["id"]),
+            )
+            actualizados += 1
+        else:
+            crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, hogar_id=hogar_id)
+            creados += 1
+
+    db.commit()
+    return APIResponse.success({"creados": creados, "actualizados": actualizados})
 
 
 @bp.route("", methods=["GET"])

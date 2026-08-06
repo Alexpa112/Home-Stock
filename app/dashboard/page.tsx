@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart, Download, Upload } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
+import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { IconPicker } from '@/components/dashboard/IconPicker'
@@ -110,6 +111,7 @@ export default function StockPage() {
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [mostrarIconPicker, setMostrarIconPicker] = useState(false)
   const [mostrarHistorialPreciosId, setMostrarHistorialPreciosId] = useState<number | null>(null)
+  const inputImportarRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     // Cargar preferencias guardadas
@@ -600,6 +602,28 @@ export default function StockPage() {
 
   const renderProducto = (item: Producto) => (modoVista === 'lista' ? renderProductoLista(item) : renderProductoGrid(item))
 
+  const handleExportarCsv = async () => {
+    try {
+      setError('')
+      await productosApi.exportarCsv()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error_conexion_titulo'))
+    }
+  }
+
+  const handleImportarCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fichero = e.target.files?.[0]
+    e.target.value = ''
+    if (!fichero) return
+    try {
+      setError('')
+      await productosApi.importarCsv(fichero)
+      bootstrap()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_importar_csv'))
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
       {/* Header */}
@@ -608,14 +632,24 @@ export default function StockPage() {
           <h1 className="text-2xl lg:text-3xl font-bold">{t('mi_stock')}</h1>
           <p className="text-muted-foreground mt-1">{t('subtitulo_stock')}</p>
         </div>
-        <button
-          onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
-          className="btn-primary flex items-center gap-2 min-h-[44px]"
-        >
-          <Plus className="w-5 h-5" />
-          <span className="hidden sm:inline">{t('añadir_producto')}</span>
-          <span className="sm:hidden">{t('añadir')}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
+            className="btn-primary flex items-center gap-2 min-h-[44px]"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">{t('añadir_producto')}</span>
+            <span className="sm:hidden">{t('añadir')}</span>
+          </button>
+          <MenuAcciones
+            label={t('mas_acciones')}
+            acciones={[
+              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
+              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click() },
+            ]}
+          />
+          <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
+        </div>
       </div>
 
       {/* Filtros compactos — opciones de filtrado rápido */}

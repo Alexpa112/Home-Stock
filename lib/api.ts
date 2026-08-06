@@ -273,6 +273,14 @@ export const productos = {
   eliminar: (id: number) => apiCall(`/api/productos/${id}`, { method: 'DELETE' }),
 
   historialPrecios: (id: number) => apiCall(`/api/productos/${id}/precios`),
+
+  exportarCsv: () => apiDownload('/api/productos/exportar', 'inventario.csv'),
+
+  importarCsv: (fichero: File) => {
+    const formData = new FormData()
+    formData.append('fichero', fichero)
+    return apiUpload('/api/productos/importar', formData)
+  },
 }
 
 // ===== Lista de la compra (stockhogar/rutas/articulos_compra.py) =====
@@ -293,6 +301,14 @@ export const articulosLista = {
     apiCall(`/api/articulos/${id}`, { method: 'PATCH', body: JSON.stringify(datos) }),
 
   eliminar: (id: number) => apiCall(`/api/articulos/${id}`, { method: 'DELETE' }),
+
+  exportarCsv: () => apiDownload('/api/articulos/exportar', 'lista_compra.csv'),
+
+  importarCsv: (fichero: File) => {
+    const formData = new FormData()
+    formData.append('fichero', fichero)
+    return apiUpload('/api/articulos/importar', formData)
+  },
 }
 
 // ===== Artículos personalizados del hogar (catálogo propio) =====

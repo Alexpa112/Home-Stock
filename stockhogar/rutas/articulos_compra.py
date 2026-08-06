@@ -1,18 +1,23 @@
 """Rutas de artículos en la lista de la compra de un hogar (antes lista_compra)."""
+import csv
+import io
 import logging
-from flask import Blueprint, request, session, jsonify
+from flask import Blueprint, Response, request, session, jsonify
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
-from ..utils import Validator, DataConverter
+from ..utils import Validator, DataConverter, ValidationError
 from .categorias import normalizar_categoria
 from .historial import buscar_historial, recordar_articulo
 from .hogares import _usuario_tiene_permiso
 
 bp = Blueprint("articulos_compra", __name__, url_prefix="/api/articulos")
 logger = logging.getLogger(__name__)
+
+CABECERAS_CSV_LISTA = ["nombre", "categoria", "unidad", "cantidad", "sub_descripcion"]
+MAX_FILAS_IMPORTACION = 500
 
 LIMITE_COMPLETADOS = 12
 CAMPOS_EDITABLES = {"nombre", "cantidad", "unidad", "categoria", "icono", "sub_descripcion", "dias_aviso"}
@@ -66,6 +71,90 @@ def listar_articulos():
         "pendientes": [DataConverter.articulo_lista_to_dict(f) for f in pendientes],
         "completados": [DataConverter.articulo_lista_to_dict(f) for f in completados],
     })
+
+
+@bp.route("/exportar", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def exportar_lista_csv():
+    """Exporta los artículos pendientes de la lista activa a CSV (P-09)."""
+    db = get_db()
+    hogar_id = _resolver_hogar_id(db, session)
+    if not hogar_id:
+        return APIResponse.error("err_no_hay_hogar_activo", 400)
+
+    permiso = _usuario_tiene_permiso(db, hogar_id, session.get("usuario_id"))
+    if not permiso:
+        return APIResponse.no_permitido()
+
+    filas = db.execute(
+        "SELECT nombre, categoria, unidad, cantidad, sub_descripcion FROM articulos_compra "
+        "WHERE activo = 1 AND hogar_id = ? ORDER BY categoria, LOWER(nombre)",
+        (hogar_id,),
+    ).fetchall()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(CABECERAS_CSV_LISTA)
+    for fila in filas:
+        writer.writerow([
+            fila["nombre"], fila["categoria"], fila["unidad"], fila["cantidad"], fila["sub_descripcion"] or "",
+        ])
+
+    contenido = buffer.getvalue().encode("utf-8-sig")
+    nombre_fichero = f"lista_compra_{ahora()[:10]}.csv"
+    return Response(
+        contenido,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre_fichero}"'},
+    )
+
+
+@bp.route("/importar", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def importar_lista_csv():
+    """Importa un CSV con el mismo formato de /exportar (P-09): cada fila se
+    añade o suma a la lista activa igual que anadir_o_sumar_articulo."""
+    db = get_db()
+    usuario_id = session.get("usuario_id")
+    hogar_id = _resolver_hogar_id(db, session)
+    if not hogar_id:
+        return APIResponse.error("err_no_hay_hogar_activo", 400)
+
+    permiso = _usuario_tiene_permiso(db, hogar_id, usuario_id, nivel_requerido="editar")
+    if not permiso or (permiso != "propietario" and permiso != "editar"):
+        return APIResponse.no_permitido()
+
+    archivo = request.files.get("fichero")
+    if archivo is None or archivo.filename == "":
+        return APIResponse.validacion("err_sin_fichero")
+
+    try:
+        texto = archivo.read().decode("utf-8-sig")
+    except UnicodeDecodeError as e:
+        raise ValidationError("El fichero debe ser un CSV de texto") from e
+
+    lector = csv.DictReader(io.StringIO(texto), delimiter=";")
+    anadidos = 0
+    for i, fila in enumerate(lector):
+        if i >= MAX_FILAS_IMPORTACION:
+            break
+        nombre = (fila.get("nombre") or "").strip()
+        if not nombre:
+            continue
+        try:
+            cantidad = max(1, int(fila.get("cantidad") or 1))
+        except (TypeError, ValueError):
+            cantidad = 1
+        anadir_o_sumar_articulo(
+            db, hogar_id, nombre, cantidad=cantidad,
+            categoria=fila.get("categoria"), unidad=fila.get("unidad"),
+            sub_descripcion=fila.get("sub_descripcion"),
+        )
+        anadidos += 1
+
+    return APIResponse.success({"anadidos": anadidos})
 
 
 def anadir_o_sumar_articulo(
