@@ -274,7 +274,13 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                         t('propietario_rol')
                       ) : (
                         <>
-                          <Users className="w-3 h-3" /> {hogar.mi_rol === 'editar' ? t('compartida_puedes_editar') : t('compartida_solo_ver')}
+                          <Users className="w-3 h-3" /> {
+                            hogar.mi_rol === 'editar'
+                              ? t('compartida_puedes_editar')
+                              : hogar.mi_rol === 'comprar'
+                                ? t('compartida_puede_comprar')
+                                : t('compartida_solo_ver')
+                          }
                         </>
                       )}
                     </p>

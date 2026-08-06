@@ -545,9 +545,11 @@ export default function SettingsPage() {
                     placeholder={t('placeholder_tu_password_actual')}
                   />
                   <button
+                    type="button"
                     onClick={() => setMostrarPassword({ ...mostrarPassword, actual: !mostrarPassword.actual })}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     tabIndex={-1}
+                    aria-label={mostrarPassword.actual ? t('ocultar_password') : t('mostrar_password')}
                   >
                     {mostrarPassword.actual ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -565,9 +567,11 @@ export default function SettingsPage() {
                     placeholder={t('minimo_8_caracteres')}
                   />
                   <button
+                    type="button"
                     onClick={() => setMostrarPassword({ ...mostrarPassword, nueva: !mostrarPassword.nueva })}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     tabIndex={-1}
+                    aria-label={mostrarPassword.nueva ? t('ocultar_password') : t('mostrar_password')}
                   >
                     {mostrarPassword.nueva ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -585,9 +589,11 @@ export default function SettingsPage() {
                     placeholder={t('placeholder_confirma_contrasena')}
                   />
                   <button
+                    type="button"
                     onClick={() => setMostrarPassword({ ...mostrarPassword, confirmacion: !mostrarPassword.confirmacion })}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     tabIndex={-1}
+                    aria-label={mostrarPassword.confirmacion ? t('ocultar_password') : t('mostrar_password')}
                   >
                     {mostrarPassword.confirmacion ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>

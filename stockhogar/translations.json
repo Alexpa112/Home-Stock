@@ -783,7 +783,12 @@
     "tu_parte": "Tu parte",
     "del_total": "del total",
     "deshacer": "Deshacer",
-    "evolucion_consumo": "Evolución de consumo"
+    "evolucion_consumo": "Evolución de consumo",
+    "compartida_puedes_editar": "Puedes editar",
+    "compartida_puede_comprar": "Puedes marcar comprado",
+    "compartida_solo_ver": "Solo puedes ver",
+    "mostrar_password": "Mostrar contraseña",
+    "ocultar_password": "Ocultar contraseña"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1569,7 +1574,12 @@
     "importar_csv": "Importar CSV",
     "mas_acciones": "Máis accións",
     "err_importar_csv": "Non se puido importar o ficheiro.",
-    "evolucion_consumo": "Evolución de consumo"
+    "evolucion_consumo": "Evolución de consumo",
+    "compartida_puedes_editar": "Podes editar",
+    "compartida_puede_comprar": "Podes marcar como comprado",
+    "compartida_solo_ver": "So podes ver",
+    "mostrar_password": "Mostrar contrasinal",
+    "ocultar_password": "Ocultar contrasinal"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2355,7 +2365,12 @@
     "importar_csv": "Import CSV",
     "mas_acciones": "More actions",
     "err_importar_csv": "Couldn't import the file.",
-    "evolucion_consumo": "Consumption trend"
+    "evolucion_consumo": "Consumption trend",
+    "compartida_puedes_editar": "You can edit",
+    "compartida_puede_comprar": "You can mark as bought",
+    "compartida_solo_ver": "You can only view",
+    "mostrar_password": "Show password",
+    "ocultar_password": "Hide password"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3141,7 +3156,12 @@
     "importar_csv": "Importar CSV",
     "mas_acciones": "Mais acoes",
     "err_importar_csv": "Nao foi possivel importar o ficheiro.",
-    "evolucion_consumo": "Evolucao do consumo"
+    "evolucion_consumo": "Evolucao do consumo",
+    "compartida_puedes_editar": "Podes editar",
+    "compartida_puede_comprar": "Podes marcar como comprado",
+    "compartida_solo_ver": "So podes ver",
+    "mostrar_password": "Mostrar senha",
+    "ocultar_password": "Ocultar senha"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -3927,7 +3947,12 @@
     "importar_csv": "Importer un CSV",
     "mas_acciones": "Plus d'actions",
     "err_importar_csv": "Impossible d'importer le fichier.",
-    "evolucion_consumo": "Evolution de la consommation"
+    "evolucion_consumo": "Evolution de la consommation",
+    "compartida_puedes_editar": "Vous pouvez modifier",
+    "compartida_puede_comprar": "Vous pouvez marquer comme achete",
+    "compartida_solo_ver": "Vous pouvez seulement consulter",
+    "mostrar_password": "Afficher le mot de passe",
+    "ocultar_password": "Masquer le mot de passe"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4713,7 +4738,12 @@
     "importar_csv": "Importa CSV",
     "mas_acciones": "Altre azioni",
     "err_importar_csv": "Impossibile importare il file.",
-    "evolucion_consumo": "Andamento dei consumi"
+    "evolucion_consumo": "Andamento dei consumi",
+    "compartida_puedes_editar": "Puoi modificare",
+    "compartida_puede_comprar": "Puoi segnare come acquistato",
+    "compartida_solo_ver": "Puoi solo visualizzare",
+    "mostrar_password": "Mostra password",
+    "ocultar_password": "Nascondi password"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5499,6 +5529,11 @@
     "importar_csv": "CSV importieren",
     "mas_acciones": "Weitere Aktionen",
     "err_importar_csv": "Datei konnte nicht importiert werden.",
-    "evolucion_consumo": "Verbrauchsverlauf"
+    "evolucion_consumo": "Verbrauchsverlauf",
+    "compartida_puedes_editar": "Du kannst bearbeiten",
+    "compartida_puede_comprar": "Du kannst als gekauft markieren",
+    "compartida_solo_ver": "Du kannst nur ansehen",
+    "mostrar_password": "Passwort anzeigen",
+    "ocultar_password": "Passwort ausblenden"
   }
 }

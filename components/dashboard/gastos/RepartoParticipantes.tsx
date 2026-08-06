@@ -86,6 +86,16 @@ export function RepartoParticipantes({
             <div
               key={m.id}
               onClick={() => onToggle(m.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onToggle(m.id)
+                }
+              }}
+              role="checkbox"
+              aria-checked={incluido}
+              aria-label={`${m.nombre_usuario}${incluido ? '' : ` (${etiquetaExcluido})`}`}
+              tabIndex={0}
               className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-opacity ${incluido ? '' : 'opacity-45'}`}
             >
               <span
@@ -99,7 +109,7 @@ export function RepartoParticipantes({
               {!incluido ? (
                 <span className="text-xs text-muted-foreground">{etiquetaExcluido}</span>
               ) : modoReparto === 'porcentaje' ? (
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                   <input
                     type="number"
                     step="0.1"
@@ -107,6 +117,7 @@ export function RepartoParticipantes({
                     max="100"
                     value={porcentajesPorMiembro[m.id] ?? ''}
                     onChange={(e) => onCambiarPorcentaje(m.id, e.target.value)}
+                    aria-label={`${etiquetaPorcentaje} ${m.nombre_usuario}`}
                     className="input-field !py-1 !px-2 w-16 text-sm text-right"
                   />
                   <span className="text-xs text-muted-foreground w-16 text-right flex-shrink-0 tabular-nums">
@@ -114,13 +125,14 @@ export function RepartoParticipantes({
                   </span>
                 </div>
               ) : modoReparto === 'partes' ? (
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                   <input
                     type="number"
                     step="1"
                     min="0"
                     value={partesPorMiembro[m.id] ?? '1'}
                     onChange={(e) => onCambiarPartes(m.id, e.target.value)}
+                    aria-label={`${etiquetaPartes} ${m.nombre_usuario}`}
                     className="input-field !py-1 !px-2 w-16 text-sm text-right"
                   />
                   <span className="text-xs text-muted-foreground w-16 text-right flex-shrink-0 tabular-nums">
@@ -128,13 +140,14 @@ export function RepartoParticipantes({
                   </span>
                 </div>
               ) : modoReparto === 'personalizado' ? (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={importesPorMiembro[m.id] ?? ''}
                     onChange={(e) => onCambiarImporte(m.id, e.target.value)}
+                    aria-label={`${etiquetaPersonalizado} ${m.nombre_usuario}`}
                     className="input-field !py-1 !px-2 w-24 text-sm text-right"
                   />
                 </div>
