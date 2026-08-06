@@ -1,0 +1,90 @@
+name: CI (tests y seguridad)
+
+on:
+  push:
+    branches: [dev2, produccion, main]
+  pull_request:
+    branches: [dev2, produccion, main]
+
+jobs:
+  test-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # Los tests de OCR local (tesseract-ocr, ver Dockerfile.raspbian) mockean
+      # el motor de reconocimiento; no necesitan el binario real instalado en
+      # el runner para pasar.
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      # argostranslate arrastra transitivamente torch/ctranslate2/onnxruntime
+      # junto con la OpenMP propia de opencv-python-headless. Los tests
+      # siempre pasan, pero el proceso revienta al cerrar Python (SIGABRT o
+      # SIGSEGV segun versiones) liberando esas librerias nativas en el
+      # cierre normal del interprete — no es un fallo de los tests.
+      # scripts/ci/run_tests_safe.py corre pytest y sale con os._exit()
+      # saltandose ese cierre; KMP_DUPLICATE_LIB_OK=TRUE se deja tambien
+      # puesto que mitiga el caso SIGABRT antes de llegar siquiera a esa
+      # salida forzada.
+      - run: python scripts/ci/run_tests_safe.py tests/ -q
+        env:
+          KMP_DUPLICATE_LIB_OK: "TRUE"
+
+  test-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      # jest.config.js (legacy, JS vanilla) no tiene tests reales ahora mismo
+      # (ver su comentario sobre stockhogar/static/modules); solo se ejecuta
+      # el proyecto de jest.config.lib.js (lib/**/__tests__, TS).
+      - run: npx jest -c jest.config.lib.js
+
+  audit-deps:
+    runs-on: ubuntu-latest
+    # No bloquea el pipeline: avisa de vulnerabilidades en dependencias de
+    # terceros que no controlamos directamente, sin impedir un merge por algo
+    # que no se puede arreglar en el acto. Revisar los avisos igualmente.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit
+      # PYSEC-2026-3075: stanza 1.10.1 pinned by argostranslate (latest 1.x);
+      # no upstream fix available until argostranslate releases a version that
+      # supports stanza>=1.12.2. Ignored until then.
+      - run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-3075
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm audit --audit-level=high
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast-python:
+    runs-on: ubuntu-latest
+    # Bandit en vez de CodeQL: mismo objetivo (deteccion de patrones inseguros
+    # en el codigo Python propio) con mucho menos overhead de configuracion
+    # y sin necesitar el permiso security-events: write.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install bandit
+      - run: bandit -r stockhogar/ -ll
