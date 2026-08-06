@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingDown, BookOpen, Trash2, Pencil } from 'lucide-react'
+import { TrendingDown, BookOpen, Trash2, Pencil, LineChart } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi, articulosPersonalizados as articulosPersonalizadosApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { IconPicker } from '@/components/dashboard/IconPicker'
+import { GraficoColumnas } from '@/components/dashboard/GraficoColumnas'
 
 interface ProductoConsumo {
   nombre: string
@@ -36,6 +37,7 @@ export default function HistorialPage() {
   const { t } = useTranslation()
   const [dias, setDias] = useState(30)
   const [porProducto, setPorProducto] = useState<ProductoConsumo[]>([])
+  const [porDia, setPorDia] = useState<{ dia: string; consumo: number }[]>([])
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [personalizados, setPersonalizados] = useState<ArticuloPersonalizado[]>([])
   const [eliminandoId, setEliminandoId] = useState<number | null>(null)
@@ -103,6 +105,7 @@ export default function HistorialPage() {
       setError('')
       const data: any = await consumoApi.resumen(d)
       setPorProducto(data.por_producto || [])
+      setPorDia(data.dias || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión')
     } finally {
@@ -178,6 +181,17 @@ export default function HistorialPage() {
           </div>
         )}
       </div>
+
+      {porDia.length > 0 && (
+        <div className="card space-y-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <LineChart className="w-5 h-5 text-accent" /> {t('evolucion_consumo')}
+          </h2>
+          <GraficoColumnas
+            datos={porDia.map((d) => ({ etiqueta: d.dia.slice(5), valor: d.consumo }))}
+          />
+        </div>
+      )}
 
       <div className="card space-y-3">
         <h2 className="text-lg font-semibold flex items-center gap-2">

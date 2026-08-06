@@ -782,7 +782,8 @@
     "vs_mes_anterior": "vs. mes anterior",
     "tu_parte": "Tu parte",
     "del_total": "del total",
-    "deshacer": "Deshacer"
+    "deshacer": "Deshacer",
+    "evolucion_consumo": "Evolución de consumo"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1567,7 +1568,8 @@
     "deshacer": "Desfacer",
     "importar_csv": "Importar CSV",
     "mas_acciones": "Máis accións",
-    "err_importar_csv": "Non se puido importar o ficheiro."
+    "err_importar_csv": "Non se puido importar o ficheiro.",
+    "evolucion_consumo": "Evolución de consumo"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2352,7 +2354,8 @@
     "deshacer": "Undo",
     "importar_csv": "Import CSV",
     "mas_acciones": "More actions",
-    "err_importar_csv": "Couldn't import the file."
+    "err_importar_csv": "Couldn't import the file.",
+    "evolucion_consumo": "Consumption trend"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3137,7 +3140,8 @@
     "deshacer": "Desfazer",
     "importar_csv": "Importar CSV",
     "mas_acciones": "Mais acoes",
-    "err_importar_csv": "Nao foi possivel importar o ficheiro."
+    "err_importar_csv": "Nao foi possivel importar o ficheiro.",
+    "evolucion_consumo": "Evolucao do consumo"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -3922,7 +3926,8 @@
     "deshacer": "Annuler",
     "importar_csv": "Importer un CSV",
     "mas_acciones": "Plus d'actions",
-    "err_importar_csv": "Impossible d'importer le fichier."
+    "err_importar_csv": "Impossible d'importer le fichier.",
+    "evolucion_consumo": "Evolution de la consommation"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4707,7 +4712,8 @@
     "deshacer": "Annulla",
     "importar_csv": "Importa CSV",
     "mas_acciones": "Altre azioni",
-    "err_importar_csv": "Impossibile importare il file."
+    "err_importar_csv": "Impossibile importare il file.",
+    "evolucion_consumo": "Andamento dei consumi"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5492,6 +5498,7 @@
     "deshacer": "Rückgängig",
     "importar_csv": "CSV importieren",
     "mas_acciones": "Weitere Aktionen",
-    "err_importar_csv": "Datei konnte nicht importiert werden."
+    "err_importar_csv": "Datei konnte nicht importiert werden.",
+    "evolucion_consumo": "Verbrauchsverlauf"
   }
 }
