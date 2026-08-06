@@ -20,6 +20,13 @@ import sys
 import pytest
 
 if __name__ == "__main__":
+    # Añade el directorio raíz del proyecto a sys.path para que PYTHONPATH
+    # se configure correctamente en CI (donde solo ejecutamos pytest sin
+    # pip install -e . ni PYTHONPATH exportado).
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+
     codigo_salida = pytest.main(sys.argv[1:])
     sys.stdout.flush()
     sys.stderr.flush()
