@@ -21,6 +21,17 @@ except FileNotFoundError:
 
 IDIOMAS_DISPONIBLES = list(TRANSLATIONS.keys())
 
+# Nombre nativo (endónimo) de cada idioma soportado, para el selector de idioma.
+NOMBRES_NATIVOS = {
+    "es": "Español",
+    "gl": "Galego",
+    "en": "English",
+    "pt": "Português",
+    "fr": "Français",
+    "it": "Italiano",
+    "de": "Deutsch",
+}
+
 
 def obtener_idioma():
     """Obtiene el idioma actual de la sesión o default."""
@@ -79,9 +90,10 @@ def obtener_idiomas():
     """Retorna diccionario con idiomas disponibles."""
     idiomas = {}
     for codigo in IDIOMAS_DISPONIBLES:
+        nativo = NOMBRES_NATIVOS.get(codigo, codigo)
         idiomas[codigo] = {
-            "nombre": traducir("idioma", codigo),
-            "nativo": TRANSLATIONS[codigo].get("app_name", "Dreame!")
+            "nombre": nativo,
+            "nativo": nativo,
         }
     return idiomas
 

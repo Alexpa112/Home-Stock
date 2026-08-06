@@ -4,7 +4,18 @@ from datetime import datetime
 
 from flask import g
 
-from .config import CATALOGO_DEFECTO, CATEGORIAS_DEFECTO, DB_PATH, DIAS_AVISO_DEFECTO
+from .config import (
+    CATALOGO_DEFECTO,
+    CATEGORIAS_DEFECTO,
+    CATEGORIAS_GASTO_DEFECTO,
+    DB_PATH,
+    DIAS_AVISO_DEFECTO,
+)
+
+try:
+    import fcntl  # No disponible en Windows; solo se usa en el contenedor Linux.
+except ImportError:
+    fcntl = None
 
 
 def ahora():
@@ -99,6 +110,15 @@ MAPEO_EMOJI_A_ICONO_LUCIDE = {
     "🍰": "cake-slice", "🌾": "wheat", "🌿": "sprout", "🍿": "candy",
     "🍘": "cookie", "🥃": "wine", "🪒": "spray-can", "🍝": "soup",
     "🥞": "wheat", "🫓": "wheat", "🗑️": "h-trash", "😷": "stethoscope",
+    # Emojis de las categorías Bazar y Ferretería.
+    "🪚": "hammer", "⚙️": "settings", "🧱": "package-2", "🪝": "anchor",
+    "🧰": "wrench", "🪓": "axe", "🔗": "link", "🚰": "droplet",
+    "🪤": "target", "🎨": "palette", "🖌️": "paintbrush", "🧵": "scissors",
+    "🪡": "scissors", "🧷": "pin", "📏": "ruler", "🪟": "app-window",
+    "🖼️": "image", "🎀": "gift", "🔑": "key", "🧲": "magnet",
+    "🪒": "spray-can", "🕸️": "waves-ladder", "🧨": "flame",
+    "🍽️": "utensils", "☂️": "umbrella", "🔪": "utensils-crossed", "🥽": "glasses",
+    "🥥": "nut",
 }
 
 
@@ -165,10 +185,10 @@ def _migrar_lista_compra_a_articulos(db):
         if not lista_existente:
             cur = db.execute(
                 "INSERT INTO listas (nombre, descripcion, usuario_propietario_id, privada, "
-                "fecha_creacion, fecha_actualizacion, icono) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "fecha_creacion, fecha_actualizacion, icono) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 ("Mi lista", "Lista de compra principal", usuario_id, 1, ahora(), ahora(), "📋"),
             )
-            lista_id = cur.lastrowid
+            lista_id = cur.fetchone()["id"]
         else:
             lista_id = lista_existente["id"]
 
@@ -280,6 +300,33 @@ def _reparar_fk_articulos_personalizados_old(db):
 
 
 def init_db():
+    """Ejecuta las migraciones protegidas por un flock sobre un fichero aparte.
+
+    gunicorn arranca --workers 2 (procesos separados, ver el CMD de
+    Dockerfile.raspbian) y cada uno llama a create_app() -> init_db() al
+    bootear. Sin este lock, los dos ejecutan las mismas sentencias
+    'ALTER TABLE ... ADD COLUMN' casi a la vez contra el mismo fichero
+    SQLite; aunque hay un PRAGMA busy_timeout, se ha visto en produccion
+    (2026-07-29) que la sucesion de varias ALTER TABLE seguidas puede agotar
+    igualmente el timeout con "database is locked", tumbando el worker y
+    disparando el rollback automatico del deploy. Con el flock, el segundo
+    worker simplemente espera a que el primero termine las migraciones antes
+    de arrancar las suyas (que entonces son no-ops, las columnas ya existen).
+    """
+    if fcntl is None:
+        _init_db_impl()
+        return
+    lock_path = DB_PATH.parent / ".init_db.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            _init_db_impl()
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _init_db_impl():
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA busy_timeout = 5000")
@@ -306,9 +353,37 @@ def init_db():
             """
         )
         asegurar_columna(db, "usuarios", "email", "TEXT")
+        asegurar_columna(db, "usuarios", "nombre", "TEXT")
         asegurar_columna(db, "usuarios", "idioma_preferido", "TEXT NOT NULL DEFAULT 'es'")
         asegurar_columna(db, "usuarios", "tema_preferido", "TEXT NOT NULL DEFAULT 'auto'")
         asegurar_columna(db, "usuarios", "teclado_virtual_activo", "TEXT NOT NULL DEFAULT 'on'")
+        asegurar_columna(db, "usuarios", "vista_lista_compra", "TEXT NOT NULL DEFAULT 'lista'")
+        asegurar_columna(db, "usuarios", "agrupar_categorias", "TEXT NOT NULL DEFAULT 'off'")
+        asegurar_columna(db, "usuarios", "doble_factor_activo", "INTEGER NOT NULL DEFAULT 0")
+        # Aceptacion de Terminos y Condiciones / Politica de Privacidad (ver
+        # config.VERSION_TERMINOS): NULL significa que el usuario aun no ha
+        # aceptado la version vigente (usuarios ya existentes al desplegar
+        # esto, o cuentas creadas por OAuth antes de pasar por la pantalla
+        # de aceptacion).
+        asegurar_columna(db, "usuarios", "terminos_version_aceptada", "TEXT")
+        asegurar_columna(db, "usuarios", "terminos_fecha_aceptacion", "TEXT")
+
+        # Codigos de verificacion en dos pasos (login por email + codigo).
+        # Una fila por usuario (se sobrescribe en cada intento de login, no
+        # hace falta historial). En tabla en vez de en memoria porque gunicorn
+        # corre 2 workers (procesos separados, ver Dockerfile.raspbian): un
+        # dict en memoria dejaria el codigo solo visible para el worker que
+        # lo genero, y la peticion de verificacion podria caer en el otro.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS codigos_dos_factor (
+                usuario_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+                codigo_hash TEXT NOT NULL,
+                expira INTEGER NOT NULL,
+                intentos INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
 
         # Tabla para cuentas OAuth (Google, Apple)
         db.execute(
@@ -395,6 +470,10 @@ def init_db():
         asegurar_columna(db, "productos", "fecha_creacion", "TEXT")
         asegurar_columna(db, "productos", "fecha_actualizacion", "TEXT")
         asegurar_columna(db, "productos", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
+        # Ultimo aviso de caducidad enviado por push (P-07): evita re-notificar
+        # cada dia mientras el producto siga sin tocarse, ver
+        # scripts/enviar_avisos_caducidad.py.
+        asegurar_columna(db, "productos", "fecha_ultimo_aviso_caducidad", "TEXT")
         asegurar_columna(db, "productos", "icono", "TEXT")
         # Rellena fechas de productos ya existentes que no las tuvieran (migraciones previas).
         db.execute("UPDATE productos SET fecha_creacion = ? WHERE fecha_creacion IS NULL", (ahora(),))
@@ -468,9 +547,10 @@ def init_db():
                 for prod in productos:
                     try:
                         db.execute(
-                            """INSERT OR IGNORE INTO stock_lista
+                            """INSERT INTO stock_lista
                                (lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
-                               VALUES (?, ?, ?, ?, ?, ?)""",
+                               VALUES (?, ?, ?, ?, ?, ?)
+                               ON CONFLICT(lista_id, producto_id) DO NOTHING""",
                             (lista_id, prod["id"], prod["cantidad"], prod["stock_minimo"], ahora(), ahora())
                         )
                     except Exception as e:
@@ -501,7 +581,7 @@ def init_db():
             """
         )
         db.executemany(
-            "INSERT OR IGNORE INTO categorias (nombre, icono) VALUES (?, ?)",
+            "INSERT INTO categorias (nombre, icono) VALUES (?, ?) ON CONFLICT(nombre) DO NOTHING",
             CATEGORIAS_DEFECTO,
         )
 
@@ -522,6 +602,8 @@ def init_db():
         asegurar_columna(db, "historial_articulos", "unidad", "TEXT NOT NULL DEFAULT 'ud'")
         asegurar_columna(db, "historial_articulos", "sub_descripcion", "TEXT")
         asegurar_columna(db, "historial_articulos", "cantidad_defecto", "INTEGER NOT NULL DEFAULT 1")
+        asegurar_columna(db, "historial_articulos", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
+        asegurar_columna(db, "historial_articulos", "codigo_barras", "TEXT")
 
         # Migración: instalaciones que aún tengan la columna espacio_id (de cuando existían
         # "espacios" como stocks independientes, funcionalidad eliminada por no tener UI y
@@ -550,6 +632,10 @@ def init_db():
         db.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre ON historial_articulos(nombre COLLATE NOCASE)"
         )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_historial_codigo_barras ON historial_articulos(codigo_barras) "
+            "WHERE codigo_barras IS NOT NULL"
+        )
 
         # Tabla articulos_personalizados: artículos únicos del catálogo de cada
         # usuario/hogar (usuario_propietario_id), NO se comparten entre hogares,
@@ -566,13 +652,14 @@ def init_db():
                 cantidad_defecto INTEGER NOT NULL DEFAULT 1,
                 fecha_creacion TEXT,
                 fecha_actualizacion TEXT,
-                usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id),
+                usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 UNIQUE(nombre, usuario_propietario_id)
             )
             """
         )
         asegurar_columna(db, "articulos_personalizados", "fecha_creacion", "TEXT")
         asegurar_columna(db, "articulos_personalizados", "fecha_actualizacion", "TEXT")
+        asegurar_columna(db, "articulos_personalizados", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
 
         # Migración: instalaciones antiguas tenían la columna espacio_id (funcionalidad de
         # "espacios" ya eliminada, ver historial_articulos más arriba) y/o un UNIQUE
@@ -724,12 +811,12 @@ def init_db():
                         """INSERT INTO articulos_personalizados
                            (nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto,
                             fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
                         (original["nombre"], original["categoria"], original["icono"], original["unidad"],
                          original["sub_descripcion"], original["cantidad_defecto"], original["fecha_creacion"],
                          original["fecha_actualizacion"], propietario_extra)
                     )
-                    nuevo_id = cur.lastrowid
+                    nuevo_id = cur.fetchone()["id"]
 
                     db.execute(
                         """UPDATE articulos_lista SET articulo_personalizado_id = ?
@@ -770,7 +857,7 @@ def init_db():
                     cantidad_defecto INTEGER NOT NULL DEFAULT 1,
                     fecha_creacion TEXT,
                     fecha_actualizacion TEXT,
-                    usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id),
+                    usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                     UNIQUE(nombre, usuario_propietario_id)
                 )
                 """
@@ -781,6 +868,46 @@ def init_db():
                 "fecha_creacion, fecha_actualizacion, usuario_propietario_id) "
                 "SELECT id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
                 "fecha_creacion, fecha_actualizacion, usuario_propietario_id FROM articulos_personalizados"
+            )
+            db.execute("DROP TABLE articulos_personalizados")
+            db.execute("ALTER TABLE articulos_personalizados_new RENAME TO articulos_personalizados")
+            db.commit()
+            db.execute("PRAGMA foreign_keys = ON")
+
+        # Migración: usuario_propietario_id no tenía ON DELETE CASCADE, así que
+        # borrar un usuario con artículos personalizados propios fallaba con
+        # FOREIGN KEY constraint failed (500) en vez de arrastrar el borrado
+        # como ocurre con el resto de tablas de usuario (hogares, gastos, etc.).
+        sql_actual = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='articulos_personalizados'"
+        ).fetchone()
+        if sql_actual and "usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE" not in sql_actual["sql"]:
+            db.commit()
+            db.execute("PRAGMA foreign_keys = OFF")
+            db.execute(
+                f"""
+                CREATE TABLE articulos_personalizados_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL COLLATE NOCASE,
+                    categoria TEXT NOT NULL DEFAULT 'Otros',
+                    icono TEXT,
+                    unidad TEXT NOT NULL DEFAULT 'ud',
+                    sub_descripcion TEXT,
+                    cantidad_defecto INTEGER NOT NULL DEFAULT 1,
+                    fecha_creacion TEXT,
+                    fecha_actualizacion TEXT,
+                    usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                    dias_aviso INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO},
+                    UNIQUE(nombre, usuario_propietario_id)
+                )
+                """
+            )
+            db.execute(
+                "INSERT INTO articulos_personalizados_new "
+                "(id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+                "fecha_creacion, fecha_actualizacion, usuario_propietario_id, dias_aviso) "
+                "SELECT id, nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, "
+                "fecha_creacion, fecha_actualizacion, usuario_propietario_id, dias_aviso FROM articulos_personalizados"
             )
             db.execute("DROP TABLE articulos_personalizados")
             db.execute("ALTER TABLE articulos_personalizados_new RENAME TO articulos_personalizados")
@@ -820,14 +947,511 @@ def init_db():
         # siembra una vez via INSERT OR IGNORE, asi que nunca pisa un articulo
         # que el usuario ya haya personalizado con el mismo nombre.
         db.executemany(
-            "INSERT OR IGNORE INTO historial_articulos "
+            "INSERT INTO historial_articulos "
             "(nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
-            "VALUES (?, ?, ?, ?, ?, 1, ?)",
+            "VALUES (?, ?, ?, ?, ?, 1, ?) "
+            "ON CONFLICT(nombre) DO NOTHING",
             [(n, c, i, u, s, ahora()) for (n, c, i, u, s) in CATALOGO_DEFECTO],
         )
 
         migrar_iconos_emoji_a_lucide(db)
         _renombrar_categoria(db, "Alimentacion", "Alimentación")
+
+        # Migración: renombrado conceptual "lista" -> "hogar" (la tabla `listas`
+        # es y siempre fue el contenedor compartible; el nombre no reflejaba eso
+        # para el usuario). No destructiva: se crean tablas nuevas y se copian
+        # los datos; las tablas viejas (listas, permisos_lista, invitaciones_lista,
+        # articulos_lista, stock_lista) se conservan intactas como backup hasta
+        # que la reestructuración se valide en producción (ver docs/HOGAR_REESTRUCTURACION.md).
+        # Va al final de la función para que articulos_lista ya tenga su forma
+        # final (columna articulo_personalizado_id incluida) antes de copiarla.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS hogares (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                descripcion TEXT,
+                usuario_propietario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                privada INTEGER NOT NULL DEFAULT 1,
+                icono TEXT NOT NULL DEFAULT '📋',
+                color TEXT NOT NULL DEFAULT '#B5551A',
+                fecha_creacion TEXT NOT NULL,
+                fecha_actualizacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO hogares (id, nombre, descripcion, usuario_propietario_id, privada, icono, color, fecha_creacion, fecha_actualizacion)
+            SELECT id, nombre, descripcion, usuario_propietario_id, privada, icono, color, fecha_creacion, fecha_actualizacion FROM listas
+            WHERE id NOT IN (SELECT id FROM hogares)
+            """
+        )
+
+        # Quien hizo el ultimo cambio de icono/color/nombre del hogar: permite
+        # al resto de miembros ver "X ha cambiado el estilo del hogar" en vez
+        # de un aviso anonimo. NULL en hogares creados antes de esta columna
+        # o nunca editados tras crearse.
+        asegurar_columna(db, "hogares", "actualizado_por_usuario_id", "INTEGER REFERENCES usuarios(id) ON DELETE SET NULL")
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS permisos_hogar (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'editar')),
+                fecha_otorgado TEXT NOT NULL,
+                UNIQUE(hogar_id, usuario_id)
+            )
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO permisos_hogar (id, hogar_id, usuario_id, nivel, fecha_otorgado)
+            SELECT id, lista_id, usuario_id, nivel, fecha_otorgado FROM permisos_lista
+            WHERE id NOT IN (SELECT id FROM permisos_hogar)
+            """
+        )
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS invitaciones_hogar (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                email_destino TEXT NOT NULL,
+                nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'editar')),
+                codigo_invitacion TEXT NOT NULL UNIQUE,
+                usado INTEGER NOT NULL DEFAULT 0,
+                usuario_aceptacion_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                fecha_creacion TEXT NOT NULL,
+                fecha_expiracion TEXT NOT NULL,
+                fecha_aceptacion TEXT
+            )
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO invitaciones_hogar (id, hogar_id, email_destino, nivel, codigo_invitacion, usado, usuario_aceptacion_id, fecha_creacion, fecha_expiracion, fecha_aceptacion)
+            SELECT id, lista_id, email_destino, nivel, codigo_invitacion, usado, usuario_aceptacion_id, fecha_creacion, fecha_expiracion, fecha_aceptacion FROM invitaciones_lista
+            WHERE id NOT IN (SELECT id FROM invitaciones_hogar)
+            """
+        )
+
+        columnas_articulos_lista = [f["name"] for f in db.execute("PRAGMA table_info(articulos_lista)").fetchall()]
+        col_art_pers = "articulo_personalizado_id" if "articulo_personalizado_id" in columnas_articulos_lista else "NULL"
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS articulos_compra (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL,
+                nombre TEXT NOT NULL,
+                unidad TEXT NOT NULL DEFAULT 'ud',
+                categoria TEXT NOT NULL DEFAULT 'Otros',
+                icono TEXT,
+                cantidad INTEGER NOT NULL DEFAULT 1,
+                sub_descripcion TEXT,
+                origen TEXT NOT NULL DEFAULT 'manual',
+                activo INTEGER NOT NULL DEFAULT 1,
+                fecha_completado TEXT,
+                fecha_creacion TEXT,
+                articulo_personalizado_id INTEGER REFERENCES articulos_personalizados(id) ON DELETE CASCADE
+            )
+            """
+        )
+        db.execute(
+            f"""
+            INSERT INTO articulos_compra (id, hogar_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, articulo_personalizado_id)
+            SELECT id, lista_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, {col_art_pers} FROM articulos_lista
+            WHERE id NOT IN (SELECT id FROM articulos_compra)
+            """
+        )
+        asegurar_columna(db, "articulos_compra", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
+        asegurar_columna(db, "articulos_compra", "fecha_actualizacion", "TEXT")
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_articulos_compra_hogar_id ON articulos_compra(hogar_id, activo)"
+        )
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS stock_hogar (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+                cantidad INTEGER NOT NULL DEFAULT 0,
+                stock_minimo INTEGER NOT NULL DEFAULT 1,
+                fecha_creacion TEXT NOT NULL,
+                fecha_actualizacion TEXT NOT NULL,
+                UNIQUE(hogar_id, producto_id)
+            )
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO stock_hogar (id, hogar_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion)
+            SELECT id, lista_id, producto_id, cantidad, stock_minimo, fecha_creacion, fecha_actualizacion FROM stock_lista
+            WHERE id NOT IN (SELECT id FROM stock_hogar)
+            """
+        )
+
+        asegurar_columna(db, "movimientos_stock", "hogar_id", "INTEGER REFERENCES hogares(id) ON DELETE SET NULL")
+        db.execute("UPDATE movimientos_stock SET hogar_id = lista_id WHERE hogar_id IS NULL AND lista_id IS NOT NULL")
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_movimientos_stock_hogar_fecha "
+            "ON movimientos_stock(hogar_id, fecha)"
+        )
+
+        asegurar_columna(db, "hogares", "simbolo_moneda", "TEXT NOT NULL DEFAULT '€'")
+        # Presupuesto mensual de gastos compartidos (P-05): NULL = sin limite fijado.
+        asegurar_columna(db, "hogares", "presupuesto_mensual", "REAL")
+        # Mes ('YYYY-MM') del ultimo aviso push de presupuesto superado, para
+        # no notificar mas de una vez por mes aunque se sigan anadiendo gastos.
+        asegurar_columna(db, "hogares", "presupuesto_ultimo_aviso_mes", "TEXT")
+
+        # Historico de precios por producto (P-04): una fila por cada vez que
+        # se confirma un ticket con precio detectado para ese producto en un
+        # hogar. Por hogar (no global) porque el precio pagado depende de la
+        # tienda de cada uno.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS historial_precios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                precio REAL NOT NULL,
+                fecha TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_historial_precios_producto "
+            "ON historial_precios(producto_id, hogar_id, fecha)"
+        )
+
+        # Gastos compartidos del hogar (division tipo Tricount): tablas nuevas,
+        # sin datos previos que migrar, por eso basta CREATE TABLE IF NOT EXISTS simple.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                descripcion TEXT NOT NULL,
+                importe_total REAL NOT NULL,
+                fecha TEXT NOT NULL,
+                usuario_pagador_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                creado_por_usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                fecha_creacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS idx_gastos_hogar_fecha ON gastos(hogar_id, fecha)")
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos_participantes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gasto_id INTEGER NOT NULL REFERENCES gastos(id) ON DELETE CASCADE,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                importe REAL NOT NULL,
+                UNIQUE(gasto_id, usuario_id)
+            )
+            """
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS idx_gastos_participantes_gasto ON gastos_participantes(gasto_id)")
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS liquidaciones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                usuario_origen_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                usuario_destino_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                importe REAL NOT NULL,
+                fecha TEXT NOT NULL,
+                nota TEXT
+            )
+            """
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS idx_liquidaciones_hogar_fecha ON liquidaciones(hogar_id, fecha)")
+
+        # Categorias de gasto (independientes de las de producto, ver
+        # rutas/categorias_gasto.py) y columna opcional en gastos para
+        # asignarlas. Sin datos previos que migrar aparte de la columna nueva.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS categorias_gasto (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL UNIQUE,
+                icono TEXT NOT NULL DEFAULT 'h-folder'
+            )
+            """
+        )
+        db.executemany(
+            "INSERT INTO categorias_gasto (nombre, icono) VALUES (?, ?) ON CONFLICT(nombre) DO NOTHING",
+            CATEGORIAS_GASTO_DEFECTO,
+        )
+        asegurar_columna(db, "gastos", "categoria", "TEXT")
+
+        # Foto de recibo adjunta a un gasto (opcional): se guarda como BLOB en
+        # la propia stock.db (igual que el resto de datos) en vez de en una
+        # carpeta aparte, para no tener que respaldar/gestionar un directorio
+        # adicional en la Raspberry Pi.
+        asegurar_columna(db, "gastos", "imagen_recibo", "BLOB")
+        asegurar_columna(db, "gastos", "imagen_recibo_mime", "TEXT")
+
+        # Gastos recurrentes: plantillas que se materializan como gastos
+        # normales (generacion perezosa al listar, ver rutas/gastos.py) en
+        # vez de depender de una tarea programada aparte.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos_recurrentes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                descripcion TEXT NOT NULL,
+                importe_total REAL NOT NULL,
+                categoria TEXT,
+                usuario_pagador_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                frecuencia TEXT NOT NULL,
+                fecha_fin TEXT,
+                proxima_fecha TEXT NOT NULL,
+                activo INTEGER NOT NULL DEFAULT 1,
+                fecha_creacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_gastos_recurrentes_hogar ON gastos_recurrentes(hogar_id, activo)"
+        )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gastos_recurrentes_participantes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gasto_recurrente_id INTEGER NOT NULL REFERENCES gastos_recurrentes(id) ON DELETE CASCADE,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                importe REAL NOT NULL,
+                UNIQUE(gasto_recurrente_id, usuario_id)
+            )
+            """
+        )
+
+        # Recetas del hogar (P-06): lista de ingredientes que se pueden
+        # anadir de golpe a la lista de la compra con un boton.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS recetas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                nombre TEXT NOT NULL,
+                icono TEXT,
+                fecha_creacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS idx_recetas_hogar ON recetas(hogar_id)")
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS receta_ingredientes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                receta_id INTEGER NOT NULL REFERENCES recetas(id) ON DELETE CASCADE,
+                nombre TEXT NOT NULL,
+                cantidad INTEGER NOT NULL DEFAULT 1,
+                unidad TEXT NOT NULL DEFAULT 'ud'
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_receta_ingredientes_receta ON receta_ingredientes(receta_id)"
+        )
+
+        # Intentos de login fallidos, persistidos (en vez de en memoria del
+        # proceso) porque gunicorn corre --workers 2 (procesos separados que
+        # no comparten memoria, ver Dockerfile.raspbian): un dict en memoria
+        # dejaria el contador visible solo para el worker que registro el
+        # fallo. clave = ip, o "ip:usuario" para el cubo por-cuenta (ver
+        # servicios/intentos_login.py).
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS intentos_login (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                clave TEXT NOT NULL,
+                fecha_intento INTEGER NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_intentos_login_clave ON intentos_login(clave, fecha_intento)"
+        )
+
+        # Uso diario de OCR por usuario, para el limite de cuota (ver config.py
+        # LIMITE_OCR_DIARIO y rutas/ocr_tickets.py).
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS uso_ocr_diario (
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                fecha TEXT NOT NULL,
+                contador INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (usuario_id, fecha)
+            )
+            """
+        )
+
+        # Uso diario de subida de recibos por usuario (S-21), mismo patron
+        # que uso_ocr_diario pero en tabla separada: son cuotas de conceptos
+        # distintos (escaneo OCR vs. adjuntar foto de un gasto ya existente),
+        # mezclarlas en la misma tabla confundiria el limite de cada una.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS uso_recibos_diario (
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                fecha TEXT NOT NULL,
+                contador INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (usuario_id, fecha)
+            )
+            """
+        )
+
+        # Verificacion de email de-facto nunca comprobada hasta ahora (S-07):
+        # el campo usuarios.email se rellenaba por OAuth o desde el panel sin
+        # confirmar que su dueño realmente controla esa direccion, aunque ya
+        # se le enviara el codigo de doble factor.
+        asegurar_columna(db, "usuarios", "email_verificado", "INTEGER NOT NULL DEFAULT 0")
+
+        # Opt-out del OCR en la nube (S-26): con esto activo, el escaneo de
+        # tickets usa solo el pipeline local (Tesseract), sin enviar la foto
+        # a Groq. Ver stockhogar/rutas/tickets.py::analizar_ticket.
+        asegurar_columna(db, "usuarios", "usuario_ocr_local", "INTEGER NOT NULL DEFAULT 0")
+
+        # session_version (S-08): alternativa minima a una tabla de sesiones
+        # completa. Se guarda en la cookie de sesion junto a usuario_id; un
+        # valor que no coincida con el de la BD invalida esa sesion (ver
+        # api/base.py::requerir_sesion). Se incrementa al cambiar password,
+        # al restablecerla, al desactivar el 2FA o al pedir explicitamente
+        # "cerrar sesion en otros dispositivos".
+        asegurar_columna(db, "usuarios", "session_version", "INTEGER NOT NULL DEFAULT 0")
+
+        # Tokens de un solo uso para verificar email y restablecer password
+        # (S-07). Se guarda el hash (SHA-256), nunca el token en claro, mismo
+        # patron que codigos_dos_factor.codigo_hash de arriba.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tokens_verificacion (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                tipo TEXT NOT NULL CHECK (tipo IN ('verificar_email', 'reset_password')),
+                token_hash TEXT NOT NULL,
+                expira INTEGER NOT NULL,
+                usado INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tokens_verificacion_hash ON tokens_verificacion(token_hash)"
+        )
+
+        # Auditoria de eventos de seguridad (S-09): login, cambios de
+        # password/2FA, altas/bajas de cuenta, invitaciones... usuario_id
+        # nullable con ON DELETE SET NULL para que el evento sobreviva al
+        # borrado de la cuenta (auditoria util incluso de una cuenta ya
+        # eliminada).
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS eventos_seguridad (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                evento TEXT NOT NULL,
+                ip TEXT,
+                resultado TEXT NOT NULL DEFAULT 'ok',
+                metadatos TEXT,
+                fecha INTEGER NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_eventos_seguridad_usuario_fecha ON eventos_seguridad(usuario_id, fecha)"
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_eventos_seguridad_fecha ON eventos_seguridad(fecha)"
+        )
+
+        # Invitaciones a un hogar dirigidas a un usuario YA registrado (S-10):
+        # antes, compartir por nombre de usuario daba acceso INMEDIATO sin
+        # que el destinatario aceptase nada, y el 404 al no encontrarlo
+        # permitia enumerar usuarios existentes. Ahora ese camino crea una
+        # fila aqui igual que el camino por email (ver invitaciones_hogar),
+        # con el mismo mensaje de exito exista o no el usuario.
+        asegurar_columna(db, "invitaciones_hogar", "usuario_destino_id", "INTEGER REFERENCES usuarios(id) ON DELETE CASCADE")
+
+        # Nivel de permiso intermedio "comprar" (P-08): puede marcar
+        # articulos de la lista como comprados y mover stock, pero no crear/
+        # editar gastos ni artículos de la lista en sí (ver
+        # stockhogar/autorizacion.py). El CHECK de SQLite no se puede
+        # ampliar con ALTER TABLE, asi que en instalaciones con el CHECK
+        # antiguo ('ver','editar') se recrea la tabla conservando los datos.
+        for tabla in ("permisos_hogar", "invitaciones_hogar"):
+            esquema = db.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (tabla,)
+            ).fetchone()
+            if esquema and "'comprar'" not in esquema["sql"]:
+                db.execute(f"ALTER TABLE {tabla} RENAME TO {tabla}_old")
+                if tabla == "permisos_hogar":
+                    db.execute(
+                        """
+                        CREATE TABLE permisos_hogar (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                            usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                            nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'comprar', 'editar')),
+                            fecha_otorgado TEXT NOT NULL,
+                            UNIQUE(hogar_id, usuario_id)
+                        )
+                        """
+                    )
+                else:
+                    db.execute(
+                        """
+                        CREATE TABLE invitaciones_hogar (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            hogar_id INTEGER NOT NULL REFERENCES hogares(id) ON DELETE CASCADE,
+                            email_destino TEXT NOT NULL,
+                            nivel TEXT NOT NULL CHECK (nivel IN ('ver', 'comprar', 'editar')),
+                            codigo_invitacion TEXT NOT NULL UNIQUE,
+                            usado INTEGER NOT NULL DEFAULT 0,
+                            usuario_aceptacion_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                            fecha_creacion TEXT NOT NULL,
+                            fecha_expiracion TEXT NOT NULL,
+                            fecha_aceptacion TEXT,
+                            usuario_destino_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE
+                        )
+                        """
+                    )
+                columnas = [f["name"] for f in db.execute(f"PRAGMA table_info({tabla}_old)").fetchall()]
+                cols_sql = ", ".join(columnas)
+                db.execute(f"INSERT INTO {tabla} ({cols_sql}) SELECT {cols_sql} FROM {tabla}_old")
+                db.execute(f"DROP TABLE {tabla}_old")
+                db.commit()
+
+        # Suscripciones a notificaciones push del navegador (P-01). endpoint
+        # es UNIQUE porque el navegador puede volver a mandarlo (p.ej. tras
+        # reinstalar la PWA) y hay que sobrescribir las claves antiguas, no
+        # duplicar la fila.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                endpoint TEXT NOT NULL UNIQUE,
+                p256dh TEXT NOT NULL,
+                auth TEXT NOT NULL,
+                fecha_creacion TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_push_subscriptions_usuario ON push_subscriptions(usuario_id)"
+        )
+
+        db.commit()
 
         # "Espacios" (stocks independientes tipo casa/oficina) se eliminó: nunca tuvo UI y
         # su función de aislamiento ya la cubren las "listas". Se borra la tabla una vez

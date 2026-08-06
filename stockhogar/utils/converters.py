@@ -50,6 +50,7 @@ class DataConverter:
     def lista_to_dict(row: Dict, usuario_id: Optional[int] = None, include_detalles: bool = False) -> Dict:
         """Convierte fila de lista a dict JSON."""
         color = DataConverter.safe_field(row, "color", "#B5551A")
+        simbolo_moneda = DataConverter.safe_field(row, "simbolo_moneda", "€")
 
         data = {
             "id": row["id"],
@@ -57,10 +58,17 @@ class DataConverter:
             "descripcion": row["descripcion"],
             "icono": row["icono"],
             "color": color,
+            "simbolo_moneda": simbolo_moneda,
+            "presupuesto_mensual": DataConverter.safe_field(row, "presupuesto_mensual"),
             "privada": bool(row["privada"]),
             "usuario_propietario_id": row["usuario_propietario_id"],
             "fecha_creacion": row["fecha_creacion"],
             "fecha_actualizacion": row["fecha_actualizacion"],
+            # Quien hizo el ultimo cambio de nombre/icono/color (para el aviso
+            # "X ha cambiado el estilo del hogar" a otros miembros). Requiere
+            # que la consulta SQL haga JOIN con usuarios y traiga este alias;
+            # si no, queda None sin romper nada.
+            "actualizado_por_nombre": DataConverter.safe_field(row, "actualizado_por_nombre"),
         }
 
         if usuario_id and include_detalles:
@@ -76,13 +84,14 @@ class DataConverter:
         """Convierte fila de artículo de lista a dict JSON."""
         return {
             "id": row["id"],
-            "lista_id": row["lista_id"],
+            "hogar_id": row["hogar_id"],
             "nombre": row["nombre"],
             "cantidad": row["cantidad"],
             "unidad": DataConverter.safe_field(row, "unidad", "ud"),
             "categoria": DataConverter.safe_field(row, "categoria"),
             "icono": DataConverter.safe_field(row, "icono"),
             "sub_descripcion": DataConverter.safe_field(row, "sub_descripcion"),
+            "dias_aviso": DataConverter.safe_field(row, "dias_aviso", 30),
             "articulo_personalizado_id": DataConverter.safe_field(row, "articulo_personalizado_id"),
             "completado": bool(DataConverter.safe_field(row, "completado", 0)),
             "origen": DataConverter.safe_field(row, "origen", "manual"),

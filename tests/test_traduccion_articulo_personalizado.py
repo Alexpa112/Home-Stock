@@ -22,28 +22,28 @@ class TraduccionArticuloPersonalizadoTest(unittest.TestCase):
             )
             usuario_id = cur.lastrowid
             cur = db.execute(
-                "INSERT INTO listas (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
                 "VALUES (?, ?, 1, ?, ?)",
                 ("Lista de test", usuario_id, ahora(), ahora()),
             )
-            self.lista_id = cur.lastrowid
+            self.hogar_id = cur.lastrowid
             db.commit()
 
         self.usuario_id = usuario_id
         with self.client.session_transaction() as sess:
             sess["usuario"] = nombre_usuario
             sess["usuario_id"] = usuario_id
-            sess["lista_actual_id"] = self.lista_id
+            sess["hogar_actual_id"] = self.hogar_id
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
             db.execute(
-                "DELETE FROM articulos_lista WHERE lista_id IN "
-                "(SELECT id FROM listas WHERE usuario_propietario_id = ?)",
+                "DELETE FROM articulos_compra WHERE hogar_id IN "
+                "(SELECT id FROM hogares WHERE usuario_propietario_id = ?)",
                 (self.usuario_id,),
             )
-            db.execute("DELETE FROM listas WHERE usuario_propietario_id = ?", (self.usuario_id,))
+            db.execute("DELETE FROM hogares WHERE usuario_propietario_id = ?", (self.usuario_id,))
             articulo = db.execute(
                 "SELECT id FROM articulos_personalizados WHERE nombre = ? AND usuario_propietario_id = ?",
                 ("ZzzArticuloTestUnico", self.usuario_id),

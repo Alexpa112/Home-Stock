@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // S-23: se desplegaba con los errores de TypeScript silenciados. Se quita
+  // porque `npm run build` ya compila limpio (verificado 2026-08-05); si en
+  // el futuro aparece un error real de tipos, ahora bloquea el build en vez
+  // de llegar a produccion en silencio.
   images: {
     unoptimized: true,
   },
@@ -10,7 +11,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   compress: true,
   
-  // Headers de seguridad
+  // Headers de seguridad y caché
   async headers() {
     return [
       {
@@ -28,8 +29,69 @@ const nextConfig = {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
           },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            // Sin uso de camara/microfono/geolocalizacion en la app (el
+            // escaneo de tickets usa <input type="file">, no getUserMedia):
+            // se desactivan explicitamente en vez de dejarlas disponibles
+            // por defecto para cualquier script que se cuele.
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()',
+          },
+          {
+            // Solo tiene efecto cuando se sirve por HTTPS (el tunel de
+            // Cloudflare hace la terminacion TLS); en HTTP local el
+            // navegador la ignora, así que es seguro tenerla siempre.
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains',
+          },
+          // Content-Security-Policy (S-12): se fija por peticion desde
+          // middleware.ts, no aqui. Un fichero de configuracion estatico
+          // como este no puede generar un nonce distinto en cada respuesta,
+          // que es lo que permite quitar 'unsafe-inline' de script-src.
         ],
       },
+      {
+        source: '/',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+        ],
+      },
+      // El cacheo agresivo de un año solo es seguro en produccion, donde
+      // Next hashea el contenido de cada chunk en su nombre de fichero (un
+      // cambio de codigo siempre genera una URL nueva). En dev, Turbopack
+      // reutiliza los mismos nombres de chunk entre recompilaciones; con
+      // esta cabecera tambien en dev, el navegador nunca vuelve a pedir el
+      // fichero y los cambios de codigo quedan invisibles hasta vaciar la
+      // cache a mano (visto en la practica: ver docs/HOGAR_REESTRUCTURACION.md).
+      ...(process.env.NODE_ENV === 'production'
+        ? [
+            {
+              source: '/_next/static/:path*',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=31536000, immutable',
+                },
+              ],
+            },
+          ]
+        : []),
     ]
   },
 

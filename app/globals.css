@@ -4,9 +4,9 @@
   /* Light Mode */
   --color-primary: #1F2937;
   --color-primary-foreground: #FFFFFF;
-  --color-secondary: #374151;
+  --color-secondary: #486581;
   --color-secondary-foreground: #FFFFFF;
-  --color-accent: #FF7A59;
+  --color-accent: #486581;
   --color-accent-foreground: #FFFFFF;
   --color-background: #F8F7F5;
   --color-foreground: #1A1A1A;
@@ -28,10 +28,10 @@
   :root:not(.light) {
     --color-primary: #F9FAFB;
     --color-primary-foreground: #111827;
-    --color-secondary: #D1D5DB;
-    --color-secondary-foreground: #111827;
-    --color-accent: #FF8A69;
-    --color-accent-foreground: #1A0A00;
+    --color-secondary: #9FB8CE;
+    --color-secondary-foreground: #0F1117;
+    --color-accent: #9FB8CE;
+    --color-accent-foreground: #0F1117;
     --color-background: #0F1117;
     --color-foreground: #F1F0EE;
     --color-muted: #1C1F26;
@@ -51,10 +51,10 @@
   /* Dark Mode */
   --color-primary: #F9FAFB;
   --color-primary-foreground: #111827;
-  --color-secondary: #D1D5DB;
-  --color-secondary-foreground: #111827;
-  --color-accent: #FF8A69;
-  --color-accent-foreground: #1A0A00;
+  --color-secondary: #9FB8CE;
+  --color-secondary-foreground: #0F1117;
+  --color-accent: #9FB8CE;
+  --color-accent-foreground: #0F1117;
   --color-background: #0F1117;
   --color-foreground: #F1F0EE;
   --color-muted: #1C1F26;
@@ -124,16 +124,25 @@
   button,
   [role="button"] {
     @apply min-h-[44px];
+    /* Evita que el navegador retenga el toque esperando un posible
+       doble-toque (zoom) antes de despachar el click en móvil. */
+    touch-action: manipulation;
   }
 }
 
 @layer components {
+  /* Se transicionan solo las propiedades que de hecho cambian (sombra al
+     hover y opacidad al marcar comprado) en vez de 'all': con listas de
+     decenas de tarjetas, 'transition-all' obliga al navegador a evaluar cada
+     propiedad animable en cada recálculo de estilo tras una pulsación. */
   .card {
-    @apply rounded-2xl border bg-card p-4 sm:p-5 shadow-sm transition-all duration-200 hover:shadow-md;
+    @apply rounded-2xl border bg-card p-4 sm:p-5 shadow-sm hover:shadow-md;
+    transition: box-shadow 200ms ease, opacity 200ms ease;
   }
 
   .card-compact {
-    @apply rounded-xl border bg-card p-4 shadow-sm transition-all duration-200;
+    @apply rounded-xl border bg-card p-4 shadow-sm;
+    transition: box-shadow 200ms ease, opacity 200ms ease;
   }
 
   .btn-primary {
@@ -254,4 +263,9 @@
   .safe-area-pb {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+}
+
+:root {
+  /* Alto real de la bottom tab bar movil (h-16 + safe-area-pb), lg:hidden */
+  --mobile-toolbar-h: calc(4rem + env(safe-area-inset-bottom, 0px));
 }

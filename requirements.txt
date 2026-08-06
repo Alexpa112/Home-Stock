@@ -6,8 +6,15 @@ requests>=2.28.0
 python-dotenv>=1.0.0
 fuzzywuzzy>=0.18.0
 python-Levenshtein>=0.21.0
-opencv-python-headless>=4.9,<5
+opencv-python-headless>=4.9,<=4.12.0.88
 gunicorn>=22.0.0
 argostranslate>=1.9,<2; platform_machine != "armv7l"
 PyJWT>=2.8,<3
 cryptography>=50.0.0,<51
+# Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db_backend.py).
+# -binary evita compilar contra libpq en la Raspberry Pi.
+psycopg2-binary>=2.9,<3
+# Notificaciones push (P-01/P-07, ver stockhogar/servicios/push_service.py).
+# Arrastra py-vapid (generacion/firma de claves VAPID) y http-ece (cifrado
+# del payload) como dependencias transitivas.
+pywebpush>=2.0,<3

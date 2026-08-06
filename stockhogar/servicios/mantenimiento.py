@@ -10,29 +10,18 @@ del Servidor (proyecto independiente, fuera de este repositorio), escribiendo
 o borrando el mismo fichero directamente - no hay ninguna llamada de codigo
 entre ambos proyectos.
 """
-import time
-
 from ..config import DATA_DIR
 
 RUTA_FLAG = DATA_DIR / "mantenimiento.flag"
 
-# activo() se llama en el before_request de CADA peticion no estatica (ver
-# stockhogar/__init__.py): sin cachear, es un stat() de disco sincrono por
-# peticion aunque el flag solo lo cambie un proceso externo (el Panel de
-# Gestion) muy de vez en cuando. Con este TTL, a lo sumo se tarda
-# TTL_CACHE_SEGUNDOS en reaccionar a un cambio real, lo cual es aceptable
-# para una pantalla de mantenimiento (no es una comprobacion de seguridad
-# que deba ser instantanea).
-TTL_CACHE_SEGUNDOS = 3
-_cache = {"valor": None, "expira": 0.0}
 
-
-def activo():
-    ahora = time.monotonic()
-    if _cache["valor"] is None or ahora >= _cache["expira"]:
-        _cache["valor"] = RUTA_FLAG.exists()
-        _cache["expira"] = ahora + TTL_CACHE_SEGUNDOS
-    return _cache["valor"]
+def activo() -> bool:
+    # Lectura directa del flag en cada llamada (S-02): antes habia un hilo
+    # daemon que lo comprobaba cada segundo y notificaba a streams SSE, pero
+    # el SSE se elimino (el frontend ahora hace polling a /api/mantenimiento/estado,
+    # ver rutas/paginas.py) y sin el, ese hilo y su Condition ya no tenian
+    # ningun consumidor. Un stat() de fichero por peticion es barato.
+    return RUTA_FLAG.exists()
 
 
 def mensaje():

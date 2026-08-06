@@ -1,5 +1,8 @@
 """Validación centralizada y reutilizable."""
+import re
 from typing import Any, Optional
+
+_RE_COLOR_HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
 class ValidationError(ValueError):
@@ -9,6 +12,18 @@ class ValidationError(ValueError):
 
 class Validator:
     """Sistema centralizado de validación."""
+
+    @staticmethod
+    def con_defecto(datos: dict, clave: str, defecto: Any) -> Any:
+        """Devuelve datos[clave] si viene informado (ni ausente, ni None, ni
+        cadena vacía); si no, devuelve defecto. A diferencia de dict.get(clave,
+        defecto), también aplica el defecto cuando la clave SÍ está presente
+        pero llega a None/'' (input dejado en blanco por el usuario), sin
+        pisar valores válidos como 0."""
+        valor = datos.get(clave)
+        if valor is None or valor == "":
+            return defecto
+        return valor
 
     @staticmethod
     def entero_no_negativo(valor: Any, nombre_campo: str) -> int:
@@ -33,6 +48,20 @@ class Validator:
         return max(minimo, min(numero, maximo))
 
     @staticmethod
+    def decimal_positivo(valor: Any, nombre_campo: str, maximo: float = 1_000_000) -> float:
+        """Valida un importe monetario: número positivo, redondeado a 2
+        decimales, con un tope superior para evitar importes absurdos."""
+        try:
+            numero = round(float(valor), 2)
+        except (TypeError, ValueError) as e:
+            raise ValidationError(f"El {nombre_campo} debe ser un número") from e
+        if numero <= 0:
+            raise ValidationError(f"El {nombre_campo} debe ser mayor que 0")
+        if numero > maximo:
+            raise ValidationError(f"El {nombre_campo} no puede superar {maximo}")
+        return numero
+
+    @staticmethod
     def string_requerido(valor: Any, nombre_campo: str, max_len: int = 255) -> str:
         """Valida string no vacío."""
         if not isinstance(valor, str):
@@ -53,6 +82,18 @@ class Validator:
         if len(valor) > max_len:
             raise ValidationError(f"El campo no puede exceder {max_len} caracteres")
         return valor or default
+
+    @staticmethod
+    def color_hex(valor: Optional[str], default: str) -> str:
+        """Valida que sea un color hexadecimal de 6 dígitos (#RRGGBB). Si no
+        viene informado devuelve el default; si viene pero no tiene formato
+        válido, rechaza en vez de guardar basura que luego rompa la UI."""
+        if not valor:
+            return default
+        valor = str(valor).strip()
+        if not _RE_COLOR_HEX.match(valor):
+            raise ValidationError("El color debe tener formato hexadecimal, p.ej. #B5551A")
+        return valor
 
     @staticmethod
     def json_de_request(request_data: Any, required_fields: list = None, **defaults) -> dict:

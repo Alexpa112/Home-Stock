@@ -85,6 +85,104 @@ class EmailService:
             return False
 
     @staticmethod
+    def enviar_codigo_verificacion(email_destino: str, codigo: str) -> bool:
+        """Envía el código de verificación en dos pasos (login)."""
+        if not SMTP_USER or not SMTP_PASSWORD:
+            logger.warning("Email no configurado: SMTP_USER o SMTP_PASSWORD vacío")
+            return False
+
+        try:
+            asunto = f"Tu código de verificación de Dreame!: {codigo}"
+            cuerpo_html = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                    <h2>🔐 Verificación en dos pasos</h2>
+                    <p>Tu código de acceso es:</p>
+                    <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; margin: 16px 0;">{codigo}</p>
+                    <p style="color: #666; font-size: 14px;">Caduca en 10 minutos. Si no has intentado iniciar sesión, ignora este correo.</p>
+                </body>
+            </html>
+            """
+            return EmailService._enviar_smtp(
+                email_destino=email_destino,
+                asunto=asunto,
+                cuerpo_html=cuerpo_html,
+            )
+        except Exception as e:
+            logger.error(f"Error enviando código de verificación a {email_destino}: {str(e)}")
+            return False
+
+    @staticmethod
+    def enviar_verificacion_email(email_destino: str, nombre_usuario: str, token: str) -> bool:
+        """Envía el enlace para verificar la dirección de email del usuario (S-07)."""
+        if not SMTP_USER or not SMTP_PASSWORD:
+            logger.warning("Email no configurado: SMTP_USER o SMTP_PASSWORD vacío")
+            return False
+
+        try:
+            enlace = f"{APP_URL}/verificar-email/{token}"
+            asunto = "Verifica tu email en Dreame!"
+            cuerpo_html = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                    <h2>✅ Verifica tu email</h2>
+                    <p>Hola <strong>{nombre_usuario}</strong>, confirma que esta es tu dirección de email:</p>
+                    <p style="margin: 24px 0;">
+                        <a href="{enlace}"
+                           style="display: inline-block; background-color: #B5551A; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                            Verificar mi email
+                        </a>
+                    </p>
+                    <p style="color: #666; font-size: 14px;">
+                        Si no puedes hacer clic en el botón, copia y pega este enlace en tu navegador:<br>
+                        <code style="background: #f5f5f5; padding: 8px; display: inline-block; margin-top: 8px;">{enlace}</code>
+                    </p>
+                    <p style="color: #999; font-size: 12px;">Este enlace caduca en 24 horas.</p>
+                </body>
+            </html>
+            """
+            return EmailService._enviar_smtp(email_destino=email_destino, asunto=asunto, cuerpo_html=cuerpo_html)
+        except Exception as e:
+            logger.error(f"Error enviando verificación de email a {email_destino}: {str(e)}")
+            return False
+
+    @staticmethod
+    def enviar_recuperacion_password(email_destino: str, nombre_usuario: str, token: str) -> bool:
+        """Envía el enlace para restablecer la contraseña (S-07)."""
+        if not SMTP_USER or not SMTP_PASSWORD:
+            logger.warning("Email no configurado: SMTP_USER o SMTP_PASSWORD vacío")
+            return False
+
+        try:
+            enlace = f"{APP_URL}/restablecer-password/{token}"
+            asunto = "Restablece tu contraseña en Dreame!"
+            cuerpo_html = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                    <h2>🔑 Restablecer contraseña</h2>
+                    <p>Hola <strong>{nombre_usuario}</strong>, hemos recibido una solicitud para restablecer tu contraseña.</p>
+                    <p style="margin: 24px 0;">
+                        <a href="{enlace}"
+                           style="display: inline-block; background-color: #B5551A; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                            Restablecer contraseña
+                        </a>
+                    </p>
+                    <p style="color: #666; font-size: 14px;">
+                        Si no puedes hacer clic en el botón, copia y pega este enlace en tu navegador:<br>
+                        <code style="background: #f5f5f5; padding: 8px; display: inline-block; margin-top: 8px;">{enlace}</code>
+                    </p>
+                    <p style="color: #999; font-size: 12px;">
+                        Este enlace caduca en 1 hora. Si no has solicitado este cambio, ignora este correo.
+                    </p>
+                </body>
+            </html>
+            """
+            return EmailService._enviar_smtp(email_destino=email_destino, asunto=asunto, cuerpo_html=cuerpo_html)
+        except Exception as e:
+            logger.error(f"Error enviando recuperación de contraseña a {email_destino}: {str(e)}")
+            return False
+
+    @staticmethod
     def _traducir_nivel(nivel: str) -> str:
         """Traduce código de nivel a texto legible."""
         traducciones = {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { CheckCircle2, AlertCircle, Loader, Copy } from 'lucide-react'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 interface DiagnosticResult {
   name: string
@@ -11,6 +12,7 @@ interface DiagnosticResult {
 }
 
 export default function DiagnosticsPage() {
+  const { t } = useTranslation()
   const [results, setResults] = useState<DiagnosticResult[]>([])
   const [logs, setLogs] = useState<string[]>([])
 
@@ -29,33 +31,33 @@ export default function DiagnosticsPage() {
     // /api/:path* hacia NEXT_PUBLIC_API_URL (Flask) DENTRO del servidor de
     // Next, asi que el navegador solo habla con este mismo origen (sin CORS).
     const checks: DiagnosticResult[] = [
-      { name: 'Backend Flask (/)', status: 'loading', message: 'Comprobando...' },
-      { name: 'Token CSRF (/api/csrf-token)', status: 'loading', message: 'Comprobando...' },
-      { name: 'Sesión (/api/auth/estado)', status: 'loading', message: 'Comprobando...' },
-      { name: 'Productos (/api/productos)', status: 'loading', message: 'Comprobando...' },
-      { name: 'Lista de la compra (/api/articulos)', status: 'loading', message: 'Comprobando...' },
+      { name: t('backend_flask_check'), status: 'loading', message: t('comprobando') },
+      { name: t('token_csrf_check'), status: 'loading', message: t('comprobando') },
+      { name: t('sesion_check'), status: 'loading', message: t('comprobando') },
+      { name: t('productos_check'), status: 'loading', message: t('comprobando') },
+      { name: t('lista_compra_check'), status: 'loading', message: t('comprobando') },
     ]
     setResults([...checks])
-    addLog('Iniciando diagnóstico...')
+    addLog(t('iniciando_diagnostico'))
 
     // 1. El backend Flask responde (via el proxy de Next)
     try {
       const r = await fetch('/api/auth/estado', { credentials: 'include' })
       checks[0] = {
-        name: 'Backend Flask (/)',
+        name: t('backend_flask_check'),
         status: r.status < 500 ? 'success' : 'error',
-        message: r.status < 500 ? 'Backend accesible a través del proxy de Next' : `Respuesta inesperada (${r.status})`,
-        details: `NEXT_PUBLIC_API_URL: ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000 (por defecto)'}`,
+        message: r.status < 500 ? t('backend_accesible') : t('respuesta_inesperada').replace('{status}', String(r.status)),
+        details: t('detalle_next_public_url').replace('{valor}', process.env.NEXT_PUBLIC_API_URL || t('por_defecto_localhost')),
       }
-      addLog(r.status < 500 ? '✓ Backend accesible' : `✗ Backend respondió ${r.status}`)
+      addLog(r.status < 500 ? t('log_backend_accesible') : t('log_backend_respondio').replace('{status}', String(r.status)))
     } catch (err) {
       checks[0] = {
-        name: 'Backend Flask (/)',
+        name: t('backend_flask_check'),
         status: 'error',
-        message: 'No se puede conectar al backend',
-        details: `${err instanceof Error ? err.message : err}\nAsegúrate que Flask está corriendo (ver run.py) y que NEXT_PUBLIC_API_URL apunta ahí.`,
+        message: t('backend_no_conecta'),
+        details: `${err instanceof Error ? err.message : err}\n${t('detalle_asegurate_flask')}`,
       }
-      addLog(`✗ Error de conexión: ${err}`)
+      addLog(t('log_error_conexion').replace('{error}', String(err)))
     }
     setResults([...checks])
 
@@ -64,15 +66,15 @@ export default function DiagnosticsPage() {
       const r = await fetch('/api/csrf-token', { credentials: 'include' })
       const datos = await r.json()
       checks[1] = {
-        name: 'Token CSRF (/api/csrf-token)',
+        name: t('token_csrf_check'),
         status: r.ok && datos.csrf_token ? 'success' : 'error',
-        message: r.ok && datos.csrf_token ? 'Token obtenido correctamente' : 'No se obtuvo el token',
-        details: `Status: ${r.status}`,
+        message: r.ok && datos.csrf_token ? t('token_obtenido') : t('token_no_obtenido'),
+        details: t('detalle_status').replace('{status}', String(r.status)),
       }
-      addLog(r.ok ? '✓ CSRF token OK' : '✗ CSRF token fallido')
+      addLog(r.ok ? t('log_csrf_ok') : t('log_csrf_fallido'))
     } catch (err) {
-      checks[1] = { name: 'Token CSRF (/api/csrf-token)', status: 'error', message: 'Error obteniendo el token', details: String(err) }
-      addLog(`✗ Error CSRF: ${err}`)
+      checks[1] = { name: t('token_csrf_check'), status: 'error', message: t('error_obteniendo_token'), details: String(err) }
+      addLog(t('log_error_csrf').replace('{error}', String(err)))
     }
     setResults([...checks])
 
@@ -81,15 +83,15 @@ export default function DiagnosticsPage() {
       const r = await fetch('/api/auth/estado', { credentials: 'include' })
       const datos = await r.json()
       checks[2] = {
-        name: 'Sesión (/api/auth/estado)',
+        name: t('sesion_check'),
         status: 'success',
-        message: datos.usuario ? `Sesión iniciada como "${datos.usuario}"` : 'Sin sesión iniciada (normal si no has hecho login)',
+        message: datos.usuario ? t('sesion_iniciada_como').replace('{usuario}', datos.usuario) : t('sesion_no_iniciada'),
         details: JSON.stringify(datos),
       }
-      addLog('✓ Endpoint de estado respondiendo')
+      addLog(t('log_endpoint_estado'))
     } catch (err) {
-      checks[2] = { name: 'Sesión (/api/auth/estado)', status: 'error', message: 'Error consultando el estado', details: String(err) }
-      addLog(`✗ Error de sesión: ${err}`)
+      checks[2] = { name: t('sesion_check'), status: 'error', message: t('error_consultando_estado'), details: String(err) }
+      addLog(t('log_error_sesion').replace('{error}', String(err)))
     }
     setResults([...checks])
 
@@ -97,15 +99,15 @@ export default function DiagnosticsPage() {
     try {
       const r = await fetch('/api/productos', { credentials: 'include' })
       checks[3] = {
-        name: 'Productos (/api/productos)',
+        name: t('productos_check'),
         status: r.status === 401 || r.ok ? 'success' : 'error',
-        message: r.status === 401 ? 'Requiere sesión (esperado sin login)' : r.ok ? 'Respondiendo correctamente' : `Respuesta inesperada (${r.status})`,
-        details: `Status: ${r.status}`,
+        message: r.status === 401 ? t('requiere_sesion_esperado') : r.ok ? t('respondiendo_correctamente') : t('respuesta_inesperada').replace('{status}', String(r.status)),
+        details: t('detalle_status').replace('{status}', String(r.status)),
       }
-      addLog('✓ Endpoint de productos respondiendo')
+      addLog(t('log_endpoint_productos'))
     } catch (err) {
-      checks[3] = { name: 'Productos (/api/productos)', status: 'error', message: 'Error de conexión', details: String(err) }
-      addLog(`✗ Error productos: ${err}`)
+      checks[3] = { name: t('productos_check'), status: 'error', message: t('error_conexion_titulo'), details: String(err) }
+      addLog(t('log_error_productos').replace('{error}', String(err)))
     }
     setResults([...checks])
 
@@ -113,19 +115,19 @@ export default function DiagnosticsPage() {
     try {
       const r = await fetch('/api/articulos', { credentials: 'include' })
       checks[4] = {
-        name: 'Lista de la compra (/api/articulos)',
+        name: t('lista_compra_check'),
         status: r.status === 401 || r.ok ? 'success' : 'error',
-        message: r.status === 401 ? 'Requiere sesión (esperado sin login)' : r.ok ? 'Respondiendo correctamente' : `Respuesta inesperada (${r.status})`,
-        details: `Status: ${r.status}`,
+        message: r.status === 401 ? t('requiere_sesion_esperado') : r.ok ? t('respondiendo_correctamente') : t('respuesta_inesperada').replace('{status}', String(r.status)),
+        details: t('detalle_status').replace('{status}', String(r.status)),
       }
-      addLog('✓ Endpoint de artículos respondiendo')
+      addLog(t('log_endpoint_articulos'))
     } catch (err) {
-      checks[4] = { name: 'Lista de la compra (/api/articulos)', status: 'error', message: 'Error de conexión', details: String(err) }
-      addLog(`✗ Error artículos: ${err}`)
+      checks[4] = { name: t('lista_compra_check'), status: 'error', message: t('error_conexion_titulo'), details: String(err) }
+      addLog(t('log_error_articulos').replace('{error}', String(err)))
     }
     setResults([...checks])
 
-    addLog('Diagnóstico completado')
+    addLog(t('diagnostico_completado'))
   }
 
   const copyToClipboard = (text: string) => {
@@ -135,9 +137,9 @@ export default function DiagnosticsPage() {
   return (
     <main className="min-h-screen bg-background text-foreground p-4">
       <div className="max-w-2xl mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-2">Diagnóstico de Integración</h1>
+        <h1 className="text-3xl font-bold mb-2">{t('diagnostico_integracion_titulo')}</h1>
         <p className="text-muted-foreground mb-6">
-          Verifica la conectividad entre el frontend y el backend
+          {t('diagnostico_integracion_subtitulo')}
         </p>
 
         {/* Results */}
@@ -172,17 +174,17 @@ export default function DiagnosticsPage() {
         {/* Logs */}
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Logs de Diagnóstico</h2>
+            <h2 className="font-semibold">{t('logs_diagnostico')}</h2>
             <button
               onClick={() => copyToClipboard(logs.join('\n'))}
               className="p-2 hover:bg-muted rounded transition-colors"
-              title="Copiar logs"
+              title={t('copiar_logs')}
             >
               <Copy className="w-4 h-4" />
             </button>
           </div>
           <pre className="bg-muted p-3 rounded text-xs overflow-auto max-h-48 text-muted-foreground">
-            {logs.length > 0 ? logs.join('\n') : 'Sin logs aún...'}
+            {logs.length > 0 ? logs.join('\n') : t('sin_logs_aun')}
           </pre>
         </div>
 
@@ -192,26 +194,26 @@ export default function DiagnosticsPage() {
             onClick={runDiagnostics}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
           >
-            Reintentar Diagnóstico
+            {t('reintentar_diagnostico')}
           </button>
           <a
             href="/dashboard"
             className="px-4 py-2 bg-muted text-foreground rounded-lg font-medium hover:bg-border transition-colors"
           >
-            Ir al Dashboard
+            {t('ir_al_dashboard')}
           </a>
         </div>
 
         {/* Quick help */}
         <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
           <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-            ¿Problemas de conectividad?
+            {t('problemas_conectividad_titulo')}
           </h3>
           <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-            <li>• Asegúrate que el backend Flask está corriendo (ver run.py)</li>
-            <li>• Verifica la variable de entorno NEXT_PUBLIC_API_URL en .env.local</li>
-            <li>• Las peticiones van por el proxy de Next (next.config.mjs rewrites), no directas al navegador</li>
-            <li>• Consulta el archivo SETUP.md para más información</li>
+            <li>• {t('ayuda_diagnostico_1')}</li>
+            <li>• {t('ayuda_diagnostico_2')}</li>
+            <li>• {t('ayuda_diagnostico_3')}</li>
+            <li>• {t('ayuda_diagnostico_4')}</li>
           </ul>
         </div>
       </div>
