@@ -18,15 +18,16 @@ jobs:
       # el motor de reconocimiento; no necesitan el binario real instalado en
       # el runner para pasar.
       - run: pip install -r requirements.txt -r requirements-dev.txt
-      # argostranslate arrastra transitivamente torch/ctranslate2 junto con
-      # opencv-python-headless (cada uno con su propia copia de la librería
-      # OpenMP). Los 252 tests pasan, pero al terminar el proceso Python
-      # aborta con SIGABRT ("terminate called without an active exception",
-      # exit code 134) por el conflicto de OpenMP duplicado al liberar
-      # memoria en el cierre del interprete — no es un fallo de los tests en
-      # si. KMP_DUPLICATE_LIB_OK=TRUE (bandera estandar para este conflicto
-      # de OpenMP de Intel/LLVM) evita el abort.
-      - run: python -m pytest tests/ -q
+      # argostranslate arrastra transitivamente torch/ctranslate2/onnxruntime
+      # junto con la OpenMP propia de opencv-python-headless. Los tests
+      # siempre pasan, pero el proceso revienta al cerrar Python (SIGABRT o
+      # SIGSEGV segun versiones) liberando esas librerias nativas en el
+      # cierre normal del interprete — no es un fallo de los tests.
+      # scripts/ci/run_tests_safe.py corre pytest y sale con os._exit()
+      # saltandose ese cierre; KMP_DUPLICATE_LIB_OK=TRUE se deja tambien
+      # puesto que mitiga el caso SIGABRT antes de llegar siquiera a esa
+      # salida forzada.
+      - run: python scripts/ci/run_tests_safe.py tests/ -q
         env:
           KMP_DUPLICATE_LIB_OK: "TRUE"
 
