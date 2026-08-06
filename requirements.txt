@@ -1,4 +1,4 @@
-Flask>=3.1.3
+Flask>=3.1.3,<4
 Flask-WTF>=1.2,<2
 pytesseract==0.3.13
 Pillow>=10.0
@@ -10,4 +10,4 @@ opencv-python-headless>=4.9,<5
 gunicorn>=22.0.0
 argostranslate>=1.9,<2; platform_machine != "armv7l"
 PyJWT>=2.8,<3
-cryptography>=49.0.0
+cryptography>=50.0.0,<51
