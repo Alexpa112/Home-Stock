@@ -22,6 +22,7 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 APPLE_AUTH_URL = "https://appleid.apple.com/auth/authorize"
 APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
 APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+_TIMEOUT_OAUTH_SEGUNDOS = 5
 
 # Cliente JWKS de Apple: cachea las claves publicas y las refresca solas
 # cuando aparece un "kid" que no conoce.
@@ -89,14 +90,14 @@ def oauth_google_callback():
     }
 
     try:
-        respuesta_token = requests.post(GOOGLE_TOKEN_URL, data=datos_token)
+        respuesta_token = requests.post(GOOGLE_TOKEN_URL, data=datos_token, timeout=_TIMEOUT_OAUTH_SEGUNDOS)
         respuesta_token.raise_for_status()
         tokens = respuesta_token.json()
         access_token = tokens.get("access_token")
 
         # Obtener información del usuario
         headers = {"Authorization": f"Bearer {access_token}"}
-        respuesta_usuario = requests.get(GOOGLE_USERINFO_URL, headers=headers)
+        respuesta_usuario = requests.get(GOOGLE_USERINFO_URL, headers=headers, timeout=_TIMEOUT_OAUTH_SEGUNDOS)
         respuesta_usuario.raise_for_status()
         info_usuario = respuesta_usuario.json()
 
@@ -220,7 +221,7 @@ def oauth_apple_callback():
     }
 
     try:
-        respuesta_token = requests.post(APPLE_TOKEN_URL, data=datos_token)
+        respuesta_token = requests.post(APPLE_TOKEN_URL, data=datos_token, timeout=_TIMEOUT_OAUTH_SEGUNDOS)
         respuesta_token.raise_for_status()
         tokens = respuesta_token.json()
 
