@@ -168,16 +168,22 @@ export const auth = {
     return result
   },
 
-  registrar: (usuario: string, password: string, aceptaTerminos: boolean) =>
-    apiCall('/api/auth/registrar', {
+  registrar: async (usuario: string, password: string, aceptaTerminos: boolean) => {
+    const result = await apiCall('/api/auth/registrar', {
       method: 'POST',
       body: JSON.stringify({ usuario, password, acepta_terminos: aceptaTerminos }),
-    }),
+    })
+    resetearCsrfToken()
+    return result
+  },
 
   aceptarTerminos: () => apiCall('/api/auth/aceptar-terminos', { method: 'POST' }),
 
-  verificarCodigo: (codigo: string) =>
-    apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) }),
+  verificarCodigo: async (codigo: string) => {
+    const result = await apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) })
+    resetearCsrfToken()
+    return result
+  },
 
   reenviarCodigo: () => apiCall('/api/auth/reenviar-codigo', { method: 'POST' }),
 
