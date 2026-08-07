@@ -42,14 +42,13 @@ export default function EscanearTicketPage() {
       setAdvertencias(data.advertencias || [])
       if ((data.items || []).length === 0) {
         setError(t('err_no_detecto_producto_imagen'))
-        reanudarPorEdicion()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error_procesar'))
-      reanudarPorEdicion()
     } finally {
       setAnalizando(false)
       e.target.value = ''
+      reanudarPorEdicion()
     }
   }
 
