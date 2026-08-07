@@ -33,6 +33,8 @@ export default function EscanearTicketPage() {
     if (!file) return
     setError('')
     setResultado(null)
+    setItems([])
+    setAdvertencias([])
     setAnalizando(true)
     suspenderPorEdicion()
     try {
@@ -44,7 +46,9 @@ export default function EscanearTicketPage() {
         setError(t('err_no_detecto_producto_imagen'))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('error_procesar'))
+      const mensaje = err instanceof Error ? err.message : t('error_procesar')
+      setError(mensaje)
+      console.error('Error analizando ticket:', err)
     } finally {
       setAnalizando(false)
       e.target.value = ''

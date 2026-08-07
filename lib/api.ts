@@ -38,13 +38,13 @@ const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 // Como apiCall pero para multipart/form-data (subida de imagen de ticket):
 // no se fija Content-Type (el navegador pone el boundary solo) ni se
 // serializa el body a JSON.
-export async function apiUpload<T = any>(endpoint: string, formData: FormData): Promise<T> {
+export async function apiUpload<T = any>(endpoint: string, formData: FormData, timeoutMs = 120_000): Promise<T> {
   const csrfToken = await obtenerCsrfToken()
   // AbortController con timeout: si el servidor corta la conexión sin cerrar
   // bien el socket (p.ej. worker de gunicorn matado a mitad de un OCR largo),
   // fetch se queda esperando indefinidamente y el spinner nunca termina.
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 90_000)
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
   let response: Response
   try {
     response = await fetch(endpoint, {
@@ -451,7 +451,7 @@ export const tickets = {
   analizar: (foto: File) => {
     const formData = new FormData()
     formData.append('foto', foto)
-    return apiUpload('/api/tickets/analizar', formData)
+    return apiUpload('/api/tickets/analizar', formData, 120_000)
   },
 
   confirmar: (

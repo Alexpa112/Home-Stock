@@ -86,6 +86,7 @@ class ClaudeOCR:
             message = self.client.messages.create(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=1024,
+                timeout=_TIMEOUT_SEGUNDOS,
                 messages=[
                     {
                         "role": "user",
@@ -108,6 +109,7 @@ class ClaudeOCR:
             )
 
             texto = message.content[0].text.strip()
+            logger.info("Claude OCR devolvió respuesta: %s caracteres", len(texto))
 
             # Extraer JSON (puede tener markdown)
             if "```json" in texto:
@@ -117,9 +119,14 @@ class ClaudeOCR:
 
             resultado = json.loads(texto)
             if not isinstance(resultado, dict) or "productos" not in resultado:
+                logger.error("Claude devolvió formato inválido: %s", resultado)
                 return None
+            logger.info("Claude OCR detectó %d productos", len(resultado.get("productos", [])))
             return resultado
 
-        except Exception:
-            logger.exception("Fallo llamando a Claude OCR, se usará pipeline local")
+        except json.JSONDecodeError as e:
+            logger.error("Error parseando JSON de Claude: %s. Respuesta: %s", e, texto[:500])
+            return None
+        except Exception as e:
+            logger.exception("Fallo llamando a Claude OCR: %s", type(e).__name__)
             return None

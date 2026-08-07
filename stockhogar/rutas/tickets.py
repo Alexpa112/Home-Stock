@@ -174,10 +174,6 @@ def analizar_ticket():
                 return APIResponse.validacion(error_validacion)
 
         db = get_db()
-
-        # Opt-out del OCR en la nube (S-26): si el usuario lo ha desactivado
-        # en sus ajustes, se salta Groq directamente y se usa solo el
-        # pipeline local, igual que si GROQ_API_KEY no estuviera configurada.
         usuario_id = session.get("usuario_id")
         prefiere_ocr_local = bool(
             db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
@@ -185,41 +181,46 @@ def analizar_ticket():
 
         # Motor principal: Claude Vision API (gratuita, la mejor visión disponible)
         items = None
-        claude = ClaudeOCR()
-        if claude.disponible() and not prefiere_ocr_local:
-            productos_catalogo = [
-                dict(row)
-                for row in db.execute(
-                    "SELECT id, nombre, categoria FROM productos ORDER BY nombre"
-                ).fetchall()
-            ]
-            with open(ruta_imagen, "rb") as f:
-                imagen_bytes = f.read()
-            respuesta_ia = claude.procesar(imagen_bytes, productos_catalogo)
-            if respuesta_ia is not None:
-                items = _items_desde_ia(respuesta_ia, productos_catalogo, db)
-                logging.getLogger(__name__).info(
-                    "Ticket analizado con Claude Vision: %d items detectados. Items: %s",
-                    len(items), [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
-                )
+        logger = logging.getLogger(__name__)
 
+        if not prefiere_ocr_local:
+            claude = ClaudeOCR()
+            if claude.disponible():
+                productos_catalogo = [
+                    dict(row)
+                    for row in db.execute(
+                        "SELECT id, nombre, categoria FROM productos ORDER BY nombre"
+                    ).fetchall()
+                ]
+                try:
+                    with open(ruta_imagen, "rb") as f:
+                        imagen_bytes = f.read()
+                    respuesta_ia = claude.procesar(imagen_bytes, productos_catalogo)
+                    if respuesta_ia is not None:
+                        items = _items_desde_ia(respuesta_ia, productos_catalogo, db)
+                        logger.info(
+                            "Ticket analizado con Claude Vision: %d items detectados",
+                            len(items),
+                        )
+                except Exception as e:
+                    logger.error("Error con Claude Vision, usando Tesseract: %s", str(e))
+                    items = None
+            else:
+                logger.warning("Claude OCR no disponible, usando Tesseract")
+
+        # Fallback a Tesseract si Claude no funcionó o está deshabilitado
         if items is None:
-            # Extraer texto con OCR (Tesseract)
-            texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
-
-            # Procesar con sistema v2 (inteligente, sin IA)
-            proc = ProcesadorTicketsV2()
-            items = proc.procesar_completo(texto_ocr, db)
-
-            # Diagnostico: sin esto, un ticket mal reconocido (OCR ilegible o
-            # parser que descarta/lee mal las lineas) no deja ningun rastro para
-            # saber si el fallo esta en Tesseract o en el parser, y el Panel de
-            # Gestion del Servidor es la unica forma de ver que paso en la Pi.
-            logging.getLogger(__name__).info(
-                "Ticket analizado con Tesseract: %d lineas OCR, %d items detectados. Texto OCR:\n%s\nItems: %s",
-                len(texto_ocr.splitlines()), len(items), texto_ocr,
-                [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
-            )
+            try:
+                texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
+                proc = ProcesadorTicketsV2()
+                items = proc.procesar_completo(texto_ocr, db)
+                logger.info(
+                    "Ticket analizado con Tesseract: %d lineas OCR, %d items detectados",
+                    len(texto_ocr.splitlines()), len(items),
+                )
+            except Exception as e:
+                logger.error("Error con Tesseract: %s", str(e))
+                items = []
 
         # Formatear respuesta para UI con sugerencias
         respuesta = crear_respuesta_usuario(items, db)
