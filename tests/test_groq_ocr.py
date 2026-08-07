@@ -68,9 +68,9 @@ class GestorOCRFallbackTests(unittest.TestCase):
         self.app = create_app()
         self.app.config.update(TESTING=True)
 
-    def test_groq_no_disponible_usa_pipeline_local(self):
+    def test_claude_no_disponible_usa_pipeline_local(self):
         gestor = GestorOCR()
-        with patch.object(gestor.groq, "disponible", return_value=False):
+        with patch.object(gestor.claude, "disponible", return_value=False):
             with self.app.app_context():
                 db = get_db()
                 # Imagen invalida: el pipeline local debe fallar de forma

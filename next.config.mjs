@@ -10,6 +10,10 @@ const nextConfig = {
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
   compress: true,
+
+  // Optimizaciones de bundle para Raspberry Pi
+  optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+  swcMinify: true,
   
   // Headers de seguridad y caché
   async headers() {

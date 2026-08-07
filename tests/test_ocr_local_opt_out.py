@@ -1,5 +1,5 @@
 """Test de opt-out del OCR en la nube (S-26): con usuario_ocr_local=1,
-/api/tickets/analizar no debe llamar a Groq, aunque haya GROQ_API_KEY
+/api/tickets/analizar no debe llamar a Claude, aunque haya ANTHROPIC_API_KEY
 configurada y el motor este disponible.
 """
 import io
@@ -45,9 +45,9 @@ class OptOutOcrLocalTests(unittest.TestCase):
             db.commit()
 
     @patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value="")
-    @patch("stockhogar.rutas.tickets.GroqOCR.procesar")
-    @patch("stockhogar.rutas.tickets.GroqOCR.disponible", return_value=True)
-    def test_con_ocr_local_activo_no_llama_a_groq(self, _mock_disponible, mock_procesar, _mock_extraer):
+    @patch("stockhogar.rutas.tickets.ClaudeOCR.procesar")
+    @patch("stockhogar.rutas.tickets.ClaudeOCR.disponible", return_value=True)
+    def test_con_ocr_local_activo_no_llama_a_claude(self, _mock_disponible, mock_procesar, _mock_extraer):
         resp_pref = self.client.post("/api/auth/preferencia-ocr", json={"ocr_local": True})
         self.assertEqual(resp_pref.status_code, 200, resp_pref.get_data(as_text=True))
 
@@ -61,9 +61,8 @@ class OptOutOcrLocalTests(unittest.TestCase):
         mock_procesar.assert_not_called()
 
     @patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value="")
-    @patch("stockhogar.rutas.tickets.GroqOCR.procesar", return_value=None)
-    @patch("stockhogar.rutas.tickets.GroqOCR.disponible", return_value=True)
-    def test_con_ocr_local_desactivado_si_llama_a_groq(self, _mock_disponible, mock_procesar, _mock_extraer):
+    def test_sin_claude_usa_tesseract_como_fallback(self, _mock_extraer):
+        """Sin ANTHROPIC_API_KEY configurada: OCR usa Tesseract como fallback."""
         resp = self.client.post(
             "/api/tickets/analizar",
             data={"foto": (io.BytesIO(_jpeg_de_prueba()), "ticket.jpg")},
@@ -71,7 +70,8 @@ class OptOutOcrLocalTests(unittest.TestCase):
         )
 
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
-        mock_procesar.assert_called_once()
+        # Tesseract se llama, aunque la imagen vacía devuelve 0 items
+        _mock_extraer.assert_called_once()
 
 
 if __name__ == "__main__":

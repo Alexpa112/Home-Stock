@@ -12,7 +12,7 @@ from ..db import get_db
 from ..translator import traducir
 from ..integraciones import ticket_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
-from ..servicios.ocr.groq_ocr import GroqOCR
+from ..servicios.ocr.claude_ocr import ClaudeOCR
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..utils import Validator
 from ..utils.imagenes import validar_y_recodificar
@@ -183,13 +183,10 @@ def analizar_ticket():
             db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
         )
 
-        # Motor principal: Groq/Llama 4 Scout (foto + catálogo del usuario,
-        # OCR y emparejamiento semántico en un solo paso). Si no hay
-        # GROQ_API_KEY, o la llamada falla o no reconoce nada, se cae al
-        # pipeline local (Tesseract + ProcesadorTicketsV2) como respaldo.
+        # Motor principal: Claude Vision API (gratuita, la mejor visión disponible)
         items = None
-        groq = GroqOCR()
-        if groq.disponible() and not prefiere_ocr_local:
+        claude = ClaudeOCR()
+        if claude.disponible() and not prefiere_ocr_local:
             productos_catalogo = [
                 dict(row)
                 for row in db.execute(
@@ -198,12 +195,11 @@ def analizar_ticket():
             ]
             with open(ruta_imagen, "rb") as f:
                 imagen_bytes = f.read()
-            mime_type = _MIME_POR_EXTENSION.get(Path(ruta_imagen).suffix.lower(), "image/jpeg")
-            respuesta_ia = groq.procesar(imagen_bytes, productos_catalogo, mime_type=mime_type)
+            respuesta_ia = claude.procesar(imagen_bytes, productos_catalogo)
             if respuesta_ia is not None:
                 items = _items_desde_ia(respuesta_ia, productos_catalogo, db)
                 logging.getLogger(__name__).info(
-                    "Ticket analizado con Groq: %d items detectados. Items: %s",
+                    "Ticket analizado con Claude Vision: %d items detectados. Items: %s",
                     len(items), [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
                 )
 

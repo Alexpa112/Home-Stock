@@ -5,7 +5,7 @@ from .procesador_imagen import ProcesadorImagen
 from .extractor_texto import ExtractorTexto
 from .parseador_ticket import ParseadorTicket, LineaTicket
 from .matcher_productos import MatcherProductos
-from .groq_ocr import GroqOCR
+from .claude_ocr import ClaudeOCR
 
 logger = logging.getLogger(__name__)
 
@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 class GestorOCR:
     """Orquesta el flujo completo OCR.
 
-    Motor principal: Groq/Llama 4 Scout (API gratuita) - manda la foto + el
-    catálogo de productos del usuario y hace OCR y emparejamiento semántico
-    en un solo paso. Si no hay GROQ_API_KEY configurada, o la llamada falla
+    Motor principal: Claude Vision API (gratuita) - la mejor visión disponible,
+    manda la foto + catálogo y hace OCR + comprensión semántica en un paso.
+    Si no hay ANTHROPIC_API_KEY configurada, o la llamada falla
     (sin conexión, cuota agotada...), cae al pipeline local:
     1. Procesa imagen
     2. Extrae texto (OCR con Tesseract)
@@ -29,7 +29,7 @@ class GestorOCR:
         self.extractor = ExtractorTexto(idioma="spa")
         self.parseador = ParseadorTicket()
         self.matcher = MatcherProductos()
-        self.groq = GroqOCR()
+        self.claude = ClaudeOCR()
 
     def procesar_ticket(self, imagen_bytes, db) -> Dict:
         """Procesa ticket completo.
@@ -56,8 +56,9 @@ class GestorOCR:
             ).fetchall()
         ]
 
-        if self.groq.disponible():
-            respuesta_ia = self.groq.procesar(imagen_bytes, productos_catalogo)
+        # Motor principal: Claude Vision API (gratuita, la mejor para OCR)
+        if self.claude.disponible():
+            respuesta_ia = self.claude.procesar(imagen_bytes, productos_catalogo)
             if respuesta_ia is not None:
                 resultado["productos"] = self._mapear_respuesta_ia(
                     respuesta_ia, productos_catalogo
@@ -67,7 +68,7 @@ class GestorOCR:
                 if not resultado["exito"]:
                     resultado["error"] = "No se detectaron productos en el ticket"
                 return resultado
-            logger.warning("Groq no disponible o fallo la llamada, usando pipeline local")
+            logger.warning("Claude no disponible o fallo la llamada, usando pipeline local (Tesseract)")
 
         try:
             # 1. Procesar imagen

@@ -29,6 +29,10 @@ async function obtenerCsrfToken(forzarRefresco = false): Promise<string> {
   return csrfTokenCache as string
 }
 
+function resetearCsrfToken() {
+  csrfTokenCache = null
+}
+
 const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 // Como apiCall pero para multipart/form-data (subida de imagen de ticket):
@@ -144,6 +148,7 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
   // cuenta seguiría viendo en caché los datos de la sesión anterior.
   if (response.status === 401) {
     clearAllCache()
+    resetearCsrfToken()
   }
 
   if (!response.ok) {
@@ -157,19 +162,28 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
 export const auth = {
   estado: () => apiCall('/api/auth/estado'),
 
-  login: (usuario: string, password: string) =>
-    apiCall('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, password }) }),
+  login: async (usuario: string, password: string) => {
+    const result = await apiCall('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, password }) })
+    resetearCsrfToken()
+    return result
+  },
 
-  registrar: (usuario: string, password: string, aceptaTerminos: boolean) =>
-    apiCall('/api/auth/registrar', {
+  registrar: async (usuario: string, password: string, aceptaTerminos: boolean) => {
+    const result = await apiCall('/api/auth/registrar', {
       method: 'POST',
       body: JSON.stringify({ usuario, password, acepta_terminos: aceptaTerminos }),
-    }),
+    })
+    resetearCsrfToken()
+    return result
+  },
 
   aceptarTerminos: () => apiCall('/api/auth/aceptar-terminos', { method: 'POST' }),
 
-  verificarCodigo: (codigo: string) =>
-    apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) }),
+  verificarCodigo: async (codigo: string) => {
+    const result = await apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) })
+    resetearCsrfToken()
+    return result
+  },
 
   reenviarCodigo: () => apiCall('/api/auth/reenviar-codigo', { method: 'POST' }),
 
