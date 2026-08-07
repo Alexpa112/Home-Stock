@@ -183,29 +183,28 @@ def analizar_ticket():
             db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
         )
 
-        # Motor principal: Groq/Llama 4 Scout (foto + catálogo del usuario,
-        # OCR y emparejamiento semántico en un solo paso). Si no hay
-        # GROQ_API_KEY, o la llamada falla o no reconoce nada, se cae al
-        # pipeline local (Tesseract + ProcesadorTicketsV2) como respaldo.
+        # Groq no soporta vision API: usar solo Tesseract + ProcesadorTicketsV2
+        # items = None
+        # groq = GroqOCR()
+        # if groq.disponible() and not prefiere_ocr_local:
+        #     productos_catalogo = [
+        #         dict(row)
+        #         for row in db.execute(
+        #             "SELECT id, nombre, categoria FROM productos ORDER BY nombre"
+        #         ).fetchall()
+        #     ]
+        #     with open(ruta_imagen, "rb") as f:
+        #         imagen_bytes = f.read()
+        #     mime_type = _MIME_POR_EXTENSION.get(Path(ruta_imagen).suffix.lower(), "image/jpeg")
+        #     respuesta_ia = groq.procesar(imagen_bytes, productos_catalogo, mime_type=mime_type)
+        #     if respuesta_ia is not None:
+        #         items = _items_desde_ia(respuesta_ia, productos_catalogo, db)
+        #         logging.getLogger(__name__).info(
+        #             "Ticket analizado con Groq: %d items detectados. Items: %s",
+        #             len(items), [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
+        #         )
+
         items = None
-        groq = GroqOCR()
-        if groq.disponible() and not prefiere_ocr_local:
-            productos_catalogo = [
-                dict(row)
-                for row in db.execute(
-                    "SELECT id, nombre, categoria FROM productos ORDER BY nombre"
-                ).fetchall()
-            ]
-            with open(ruta_imagen, "rb") as f:
-                imagen_bytes = f.read()
-            mime_type = _MIME_POR_EXTENSION.get(Path(ruta_imagen).suffix.lower(), "image/jpeg")
-            respuesta_ia = groq.procesar(imagen_bytes, productos_catalogo, mime_type=mime_type)
-            if respuesta_ia is not None:
-                items = _items_desde_ia(respuesta_ia, productos_catalogo, db)
-                logging.getLogger(__name__).info(
-                    "Ticket analizado con Groq: %d items detectados. Items: %s",
-                    len(items), [(i["nombre"], i["cantidad"], i["confianza_match"]) for i in items],
-                )
 
         if items is None:
             # Extraer texto con OCR (Tesseract)

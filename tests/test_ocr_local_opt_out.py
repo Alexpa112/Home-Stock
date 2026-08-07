@@ -61,9 +61,8 @@ class OptOutOcrLocalTests(unittest.TestCase):
         mock_procesar.assert_not_called()
 
     @patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value="")
-    @patch("stockhogar.rutas.tickets.GroqOCR.procesar", return_value=None)
-    @patch("stockhogar.rutas.tickets.GroqOCR.disponible", return_value=True)
-    def test_con_ocr_local_desactivado_si_llama_a_groq(self, _mock_disponible, mock_procesar, _mock_extraer):
+    def test_groq_deshabilitado_usa_tesseract(self, _mock_extraer):
+        """Groq deshabilitado por falta de vision API. OCR siempre usa Tesseract."""
         resp = self.client.post(
             "/api/tickets/analizar",
             data={"foto": (io.BytesIO(_jpeg_de_prueba()), "ticket.jpg")},
@@ -71,7 +70,8 @@ class OptOutOcrLocalTests(unittest.TestCase):
         )
 
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
-        mock_procesar.assert_called_once()
+        # Tesseract se llama, aunque la imagen vacía devuelve 0 items
+        _mock_extraer.assert_called_once()
 
 
 if __name__ == "__main__":

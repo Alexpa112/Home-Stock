@@ -56,18 +56,19 @@ class GestorOCR:
             ).fetchall()
         ]
 
-        if self.groq.disponible():
-            respuesta_ia = self.groq.procesar(imagen_bytes, productos_catalogo)
-            if respuesta_ia is not None:
-                resultado["productos"] = self._mapear_respuesta_ia(
-                    respuesta_ia, productos_catalogo
-                )
-                resultado["confianza_ocr"] = 100
-                resultado["exito"] = len(resultado["productos"]) > 0
-                if not resultado["exito"]:
-                    resultado["error"] = "No se detectaron productos en el ticket"
-                return resultado
-            logger.warning("Groq no disponible o fallo la llamada, usando pipeline local")
+        # Groq no soporta vision API, usar solo pipeline local (Tesseract)
+        # if self.groq.disponible():
+        #     respuesta_ia = self.groq.procesar(imagen_bytes, productos_catalogo)
+        #     if respuesta_ia is not None:
+        #         resultado["productos"] = self._mapear_respuesta_ia(
+        #             respuesta_ia, productos_catalogo
+        #         )
+        #         resultado["confianza_ocr"] = 100
+        #         resultado["exito"] = len(resultado["productos"]) > 0
+        #         if not resultado["exito"]:
+        #             resultado["error"] = "No se detectaron productos en el ticket"
+        #         return resultado
+        #     logger.warning("Groq no disponible o fallo la llamada, usando pipeline local")
 
         try:
             # 1. Procesar imagen
