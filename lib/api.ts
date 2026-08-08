@@ -20,17 +20,31 @@ interface FetchOptions extends RequestInit {
 }
 
 let csrfTokenCache: string | null = null
+let csrfTokenPromesa: Promise<string> | null = null
 
 async function obtenerCsrfToken(forzarRefresco = false): Promise<string> {
+  // Si hay una petición en vuelo, esperamos a ella (evita race conditions)
+  if (!forzarRefresco && csrfTokenPromesa) {
+    return csrfTokenPromesa
+  }
+
   if (csrfTokenCache && !forzarRefresco) return csrfTokenCache
-  const res = await fetch('/api/csrf-token', { credentials: 'include' })
-  const datos = await res.json()
-  csrfTokenCache = datos.csrf_token
-  return csrfTokenCache as string
+
+  // Cachear la promesa para evitar múltiples peticiones simultáneas
+  csrfTokenPromesa = (async () => {
+    const res = await fetch('/api/csrf-token', { credentials: 'include' })
+    const datos = await res.json()
+    csrfTokenCache = datos.csrf_token
+    csrfTokenPromesa = null
+    return csrfTokenCache as string
+  })()
+
+  return csrfTokenPromesa
 }
 
 function resetearCsrfToken() {
   csrfTokenCache = null
+  csrfTokenPromesa = null
 }
 
 const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
@@ -187,8 +201,11 @@ export const auth = {
 
   reenviarCodigo: () => apiCall('/api/auth/reenviar-codigo', { method: 'POST' }),
 
-  cambiarDobleFactor: (activo: boolean) =>
-    apiCall('/api/auth/doble-factor', { method: 'POST', body: JSON.stringify({ activo }) }),
+  cambiarDobleFactor: async (activo: boolean) => {
+    const result = await apiCall('/api/auth/doble-factor', { method: 'POST', body: JSON.stringify({ activo }) })
+    resetearCsrfToken()
+    return result
+  },
 
   cambiarPreferenciaOcr: (ocrLocal: boolean) =>
     apiCall('/api/auth/preferencia-ocr', { method: 'POST', body: JSON.stringify({ ocr_local: ocrLocal }) }),
@@ -196,6 +213,7 @@ export const auth = {
   logout: async () => {
     const resultado = await apiCall('/api/auth/logout', { method: 'POST' })
     clearAllCache()
+    resetearCsrfToken()
     return resultado
   },
 
@@ -221,17 +239,24 @@ export const auth = {
       body: JSON.stringify({ token, password_nueva: passwordNueva }),
     }),
 
-  cerrarOtrasSesiones: () => apiCall('/api/auth/cerrar-otras-sesiones', { method: 'POST' }),
+  cerrarOtrasSesiones: async () => {
+    const result = await apiCall('/api/auth/cerrar-otras-sesiones', { method: 'POST' })
+    resetearCsrfToken()
+    return result
+  },
 
   misEventosSeguridad: () => apiCall('/api/auth/mis-eventos-seguridad'),
 
   exportarMisDatos: () => apiDownload('/api/auth/exportar-mis-datos', 'mis-datos-dreame.zip'),
 
-  cambiarPassword: (password_actual: string, password_nueva: string, password_confirmacion: string) =>
-    apiCall('/api/auth/cambiar-password', {
+  cambiarPassword: async (password_actual: string, password_nueva: string, password_confirmacion: string) => {
+    const result = await apiCall('/api/auth/cambiar-password', {
       method: 'POST',
       body: JSON.stringify({ password_actual, password_nueva, password_confirmacion }),
-    }),
+    })
+    resetearCsrfToken()
+    return result
+  },
 
   actualizarPreferenciasListas: (datos: { vista_lista_compra?: 'lista' | 'recuadros'; agrupar_categorias?: 'on' | 'off' }) =>
     apiCall('/api/auth/preferencias-listas', { method: 'POST', body: JSON.stringify(datos) }),
