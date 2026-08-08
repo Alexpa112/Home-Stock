@@ -27,7 +27,13 @@ def csrf_token():
     """Token CSRF para clientes que no renderizan la plantilla Jinja (SPA
     Next.js separada del backend): sin esto no hay forma de rellenar la
     cabecera X-CSRFToken que exige Flask-WTF en toda petición mutable."""
-    return APIResponse.success({"csrf_token": generate_csrf()})
+    token = generate_csrf()
+    logger.debug(
+        "CSRF token generado para sesión %s (usuario_id: %s)",
+        request.cookies.get("session", "sin_sesion")[:20],
+        request.environ.get("session", {}).get("usuario_id", "no_autenticado") if hasattr(request, "environ") else "unknown"
+    )
+    return APIResponse.success({"csrf_token": token})
 
 
 @bp.route("/api/mantenimiento/estado")
