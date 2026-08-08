@@ -99,6 +99,7 @@ def create_app():
     app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
     app.config["WTF_CSRF_CHECK_DEFAULT"] = True
     app.config["WTF_CSRF_TIME_LIMIT"] = None
+    app.config["WTF_CSRF_SSL_STRICT"] = False
     app.session_interface = SessionInterfaceOmitible()
     app.teardown_appcontext(db.close_db)
 

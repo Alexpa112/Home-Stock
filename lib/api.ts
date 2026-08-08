@@ -47,6 +47,13 @@ function resetearCsrfToken() {
   csrfTokenPromesa = null
 }
 
+function establecerCsrfToken(token: string | null) {
+  if (token) {
+    csrfTokenCache = token
+    csrfTokenPromesa = null
+  }
+}
+
 const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 // Como apiCall pero para multipart/form-data (subida de imagen de ticket):
@@ -177,25 +184,37 @@ export const auth = {
   estado: () => apiCall('/api/auth/estado'),
 
   login: async (usuario: string, password: string) => {
-    const result = await apiCall('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, password }) })
-    resetearCsrfToken()
+    const result: any = await apiCall('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, password }) })
+    if (result?.csrf_token) {
+      establecerCsrfToken(result.csrf_token)
+    } else {
+      resetearCsrfToken()
+    }
     return result
   },
 
   registrar: async (usuario: string, password: string, aceptaTerminos: boolean) => {
-    const result = await apiCall('/api/auth/registrar', {
+    const result: any = await apiCall('/api/auth/registrar', {
       method: 'POST',
       body: JSON.stringify({ usuario, password, acepta_terminos: aceptaTerminos }),
     })
-    resetearCsrfToken()
+    if (result?.csrf_token) {
+      establecerCsrfToken(result.csrf_token)
+    } else {
+      resetearCsrfToken()
+    }
     return result
   },
 
   aceptarTerminos: () => apiCall('/api/auth/aceptar-terminos', { method: 'POST' }),
 
   verificarCodigo: async (codigo: string) => {
-    const result = await apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) })
-    resetearCsrfToken()
+    const result: any = await apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) })
+    if (result?.csrf_token) {
+      establecerCsrfToken(result.csrf_token)
+    } else {
+      resetearCsrfToken()
+    }
     return result
   },
 

@@ -7,6 +7,7 @@ import time
 import zipfile
 
 from flask import Blueprint, Response, request, session
+from flask_wtf.csrf import generate_csrf
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
@@ -157,7 +158,7 @@ def registrar():
     session["usuario_id"] = usuario["id"]
     session["session_version"] = 0
 
-    return APIResponse.success({"creado": True, "usuario": nombre_usuario}, 201)
+    return APIResponse.success({"creado": True, "usuario": nombre_usuario, "csrf_token": generate_csrf()}, 201)
 
 
 @bp.route("/api/auth/login", methods=["POST"])
@@ -189,13 +190,13 @@ def login():
     if fila["doble_factor_activo"] and fila["email"]:
         _generar_y_enviar_codigo(db, fila["id"], fila["email"])
         session["pendiente_2fa_usuario_id"] = fila["id"]
-        return APIResponse.success({"requiere_codigo": True})
+        return APIResponse.success({"requiere_codigo": True, "csrf_token": generate_csrf()})
 
     session.permanent = True
     session["usuario"] = fila["nombre_usuario"]
     session["usuario_id"] = fila["id"]
     session["session_version"] = fila["session_version"]
-    return APIResponse.success({"usuario": fila["nombre_usuario"]})
+    return APIResponse.success({"usuario": fila["nombre_usuario"], "csrf_token": generate_csrf()})
 
 
 def _generar_y_enviar_codigo(db, usuario_id, email):
@@ -250,7 +251,7 @@ def verificar_codigo_dos_pasos():
     session["usuario"] = usuario["nombre_usuario"]
     session["usuario_id"] = usuario_id
     session["session_version"] = usuario["session_version"]
-    return APIResponse.success({"usuario": usuario["nombre_usuario"]})
+    return APIResponse.success({"usuario": usuario["nombre_usuario"], "csrf_token": generate_csrf()})
 
 
 @bp.route("/api/auth/reenviar-codigo", methods=["POST"])
