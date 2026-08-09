@@ -18,7 +18,7 @@ def es_password_filtrada(password: str) -> bool:
     hay timeout, devuelve False: un problema de un servicio de terceros no
     debe impedir que un usuario se registre o restablezca su contraseña."""
     try:
-        hash_sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
+        hash_sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()  # nosec: SHA1 para HIBP k-anonymity API, no para almacenamiento
         prefijo, sufijo = hash_sha1[:5], hash_sha1[5:]
         respuesta = requests.get(_ENDPOINT.format(prefijo=prefijo), timeout=_TIMEOUT_SEGUNDOS)
         respuesta.raise_for_status()
