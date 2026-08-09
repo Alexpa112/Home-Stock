@@ -28,6 +28,8 @@ try:
 except ImportError:
     _WEBPUSH_DISPONIBLE = False
     WebPushException = Exception
+    def webpush(*args, **kwargs):  # Dummy para tests cuando pywebpush no está disponible
+        raise WebPushException("pywebpush no disponible")
 
 from ..config import DATA_DIR, EMAIL_CONTACTO_LEGAL
 
