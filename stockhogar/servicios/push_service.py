@@ -14,24 +14,44 @@ import json
 import logging
 
 from cryptography.hazmat.primitives import serialization
-from py_vapid import Vapid
-from pywebpush import WebPushException, webpush
+
+try:
+    from py_vapid import Vapid
+    _VAPID_DISPONIBLE = True
+except ImportError:
+    _VAPID_DISPONIBLE = False
+    Vapid = None
+
+try:
+    from pywebpush import WebPushException, webpush
+    _WEBPUSH_DISPONIBLE = True
+except ImportError:
+    _WEBPUSH_DISPONIBLE = False
+    WebPushException = Exception
 
 from ..config import DATA_DIR, EMAIL_CONTACTO_LEGAL
 
 logger = logging.getLogger(__name__)
 
 _VAPID_KEY_PATH = DATA_DIR / "vapid_private_key.pem"
-_vapid = Vapid.from_file(str(_VAPID_KEY_PATH))
-try:
-    _VAPID_KEY_PATH.chmod(0o600)
-except OSError:
-    pass  # No disponible en todos los sistemas de ficheros (p.ej. algunos montajes en Windows).
+_vapid = None
+if _VAPID_DISPONIBLE:
+    try:
+        if _VAPID_KEY_PATH.exists():
+            _vapid = Vapid.from_file(str(_VAPID_KEY_PATH))
+            try:
+                _VAPID_KEY_PATH.chmod(0o600)
+            except OSError:
+                pass
+    except Exception as e:
+        logger.warning("No se pudo cargar clave VAPID: %s", e)
 
 
 def clave_publica_vapid() -> str:
     """Clave publica VAPID en base64url sin padding, formato que espera
     PushManager.subscribe({applicationServerKey: ...}) en el navegador."""
+    if not _vapid:
+        return ""
     pub_bytes = _vapid.public_key.public_bytes(
         encoding=serialization.Encoding.X962,
         format=serialization.PublicFormat.UncompressedPoint,
@@ -44,6 +64,9 @@ def enviar_push(db, suscripcion, titulo, cuerpo, url=None) -> bool:
     con endpoint/p256dh/auth). Si el servicio push confirma que la
     suscripcion ya no existe (404/410 - navegador desinstalado, permiso
     revocado...), la borra de la BD para no seguir intentando en vano."""
+    if not _WEBPUSH_DISPONIBLE or not _vapid:
+        logger.warning("Push no disponible, descartando push a %s", suscripcion["id"])
+        return False
     try:
         webpush(
             subscription_info={

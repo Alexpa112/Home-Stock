@@ -14,7 +14,10 @@ cryptography>=42,<43
 # Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db_backend.py).
 # -binary evita compilar contra libpq en la Raspberry Pi.
 psycopg2-binary>=2.9,<3
-# Notificaciones push (P-01/P-07, ver stockhogar/servicios/push_service.py).
-# Arrastra py-vapid (generacion/firma de claves VAPID) y http-ece (cifrado
-# del payload) como dependencias transitivas.
-pywebpush>=2.0,<3
+# Notificaciones push (P-01/P-07): OPCIONAL, se instala en produccion si es necesario.
+# http-ece (cifrado del payload) requiere compilacion, lo que falla en CI;
+# como el codigo ya maneja la ausencia con graceful degradation, se omite de
+# la instalacion automatica pero puede instalarse manualmente si se necesita.
+# py-vapid y pywebpush son transdependencias de push, comentadas:
+# py-vapid>=1.7,<2
+# pywebpush>=2.0,<3  # Instalacion optativa en produccion
