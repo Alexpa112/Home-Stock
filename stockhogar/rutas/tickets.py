@@ -39,7 +39,27 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db):
     matcher = MatcherInteligente()
     items = []
     for item in respuesta_ia.get("productos", []):
+        # Obtener nombre
+        nombre = (item.get("nombre_ticket") or "").strip()
+        if not nombre:
+            nombre = (item.get("nombre") or "").strip()
+        if not nombre:
+            continue  # Saltar si no hay nombre
+
+        nombre = nombre.title()
+
+        # Obtener producto_id
         producto_id = item.get("producto_id")
+        # Convertir string "null" o vacío a None
+        if producto_id == "null" or producto_id == "":
+            producto_id = None
+        # Intentar convertir a int si es string de número
+        elif isinstance(producto_id, str):
+            try:
+                producto_id = int(producto_id)
+            except (ValueError, TypeError):
+                producto_id = None
+
         catalogado = catalogo_por_id.get(producto_id) if producto_id is not None else None
 
         if catalogado:
@@ -47,9 +67,6 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db):
             categoria = catalogado["categoria"]
             confianza_match = 1.0
         else:
-            nombre = (item.get("nombre_ticket") or "").strip().title()
-            if not nombre:
-                continue
             categoria = matcher.deducir_categoria(nombre) or "Otros"
             confianza_match = 0
             producto_id = None

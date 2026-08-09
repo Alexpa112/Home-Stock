@@ -286,64 +286,33 @@ class ClaudeOCR:
                 if final != -1:
                     json_limpio = json_limpio[:final+1]
 
-            logger.debug("JSON extraído: %s", json_limpio[:200])
+            logger.debug("JSON extraído: %s", json_limpio[:300])
 
-            resultado = json.loads(json_limpio)
+            try:
+                resultado = json.loads(json_limpio)
+            except json.JSONDecodeError as e:
+                logger.error("Error al parsear JSON: %s. JSON: %s", e, json_limpio[:500])
+                return None
+
             if not isinstance(resultado, dict) or "productos" not in resultado:
                 logger.error("Claude devolvió formato inválido: %s", resultado)
                 return None
 
             # Validar que todos los productos tienen los campos requeridos
             productos = resultado.get("productos", [])
-            productos_validos = []
+            for prod in productos:
+                if isinstance(prod, dict):
+                    # Asegurar que todos los campos existen con valores por defecto
+                    if "nombre_ticket" not in prod:
+                        prod["nombre_ticket"] = prod.get("nombre", "")
+                    if "cantidad" not in prod:
+                        prod["cantidad"] = 1
+                    if "unidad" not in prod:
+                        prod["unidad"] = "ud"
+                    if "producto_id" not in prod:
+                        prod["producto_id"] = None
 
-            for i, prod in enumerate(productos):
-                if not isinstance(prod, dict):
-                    logger.warning("Producto %d no es dict, saltando: %s", i, prod)
-                    continue
-
-                # Validar nombre
-                nombre = (prod.get("nombre_ticket") or prod.get("nombre") or "").strip()
-                if not nombre:
-                    logger.warning("Producto %d sin nombre, saltando", i)
-                    continue
-
-                # Validar y convertir cantidad
-                try:
-                    cantidad = float(prod.get("cantidad") or 1)
-                    if cantidad <= 0:
-                        cantidad = 1
-                except (ValueError, TypeError):
-                    logger.warning("Producto %d cantidad inválida: %s, usando 1", i, prod.get("cantidad"))
-                    cantidad = 1
-
-                # Validar unidad
-                unidad = (prod.get("unidad") or "ud").strip().lower()
-                if unidad not in ("ud", "kg", "g", "l", "ml"):
-                    logger.debug("Producto %d unidad inválida '%s', normalizando a 'ud'", i, unidad)
-                    unidad = "ud"
-
-                # Producto ID (puede ser None)
-                producto_id = prod.get("producto_id")
-                if producto_id == "null" or producto_id == "":
-                    producto_id = None
-                else:
-                    try:
-                        producto_id = int(producto_id) if producto_id is not None else None
-                    except (ValueError, TypeError):
-                        producto_id = None
-
-                producto_validado = {
-                    "nombre_ticket": nombre,
-                    "cantidad": cantidad,
-                    "unidad": unidad,
-                    "producto_id": producto_id
-                }
-                productos_validos.append(producto_validado)
-                logger.debug("Producto válido: %s", producto_validado)
-
-            resultado["productos"] = productos_validos
-            logger.info("Claude OCR detectó %d productos válidos", len(productos_validos))
+            logger.info("Claude OCR detectó %d productos", len(productos))
             return resultado
 
         except json.JSONDecodeError as e:
