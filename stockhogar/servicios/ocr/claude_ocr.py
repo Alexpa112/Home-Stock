@@ -15,101 +15,176 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT_SEGUNDOS = 30
 
-_PROMPT = """EXTRAE TODOS LOS ARTÍCULOS DEL TICKET - SIN EXCEPCIONES.
+_PROMPT = """TAREA CRÍTICA: Extraer TODOS los artículos de este documento (ticket/factura/nota)
 
-Tu ÚNICO objetivo: Leer el ticket de compra y devolver TODOS los artículos comprados.
-
-═══════════════════════════════════════════════════════════════════════════════
-IDENTIFICAR ARTÍCULOS - QUÉ ES UN ARTÍCULO:
-
-Un ARTÍCULO es cualquier línea que tenga:
-  ✓ Nombre del producto (pan, leche, tomates, etc.)
-  ✓ Más un precio (junto o cerca)
-  ✓ Opcionalmente cantidad (2x, 500g, 1L, etc.)
-
-INCLUIR TODO:
-  ✓ Frutas, verduras, alimentos frescos
-  ✓ Lácteos, carnes, pescado, huevos
-  ✓ Pan, cereales, pastas, arroz
-  ✓ Bebidas, refrescos, zumos, vino
-  ✓ Alimentos envasados, conservas
-  ✓ Productos de higiene, limpieza, droguería
-  ✓ Cualquier cosa con nombre + precio = ARTÍCULO
-
-NO INCLUIR (ignorar completamente):
-  ✗ ENCABEZADO: nombre tienda, fecha, hora, cajero, sucursal
-  ✗ PIE: TOTAL, SUBTOTAL, SUB, IMPORTE, IVA, forma de pago, método pago
-  ✗ VUELTAS, EFECTIVO, CAMBIO RECIBIDO
-  ✗ LÍNEAS VACÍAS O SIN PRECIO
-  ✗ "Gracias por su compra", mensajes de publicidad
+Soy un sistema de compras. Necesito TODOS los artículos comprados para registrar stock.
+NO puedo perder ni UN artículo. Tu precisión es CRÍTICA.
 
 ═══════════════════════════════════════════════════════════════════════════════
-EXTRAER 3 DATOS POR CADA ARTÍCULO:
+FORMATOS SOPORTADOS - Reconoce cualquier layout:
 
-1. nombre_ticket: El NOMBRE EXACTO que aparece en el ticket
-   • Copia palabra por palabra lo que dice
-   • Incluyendo tamaño si aparece (1L, 500g, 6 unidades, docena)
-   • Ejemplo: si dice "Leche 1L 3.50", escribe "Leche 1L"
-   • Si dice "Pan blanco", escribe "Pan blanco"
+1. TICKET TRADICIONAL (supermercado)
+   Leche 1L                     3.99
+   Pan integral x2              4.50
 
-2. cantidad: El NÚMERO de cosas compradas
-   • Si dice "2x" o "2 x" → cantidad = 2
-   • Si dice "1 kg" → cantidad = 1 (el kg es la unidad, no cantidad)
-   • Si dice "6 huevos" → cantidad = 6 (son 6 unidades)
-   • Si NO dice cantidad → cantidad = 1 (asume 1 unidad)
-   • Siempre un NÚMERO, nunca texto
+2. FACTURA COMPLEJA (columnas)
+   Código | Producto          | Cant | Unidad | Precio
+   1234   | Tomates frescos   | 2    | kg     | 8.99
 
-3. unidad: Cómo se mide (ud, kg, g, l, ml)
-   • "ud" = unidades simples (pan, latas, botellas individuales)
-   • "kg" = kilogramos (para alimentos a granel)
-   • "g" = gramos (para cantidades pequeñas)
-   • "l" = litros (para líquidos)
-   • "ml" = mililitros (para medicinas o cantidades muy pequeñas)
-   • Si NO hay unidad especificada → "ud"
+3. FACTURAS CON RESUMEN (con cabecera/pie)
+   --- ARTICULOS ---
+   Arroz 1kg ... 5.50
+   --- TOTAL: 25.00 ---
 
-EJEMPLOS DE EXTRACCIÓN:
-  Línea: "Leche entera 1L              3.99"
-    → nombre_ticket: "Leche entera 1L", cantidad: 1, unidad: "ud"
+4. LISTA SIMPLE (sin precios visibles)
+   - Leche
+   - Pan x2
+   - Tomates 3kg
 
-  Línea: "Tomates                2 kg  8.99"
-    → nombre_ticket: "Tomates", cantidad: 2, unidad: "kg"
-
-  Línea: "2x Chocolate 100g            5.98"
-    → nombre_ticket: "Chocolate 100g", cantidad: 2, unidad: "ud"
-
-  Línea: "Manzanas rojas           6.99/kg"
-    → nombre_ticket: "Manzanas rojas", cantidad: 1, unidad: "kg"
+5. TABLA/MATRIZ (datos distribuidos)
+   Item 1: Producto | 2x | 7.99
+   Item 2: Producto | 1kg | 12.50
 
 ═══════════════════════════════════════════════════════════════════════════════
-CATÁLOGO (usa producto_id si hay match):
+ESTRATEGIA DE LECTURA - Flexible según formato:
 
+LEE INTELIGENTEMENTE:
+  • Columnas (si existen): producto, cantidad, unidad, precio
+  • Líneas (si no hay columnas): busca nombre + número + unidad/precio
+  • Tablas: cada fila puede ser un artículo
+  • Listas: cada punto/línea puede ser un artículo
+  • Cualquier combinación: adapta y sigue extrayendo
+
+PATRONES DE CANTIDAD:
+  • "2x Leche" → cantidad: 2
+  • "Leche x2" → cantidad: 2
+  • "2 botellas Leche" → cantidad: 2
+  • "500g Tomates" → cantidad: 0.5, unidad: kg
+  • "Leche 1000ml" → cantidad: 1, unidad: l
+  • "6 huevos" → cantidad: 6
+  • "docena huevos" → cantidad: 12
+  • "media docena" → cantidad: 6
+  • "2 litros" → cantidad: 2, unidad: l
+  • "250g queso" → cantidad: 0.25, unidad: kg
+  • Solo nombre (sin cantidad) → cantidad: 1
+
+PATRONES DE UNIDAD (detecta automáticamente):
+  "kg", "kilos", "kilo" → kg
+  "g", "gr", "gramo", "gramos" → g
+  "l", "litro", "litros" → l
+  "ml", "mililitro", "mililitros" → ml
+  "botella", "bote", "unidad", "pieza", "pan", "lata", "caja" → ud
+  "docena", "media docena" → 12 o 6 unidades
+  "paquete", "bolsa", "pack", "bundle" → ud
+  Si no hay unidad clara → ud (unidades)
+
+═══════════════════════════════════════════════════════════════════════════════
+QUÉ INCLUIR (TODO LO QUE SEA PRODUCTO):
+
+  ✓ ALIMENTOS FRESCOS: frutas, verduras, carnes, pescado, aves, huevos
+  ✓ LÁCTEOS: leche, queso, yogur, mantequilla, nata
+  ✓ PANADERÍA: pan, bollo, galletas, pasteles
+  ✓ BEBIDAS: agua, refrescos, zumos, vino, cerveza, licores, café, té
+  ✓ CONSERVAS: latas, botes, frascos, productos enlatados
+  ✓ SECOS: arroz, pasta, legumbres, cereales, harina, azúcar
+  ✓ CONGELADOS: pizzas, verduras congeladas, helado
+  ✓ HIGIENE: champú, jabón, dentífrico, desodorante, papel higiénico
+  ✓ LIMPIEZA: detergente, limpiavidrios, lejía, bayeta, esponja
+  ✓ DROGUERÍA: bolsas, film, papel aluminio, velas, pilas
+  ✓ MASCOTAS: comida perros, comida gatos, arena gatos
+  ✓ OTROS CONSUMIBLES: cigarrillos, revistas, libros
+
+QUÉ EXCLUIR (NO son artículos de compra):
+
+  ✗ ENCABEZADOS: "Supermercado XXX", "Tienda", "Fecha:", "Hora:", "Caja:", número de tienda
+  ✗ COLUMNAS DESCRIPTIVAS: "Artículo", "Cantidad", "Precio", "Descripción"
+  ✗ TOTAL/RESUMEN: TOTAL, SUBTOTAL, SUB, SUMA, IVA, Impuesto, IMPORTE TOTAL
+  ✗ MÉTODOS PAGO: Tarjeta, Efectivo, Transferencia, cheque, forma de pago
+  ✗ VUELTAS/CAMBIO: "Vueltas", "Cambio recibido", "Resto"
+  ✗ GASTOS ADICIONALES: Bolsas (si se cobran), embalaje, envío, recargo
+  ✗ DESCUENTOS/OFERTAS: líneas que digan "DESCUENTO", "OFERTA", "PROMOCIÓN" (si no son productos)
+  ✗ PIE: "Gracias", "Vuelva pronto", "Aviso legal", datos de contacto
+  ✗ CÓDIGOS: códigos de barras, números de referencia sin producto
+  ✗ LÍNEAS VACÍAS
+
+═══════════════════════════════════════════════════════════════════════════════
+EXTRACCIÓN FINAL - 4 DATOS POR ARTÍCULO:
+
+1. nombre_ticket: Nombre EXACTO del producto (sin precio ni cantidad)
+   • "Leche entera 1L" → nombre: "Leche entera 1L" (incluye tamaño si está en el nombre)
+   • "Tomates" → nombre: "Tomates"
+   • "Pan integral 500g" → nombre: "Pan integral 500g"
+   • MANTÉN EL NOMBRE COMPLETO TAL CUAL APARECE
+
+2. cantidad: NÚMERO (puede ser decimal para kilos/gramos/ml)
+   • Conversión automática: 500g = 0.5 kg, 250ml = 0.25 l
+   • Siempre positivo y > 0
+   • Si no aparece → 1
+
+3. unidad: Uno de estos EXACTAMENTE: ud, kg, g, l, ml
+   • NUNCA otras unidades
+   • "botella", "lata", "caja" → ud
+   • "gramos", "gr" → g (y ajusta cantidad)
+   • "litros", "l" → l
+   • Si no hay unidad → ud
+
+4. producto_id: Busca en catálogo
+   • Si hay match exacto o muy similar → usa el id
+   • Si no hay match → null
+
+CATÁLOGO:
 {catalogo}
 
-Para CADA artículo:
-  • Busca si existe algo similar en el catálogo
-  • Si SÍ → usa su "producto_id"
-  • Si NO → producto_id = null
+═══════════════════════════════════════════════════════════════════════════════
+EJEMPLOS VARIADOS (diferentes formatos):
+
+TICKET FORMATO 1:
+  Leche 1L                      3.99
+  Resultado: nombre:"Leche 1L", cantidad:1, unidad:"ud"
+
+TICKET FORMATO 2:
+  Tomates frescos 2kg @ 4.50/kg
+  Resultado: nombre:"Tomates frescos", cantidad:2, unidad:"kg"
+
+FACTURA FORMATO 1:
+  Producto | Cantidad | Precio
+  Pan      | 2        | 3.50
+  Resultado: nombre:"Pan", cantidad:2, unidad:"ud"
+
+FACTURA FORMATO 2:
+  Arroz 1kg........................5.50
+  Resultado: nombre:"Arroz 1kg", cantidad:1, unidad:"ud"
+
+LISTA SIMPLE:
+  - Leche 3 litros
+  Resultado: nombre:"Leche", cantidad:3, unidad:"l"
+
+TABLA:
+  [Producto] [Cant] [Precio]
+  Queso      250g   12.00
+  Resultado: nombre:"Queso", cantidad:0.25, unidad:"kg"
 
 ═══════════════════════════════════════════════════════════════════════════════
-DEVOLVER SOLO JSON - EXACTAMENTE ASÍ:
+RESPUESTA FINAL - JSON PURO:
 
 {{"productos": [
-  {{"nombre_ticket": "Leche 1L", "cantidad": 1, "unidad": "ud", "producto_id": 5}},
-  {{"nombre_ticket": "Tomates", "cantidad": 2, "unidad": "kg", "producto_id": 12}},
-  {{"nombre_ticket": "Pan integral", "cantidad": 1, "unidad": "ud", "producto_id": null}}
+  {{"nombre_ticket": "Leche 1L", "cantidad": 1, "unidad": "ud", "producto_id": null}},
+  {{"nombre_ticket": "Tomates", "cantidad": 2, "unidad": "kg", "producto_id": null}},
+  {{"nombre_ticket": "Pan integral", "cantidad": 3, "unidad": "ud", "producto_id": null}}
 ]}}
 
-CRUCIAL:
-  • SIN EXPLICACIONES
-  • SIN COMILLAS ADICIONALES
-  • SIN MARKDOWN (no escribas ```json)
-  • SOLO EL JSON
+INSTRUCCIONES FINALES:
+  • SOLO DEVUELVE JSON - nada más
+  • SIN markdown, SIN comillas extras, SIN explicaciones
+  • SIN ```json, SIN ```
   • Si está vacío: {{"productos": []}}
-  • Validación: cantidad es NÚMERO, unidad es uno de: ud/kg/g/l/ml
-  • Todos los campos DEBEN estar presentes
+  • Cantidad SIEMPRE número (puede ser decimal: 0.5, 1.25, etc)
+  • Unidad SIEMPRE uno de: ud / kg / g / l / ml
+  • Todos los 4 campos SIEMPRE presentes
 
-TAREA FINAL: Lee LÍNEA POR LÍNEA el ticket, extrae TODOS los artículos,
-devuelve SOLO el JSON."""
+ÚLTIMA INSTRUCCIÓN: Lee el documento línea por línea. Extrae TODOS los artículos
+sin perder ni uno. Duda siempre a INCLUIR (es mejor pedir corrección que perder datos).
+Devuelve JSON válido, parseable, en una sola respuesta."""
 
 
 class ClaudeOCR:
@@ -220,20 +295,55 @@ class ClaudeOCR:
 
             # Validar que todos los productos tienen los campos requeridos
             productos = resultado.get("productos", [])
+            productos_validos = []
+
             for i, prod in enumerate(productos):
                 if not isinstance(prod, dict):
-                    logger.warning("Producto %d no es dict: %s", i, prod)
+                    logger.warning("Producto %d no es dict, saltando: %s", i, prod)
                     continue
-                if "nombre_ticket" not in prod:
-                    prod["nombre_ticket"] = prod.get("nombre", "")
-                if "cantidad" not in prod:
-                    prod["cantidad"] = 1
-                if "unidad" not in prod:
-                    prod["unidad"] = "ud"
-                if "producto_id" not in prod:
-                    prod["producto_id"] = None
 
-            logger.info("Claude OCR detectó %d productos", len(productos))
+                # Validar nombre
+                nombre = (prod.get("nombre_ticket") or prod.get("nombre") or "").strip()
+                if not nombre:
+                    logger.warning("Producto %d sin nombre, saltando", i)
+                    continue
+
+                # Validar y convertir cantidad
+                try:
+                    cantidad = float(prod.get("cantidad") or 1)
+                    if cantidad <= 0:
+                        cantidad = 1
+                except (ValueError, TypeError):
+                    logger.warning("Producto %d cantidad inválida: %s, usando 1", i, prod.get("cantidad"))
+                    cantidad = 1
+
+                # Validar unidad
+                unidad = (prod.get("unidad") or "ud").strip().lower()
+                if unidad not in ("ud", "kg", "g", "l", "ml"):
+                    logger.debug("Producto %d unidad inválida '%s', normalizando a 'ud'", i, unidad)
+                    unidad = "ud"
+
+                # Producto ID (puede ser None)
+                producto_id = prod.get("producto_id")
+                if producto_id == "null" or producto_id == "":
+                    producto_id = None
+                else:
+                    try:
+                        producto_id = int(producto_id) if producto_id is not None else None
+                    except (ValueError, TypeError):
+                        producto_id = None
+
+                producto_validado = {
+                    "nombre_ticket": nombre,
+                    "cantidad": cantidad,
+                    "unidad": unidad,
+                    "producto_id": producto_id
+                }
+                productos_validos.append(producto_validado)
+                logger.debug("Producto válido: %s", producto_validado)
+
+            resultado["productos"] = productos_validos
+            logger.info("Claude OCR detectó %d productos válidos", len(productos_validos))
             return resultado
 
         except json.JSONDecodeError as e:

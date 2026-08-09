@@ -62,10 +62,19 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db):
         except (ValueError, TypeError):
             cantidad = 1
 
+        # Normalizar unidad
+        unidad = (item.get("unidad") or "ud").strip().lower()
+        # Validar que unidad sea válida, si no, usar "ud"
+        if unidad not in ("ud", "kg", "g", "l", "ml"):
+            unidad = "ud"
+
+        # Convertir cantidad a entero si es número entero, sino mantener decimal
+        cantidad_formateada = int(cantidad) if cantidad == int(cantidad) else round(cantidad, 2)
+
         items.append({
             "nombre": nombre,
-            "cantidad": int(cantidad) if cantidad == int(cantidad) else cantidad,
-            "unidad": (item.get("unidad") or "ud").strip().lower(),
+            "cantidad": cantidad_formateada,
+            "unidad": unidad,
             "categoria": categoria,
             "producto_id": producto_id,
             "confianza_match": confianza_match,
