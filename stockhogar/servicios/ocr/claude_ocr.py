@@ -15,38 +15,101 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT_SEGUNDOS = 30
 
-_PROMPT = """TAREA: Leer TICKET y devolver LISTA DE ARTÍCULOS en JSON.
+_PROMPT = """EXTRAE TODOS LOS ARTÍCULOS DEL TICKET - SIN EXCEPCIONES.
 
-PASO 1 - LEER TICKET:
-Lee TODOS los renglones del ticket que sean productos (texto + precio).
-IGNORA: encabezado tienda, totales, forma pago, cambio, líneas sin precio.
+Tu ÚNICO objetivo: Leer el ticket de compra y devolver TODOS los artículos comprados.
 
-PASO 2 - EXTRAER PARA CADA ARTÍCULO:
-- nombre_ticket: Nombre EXACTO tal cual aparece (ej: "Leche Entera 1L")
-- cantidad: Número (ej: 2, 0.5, 1). Busca multiplicador (2x, 3x) o unidad (kg, g, L, ml)
-- unidad: "ud" (unidades), "kg", "g", "l", "ml". Extrae de descripción.
+═══════════════════════════════════════════════════════════════════════════════
+IDENTIFICAR ARTÍCULOS - QUÉ ES UN ARTÍCULO:
 
-PASO 3 - BUSCAR EN CATALOGO:
-CATALOGO:
+Un ARTÍCULO es cualquier línea que tenga:
+  ✓ Nombre del producto (pan, leche, tomates, etc.)
+  ✓ Más un precio (junto o cerca)
+  ✓ Opcionalmente cantidad (2x, 500g, 1L, etc.)
+
+INCLUIR TODO:
+  ✓ Frutas, verduras, alimentos frescos
+  ✓ Lácteos, carnes, pescado, huevos
+  ✓ Pan, cereales, pastas, arroz
+  ✓ Bebidas, refrescos, zumos, vino
+  ✓ Alimentos envasados, conservas
+  ✓ Productos de higiene, limpieza, droguería
+  ✓ Cualquier cosa con nombre + precio = ARTÍCULO
+
+NO INCLUIR (ignorar completamente):
+  ✗ ENCABEZADO: nombre tienda, fecha, hora, cajero, sucursal
+  ✗ PIE: TOTAL, SUBTOTAL, SUB, IMPORTE, IVA, forma de pago, método pago
+  ✗ VUELTAS, EFECTIVO, CAMBIO RECIBIDO
+  ✗ LÍNEAS VACÍAS O SIN PRECIO
+  ✗ "Gracias por su compra", mensajes de publicidad
+
+═══════════════════════════════════════════════════════════════════════════════
+EXTRAER 3 DATOS POR CADA ARTÍCULO:
+
+1. nombre_ticket: El NOMBRE EXACTO que aparece en el ticket
+   • Copia palabra por palabra lo que dice
+   • Incluyendo tamaño si aparece (1L, 500g, 6 unidades, docena)
+   • Ejemplo: si dice "Leche 1L 3.50", escribe "Leche 1L"
+   • Si dice "Pan blanco", escribe "Pan blanco"
+
+2. cantidad: El NÚMERO de cosas compradas
+   • Si dice "2x" o "2 x" → cantidad = 2
+   • Si dice "1 kg" → cantidad = 1 (el kg es la unidad, no cantidad)
+   • Si dice "6 huevos" → cantidad = 6 (son 6 unidades)
+   • Si NO dice cantidad → cantidad = 1 (asume 1 unidad)
+   • Siempre un NÚMERO, nunca texto
+
+3. unidad: Cómo se mide (ud, kg, g, l, ml)
+   • "ud" = unidades simples (pan, latas, botellas individuales)
+   • "kg" = kilogramos (para alimentos a granel)
+   • "g" = gramos (para cantidades pequeñas)
+   • "l" = litros (para líquidos)
+   • "ml" = mililitros (para medicinas o cantidades muy pequeñas)
+   • Si NO hay unidad especificada → "ud"
+
+EJEMPLOS DE EXTRACCIÓN:
+  Línea: "Leche entera 1L              3.99"
+    → nombre_ticket: "Leche entera 1L", cantidad: 1, unidad: "ud"
+
+  Línea: "Tomates                2 kg  8.99"
+    → nombre_ticket: "Tomates", cantidad: 2, unidad: "kg"
+
+  Línea: "2x Chocolate 100g            5.98"
+    → nombre_ticket: "Chocolate 100g", cantidad: 2, unidad: "ud"
+
+  Línea: "Manzanas rojas           6.99/kg"
+    → nombre_ticket: "Manzanas rojas", cantidad: 1, unidad: "kg"
+
+═══════════════════════════════════════════════════════════════════════════════
+CATÁLOGO (usa producto_id si hay match):
+
 {catalogo}
 
-Para CADA artículo del ticket, busca en catálogo:
-- SI existe match exacto o muy similar → producto_id = (ese id)
-- SINO → producto_id = null
+Para CADA artículo:
+  • Busca si existe algo similar en el catálogo
+  • Si SÍ → usa su "producto_id"
+  • Si NO → producto_id = null
 
-PASO 4 - DEVOLVER JSON:
-SOLO JSON, sin markdown, sin explicaciones:
+═══════════════════════════════════════════════════════════════════════════════
+DEVOLVER SOLO JSON - EXACTAMENTE ASÍ:
+
 {{"productos": [
-  {{"nombre_ticket": "Leche 1L", "producto_id": 5, "cantidad": 1, "unidad": "ud"}},
-  {{"nombre_ticket": "Tomates 1kg", "producto_id": 12, "cantidad": 1, "unidad": "kg"}},
-  {{"nombre_ticket": "Huevos docena", "producto_id": null, "cantidad": 12, "unidad": "ud"}}
+  {{"nombre_ticket": "Leche 1L", "cantidad": 1, "unidad": "ud", "producto_id": 5}},
+  {{"nombre_ticket": "Tomates", "cantidad": 2, "unidad": "kg", "producto_id": 12}},
+  {{"nombre_ticket": "Pan integral", "cantidad": 1, "unidad": "ud", "producto_id": null}}
 ]}}
 
-IMPORTANTE:
-- Lee TODOS los artículos, sin excepciones
-- cantidad Y unidad SIEMPRE presentes
-- Si no hay artículos: {{"productos": []}}
-- NUNCA añadas explicaciones o markdown"""
+CRUCIAL:
+  • SIN EXPLICACIONES
+  • SIN COMILLAS ADICIONALES
+  • SIN MARKDOWN (no escribas ```json)
+  • SOLO EL JSON
+  • Si está vacío: {{"productos": []}}
+  • Validación: cantidad es NÚMERO, unidad es uno de: ud/kg/g/l/ml
+  • Todos los campos DEBEN estar presentes
+
+TAREA FINAL: Lee LÍNEA POR LÍNEA el ticket, extrae TODOS los artículos,
+devuelve SOLO el JSON."""
 
 
 class ClaudeOCR:
@@ -102,7 +165,7 @@ class ClaudeOCR:
 
             message = self.client.messages.create(
                 model="claude-3-5-sonnet-20241022",
-                max_tokens=1024,
+                max_tokens=2048,
                 timeout=_TIMEOUT_SEGUNDOS,
                 messages=[
                     {
@@ -128,21 +191,53 @@ class ClaudeOCR:
             texto = message.content[0].text.strip()
             logger.info("Claude OCR devolvió respuesta: %s caracteres", len(texto))
 
-            # Extraer JSON (puede tener markdown)
-            if "```json" in texto:
-                texto = texto.split("```json")[1].split("```")[0].strip()
-            elif "```" in texto:
-                texto = texto.split("```")[1].split("```")[0].strip()
+            # Extraer JSON (puede tener markdown o explicaciones)
+            json_limpio = texto
 
-            resultado = json.loads(texto)
+            # Intenta limpiar markdown
+            if "```json" in json_limpio:
+                json_limpio = json_limpio.split("```json")[1].split("```")[0].strip()
+            elif "```" in json_limpio:
+                json_limpio = json_limpio.split("```")[1].split("```")[0].strip()
+
+            # Busca el JSON dentro del texto (por si hay explicaciones)
+            if not json_limpio.startswith("{"):
+                inicio = json_limpio.find("{")
+                if inicio != -1:
+                    json_limpio = json_limpio[inicio:]
+
+            if not json_limpio.endswith("}"):
+                final = json_limpio.rfind("}")
+                if final != -1:
+                    json_limpio = json_limpio[:final+1]
+
+            logger.debug("JSON extraído: %s", json_limpio[:200])
+
+            resultado = json.loads(json_limpio)
             if not isinstance(resultado, dict) or "productos" not in resultado:
                 logger.error("Claude devolvió formato inválido: %s", resultado)
                 return None
-            logger.info("Claude OCR detectó %d productos", len(resultado.get("productos", [])))
+
+            # Validar que todos los productos tienen los campos requeridos
+            productos = resultado.get("productos", [])
+            for i, prod in enumerate(productos):
+                if not isinstance(prod, dict):
+                    logger.warning("Producto %d no es dict: %s", i, prod)
+                    continue
+                if "nombre_ticket" not in prod:
+                    prod["nombre_ticket"] = prod.get("nombre", "")
+                if "cantidad" not in prod:
+                    prod["cantidad"] = 1
+                if "unidad" not in prod:
+                    prod["unidad"] = "ud"
+                if "producto_id" not in prod:
+                    prod["producto_id"] = None
+
+            logger.info("Claude OCR detectó %d productos", len(productos))
             return resultado
 
         except json.JSONDecodeError as e:
-            logger.error("Error parseando JSON de Claude: %s. Respuesta: %s", e, texto[:500] if 'texto' in locals() else "sin respuesta")
+            logger.error("Error parseando JSON de Claude: %s. Respuesta: %s", e, json_limpio[:500] if 'json_limpio' in locals() else "sin respuesta")
             return None
         except Exception as e:
             logger.exception("Fallo llamando a Claude OCR: %s - %s", type(e).__name__, str(e))
