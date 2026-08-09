@@ -15,21 +15,38 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT_SEGUNDOS = 30
 
-_PROMPT = """Eres un lector de tickets de supermercado. Analiza la imagen del ticket y para cada artículo comprado (ignora cabecera con nombre/dirección/CIF de la tienda, el total, la forma de pago, el cambio y cualquier publicidad) decide a qué producto del CATALOGO corresponde.
+_PROMPT = """TAREA: Leer TICKET y devolver LISTA DE ARTÍCULOS en JSON.
 
-CATALOGO (id: nombre):
+PASO 1 - LEER TICKET:
+Lee TODOS los renglones del ticket que sean productos (texto + precio).
+IGNORA: encabezado tienda, totales, forma pago, cambio, líneas sin precio.
+
+PASO 2 - EXTRAER PARA CADA ARTÍCULO:
+- nombre_ticket: Nombre EXACTO tal cual aparece (ej: "Leche Entera 1L")
+- cantidad: Número (ej: 2, 0.5, 1). Busca multiplicador (2x, 3x) o unidad (kg, g, L, ml)
+- unidad: "ud" (unidades), "kg", "g", "l", "ml". Extrae de descripción.
+
+PASO 3 - BUSCAR EN CATALOGO:
+CATALOGO:
 {catalogo}
 
-Devuelve SOLO un JSON con esta forma exacta, sin texto adicional ni markdown:
+Para CADA artículo del ticket, busca en catálogo:
+- SI existe match exacto o muy similar → producto_id = (ese id)
+- SINO → producto_id = null
+
+PASO 4 - DEVOLVER JSON:
+SOLO JSON, sin markdown, sin explicaciones:
 {{"productos": [
-  {{"nombre_ticket": "texto tal cual aparece en el ticket",
-    "producto_id": <id del catálogo o null si ninguno encaja>,
-    "cantidad": <número, 1 si no se indica>,
-    "unidad": "ud|kg|g|l|ml"}}
+  {{"nombre_ticket": "Leche 1L", "producto_id": 5, "cantidad": 1, "unidad": "ud"}},
+  {{"nombre_ticket": "Tomates 1kg", "producto_id": 12, "cantidad": 1, "unidad": "kg"}},
+  {{"nombre_ticket": "Huevos docena", "producto_id": null, "cantidad": 12, "unidad": "ud"}}
 ]}}
 
-Sé preciso: si hay 2kg de manzanas a 1.20/kg, pon cantidad: 2, unidad: "kg".
-Usa un producto_id solo si estás seguro de que es el mismo artículo."""
+IMPORTANTE:
+- Lee TODOS los artículos, sin excepciones
+- cantidad Y unidad SIEMPRE presentes
+- Si no hay artículos: {{"productos": []}}
+- NUNCA añadas explicaciones o markdown"""
 
 
 class ClaudeOCR:
@@ -125,8 +142,8 @@ class ClaudeOCR:
             return resultado
 
         except json.JSONDecodeError as e:
-            logger.error("Error parseando JSON de Claude: %s. Respuesta: %s", e, texto[:500])
+            logger.error("Error parseando JSON de Claude: %s. Respuesta: %s", e, texto[:500] if 'texto' in locals() else "sin respuesta")
             return None
         except Exception as e:
-            logger.exception("Fallo llamando a Claude OCR: %s", type(e).__name__)
+            logger.exception("Fallo llamando a Claude OCR: %s - %s", type(e).__name__, str(e))
             return None

@@ -54,16 +54,21 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db):
             confianza_match = 0
             producto_id = None
 
+        # Convertir cantidad a número (puede venir como string de JSON)
+        try:
+            cantidad = float(item.get("cantidad") or 1)
+            if cantidad <= 0:
+                cantidad = 1
+        except (ValueError, TypeError):
+            cantidad = 1
+
         items.append({
             "nombre": nombre,
-            "cantidad": item.get("cantidad") or 1,
-            "unidad": item.get("unidad") or "ud",
+            "cantidad": int(cantidad) if cantidad == int(cantidad) else cantidad,
+            "unidad": (item.get("unidad") or "ud").strip().lower(),
             "categoria": categoria,
             "producto_id": producto_id,
             "confianza_match": confianza_match,
-            # La IA no da confianza de OCR por línea ni precios: se asume
-            # cantidad fiable y no se aplica la validación de precio del
-            # pipeline local (pensada para lo que devuelve Tesseract).
             "confianza_cantidad": 100,
             "precio_valido": True,
         })
