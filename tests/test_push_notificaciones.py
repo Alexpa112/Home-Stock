@@ -97,7 +97,10 @@ class EnviarPushTests(unittest.TestCase):
 
     @patch("stockhogar.servicios.push_service.webpush")
     def test_enviar_push_con_suscripcion_caducada_la_borra(self, mock_webpush):
-        from pywebpush import WebPushException
+        try:
+            from pywebpush import WebPushException
+        except ImportError:
+            self.skipTest("pywebpush no disponible (opcional en CI)")
         from stockhogar.servicios.push_service import enviar_push
 
         respuesta_falsa = MagicMock()
@@ -132,6 +135,10 @@ class EnviarPushTests(unittest.TestCase):
 
     @patch("stockhogar.servicios.push_service.webpush")
     def test_enviar_push_exitoso_devuelve_true(self, mock_webpush):
+        try:
+            import pywebpush
+        except ImportError:
+            self.skipTest("pywebpush no disponible (opcional en CI)")
         from stockhogar.servicios.push_service import enviar_push
 
         mock_webpush.return_value = None
