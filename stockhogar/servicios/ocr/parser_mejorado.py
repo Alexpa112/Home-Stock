@@ -92,13 +92,18 @@ class ParserMejorado:
         }
 
         # Palabras ignorar (no son productos)
+        # NOTA: "oferta" y "promocion" se usan aquí para detectar líneas que SOLO
+        # hablen del cierre de compra o fidelización, pero pueden aparecer como
+        # parte del nombre del producto (p.ej. "Oferta Leche Desnatada"), así que
+        # no pueden estar aquí para filtrar líneas genéricamente. Se detectan
+        # aparte con _es_linea_detalle_sin_nombre() si no queda nombre real.
         self.palabras_ignorar = {
             "total", "subtotal", "importe", "pago", "cambio", "efectivo",
             "tarjeta", "visa", "mastercard", "ticket", "factura", "recibo",
             "iva", "irpf", "impuesto", "fecha", "hora", "tienda", "caja",
             "operador", "atencion", "cliente", "gracias", "vuelvo", "cuenta",
             "www", "http", "email", "tlf", "telefono", "cif", "nif", "empresa", "domicilio",
-            "devolucion", "cambios", "garantia", "oferta", "promocion", "descuento",
+            "devolucion", "cambios", "garantia", "descuento",
             "puntos", "puntuacion", "codigo", "lote", "lotes",
             # Fidelización / programas de puntos
             "fidelidad", "fidelizacion", "monedero", "socio", "socia",
@@ -143,6 +148,8 @@ class ParserMejorado:
             "s.a.", "s.l.", "s.a", "s.l", "sl", "sa", "s.coop", "avda", "avenida",
             "c/", "calle", "polígono", "poligono", "cif", "nif", "tel", "telefono",
             "teléfono", "fax", "www", "http", ".com", ".es",
+            "supermercado", "tienda", "mercado", "shop", "comercio", "empresa",
+            "domicilio", "dirección", "dir", "provincia", "piso", "planta",
         }
 
         # Cantidad "suelta" al principio de la línea (p.ej. "2 COCA COLA 1,80"):
@@ -232,21 +239,23 @@ class ParserMejorado:
         ("Solicita tu tarjeta física", "NUM. TOTAL ART. VENDIDOS"), lo que
         desplazaría el corte hasta el final y dejaría pasar todo el pie.
         """
-        # "total"/"subtotal"/"tot"/"tarjeta"/"efectivo"/"cambio"/"visa"/
-        # "mastercard" cierran solos: no aparecen nunca en la cabecera de
-        # una tabla de productos, a diferencia de "importe"/"pago", que sí
-        # ("Descripción P. Unit Importe", "Precio de costo + I.V.A."). Para
-        # esos dos se exige ademas un precio en euros en la misma línea
-        # (las líneas de cierre reales - "TOTAL (€) 6,80" - siempre llevan
-        # uno; la cabecera de tabla no), o si no el ticket se cortaba en la
-        # cabecera ANTES de llegar a los productos (0 items detectados pese
-        # a que el OCR leía el ticket perfectamente bien).
         regex_cierre_fuerte = re.compile(
             r'\b(total|subtotal|tot|cambio|tarjeta|efectivo|visa|mastercard)\b',
             re.IGNORECASE | re.UNICODE
         )
         regex_cierre_debil = re.compile(r'\b(importe|pago)\b', re.IGNORECASE | re.UNICODE)
+        regex_encabezado_tabla = re.compile(
+            r'(descripcion|articulo|cantidad|cant|precio|p\.unit|total)',
+            re.IGNORECASE | re.UNICODE
+        )
+
         for idx, linea in enumerate(lineas):
+            # Si la línea contiene múltiples palabras típicas de encabezado de tabla,
+            # es la cabecera, no el cierre. Saltarla.
+            si_es_encabezado = len(regex_encabezado_tabla.findall(linea)) >= 2
+            if si_es_encabezado:
+                continue
+
             if regex_cierre_fuerte.search(linea):
                 return idx
             if regex_cierre_debil.search(linea) and self.regex_precio.search(linea):
@@ -299,12 +308,11 @@ class ParserMejorado:
                 bool(self.regex_cod_postal.search(linea)) or
                 any(p in linea_lower for p in self.palabras_cabecera)
             )
-            if not es_cabecera and idx > 0:
+            if not es_cabecera:
                 # Primera línea que no parece cabecera ni tiene precio/cantidad:
-                # puede ser un producto sin precio detectado por el OCR, o el
-                # nombre de la tienda (idx 0, casi siempre cabecera). A partir
-                # de la segunda línea, si no es claramente cabecera, se asume
-                # que ya empiezan los productos.
+                # Es un producto sin precio detectado (el OCR lo leyó sin precio).
+                # Pueden ocurrir en facturas de mayorista o tickets sin precios.
+                # Comenzamos a procesar productos desde aquí.
                 return idx
 
         return limite
@@ -331,8 +339,9 @@ class ParserMejorado:
         if any(palabra in linea_lower for palabra in self.palabras_ignorar):
             return False
 
-        # Debe tener al menos 3 letras consecutivas
-        if not re.search(r'[a-záéíóúñ]{3,}', linea, re.UNICODE | re.IGNORECASE):
+        # Debe tener al menos 3 letras (no necesariamente consecutivas)
+        # Esto permite detectar "T0m@t€5" como válido (tiene t, m, t)
+        if len([c for c in linea if c.isalpha()]) < 3:
             return False
 
         return True
@@ -515,6 +524,11 @@ class ParserMejorado:
         # se detecta aparte sobre la linea original, no hace falta dejarla
         # en el nombre del articulo.
         nombre = re.sub(r'^\d+\s*x\s*\d+\s*', '', nombre, flags=re.IGNORECASE)
+
+        # Quitar unidad de precio sueltas al final (/kg, /l, /ud, €/kg, $/l)
+        # que quedan tras quitar el precio unitario
+        nombre = re.sub(r'\s*/\s*(kg|g|l|ml|ud|uds|kg|kilogramo|litro|unidad)\b\.?', '', nombre, flags=re.IGNORECASE)
+        nombre = re.sub(r'\s*€\s*/\s*(kg|g|l|ml|ud|uds)', '', nombre, flags=re.IGNORECASE)
 
         # Quitar letra suelta de tipo de IVA al final (p.ej. "... A", "... B")
         # que queda huérfana tras quitar el precio cuando este no tenía
