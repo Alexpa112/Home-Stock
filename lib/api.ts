@@ -495,7 +495,13 @@ export const tickets = {
   analizar: (foto: File) => {
     const formData = new FormData()
     formData.append('foto', foto)
-    return apiUpload('/api/tickets/analizar', formData, 120_000)
+    // 270s, el escalón externo de la cadena de timeouts del escáner (llamada a
+    // la API 180s < worker de gunicorn 240s < este abort, ver
+    // stockhogar/servicios/ocr/claude_ocr.py). Va por encima del worker a
+    // propósito: así, cuando algo se pasa de tiempo, el usuario recibe el error
+    // real del servidor en vez de un abort del navegador que no dice nada.
+    // Solo se amplía aquí; el resto de subidas siguen con el defecto de 120s.
+    return apiUpload('/api/tickets/analizar', formData, 270_000)
   },
 
   confirmar: (

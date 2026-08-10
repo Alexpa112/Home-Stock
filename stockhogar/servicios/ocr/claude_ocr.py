@@ -35,18 +35,27 @@ from typing import List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 _MODELO = "claude-opus-5"
-# La petición completa está acotada a 120 s por gunicorn (--timeout 120, ver
-# Dockerfile) y por el apiUpload del frontend (lib/api.ts), así que la llamada
-# a la API tiene que dejar margen para la subida de la foto, el troceado y el
-# emparejado posterior. Si algún día se sube el esfuerzo a "high" o más, hay
-# que subir esos dos timeouts ANTES: si no, gunicorn mata al worker a mitad
-# del análisis y el usuario ve un error genérico.
-_TIMEOUT_SEGUNDOS = 90
+# Escalera de timeouts del escaneo, de dentro afuera. Cada capa deja margen
+# sobre la de dentro para que el usuario vea el error de quien realmente falló
+# y no un corte a mitad:
+#
+#   llamada a la API   180 s  (aquí)
+#   worker de gunicorn 240 s  (--timeout, Dockerfile y Dockerfile.raspbian)
+#   abort del frontend 270 s  (apiUpload en lib/api.ts)
+#
+# Los 60 s entre la API y gunicorn cubren la subida de la foto, el troceado y
+# el emparejado contra el catálogo. Si se cambia uno de los tres, hay que
+# revisar los otros dos: con gunicorn por debajo de la llamada, el worker
+# muere a mitad del análisis y el usuario recibe un error genérico.
+_TIMEOUT_SEGUNDOS = 180
 # Un ticket de compra grande no cabe en 2048 tokens (el presupuesto anterior),
 # y el razonamiento del modelo sale del mismo saco que la respuesta.
 _MAX_TOKENS = 16000
 _MAX_REINTENTOS = 3
-_ESFUERZO = "medium"
+# "high" es el mínimo recomendado para tareas donde importa la precisión, y
+# leer un ticket arrugado o con poca luz lo es. Cuesta más tiempo que "medium",
+# que es justo lo que compra la escalera de timeouts de arriba.
+_ESFUERZO = "high"
 
 # Lado máximo (px) que aprovecha la banda de alta resolución del modelo.
 # Por encima solo se gastan tokens de imagen sin ganar detalle.
