@@ -7,6 +7,10 @@ data/*.db-wal
 data/*.db-shm
 data/secret.json
 data/backups/
+# Bloqueo que crea la app al inicializar la BD (db.py). Es efimero y de
+# tamaño cero, pero al no estar ignorado hacia que git marcase todo data/
+# como no rastreado, invitando a commitear la BD local y secret.json.
+data/.init_db.lock
 .env
 .env.development
 server.log
