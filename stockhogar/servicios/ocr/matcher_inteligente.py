@@ -12,7 +12,12 @@ import re
 from typing import List, Dict, Optional, Tuple
 from difflib import SequenceMatcher
 from collections import Counter
-from .parser_mejorado import TipoUnidad
+
+try:
+    from .parser_mejorado import TipoUnidad
+except ImportError:
+    # Fallback para imports standalone
+    from parser_mejorado import TipoUnidad
 
 
 class MatcherInteligente:
@@ -184,6 +189,53 @@ class MatcherInteligente:
             ]
         }
 
+    def _limpiar_nombre_para_matching(self, nombre: str) -> str:
+        """Limpia nombre para matching: quita caracteres especiales de OCR."""
+        import unicodedata
+
+        # Quitar diacríticos (é → e, ñ → n, etc)
+        nombre = ''.join(
+            c for c in unicodedata.normalize('NFKD', nombre)
+            if not unicodedata.combining(c)
+        )
+
+        # Paso 1: Reemplazar números OCR confundidos (0→O, 1→l, S→5, etc)
+        # (es_ocr_confundido: conserva números si están dentro de palabras normales)
+        resultado = []
+        for c in nombre:
+            # Si es carácter especial inválido, ignorar completamente
+            if not (c.isalnum() or c.isspace()):
+                # Si está rodeado de letras, podría ser un error OCR - ignorar
+                continue
+            resultado.append(c)
+
+        nombre = ''.join(resultado)
+
+        # Normalizar espacios múltiples
+        nombre = ' '.join(nombre.split())
+
+        return nombre
+
+    def _normalizar_ocr(self, nombre: str) -> str:
+        """Normaliza nombre OCR reemplazando errores típicos de OCR.
+
+        0→o, 1→i, 5→s, 8→b, etc.
+        Mantiene números DESPUÉS de la normalización para considerar precios/tamaños.
+        """
+        # Mapeo de caracteres OCR confundidos
+        ocr_map = {
+            '0': 'o',  # cero → o
+            '1': 'i',  # uno → i
+            '5': 's',  # cinco → s
+            '8': 'b',  # ocho → b
+        }
+
+        resultado = nombre.lower()
+        for numero, letra in ocr_map.items():
+            resultado = resultado.replace(numero, letra)
+
+        return resultado
+
     def _calcular_similitud_ponderada(
         self,
         nombre_ocr: str,
@@ -193,39 +245,46 @@ class MatcherInteligente:
         """Calcula similitud con múltiples factores.
 
         Factores:
-        - Similitud directa de strings (40%)
-        - Presencia de palabras clave de categoría (35%)
-        - Similitud de palabras individuales (25%)
+        - Similitud directa de strings (60%)
+        - Similitud con OCR normalizado (20%)
+        - Coincidencia de categoría (20%)
         """
 
-        # Factor 1: Similitud directa (case-insensitive)
+        # Normalizar OCR (reemplazar números confundidos)
+        ocr_normalizado = self._normalizar_ocr(nombre_ocr)
+        catalogo_lower = nombre_catalogo.lower()
+
+        # Factor 1: Similitud directa SIN limpiar (para máxima tolerancia)
         similitud_directa = SequenceMatcher(
             None,
             nombre_ocr.lower(),
-            nombre_catalogo.lower()
+            catalogo_lower
         ).ratio()
 
-        # Factor 2: Coincidencia de palabras clave de categoría
-        palabras_ocr = set(nombre_ocr.lower().split())
+        # Factor 2: Similitud con OCR normalizado (reemplaza números confundidos)
+        similitud_normalizada = SequenceMatcher(
+            None,
+            ocr_normalizado,
+            catalogo_lower
+        ).ratio()
+
+        # Factor 3: Coincidencia de palabras clave de categoría
+        palabras_ocr = set(ocr_normalizado.split())
         palabras_categoria = set(
             self.palabras_categoria.get(categoria, [])
         )
         coincidencia_categoria = len(palabras_ocr & palabras_categoria) / len(palabras_categoria) if palabras_categoria else 0
 
-        # Factor 3: Similitud por palabras individuales
-        palabras_catalogo = set(nombre_catalogo.lower().split())
-        palabras_coincidentes = len(palabras_ocr & palabras_catalogo)
-        total_palabras = len(palabras_ocr | palabras_catalogo)
-        similitud_palabras = palabras_coincidentes / total_palabras if total_palabras > 0 else 0
+        # Usar la MEJOR similitud entre directa y normalizada
+        similitud_final = max(similitud_directa, similitud_normalizada)
 
-        # Ponderar (la similitud directa es más importante)
-        similitud_final = (
-            similitud_directa * 0.40 +
-            similitud_palabras * 0.35 +
+        # Aplicar ponderación con el mejor factor
+        similitud_ponderada = (
+            similitud_final * 0.75 +
             coincidencia_categoria * 0.25
         )
 
-        return similitud_final
+        return similitud_ponderada
 
     def deducir_categoria(self, nombre: str) -> Optional[str]:
         """Deduce categoría por palabras clave."""
