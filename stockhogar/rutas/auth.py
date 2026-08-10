@@ -434,7 +434,7 @@ def cambiar_teclado_virtual():
 def cambiar_preferencia_ocr():
     """Opt-out del OCR en la nube (S-26): con ocr_local=True, el escaneo de
     tickets usa solo el pipeline local (Tesseract) sin enviar la foto a
-    Groq, ver stockhogar/rutas/tickets.py::analizar_ticket."""
+    Anthropic, ver stockhogar/rutas/tickets.py::analizar_ticket."""
     usuario_id = session.get("usuario_id")
     datos = request.get_json(force=True) or {}
     ocr_local = bool(datos.get("ocr_local"))

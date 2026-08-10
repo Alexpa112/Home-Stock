@@ -1319,7 +1319,7 @@ def _init_db_impl():
 
         # Opt-out del OCR en la nube (S-26): con esto activo, el escaneo de
         # tickets usa solo el pipeline local (Tesseract), sin enviar la foto
-        # a Groq. Ver stockhogar/rutas/tickets.py::analizar_ticket.
+        # a Anthropic. Ver stockhogar/rutas/tickets.py::analizar_ticket.
         asegurar_columna(db, "usuarios", "usuario_ocr_local", "INTEGER NOT NULL DEFAULT 0")
 
         # session_version (S-08): alternativa minima a una tabla de sesiones

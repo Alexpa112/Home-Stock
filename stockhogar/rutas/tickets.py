@@ -88,15 +88,34 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db):
         # Convertir cantidad a entero si es número entero, sino mantener decimal
         cantidad_formateada = int(cantidad) if cantidad == int(cantidad) else round(cantidad, 2)
 
+        # El item tiene que traer TODAS las claves que produce
+        # ProcesadorTicketsV2._procesar_linea, porque crear_respuesta_usuario()
+        # -> sugerir_correccion() las lee por indice. Faltaban "alternativas",
+        # "razon_precio", "cantidad_sugerida" y "es_promocion", y como
+        # sugerir_correccion() entra en la rama de "alternativas" para todo
+        # articulo con confianza_match < 0.7 (es decir, para CUALQUIER articulo
+        # que no estuviera ya en el catalogo), /api/tickets/analizar respondia
+        # 500 en cuanto Claude reconocia un producto nuevo. El escaner solo
+        # parecia funcionar con el pipeline local, que si las rellenaba.
         items.append({
             "nombre": nombre,
             "cantidad": cantidad_formateada,
+            "cantidad_sugerida": cantidad_formateada,
             "unidad": unidad,
-            "categoria": categoria,
-            "producto_id": producto_id,
-            "confianza_match": confianza_match,
+            "cantidad_texto": f"{cantidad_formateada} {unidad}",
+            "precio_unitario": 0,
+            "precio_total": 0,
+            "confianza_nombre": 100,
             "confianza_cantidad": 100,
+            "es_promocion": False,
+            "producto_id": producto_id,
+            "categoria": categoria,
+            "icono": catalogado.get("icono") if catalogado else None,
+            "confianza_match": confianza_match,
+            "alternativas": [],
             "precio_valido": True,
+            "razon_precio": "OK",
+            "linea_original": nombre,
         })
     return items
 
@@ -180,25 +199,34 @@ def analizar_ticket():
         archivo.save(tmp.name)
 
         ruta_imagen = tmp.name
-        if sufijo == ".pdf":
-            ruta_png_convertida = _convertir_pdf_a_imagen(tmp.name)
-            if not ruta_png_convertida:
-                return APIResponse.error("err_procesando_ticket", 500)
-            ruta_imagen = ruta_png_convertida
-        elif sufijo in (".heic", ".heif"):
+        es_pdf = sufijo == ".pdf"
+        if sufijo in (".heic", ".heif"):
             ruta_png_convertida = _convertir_heic_a_imagen(tmp.name)
             if not ruta_png_convertida:
                 return APIResponse.error("err_procesando_ticket", 500)
             ruta_imagen = ruta_png_convertida
+        elif es_pdf:
+            # El PDF NO se rasteriza aqui: Claude lee el documento completo,
+            # mientras que pdftoppm -singlefile solo saca la primera pagina y
+            # una factura de varias hojas perdia todos los articulos de la
+            # segunda en adelante. La conversion se hace mas abajo, y solo si
+            # hay que recurrir a Tesseract.
+            # Validacion de contenido real (S-16): antes la daba por buena la
+            # propia conversion (si no era un PDF de verdad, fallaba); sin
+            # convertir hay que comprobar la firma a mano.
+            with open(tmp.name, "rb") as f:
+                if not f.read(5).startswith(b"%PDF-"):
+                    return APIResponse.validacion("err_formato_no_permitido")
         else:
-            # Validacion de contenido real (S-16): el .pdf y el .heic/.heif
-            # de arriba ya se "validan" al intentar convertirlos (si no son
-            # de verdad ese formato, la conversion falla); para el resto de
-            # extensiones no habia ninguna comprobacion mas alla del nombre
+            # Validacion de contenido real (S-16): el .heic/.heif de arriba ya
+            # se "valida" al intentar convertirlo (si no es de verdad ese
+            # formato, la conversion falla) y el .pdf comprueba su firma; para
+            # el resto de extensiones no habia ninguna comprobacion mas alla
+            # del nombre
             # del fichero. No se recodifica aqui (a diferencia de los
             # recibos de gastos.py, que se guardan a largo plazo): esta
             # imagen es efimera, se descarta tras el OCR, y recodificarla
-            # podria degradar la calidad que necesita Tesseract/Groq.
+            # podria degradar la calidad que necesita el OCR.
             with open(tmp.name, "rb") as f:
                 _, error_validacion = validar_y_recodificar(f.read(), sufijo.lstrip("."))
             if error_validacion:
@@ -220,13 +248,17 @@ def analizar_ticket():
                 productos_catalogo = [
                     dict(row)
                     for row in db.execute(
-                        "SELECT id, nombre, categoria FROM productos ORDER BY nombre"
+                        "SELECT id, nombre, categoria, icono FROM productos ORDER BY nombre"
                     ).fetchall()
                 ]
                 try:
                     with open(ruta_imagen, "rb") as f:
                         imagen_bytes = f.read()
-                    respuesta_ia = claude.procesar(imagen_bytes, productos_catalogo)
+                    respuesta_ia = claude.procesar(
+                        imagen_bytes,
+                        productos_catalogo,
+                        mime="application/pdf" if es_pdf else None,
+                    )
                     if respuesta_ia is not None:
                         items = _items_desde_ia(respuesta_ia, productos_catalogo, db)
                         logger.info(
@@ -239,8 +271,18 @@ def analizar_ticket():
             else:
                 logger.warning("Claude OCR no disponible, usando Tesseract")
 
-        # Fallback a Tesseract si Claude no funcionó o está deshabilitado
-        if items is None:
+        # Fallback a Tesseract si Claude no funcionó (items is None), si está
+        # deshabilitado, o si no reconoció ningún artículo (items == []): un
+        # segundo intento solo puede añadir candidatos, y el usuario los revisa
+        # antes de confirmar el ticket.
+        if not items:
+            if es_pdf and ruta_png_convertida is None:
+                # Tesseract si necesita una imagen: se rasteriza la primera
+                # pagina (ver _convertir_pdf_a_imagen).
+                ruta_png_convertida = _convertir_pdf_a_imagen(tmp.name)
+                if not ruta_png_convertida:
+                    return APIResponse.error("err_procesando_ticket", 500)
+                ruta_imagen = ruta_png_convertida
             try:
                 texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
                 proc = ProcesadorTicketsV2()

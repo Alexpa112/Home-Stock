@@ -60,15 +60,20 @@ class GestorOCR:
         if self.claude.disponible():
             respuesta_ia = self.claude.procesar(imagen_bytes, productos_catalogo)
             if respuesta_ia is not None:
-                resultado["productos"] = self._mapear_respuesta_ia(
+                productos_ia = self._mapear_respuesta_ia(
                     respuesta_ia, productos_catalogo
                 )
-                resultado["confianza_ocr"] = 100
-                resultado["exito"] = len(resultado["productos"]) > 0
-                if not resultado["exito"]:
-                    resultado["error"] = "No se detectaron productos en el ticket"
-                return resultado
-            logger.warning("Claude no disponible o fallo la llamada, usando pipeline local (Tesseract)")
+                if productos_ia:
+                    resultado["productos"] = productos_ia
+                    resultado["confianza_ocr"] = 100
+                    resultado["exito"] = True
+                    return resultado
+                # Sin artículos reconocidos se sigue al pipeline local en vez
+                # de devolver el error directamente: un segundo intento solo
+                # puede añadir candidatos que el usuario revisa.
+                logger.info("Claude no reconoció artículos, se intenta el pipeline local")
+            else:
+                logger.warning("Claude no disponible o fallo la llamada, usando pipeline local (Tesseract)")
 
         try:
             # 1. Procesar imagen

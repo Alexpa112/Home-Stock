@@ -212,7 +212,7 @@ class ParserMejorado:
                                 anterior.precio_unitario = producto.precio_unitario
                             if producto.precio_total:
                                 anterior.precio_total = producto.precio_total
-                    else:
+                    elif not self._es_nombre_sin_producto(producto.nombre):
                         productos.append(producto)
 
         # Filtrar duplicados y limpiar
@@ -279,6 +279,15 @@ class ParserMejorado:
         """
         limite = min(len(lineas), 30)
 
+        # ¿Tiene el documento estructura de ticket (con precios) o es una
+        # lista pelada de productos? Distingue el nombre de la tienda de la
+        # primera linea (que no lleva precio, como el resto de la cabecera) del
+        # primer articulo de una lista escrita a mano (donde NINGUNA linea
+        # lleva precio). Sin esta distincion habia que elegir entre colar el
+        # nombre de la tienda como producto o perder el primer articulo de la
+        # lista.
+        hay_precios = any(self.regex_precio.search(linea) for linea in lineas[:limite])
+
         # Fila de encabezados de columna de una factura formal
         # ("Descripción del Artículo ... Cantidad ... Precio"): marca sin
         # ambigüedad que los productos empiezan en la línea SIGUIENTE. Se
@@ -308,21 +317,52 @@ class ParserMejorado:
                 bool(self.regex_cod_postal.search(linea)) or
                 any(p in linea_lower for p in self.palabras_cabecera)
             )
-            if not es_cabecera:
-                # Primera línea que no parece cabecera ni tiene precio/cantidad:
-                # Es un producto sin precio detectado (el OCR lo leyó sin precio).
-                # Pueden ocurrir en facturas de mayorista o tickets sin precios.
-                # Comenzamos a procesar productos desde aquí.
+            if not es_cabecera and (idx > 0 or not hay_precios):
+                # Línea que no parece cabecera ni tiene precio/cantidad: puede
+                # ser un producto cuyo precio no leyó el OCR. La primera línea
+                # se protege salvo que el documento no tenga precios en ningún
+                # sitio, porque en un ticket casi siempre es el nombre de la
+                # tienda.
                 return idx
 
         return limite
 
-    _regex_nombre_vacio = re.compile(r'^(eur|usd|€|\$)?\s*/?\s*(kg|g|l|ml|ud|uds)\.?$', re.IGNORECASE)
+    # Ambos grupos son opcionales a proposito: tras limpiar el nombre puede
+    # quedar solo la divisa ("Eur", cuando la limpieza ya se ha llevado el
+    # "/kg" de "1,89 EUR/kg"), solo la unidad ("Kg") o la combinacion
+    # ("Eur/Kg"). Los tres casos significan lo mismo: no queda nombre.
+    _regex_nombre_vacio = re.compile(
+        r'^(eur|usd|€|\$)?\s*/?\s*(kg|g|l|ml|ud|uds)?\.?$', re.IGNORECASE
+    )
+
+    # Palabras que acompañan a un producto pero no nombran ninguno. No pueden
+    # estar en `palabras_ignorar` (eso descartaria la linea entera y con ella
+    # articulos reales como "OFERTA LECHE DESNATADA 1L"), asi que se filtran
+    # aqui: si al quitarlas no queda nada, la linea era solo el aviso de la
+    # promocion o el descuento.
+    _PALABRAS_SIN_PRODUCTO = {
+        "oferta", "ofertas", "promocion", "promociones", "promo", "dto",
+        "descuento", "descuentos", "rebaja", "rebajas", "ahorro", "ahorras",
+        "cupon", "vale", "regalo", "gratis", "unidad", "unidades", "und",
+    }
+    _regex_tokens = re.compile(r'[^0-9a-záéíóúñü]+', re.IGNORECASE | re.UNICODE)
+    _regex_token_prescindible = re.compile(r'\d+\s*x\s*\d+|\d+', re.IGNORECASE)
+
+    def _es_nombre_sin_producto(self, nombre_limpio: str) -> bool:
+        """True si el nombre solo contiene ruido de promocion o descuento."""
+        tokens = [t for t in self._regex_tokens.split(nombre_limpio.lower()) if t]
+        utiles = [
+            t for t in tokens
+            if len(t) > 1
+            and t not in self._PALABRAS_SIN_PRODUCTO
+            and not self._regex_token_prescindible.fullmatch(t)
+        ]
+        return not utiles
 
     def _es_linea_detalle_sin_nombre(self, nombre_limpio: str) -> bool:
         """True si, tras limpiar cantidad/precio, no queda nombre de producto
-        real (p.ej. "Eur/Kg", "Kg"): la linea solo aportaba el peso/precio de
-        la linea anterior, no es un articulo en si misma."""
+        real (p.ej. "Eur/Kg", "Eur", "Kg"): la linea solo aportaba el
+        peso/precio de la linea anterior, no es un articulo en si misma."""
         nombre = nombre_limpio.strip()
         if len(nombre) < 3:
             return True

@@ -97,7 +97,13 @@ class ProcesadorTicketsV2:
         }
 
     def sugerir_correccion(self, item_procesado: Dict, db) -> Dict:
-        """Sugiere correcciones si confianza es baja."""
+        """Sugiere correcciones si confianza es baja.
+
+        Se lee todo con .get(): este metodo recibe items de los dos motores de
+        OCR (el de vision y el pipeline local) y un item al que le faltara una
+        clave hacia estallar /api/tickets/analizar con un 500 en vez de
+        degradar la sugerencia.
+        """
 
         sugerencias = {
             "correcciones": [],
@@ -105,36 +111,36 @@ class ProcesadorTicketsV2:
         }
 
         # Si confianza de match es baja, sugerir alternativas
-        if item_procesado["confianza_match"] < 0.7:
+        if item_procesado.get("confianza_match", 0) < 0.7:
             sugerencias["correcciones"].append({
                 "tipo": "match_bajo",
                 "mensaje": "El nombre podría no ser exacto. Revisa las alternativas.",
-                "alternativas": item_procesado["alternativas"]
+                "alternativas": item_procesado.get("alternativas") or []
             })
             sugerencias["requiere_confirmacion"] = True
 
         # Si cantidad es sospechosa
-        if item_procesado["confianza_cantidad"] < 60:
+        if item_procesado.get("confianza_cantidad", 100) < 60:
             sugerencias["correcciones"].append({
                 "tipo": "cantidad_dudosa",
                 "mensaje": "La cantidad podría no ser clara en el ticket.",
-                "sugerencia": item_procesado["cantidad_sugerida"]
+                "sugerencia": item_procesado.get("cantidad_sugerida", item_procesado.get("cantidad"))
             })
             sugerencias["requiere_confirmacion"] = True
 
         # Si precio es anómalo
-        if not item_procesado["precio_valido"]:
+        if not item_procesado.get("precio_valido", True):
             sugerencias["correcciones"].append({
                 "tipo": "precio_anómalo",
-                "mensaje": item_procesado["razon_precio"],
+                "mensaje": item_procesado.get("razon_precio", "Precio fuera de rango"),
                 "rango_esperado": self.matcher.rango_precios.get(
-                    item_procesado["categoria"], (0, 100)
+                    item_procesado.get("categoria"), (0, 100)
                 )
             })
             sugerencias["requiere_confirmacion"] = True
 
         # Si es promoción, avisar
-        if item_procesado["es_promocion"]:
+        if item_procesado.get("es_promocion"):
             sugerencias["correcciones"].append({
                 "tipo": "promocion_detectada",
                 "mensaje": "Se detectó una promoción. Verifica el precio real."
@@ -152,13 +158,15 @@ def crear_respuesta_usuario(items: List[Dict], db) -> Dict:
         "items": items,
         "resumen": {
             "total_items": len(items),
-            "items_con_match": sum(1 for i in items if i["producto_id"]),
-            "items_sin_match": sum(1 for i in items if not i["producto_id"]),
-            "confianza_promedio": sum(i["confianza_match"] for i in items) / len(items) if items else 0,
+            "items_con_match": sum(1 for i in items if i.get("producto_id")),
+            "items_sin_match": sum(1 for i in items if not i.get("producto_id")),
+            "confianza_promedio": (
+                sum(i.get("confianza_match", 0) for i in items) / len(items) if items else 0
+            ),
             "requiere_revision": any(
-                i["confianza_match"] < 0.7 or
-                not i["precio_valido"] or
-                i["confianza_cantidad"] < 60
+                i.get("confianza_match", 0) < 0.7 or
+                not i.get("precio_valido", True) or
+                i.get("confianza_cantidad", 100) < 60
                 for i in items
             )
         },
@@ -172,7 +180,7 @@ def crear_respuesta_usuario(items: List[Dict], db) -> Dict:
             item["sugerencias"] = sugerencias
 
     # Agregar advertencias generales
-    sin_match = [i for i in items if not i["producto_id"]]
+    sin_match = [i for i in items if not i.get("producto_id")]
     if len(sin_match) > len(items) * 0.3:  # Más del 30% sin match
         resultado["advertencias"].append({
             "tipo": "muchos_sin_match",

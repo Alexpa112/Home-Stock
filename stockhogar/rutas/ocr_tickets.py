@@ -96,14 +96,29 @@ def procesar_ticket():
 @bp.route("/validar-instalacion", methods=["GET"])
 @manejo_errores
 def validar_instalacion():
-    """Valida que todas las dependencias OCR estén instaladas."""
+    """Valida que todas las dependencias OCR estén instaladas.
+
+    Informa por separado de la clave y del paquete del motor principal: con la
+    clave puesta pero sin el paquete `anthropic` instalado, el escáner caía en
+    silencio a Tesseract y el diagnóstico no daba ninguna pista.
+    """
     validaciones = {
         "tesseract": False,
         "opencv": False,
         "pytesseract": False,
         "fuzzywuzzy": False,
-        "groq": bool(os.getenv("GROQ_API_KEY")),
+        "claude_api_key": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "claude_paquete": False,
     }
+
+    try:
+        import anthropic  # noqa: F401
+        validaciones["claude_paquete"] = True
+    except ImportError:
+        validaciones["error_claude"] = (
+            "El paquete 'anthropic' no está instalado: el escáner usará Tesseract. "
+            "Instala con: pip install anthropic"
+        )
 
     try:
         import pytesseract

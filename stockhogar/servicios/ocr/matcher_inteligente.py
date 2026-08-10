@@ -189,52 +189,29 @@ class MatcherInteligente:
             ]
         }
 
-    def _limpiar_nombre_para_matching(self, nombre: str) -> str:
-        """Limpia nombre para matching: quita caracteres especiales de OCR."""
+    # Cifras que el OCR confunde con letras en un nombre de producto.
+    _CONFUSIONES_OCR = {'0': 'o', '1': 'i', '5': 's', '8': 'b'}
+
+    def _normalizar_para_comparar(self, nombre: str) -> str:
+        """Deja el nombre en una forma comparable pese al ruido del OCR.
+
+        Quita diacríticos y cualquier carácter que no sea alfanumérico (el OCR
+        mete "€", "@" y similares dentro de las palabras) y deshace las
+        confusiones cifra/letra típicas. Se aplica a los DOS lados de la
+        comparación: normalizar solo el texto del ticket lo alejaría del
+        catálogo en vez de acercarlo.
+        """
         import unicodedata
 
-        # Quitar diacríticos (é → e, ñ → n, etc)
-        nombre = ''.join(
-            c for c in unicodedata.normalize('NFKD', nombre)
+        sin_tildes = ''.join(
+            c for c in unicodedata.normalize('NFKD', nombre.lower())
             if not unicodedata.combining(c)
         )
-
-        # Paso 1: Reemplazar números OCR confundidos (0→O, 1→l, S→5, etc)
-        # (es_ocr_confundido: conserva números si están dentro de palabras normales)
-        resultado = []
-        for c in nombre:
-            # Si es carácter especial inválido, ignorar completamente
-            if not (c.isalnum() or c.isspace()):
-                # Si está rodeado de letras, podría ser un error OCR - ignorar
-                continue
-            resultado.append(c)
-
-        nombre = ''.join(resultado)
-
-        # Normalizar espacios múltiples
-        nombre = ' '.join(nombre.split())
-
-        return nombre
-
-    def _normalizar_ocr(self, nombre: str) -> str:
-        """Normaliza nombre OCR reemplazando errores típicos de OCR.
-
-        0→o, 1→i, 5→s, 8→b, etc.
-        Mantiene números DESPUÉS de la normalización para considerar precios/tamaños.
-        """
-        # Mapeo de caracteres OCR confundidos
-        ocr_map = {
-            '0': 'o',  # cero → o
-            '1': 'i',  # uno → i
-            '5': 's',  # cinco → s
-            '8': 'b',  # ocho → b
-        }
-
-        resultado = nombre.lower()
-        for numero, letra in ocr_map.items():
-            resultado = resultado.replace(numero, letra)
-
-        return resultado
+        limpio = ''.join(
+            self._CONFUSIONES_OCR.get(c, c) if c.isalnum() else ' '
+            for c in sin_tildes
+        )
+        return ' '.join(limpio.split())
 
     def _calcular_similitud_ponderada(
         self,
@@ -245,46 +222,50 @@ class MatcherInteligente:
         """Calcula similitud con múltiples factores.
 
         Factores:
-        - Similitud directa de strings (60%)
-        - Similitud con OCR normalizado (20%)
-        - Coincidencia de categoría (20%)
+        - Parecido del texto completo (45%), tomando el mejor entre el nombre
+          tal cual y el normalizado contra el ruido del OCR.
+        - Palabras en común (35%), que capta los nombres con las palabras en
+          otro orden ("Leche entera Pascual" / "Pascual leche entera"), donde
+          la comparación carácter a carácter puntúa mal.
+        - Palabras clave de la categoría (20%).
+
+        La ponderación se mantiene deliberadamente conservadora: por encima
+        del umbral el artículo se da por existente y al confirmar el ticket el
+        stock se suma a ESE producto, así que una coincidencia falsa es peor
+        que dejarlo como artículo nuevo para que el usuario lo revise.
         """
 
-        # Normalizar OCR (reemplazar números confundidos)
-        ocr_normalizado = self._normalizar_ocr(nombre_ocr)
+        ocr_normalizado = self._normalizar_para_comparar(nombre_ocr)
+        catalogo_normalizado = self._normalizar_para_comparar(nombre_catalogo)
         catalogo_lower = nombre_catalogo.lower()
 
-        # Factor 1: Similitud directa SIN limpiar (para máxima tolerancia)
         similitud_directa = SequenceMatcher(
-            None,
-            nombre_ocr.lower(),
-            catalogo_lower
+            None, nombre_ocr.lower(), catalogo_lower
         ).ratio()
-
-        # Factor 2: Similitud con OCR normalizado (reemplaza números confundidos)
         similitud_normalizada = SequenceMatcher(
-            None,
-            ocr_normalizado,
-            catalogo_lower
+            None, ocr_normalizado, catalogo_normalizado
         ).ratio()
+        similitud_texto = max(similitud_directa, similitud_normalizada)
 
-        # Factor 3: Coincidencia de palabras clave de categoría
         palabras_ocr = set(ocr_normalizado.split())
-        palabras_categoria = set(
-            self.palabras_categoria.get(categoria, [])
-        )
-        coincidencia_categoria = len(palabras_ocr & palabras_categoria) / len(palabras_categoria) if palabras_categoria else 0
-
-        # Usar la MEJOR similitud entre directa y normalizada
-        similitud_final = max(similitud_directa, similitud_normalizada)
-
-        # Aplicar ponderación con el mejor factor
-        similitud_ponderada = (
-            similitud_final * 0.75 +
-            coincidencia_categoria * 0.25
+        palabras_catalogo = set(catalogo_normalizado.split())
+        total_palabras = len(palabras_ocr | palabras_catalogo)
+        similitud_palabras = (
+            len(palabras_ocr & palabras_catalogo) / total_palabras
+            if total_palabras else 0
         )
 
-        return similitud_ponderada
+        palabras_categoria = set(self.palabras_categoria.get(categoria, []))
+        coincidencia_categoria = (
+            len(palabras_ocr & palabras_categoria) / len(palabras_categoria)
+            if palabras_categoria else 0
+        )
+
+        return (
+            similitud_texto * 0.45 +
+            similitud_palabras * 0.35 +
+            coincidencia_categoria * 0.20
+        )
 
     def deducir_categoria(self, nombre: str) -> Optional[str]:
         """Deduce categoría por palabras clave."""

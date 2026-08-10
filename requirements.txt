@@ -1,5 +1,9 @@
 Flask==3.0.3
 Flask-WTF>=1.2,<2
+# Motor principal del escaner de tickets (Claude Vision). Sin este paquete el
+# escaner cae siempre a Tesseract aunque ANTHROPIC_API_KEY este configurada,
+# porque claude_ocr.py importa 'anthropic' de forma opcional.
+anthropic>=0.69
 pytesseract==0.3.13
 Pillow>=10.0
 requests>=2.28.0

@@ -1,323 +1,562 @@
-"""OCR de tickets usando Claude API (gratuita, la mejor para leer documentos).
+"""OCR de tickets con Claude Vision (motor principal del escáner).
 
-Claude tiene el mejor modelo de visión disponible gratuitamente: entiende
-tickets, facturas, documentos con OCR + comprensión semántica en un paso.
+Claude lee la foto (o el PDF) del ticket y devuelve directamente los
+artículos comprados con su cantidad, ya emparejados contra el catálogo del
+hogar: OCR + comprensión del documento en una sola llamada.
 
-Requiere ANTHROPIC_API_KEY en .env (gratuita sin tarjeta en https://console.anthropic.com).
-Sin esta clave, cae al pipeline local (Tesseract) como respaldo.
+Requiere ANTHROPIC_API_KEY (ver .env.example). Sin esa clave, sin el paquete
+`anthropic` instalado, o si la llamada falla (sin red, cuota agotada...), el
+flujo cae al pipeline local con Tesseract (ver gestor_ocr.py / rutas/tickets.py).
+
+Decisiones de diseño que afectan a la fiabilidad del reconocimiento:
+
+* El formato de la respuesta se impone con `output_config.format` (structured
+  outputs), no pidiéndolo en el prompt: la API garantiza un JSON que valida
+  contra el esquema, así que no hay que reparar markdown ni comillas. Se
+  mantiene el parseo tolerante como respaldo para SDKs antiguos que no
+  aceptan ese parámetro.
+* Los tickets de supermercado son tiras muy altas y estrechas. Reducirlas de
+  golpe al lado máximo que acepta la API deja el texto ilegible, así que se
+  parten en fragmentos verticales solapados que se envían en la misma
+  llamada, cada uno a resolución nativa (ver `_preparar_imagenes`).
+* `_MAX_TOKENS` tiene que dar de sí para un ticket largo *y* para el
+  razonamiento del modelo (ambos salen del mismo presupuesto): con los 2048
+  de la versión anterior, un ticket de compra grande se cortaba por la mitad
+  y se perdían artículos.
 """
+import base64
+import io
 import json
 import logging
+import math
 import os
-from typing import Optional
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT_SEGUNDOS = 30
+_MODELO = "claude-opus-5"
+# La petición completa está acotada a 120 s por gunicorn (--timeout 120, ver
+# Dockerfile) y por el apiUpload del frontend (lib/api.ts), así que la llamada
+# a la API tiene que dejar margen para la subida de la foto, el troceado y el
+# emparejado posterior. Si algún día se sube el esfuerzo a "high" o más, hay
+# que subir esos dos timeouts ANTES: si no, gunicorn mata al worker a mitad
+# del análisis y el usuario ve un error genérico.
+_TIMEOUT_SEGUNDOS = 90
+# Un ticket de compra grande no cabe en 2048 tokens (el presupuesto anterior),
+# y el razonamiento del modelo sale del mismo saco que la respuesta.
+_MAX_TOKENS = 16000
+_MAX_REINTENTOS = 3
+_ESFUERZO = "medium"
 
-_PROMPT = """TAREA CRÍTICA: Extraer TODOS los artículos de este documento (ticket/factura/nota)
+# Lado máximo (px) que aprovecha la banda de alta resolución del modelo.
+# Por encima solo se gastan tokens de imagen sin ganar detalle.
+_LADO_MAXIMO = 2576
+# Un documento se trocea si es al menos esta proporción más alto que ancho.
+# Por debajo (una factura A4 fotografiada) una sola imagen ya da resolución
+# de sobra y trocear solo añade coste.
+_RATIO_TROCEO = 1.6
+_MAX_TROZOS = 10
+_SOLAPE = 0.12
+# Alto útil de cada fragmento *antes* de añadirle el solape, elegido para que
+# el recorte final (fragmento + solape por arriba y por abajo) quepa ya dentro
+# de `_LADO_MAXIMO`. Si no se reserva ese margen, el recorte se pasa del lado
+# máximo y hay que reducirlo, y esa reducción encoge también el ancho: el
+# texto acaba con menos píxeles de alto justo en el troceado que pretendía
+# conservarlos.
+_ALTO_TROZO = int(_LADO_MAXIMO / (1 + 2 * _SOLAPE))
 
-Soy un sistema de compras. Necesito TODOS los artículos comprados para registrar stock.
-NO puedo perder ni UN artículo. Tu precisión es CRÍTICA.
+_UNIDADES_VALIDAS = ("ud", "kg", "g", "l", "ml")
 
-═══════════════════════════════════════════════════════════════════════════════
-FORMATOS SOPORTADOS - Reconoce cualquier layout:
+# Variantes que el modelo puede devolver pese al enum del esquema (y que sí
+# devuelven los SDKs antiguos, que van por el camino sin esquema).
+_ALIAS_UNIDADES = {
+    "u": "ud", "uds": "ud", "unidad": "ud", "unidades": "ud",
+    "pz": "ud", "pieza": "ud", "piezas": "ud", "bote": "ud",
+    "botella": "ud", "lata": "ud", "caja": "ud", "paq": "ud",
+    "paquete": "ud", "pack": "ud", "bolsa": "ud", "docena": "ud",
+    "kilo": "kg", "kilos": "kg", "kgs": "kg",
+    "gr": "g", "grs": "g", "gramo": "g", "gramos": "g",
+    "lt": "l", "litro": "l", "litros": "l",
+    "mililitro": "ml", "mililitros": "ml",
+}
+# Unidades que hay que convertir, no solo renombrar.
+_CONVERSIONES_UNIDAD = {"cl": ("ml", 10.0)}
 
-1. TICKET TRADICIONAL (supermercado)
-   Leche 1L                     3.99
-   Pan integral x2              4.50
+_FIRMAS_MIME = (
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"BM", "image/bmp"),
+    (b"%PDF-", "application/pdf"),
+)
 
-2. FACTURA COMPLEJA (columnas)
-   Código | Producto          | Cant | Unidad | Precio
-   1234   | Tomates frescos   | 2    | kg     | 8.99
+_ESQUEMA_RESPUESTA = {
+    "type": "object",
+    "properties": {
+        "productos": {
+            "type": "array",
+            "description": "Un elemento por línea de artículo del documento.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "nombre_ticket": {
+                        "type": "string",
+                        "description": "Nombre del artículo, sin precio ni cantidad.",
+                    },
+                    "cantidad": {
+                        "type": "number",
+                        "description": "Unidades, peso o volumen comprados. 1 si no consta.",
+                    },
+                    "unidad": {
+                        "type": "string",
+                        "enum": list(_UNIDADES_VALIDAS),
+                    },
+                    "producto_id": {
+                        "description": "Id del catálogo, o null si no hay correspondencia clara.",
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                    },
+                },
+                "required": ["nombre_ticket", "cantidad", "unidad", "producto_id"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["productos"],
+    "additionalProperties": False,
+}
 
-3. FACTURAS CON RESUMEN (con cabecera/pie)
-   --- ARTICULOS ---
-   Arroz 1kg ... 5.50
-   --- TOTAL: 25.00 ---
+_PROMPT = """Extrae todos los artículos comprados de este ticket o factura de compra.
 
-4. LISTA SIMPLE (sin precios visibles)
-   - Leche
-   - Pan x2
-   - Tomates 3kg
+Devuelve un elemento por línea de artículo del documento, en el mismo orden en
+que aparecen. No te dejes ninguno: los artículos que falten no llegan al stock.
 
-5. TABLA/MATRIZ (datos distribuidos)
-   Item 1: Producto | 2x | 7.99
-   Item 2: Producto | 1kg | 12.50
+Sobre cada campo:
 
-═══════════════════════════════════════════════════════════════════════════════
-ESTRATEGIA DE LECTURA - Flexible según formato:
+- nombre_ticket: el nombre tal como está impreso, sin precio ni cantidad.
+  Corrige los errores de lectura evidentes y desarrolla las abreviaturas
+  cuando el producto sea inequívoco ("LCH ENT PASCUAL" -> "Leche entera
+  Pascual"). Quita los códigos de artículo que lleve delante.
+- cantidad y unidad: lo realmente comprado.
+- producto_id: el id del catálogo de abajo cuando el artículo se corresponda
+  claramente con uno de ellos; null en cualquier otro caso. No inventes ids.
 
-LEE INTELIGENTEMENTE:
-  • Columnas (si existen): producto, cantidad, unidad, precio
-  • Líneas (si no hay columnas): busca nombre + número + unidad/precio
-  • Tablas: cada fila puede ser un artículo
-  • Listas: cada punto/línea puede ser un artículo
-  • Cualquier combinación: adapta y sigue extrayendo
+Cantidad y unidad:
 
-PATRONES DE CANTIDAD:
-  • "2x Leche" → cantidad: 2
-  • "Leche x2" → cantidad: 2
-  • "2 botellas Leche" → cantidad: 2
-  • "500g Tomates" → cantidad: 0.5, unidad: kg
-  • "Leche 1000ml" → cantidad: 1, unidad: l
-  • "6 huevos" → cantidad: 6
-  • "docena huevos" → cantidad: 12
-  • "media docena" → cantidad: 6
-  • "2 litros" → cantidad: 2, unidad: l
-  • "250g queso" → cantidad: 0.25, unidad: kg
-  • Solo nombre (sin cantidad) → cantidad: 1
+- La cantidad comprada suele ir al principio de la línea o en su propia
+  columna: en "2 LECHE PASCUAL 1L" son 2 unidades, no 1 litro.
+- El tamaño del envase forma parte del nombre. Úsalo como cantidad solo si la
+  línea no indica ninguna otra.
+- A granel el peso suele venir en la línea siguiente al nombre: "TOMATE PERA
+  KG" y "0,850 kg 1,89 EUR/kg 1,61" son un único artículo de 0,85 kg.
+- "2x1", "3x2" y similares marcan promoción, no cantidad.
+- Docena son 12 unidades; media docena, 6.
+- Conserva la unidad impresa: 500 g se queda en 500 g, no lo pases a kg.
+- Si no consta cantidad, es 1 ud.
 
-PATRONES DE UNIDAD (detecta automáticamente):
-  "kg", "kilos", "kilo" → kg
-  "g", "gr", "gramo", "gramos" → g
-  "l", "litro", "litros" → l
-  "ml", "mililitro", "mililitros" → ml
-  "botella", "bote", "unidad", "pieza", "pan", "lata", "caja" → ud
-  "docena", "media docena" → 12 o 6 unidades
-  "paquete", "bolsa", "pack", "bundle" → ud
-  Si no hay unidad clara → ud (unidades)
+Incluye cualquier producto de compra: alimentación fresca y envasada,
+congelados, bebidas, panadería, conservas, higiene, limpieza, droguería,
+bazar, mascotas.
 
-═══════════════════════════════════════════════════════════════════════════════
-QUÉ INCLUIR (TODO LO QUE SEA PRODUCTO):
+Deja fuera todo lo que no sea un artículo comprado: cabecera y pie del
+documento (tienda, dirección, CIF, teléfono, fecha, caja, número de factura),
+cabeceras de columna, totales y subtotales, IVA, formas de pago, cambio,
+descuentos y cupones que no sean en sí un producto, puntos y saldo de
+fidelización, cargos por bolsas, y cualquier texto legal o publicitario.
 
-  ✓ ALIMENTOS FRESCOS: frutas, verduras, carnes, pescado, aves, huevos
-  ✓ LÁCTEOS: leche, queso, yogur, mantequilla, nata
-  ✓ PANADERÍA: pan, bollo, galletas, pasteles
-  ✓ BEBIDAS: agua, refrescos, zumos, vino, cerveza, licores, café, té
-  ✓ CONSERVAS: latas, botes, frascos, productos enlatados
-  ✓ SECOS: arroz, pasta, legumbres, cereales, harina, azúcar
-  ✓ CONGELADOS: pizzas, verduras congeladas, helado
-  ✓ HIGIENE: champú, jabón, dentífrico, desodorante, papel higiénico
-  ✓ LIMPIEZA: detergente, limpiavidrios, lejía, bayeta, esponja
-  ✓ DROGUERÍA: bolsas, film, papel aluminio, velas, pilas
-  ✓ MASCOTAS: comida perros, comida gatos, arena gatos
-  ✓ OTROS CONSUMIBLES: cigarrillos, revistas, libros
+Si la imagen no es un ticket ni una factura de compra, devuelve la lista vacía.
 
-QUÉ EXCLUIR (NO son artículos de compra):
+Catálogo del hogar (id: nombre):
+{catalogo}"""
 
-  ✗ ENCABEZADOS: "Supermercado XXX", "Tienda", "Fecha:", "Hora:", "Caja:", número de tienda
-  ✗ COLUMNAS DESCRIPTIVAS: "Artículo", "Cantidad", "Precio", "Descripción"
-  ✗ TOTAL/RESUMEN: TOTAL, SUBTOTAL, SUB, SUMA, IVA, Impuesto, IMPORTE TOTAL
-  ✗ MÉTODOS PAGO: Tarjeta, Efectivo, Transferencia, cheque, forma de pago
-  ✗ VUELTAS/CAMBIO: "Vueltas", "Cambio recibido", "Resto"
-  ✗ GASTOS ADICIONALES: Bolsas (si se cobran), embalaje, envío, recargo
-  ✗ DESCUENTOS/OFERTAS: líneas que digan "DESCUENTO", "OFERTA", "PROMOCIÓN" (si no son productos)
-  ✗ PIE: "Gracias", "Vuelva pronto", "Aviso legal", datos de contacto
-  ✗ CÓDIGOS: códigos de barras, números de referencia sin producto
-  ✗ LÍNEAS VACÍAS
+_AVISO_TROZOS = """
+Las {n} imágenes son fragmentos consecutivos del mismo documento, de arriba
+abajo y solapados entre sí. Léelos como un único ticket: no repitas un
+artículo que aparezca en la zona de solape de dos fragmentos.
+"""
 
-═══════════════════════════════════════════════════════════════════════════════
-EXTRACCIÓN FINAL - 4 DATOS POR ARTÍCULO:
 
-1. nombre_ticket: Nombre EXACTO del producto (sin precio ni cantidad)
-   • "Leche entera 1L" → nombre: "Leche entera 1L" (incluye tamaño si está en el nombre)
-   • "Tomates" → nombre: "Tomates"
-   • "Pan integral 500g" → nombre: "Pan integral 500g"
-   • MANTÉN EL NOMBRE COMPLETO TAL CUAL APARECE
+def _detectar_mime(imagen_bytes: bytes) -> str:
+    """Detecta el tipo de contenido por su firma binaria."""
+    for firma, mime in _FIRMAS_MIME:
+        if imagen_bytes.startswith(firma):
+            return mime
+    return "image/jpeg"
 
-2. cantidad: NÚMERO (puede ser decimal para kilos/gramos/ml)
-   • Conversión automática: 500g = 0.5 kg, 250ml = 0.25 l
-   • Siempre positivo y > 0
-   • Si no aparece → 1
 
-3. unidad: Uno de estos EXACTAMENTE: ud, kg, g, l, ml
-   • NUNCA otras unidades
-   • "botella", "lata", "caja" → ud
-   • "gramos", "gr" → g (y ajusta cantidad)
-   • "litros", "l" → l
-   • Si no hay unidad → ud
+def _preparar_imagenes(imagen_bytes: bytes) -> List[Tuple[str, bytes]]:
+    """Normaliza la foto del ticket y, si hace falta, la parte en fragmentos.
 
-4. producto_id: Busca en catálogo
-   • Si hay match exacto o muy similar → usa el id
-   • Si no hay match → null
+    Devuelve una lista de `(mime, bytes)` en orden de lectura (de arriba
+    abajo). Aplica la rotación del EXIF, ajusta el ancho al máximo que
+    aprovecha el modelo y, en tiras muy altas (el ticket de supermercado
+    típico), corta fragmentos verticales solapados en vez de reducir la tira
+    entera: reducirla dejaría el texto por debajo del umbral de lectura.
 
-CATÁLOGO:
-{catalogo}
+    Si Pillow no está disponible o la imagen no se puede decodificar, se
+    devuelve el original tal cual para que la llamada se intente igualmente.
+    """
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:  # pragma: no cover - Pillow es dependencia del proyecto
+        return [(_detectar_mime(imagen_bytes), imagen_bytes)]
 
-═══════════════════════════════════════════════════════════════════════════════
-EJEMPLOS VARIADOS (diferentes formatos):
+    try:
+        with Image.open(io.BytesIO(imagen_bytes)) as original:
+            imagen = ImageOps.exif_transpose(original).convert("RGB")
+    except Exception:
+        logger.warning("No se pudo decodificar la imagen, se envía sin normalizar")
+        return [(_detectar_mime(imagen_bytes), imagen_bytes)]
 
-TICKET FORMATO 1:
-  Leche 1L                      3.99
-  Resultado: nombre:"Leche 1L", cantidad:1, unidad:"ud"
+    ancho, alto = imagen.size
+    if ancho > _LADO_MAXIMO:
+        alto = max(1, round(alto * _LADO_MAXIMO / ancho))
+        imagen = imagen.resize((_LADO_MAXIMO, alto), Image.LANCZOS)
+        ancho = _LADO_MAXIMO
 
-TICKET FORMATO 2:
-  Tomates frescos 2kg @ 4.50/kg
-  Resultado: nombre:"Tomates frescos", cantidad:2, unidad:"kg"
+    if alto <= _LADO_MAXIMO:
+        return [_a_jpeg(imagen)]
 
-FACTURA FORMATO 1:
-  Producto | Cantidad | Precio
-  Pan      | 2        | 3.50
-  Resultado: nombre:"Pan", cantidad:2, unidad:"ud"
+    if alto < ancho * _RATIO_TROCEO:
+        # Documento con forma de página: una sola imagen reducida da detalle
+        # de sobra y evita partir filas de una tabla.
+        escala = _LADO_MAXIMO / alto
+        return [_a_jpeg(imagen.resize((max(1, round(ancho * escala)), _LADO_MAXIMO), Image.LANCZOS))]
 
-FACTURA FORMATO 2:
-  Arroz 1kg........................5.50
-  Resultado: nombre:"Arroz 1kg", cantidad:1, unidad:"ud"
+    trozos = min(_MAX_TROZOS, math.ceil(alto / _ALTO_TROZO))
+    alto_trozo = math.ceil(alto / trozos)
+    solape = int(alto_trozo * _SOLAPE)
 
-LISTA SIMPLE:
-  - Leche 3 litros
-  Resultado: nombre:"Leche", cantidad:3, unidad:"l"
+    preparados = []
+    for indice in range(trozos):
+        arriba = max(0, indice * alto_trozo - solape)
+        abajo = min(alto, (indice + 1) * alto_trozo + solape)
+        if abajo - arriba < 2:
+            continue
+        preparados.append(_a_jpeg(imagen.crop((0, arriba, ancho, abajo))))
 
-TABLA:
-  [Producto] [Cant] [Precio]
-  Queso      250g   12.00
-  Resultado: nombre:"Queso", cantidad:0.25, unidad:"kg"
+    logger.info(
+        "Ticket de %dx%d px troceado en %d fragmentos para conservar resolución",
+        ancho, alto, len(preparados),
+    )
+    return preparados or [_a_jpeg(imagen)]
 
-═══════════════════════════════════════════════════════════════════════════════
-RESPUESTA FINAL - JSON PURO:
 
-{{"productos": [
-  {{"nombre_ticket": "Leche 1L", "cantidad": 1, "unidad": "ud", "producto_id": null}},
-  {{"nombre_ticket": "Tomates", "cantidad": 2, "unidad": "kg", "producto_id": null}},
-  {{"nombre_ticket": "Pan integral", "cantidad": 3, "unidad": "ud", "producto_id": null}}
-]}}
+def _a_jpeg(imagen) -> Tuple[str, bytes]:
+    """Reduce la imagen al lado máximo útil y la codifica como JPEG."""
+    from PIL import Image
 
-INSTRUCCIONES FINALES:
-  • SOLO DEVUELVE JSON - nada más
-  • SIN markdown, SIN comillas extras, SIN explicaciones
-  • SIN ```json, SIN ```
-  • Si está vacío: {{"productos": []}}
-  • Cantidad SIEMPRE número (puede ser decimal: 0.5, 1.25, etc)
-  • Unidad SIEMPRE uno de: ud / kg / g / l / ml
-  • Todos los 4 campos SIEMPRE presentes
+    ancho, alto = imagen.size
+    lado = max(ancho, alto)
+    if lado > _LADO_MAXIMO:
+        escala = _LADO_MAXIMO / lado
+        imagen = imagen.resize(
+            (max(1, round(ancho * escala)), max(1, round(alto * escala))), Image.LANCZOS
+        )
 
-ÚLTIMA INSTRUCCIÓN: Lee el documento línea por línea. Extrae TODOS los artículos
-sin perder ni uno. Duda siempre a INCLUIR (es mejor pedir corrección que perder datos).
-Devuelve JSON válido, parseable, en una sola respuesta."""
+    buffer = io.BytesIO()
+    imagen.save(buffer, format="JPEG", quality=88, optimize=True)
+    return "image/jpeg", buffer.getvalue()
+
+
+def _normalizar_unidad(unidad, cantidad: float) -> Tuple[str, float]:
+    """Lleva la unidad a una de `_UNIDADES_VALIDAS`, convirtiendo si procede."""
+    texto = str(unidad or "").strip().lower().rstrip(".")
+    texto = _ALIAS_UNIDADES.get(texto, texto)
+    if texto in _CONVERSIONES_UNIDAD:
+        texto, factor = _CONVERSIONES_UNIDAD[texto]
+        cantidad *= factor
+    if texto not in _UNIDADES_VALIDAS:
+        texto = "ud"
+    return texto, cantidad
+
+
+def _normalizar_producto_id(valor, ids_catalogo) -> Optional[int]:
+    """Valida el id devuelto por el modelo contra el catálogo real.
+
+    Un id inventado (o de otro hogar) llegaría al confirmar el ticket como si
+    fuera un artículo existente, así que aquí se descarta y el artículo pasa a
+    tratarse como nuevo.
+    """
+    if isinstance(valor, bool) or valor is None:
+        return None
+    if isinstance(valor, str):
+        texto = valor.strip()
+        if not texto or texto.lower() in ("null", "none"):
+            return None
+        try:
+            valor = int(texto)
+        except ValueError:
+            return None
+    elif isinstance(valor, float):
+        if not valor.is_integer():
+            return None
+        valor = int(valor)
+    elif not isinstance(valor, int):
+        return None
+
+    if ids_catalogo and valor not in ids_catalogo:
+        logger.warning("Claude devolvió un producto_id fuera del catálogo: %s", valor)
+        return None
+    return valor
+
+
+def _normalizar_items(productos, ids_catalogo) -> List[dict]:
+    """Limpia y valida la lista devuelta por el modelo."""
+    normalizados = []
+    for item in productos:
+        if not isinstance(item, dict):
+            continue
+        nombre = str(item.get("nombre_ticket") or item.get("nombre") or "").strip()
+        if not nombre:
+            continue
+
+        try:
+            cantidad = float(item.get("cantidad"))
+        except (TypeError, ValueError):
+            cantidad = 1.0
+        if not math.isfinite(cantidad) or cantidad <= 0:
+            cantidad = 1.0
+
+        unidad, cantidad = _normalizar_unidad(item.get("unidad"), cantidad)
+
+        normalizados.append({
+            "nombre_ticket": nombre,
+            "cantidad": round(cantidad, 3),
+            "unidad": unidad,
+            "producto_id": _normalizar_producto_id(item.get("producto_id"), ids_catalogo),
+        })
+    return normalizados
+
+
+def _deduplicar_solape(items: List[dict]) -> List[dict]:
+    """Quita el artículo repetido en la zona de solape de dos fragmentos.
+
+    Solo se aplica cuando el ticket se ha troceado, y solo a repeticiones
+    consecutivas idénticas: en un ticket sin trocear el mismo artículo puede
+    aparecer legítimamente dos veces seguidas.
+    """
+    limpios: List[dict] = []
+    for item in items:
+        anterior = limpios[-1] if limpios else None
+        if (
+            anterior
+            and anterior["nombre_ticket"].casefold() == item["nombre_ticket"].casefold()
+            and anterior["cantidad"] == item["cantidad"]
+            and anterior["unidad"] == item["unidad"]
+        ):
+            continue
+        limpios.append(item)
+    return limpios
+
+
+def _extraer_json(texto: str) -> Optional[dict]:
+    """Parsea la respuesta cuando no se pudo usar structured outputs.
+
+    El modelo puede envolver el JSON en markdown o acompañarlo de texto, así
+    que se limpia la valla de código y se recorta al primer objeto completo.
+    """
+    limpio = texto.strip()
+    if "```" in limpio:
+        trozos = limpio.split("```")
+        if len(trozos) >= 2:
+            limpio = trozos[1]
+            if limpio.lower().startswith("json"):
+                limpio = limpio[4:]
+            limpio = limpio.strip()
+
+    inicio = limpio.find("{")
+    final = limpio.rfind("}")
+    if inicio == -1 or final <= inicio:
+        return None
+
+    try:
+        return json.loads(limpio[inicio:final + 1])
+    except json.JSONDecodeError as error:
+        logger.error("Respuesta de Claude no parseable: %s (%s)", error, limpio[:300])
+        return None
 
 
 class ClaudeOCR:
-    """Motor de OCR basado en Claude API (gratuita)."""
+    """Motor de OCR de tickets basado en Claude Vision."""
+
+    # De clase, no de instancia: rutas/tickets.py construye un ClaudeOCR por
+    # peticion, asi que un flag de instancia volveria a intentar (y a fallar)
+    # la llamada con esquema en cada ticket.
+    _soporta_esquema = True
 
     def __init__(self):
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
         self.client = None
-        if self.api_key:
-            try:
-                import anthropic
-                self.client = anthropic.Anthropic(api_key=self.api_key)
-            except ImportError:
-                logger.warning("anthropic package no instalado, usando Tesseract")
+        if not self.api_key:
+            return
+        try:
+            import anthropic
+        except ImportError:
+            logger.warning(
+                "ANTHROPIC_API_KEY configurada pero el paquete 'anthropic' no está "
+                "instalado: el escáner usará Tesseract. Instala con: pip install anthropic"
+            )
+            return
+        try:
+            self.client = anthropic.Anthropic(api_key=self.api_key, max_retries=_MAX_REINTENTOS)
+        except Exception:
+            # Un fallo al construir el cliente (SDK incompatible, clave con un
+            # formato que rechaza) no debe tumbar el analisis del ticket: se
+            # deja el motor como no disponible y el flujo cae a Tesseract.
+            logger.exception("No se pudo inicializar el cliente de Claude")
+            self.client = None
 
     def disponible(self) -> bool:
         return bool(self.client and self.api_key)
 
-    def procesar(self, imagen_bytes: bytes, productos_catalogo: list) -> Optional[dict]:
-        """Analiza el ticket con Claude Vision y devuelve productos emparejados.
+    def procesar(self, imagen_bytes: bytes, productos_catalogo: list, mime: str = None) -> Optional[dict]:
+        """Analiza el ticket y devuelve los artículos emparejados.
 
         Args:
-            imagen_bytes: foto del ticket (jpg/png/etc)
-            productos_catalogo: lista de dicts con {"id", "nombre"}
+            imagen_bytes: foto del ticket, o el PDF de una factura.
+            productos_catalogo: lista de dicts con al menos {"id", "nombre"}.
+            mime: tipo de contenido si se conoce. "application/pdf" envía el
+                documento tal cual (así se leen todas las páginas de una
+                factura, no solo la primera).
 
         Returns:
-            dict {"productos": [...]} o None si la llamada falla
+            dict {"productos": [...]} ya normalizado, o None si la llamada
+            falla (el llamante debe caer entonces al pipeline local).
         """
-        if not self.disponible():
+        if not self.disponible() or not imagen_bytes:
             return None
 
-        catalogo_texto = "\n".join(
+        if not mime:
+            mime = _detectar_mime(imagen_bytes)
+
+        if mime == "application/pdf":
+            bloques = [{
+                "type": "document",
+                "source": {
+                    "type": "base64",
+                    "media_type": "application/pdf",
+                    "data": base64.standard_b64encode(imagen_bytes).decode("ascii"),
+                },
+            }]
+            troceado = False
+        else:
+            imagenes = _preparar_imagenes(imagen_bytes)
+            bloques = [{
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": mime_trozo,
+                    "data": base64.standard_b64encode(datos).decode("ascii"),
+                },
+            } for mime_trozo, datos in imagenes]
+            troceado = len(imagenes) > 1
+
+        catalogo = "\n".join(
             f"{p['id']}: {p['nombre']}" for p in productos_catalogo
         ) or "(catálogo vacío)"
-        prompt = _PROMPT.format(catalogo=catalogo_texto)
+        prompt = _PROMPT.format(catalogo=catalogo)
+        if troceado:
+            prompt += _AVISO_TROZOS.format(n=len(bloques))
 
+        respuesta = self._pedir_analisis(bloques, prompt)
+        if respuesta is None:
+            return None
+
+        ids_catalogo = {p["id"] for p in productos_catalogo if p.get("id") is not None}
+        items = _normalizar_items(respuesta.get("productos") or [], ids_catalogo)
+        if troceado:
+            items = _deduplicar_solape(items)
+
+        logger.info("Claude OCR detectó %d artículos", len(items))
+        return {"productos": items}
+
+    def _pedir_analisis(self, bloques, prompt) -> Optional[dict]:
+        """Hace la llamada y devuelve el dict de la respuesta, o None."""
         try:
-            import base64
-
-            # Detectar MIME type desde primeros bytes
-            if imagen_bytes[:3] == b'\xff\xd8\xff':
-                mime_type = "image/jpeg"
-            elif imagen_bytes[:8] == b'\x89PNG\r\n\x1a\n':
-                mime_type = "image/png"
-            elif imagen_bytes[:6] in (b'GIF87a', b'GIF89a'):
-                mime_type = "image/gif"
-            elif imagen_bytes[:2] == b'BM':
-                mime_type = "image/bmp"
+            mensaje = self._crear_mensaje(bloques, prompt, self._soporta_esquema)
+        except TypeError as error:
+            # SDK antiguo: no conoce output_config. Se reintenta sin esquema y
+            # se deja marcado para las siguientes llamadas.
+            logger.warning(
+                "El SDK de anthropic instalado no acepta structured outputs (%s); "
+                "se usa el parseo tolerante. Actualiza con: pip install -U anthropic",
+                error,
+            )
+            type(self)._soporta_esquema = False
+            try:
+                mensaje = self._crear_mensaje(bloques, prompt, False)
+            except Exception:
+                logger.exception("Fallo llamando a Claude OCR")
+                return None
+        except Exception as error:
+            if self._soporta_esquema and _parece_parametro_no_soportado(error):
+                logger.warning(
+                    "La API rechazó structured outputs (%s); se usa el parseo tolerante",
+                    error,
+                )
+                type(self)._soporta_esquema = False
+                try:
+                    mensaje = self._crear_mensaje(bloques, prompt, False)
+                except Exception:
+                    logger.exception("Fallo llamando a Claude OCR")
+                    return None
             else:
-                mime_type = "image/jpeg"  # Default
+                logger.exception("Fallo llamando a Claude OCR: %s", type(error).__name__)
+                return None
 
-            data_url = base64.standard_b64encode(imagen_bytes).decode('ascii')
-
-            message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2048,
-                timeout=_TIMEOUT_SEGUNDOS,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": mime_type,
-                                    "data": data_url,
-                                },
-                            },
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ],
-                    }
-                ],
+        motivo = getattr(mensaje, "stop_reason", None)
+        if motivo == "refusal":
+            logger.error("Claude rechazó analizar la imagen del ticket")
+            return None
+        if motivo == "max_tokens":
+            logger.error(
+                "La respuesta de Claude se cortó por longitud; el ticket podría "
+                "tener más artículos de los que caben en %d tokens", _MAX_TOKENS,
             )
 
-            texto = message.content[0].text.strip()
-            logger.info("Claude OCR devolvió respuesta: %s caracteres", len(texto))
-
-            # Extraer JSON (puede tener markdown o explicaciones)
-            json_limpio = texto
-
-            # Intenta limpiar markdown
-            if "```json" in json_limpio:
-                json_limpio = json_limpio.split("```json")[1].split("```")[0].strip()
-            elif "```" in json_limpio:
-                json_limpio = json_limpio.split("```")[1].split("```")[0].strip()
-
-            # Busca el JSON dentro del texto (por si hay explicaciones)
-            if not json_limpio.startswith("{"):
-                inicio = json_limpio.find("{")
-                if inicio != -1:
-                    json_limpio = json_limpio[inicio:]
-
-            if not json_limpio.endswith("}"):
-                final = json_limpio.rfind("}")
-                if final != -1:
-                    json_limpio = json_limpio[:final+1]
-
-            logger.debug("JSON extraído: %s", json_limpio[:300])
-
-            try:
-                resultado = json.loads(json_limpio)
-            except json.JSONDecodeError as e:
-                logger.error("Error al parsear JSON: %s. JSON: %s", e, json_limpio[:500])
-                return None
-
-            if not isinstance(resultado, dict) or "productos" not in resultado:
-                logger.error("Claude devolvió formato inválido: %s", resultado)
-                return None
-
-            # Validar que todos los productos tienen los campos requeridos
-            productos = resultado.get("productos", [])
-            for prod in productos:
-                if isinstance(prod, dict):
-                    # Asegurar que todos los campos existen con valores por defecto
-                    if "nombre_ticket" not in prod:
-                        prod["nombre_ticket"] = prod.get("nombre", "")
-                    if "cantidad" not in prod:
-                        prod["cantidad"] = 1
-                    if "unidad" not in prod:
-                        prod["unidad"] = "ud"
-                    if "producto_id" not in prod:
-                        prod["producto_id"] = None
-
-            logger.info("Claude OCR detectó %d productos", len(productos))
-            return resultado
-
-        except json.JSONDecodeError as e:
-            logger.error("Error parseando JSON de Claude: %s. Respuesta: %s", e, json_limpio[:500] if 'json_limpio' in locals() else "sin respuesta")
+        # Con el razonamiento activado la respuesta trae bloques que no son
+        # texto: hay que filtrar por tipo en vez de leer content[0].
+        texto = "".join(
+            bloque.text for bloque in getattr(mensaje, "content", [])
+            if getattr(bloque, "type", None) == "text" and getattr(bloque, "text", None)
+        ).strip()
+        if not texto:
+            logger.error("Claude devolvió una respuesta sin texto (stop_reason=%s)", motivo)
             return None
-        except Exception as e:
-            logger.exception("Fallo llamando a Claude OCR: %s - %s", type(e).__name__, str(e))
+
+        try:
+            datos = json.loads(texto)
+        except json.JSONDecodeError:
+            datos = _extraer_json(texto)
+
+        if not isinstance(datos, dict) or not isinstance(datos.get("productos"), list):
+            logger.error("Claude devolvió un formato inesperado: %s", texto[:300])
             return None
+        return datos
+
+    def _crear_mensaje(self, bloques, prompt, usar_esquema: bool):
+        parametros = {
+            "model": _MODELO,
+            "max_tokens": _MAX_TOKENS,
+            "timeout": _TIMEOUT_SEGUNDOS,
+            "messages": [{
+                "role": "user",
+                "content": bloques + [{"type": "text", "text": prompt}],
+            }],
+        }
+        if usar_esquema:
+            parametros["output_config"] = {
+                "effort": _ESFUERZO,
+                "format": {"type": "json_schema", "schema": _ESQUEMA_RESPUESTA},
+            }
+        return self.client.messages.create(**parametros)
+
+
+def _parece_parametro_no_soportado(error: Exception) -> bool:
+    """True si el error apunta a que la API no admite `output_config`."""
+    mensaje = str(error).lower()
+    return any(
+        pista in mensaje
+        for pista in ("output_config", "output config", "json_schema", "structured output")
+    )
