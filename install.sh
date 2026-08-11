@@ -628,8 +628,19 @@ if [[ ! -f ".env" ]]; then
         log_success ".env creado vacío"
     fi
 else
-    cp ".env" "data/backups/env-$(date +%Y%m%d-%H%M%S).bak"
-    ls -1t data/backups/env-*.bak 2>/dev/null | tail -n +6 | xargs -r rm -f || true
+    # El respaldo del .env NO puede vivir en data/backups/: ese directorio lo
+    # sirve por HTTP el Panel de Gestion para descargar copias de seguridad, y
+    # el .env lleva en claro las credenciales OAuth de Google/Apple, la
+    # contraseña SMTP, la API key de Anthropic y la de Postgres. Va a un
+    # directorio del usuario, fuera del volumen que se monta en el contenedor,
+    # y con permisos 600 desde el momento de crearlo (install -m, no cp).
+    ENV_BACKUP_DIR="${HOME}/.stockhogar-env-backups"
+    mkdir -p "$ENV_BACKUP_DIR" && chmod 700 "$ENV_BACKUP_DIR"
+    install -m 600 ".env" "$ENV_BACKUP_DIR/env-$(date +%Y%m%d-%H%M%S).bak"
+    ls -1t "$ENV_BACKUP_DIR"/env-*.bak 2>/dev/null | tail -n +6 | xargs -r rm -f || true
+    # Limpieza de las copias que las versiones anteriores dejaron expuestas.
+    ls -1 data/backups/env-*.bak 2>/dev/null | xargs -r shred -u 2>/dev/null \
+        || rm -f data/backups/env-*.bak 2>/dev/null || true
     log_info ".env ya existe: se conservan los valores actuales (respaldado antes de tocarlo)"
 fi
 

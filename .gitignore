@@ -2,21 +2,23 @@ venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-data/*.db
-data/*.db-wal
-data/*.db-shm
-data/secret.json
-data/backups/
-# Bloqueo que crea la app al inicializar la BD (db.py). Es efimero y de
-# tamaño cero, pero al no estar ignorado hacia que git marcase todo data/
-# como no rastreado, invitando a commitear la BD local y secret.json.
-data/.init_db.lock
+# Directorios de datos de ejecucion COMPLETOS, no patrones por extension.
+# El commit d3cb82d2 (2026-07-23) publico data/secret.json (la clave que firma
+# las cookies de sesion), data/stock.db con usuarios y hashes reales, y 4900
+# lineas de logs, porque los patrones de antes iban por extension y no cubrian
+# lo que un `git add -A` arrastraba (p.ej. data/stock.db.backup.* que genera
+# scripts/maintenance.sh). Ignorar el directorio entero es la unica forma de
+# que no vuelva a pasar. Si algun dia hay que versionar algo de aqui, se
+# desexcluye ese fichero concreto con `!`, nunca se afloja el patron.
+data/
+logs/
+uploads/
 .env
-.env.development
+.env.*
+!.env.example
 server.log
 server_dev.log
 coverage/
-logs/*.log*
 node_modules/
 
 # Frontend Next.js (rama dev2 integrada)
@@ -26,8 +28,6 @@ next-env.d.ts
 npm-debug.log
 yarn-error.log
 *.pem
-.env.production.local
-.env*.local
 install.log
 .install.lock
 tsconfig.tsbuildinfo

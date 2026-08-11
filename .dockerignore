@@ -13,3 +13,26 @@ data/
 logs/
 uploads/
 *.log
+
+# Secretos. Sin estas lineas, los dos Dockerfile de backend (COPY . /app/) se
+# llevan el .env real del host a una capa de la imagen cuando install.sh
+# compila localmente en la Pi (fallback de `docker compose pull`, y siempre con
+# --reinstall). Ahi quedan GOOGLE_CLIENT_SECRET, APPLE_CLIENT_SECRET,
+# SMTP_PASSWORD, ANTHROPIC_API_KEY y POSTGRES_PASSWORD, extraibles con
+# `docker save` y supervivientes a cualquier cambio posterior del .env del
+# host. Los secretos solo deben llegar en tiempo de ejecucion, por el
+# env_file de docker-compose.yml.
+.env
+.env.*
+!.env.example
+*.pem
+install.log
+.install.lock
+
+# Artefactos pesados que ademas invalidan la cache de build sin aportar nada:
+# el Dockerfile del frontend hace `npm ci` y compila dentro de la imagen.
+node_modules/
+.next/
+out/
+coverage/
+tsconfig.tsbuildinfo
