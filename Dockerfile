@@ -27,6 +27,11 @@ RUN mkdir -p /app/data /app/logs /app/uploads
 # primer arranque.
 RUN python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"
 
+# Igual que en Dockerfile.raspbian: si falta el paquete del motor de vision, el
+# escaner NO falla, cae a Tesseract en silencio y reconoce mucho peor. Mejor
+# romper el build aqui que descubrirlo escaneando un ticket en produccion.
+RUN python3 -c "import anthropic; print('[OK] anthropic', anthropic.__version__, '(motor principal del escaner de tickets)')"
+
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

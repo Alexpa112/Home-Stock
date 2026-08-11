@@ -3,6 +3,7 @@ StockHogar - aplicación para gestión de inventario del hogar.
 Backend con Flask + SQLite, frontend con Next.js.
 """
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
@@ -196,4 +197,39 @@ def create_app():
         return None
 
     db.init_db()
+    _registrar_estado_escaner()
     return app
+
+
+def _registrar_estado_escaner():
+    """Deja en el log, al arrancar, que motor va a usar el escaner de tickets.
+
+    Antes esto solo se sabia al escanear un ticket (y el aviso se perdia entre
+    el resto del log), asi que una instalacion sin el paquete `anthropic` o sin
+    ANTHROPIC_API_KEY se comportaba como si funcionase: caia a Tesseract en
+    silencio y reconocia mucho peor. Con esta linea, tras reinstalar se ve de un
+    vistazo si el motor principal esta armado.
+    """
+    logger = logging.getLogger(__name__)
+    hay_clave = bool(os.getenv("ANTHROPIC_API_KEY"))
+    try:
+        import anthropic
+        version = anthropic.__version__
+    except ImportError:
+        version = None
+
+    if version and hay_clave:
+        logger.info(
+            "Escaner de tickets: motor principal Claude Vision listo (anthropic %s)", version
+        )
+    elif not version:
+        logger.warning(
+            "Escaner de tickets: el paquete 'anthropic' NO esta instalado, se usara "
+            "solo Tesseract (reconoce bastante peor). Instala con: pip install -r requirements.txt"
+        )
+    else:
+        logger.warning(
+            "Escaner de tickets: ANTHROPIC_API_KEY no configurada, se usara solo "
+            "Tesseract (reconoce bastante peor). Añadela al .env del host: "
+            "docker-compose ya lo inyecta con env_file."
+        )
