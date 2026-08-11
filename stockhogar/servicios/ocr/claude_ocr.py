@@ -178,6 +178,24 @@ Si la imagen no es un ticket ni una factura de compra, devuelve la lista vacía.
 Catálogo del hogar (id: nombre):
 {catalogo}"""
 
+# Solo se añade cuando NO se pudo usar structured outputs (ver _crear_mensaje).
+# Con esquema, el formato lo garantiza la API y describirlo aquí solo gastaría
+# tokens; sin esquema hace falta pedirlo explícitamente, porque el resto del
+# prompt describe QUÉ extraer pero no CÓMO devolverlo: sin esto el modelo
+# contesta en prosa, no parsea nada y el ticket se queda en 0 artículos.
+_FORMATO_JSON = """
+
+Responde únicamente con un objeto JSON, sin texto alrededor y sin vallas de
+código, con esta forma exacta:
+
+{"productos": [
+  {"nombre_ticket": "Leche entera 1L", "cantidad": 2, "unidad": "ud", "producto_id": 7},
+  {"nombre_ticket": "Tomate pera", "cantidad": 0.85, "unidad": "kg", "producto_id": null}
+]}
+
+"unidad" es exactamente una de: ud, kg, g, l, ml. Los cuatro campos van siempre
+en cada artículo. Si el documento no tiene artículos: {"productos": []}"""
+
 _AVISO_TROZOS = """
 Las {n} imágenes son fragmentos consecutivos del mismo documento, de arriba
 abajo y solapados entre sí. Léelos como un único ticket: no repitas un
@@ -545,6 +563,9 @@ class ClaudeOCR:
         return datos
 
     def _crear_mensaje(self, bloques, prompt, usar_esquema: bool):
+        if not usar_esquema:
+            # Sin esquema hay que pedir el JSON en el prompt; ver _FORMATO_JSON.
+            prompt += _FORMATO_JSON
         parametros = {
             "model": _MODELO,
             "max_tokens": _MAX_TOKENS,
