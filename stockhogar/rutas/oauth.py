@@ -157,11 +157,22 @@ def oauth_google_callback():
 
         db.commit()
 
-        # Crear sesión
+        # M-5: verificar si el usuario tiene 2FA activo. Si es así, no crear la
+        # sesión todavía, sino generar un código y pedirlo antes de continuar.
         fila_usuario = db.execute(
-            "SELECT nombre_usuario, session_version FROM usuarios WHERE id = ?",
+            "SELECT nombre_usuario, session_version, doble_factor_activo, email FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
+
+        if fila_usuario["doble_factor_activo"] and fila_usuario["email"]:
+            # Importar la función de auth.py para generar y enviar el código
+            from .auth import _generar_y_enviar_codigo
+            _generar_y_enviar_codigo(db, usuario_id, fila_usuario["email"])
+            session["pendiente_2fa_usuario_id"] = usuario_id
+            # Redirigir a una página de espera de código (el frontend debe manejarla)
+            return redirect(f"{APP_URL}/verificar-codigo-2fa?metodo=oauth")
+
+        # Si no tiene 2FA, crear sesión directamente
         session["usuario"] = fila_usuario["nombre_usuario"]
         session["usuario_id"] = usuario_id
         session["session_version"] = fila_usuario["session_version"]
@@ -286,11 +297,22 @@ def oauth_apple_callback():
 
         db.commit()
 
-        # Crear sesión
+        # M-5: verificar si el usuario tiene 2FA activo. Si es así, no crear la
+        # sesión todavía, sino generar un código y pedirlo antes de continuar.
         fila_usuario = db.execute(
-            "SELECT nombre_usuario, session_version FROM usuarios WHERE id = ?",
+            "SELECT nombre_usuario, session_version, doble_factor_activo, email FROM usuarios WHERE id = ?",
             (usuario_id,)
         ).fetchone()
+
+        if fila_usuario["doble_factor_activo"] and fila_usuario["email"]:
+            # Importar la función de auth.py para generar y enviar el código
+            from .auth import _generar_y_enviar_codigo
+            _generar_y_enviar_codigo(db, usuario_id, fila_usuario["email"])
+            session["pendiente_2fa_usuario_id"] = usuario_id
+            # Redirigir a una página de espera de código (el frontend debe manejarla)
+            return redirect(f"{APP_URL}/verificar-codigo-2fa?metodo=oauth")
+
+        # Si no tiene 2FA, crear sesión directamente
         session["usuario"] = fila_usuario["nombre_usuario"]
         session["usuario_id"] = usuario_id
         session["session_version"] = fila_usuario["session_version"]
