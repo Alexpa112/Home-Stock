@@ -12,7 +12,6 @@ from stockhogar.servicios.ocr import (
     ExtractorTexto,
     ParseadorTicket,
     MatcherProductos,
-    GestorOCR,
 )
 from stockhogar.servicios.ocr.parseador_ticket import LineaTicket
 
@@ -134,24 +133,6 @@ def test_matcher_productos():
     print(f"  {ColoresTerminal.OK}{ColoresTerminal.CHECK}{ColoresTerminal.RESET} Icono sugerido: {icono}")
 
 
-def test_gestor_ocr():
-    """Test 7: Validar GestorOCR estructura."""
-    print(f"\n{ColoresTerminal.BOLD}TEST 7: GestorOCR{ColoresTerminal.RESET}")
-
-    gestor = GestorOCR()
-    print(f"  {ColoresTerminal.OK}{ColoresTerminal.CHECK}{ColoresTerminal.RESET} Instancia creada")
-
-    # Validar componentes
-    assert hasattr(gestor, 'procesador'), "Falta procesador"
-    assert hasattr(gestor, 'extractor'), "Falta extractor"
-    assert hasattr(gestor, 'parseador'), "Falta parseador"
-    assert hasattr(gestor, 'matcher'), "Falta matcher"
-    print(f"  {ColoresTerminal.OK}{ColoresTerminal.CHECK}{ColoresTerminal.RESET} Todos los componentes presentes")
-
-    assert hasattr(gestor, 'procesar_ticket'), "Falta método procesar_ticket"
-    print(f"  {ColoresTerminal.OK}{ColoresTerminal.CHECK}{ColoresTerminal.RESET} Métodos principales presentes")
-
-
 def test_endpoints_api():
     """Test 8: Validar que endpoint está registrado."""
     print(f"\n{ColoresTerminal.BOLD}TEST 8: Endpoints API{ColoresTerminal.RESET}")
@@ -176,7 +157,6 @@ def main():
         test_extractor_texto,
         test_parseador_ticket,
         test_matcher_productos,
-        test_gestor_ocr,
         test_endpoints_api,
     ]
 

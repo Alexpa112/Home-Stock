@@ -1,17 +1,26 @@
 """Tests de regresion para PUT /api/auth/perfil.
 
-Cubre el bug donde actualizar_perfil permitia cambiar nombre_usuario sin
-comprobar duplicados (a diferencia de registrar(), que si lo hace), lo que
-provocaba un 500 sin controlar por violacion de la UNIQUE de la tabla
-usuarios en vez de un error de validacion claro.
+Cubre dos cosas:
+
+- El bug original: actualizar_perfil permitia cambiar nombre_usuario sin
+  comprobar duplicados (a diferencia de registrar(), que si lo hace), lo que
+  provocaba un 500 sin controlar por violacion de la UNIQUE de usuarios.
+- Los hallazgos A-3 y A-3b de la auditoria 2026-08: el endpoint aceptaba un
+  campo `password` y lo aplicaba SIN pedir la actual (mientras
+  /api/auth/cambiar-password si la exige), asi que con una sesion robada se
+  tomaba la cuenta de forma permanente; y no existia forma alguna de fijar el
+  email, de modo que quien se registraba con usuario+contraseña no podia
+  recuperarla nunca.
 """
 import unittest
 import uuid
+from unittest.mock import patch
 
 from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
+from stockhogar.servicios.email_service import EmailService
 
 
 class ActualizarPerfilTests(unittest.TestCase):
@@ -47,7 +56,7 @@ class ActualizarPerfilTests(unittest.TestCase):
             db.commit()
 
     def test_no_permite_cambiar_a_nombre_de_otro_usuario(self):
-        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_b})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_b, "password_actual": "password123"})
         self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
 
         with self.app.app_context():
@@ -58,12 +67,12 @@ class ActualizarPerfilTests(unittest.TestCase):
             self.assertEqual(fila["nombre_usuario"], self.nombre_a, "El nombre no debe haber cambiado")
 
     def test_no_permite_cambiar_a_nombre_de_otro_usuario_con_distintas_mayusculas(self):
-        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_b.upper()})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_b.upper(), "password_actual": "password123"})
         self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
 
     def test_permite_cambiar_a_un_nombre_libre(self):
         nuevo_nombre = f"{self.nombre_a}_nuevo"
-        resp = self.client.put("/api/auth/perfil", json={"usuario": nuevo_nombre})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": nuevo_nombre, "password_actual": "password123"})
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
 
         with self.app.app_context():
@@ -74,7 +83,7 @@ class ActualizarPerfilTests(unittest.TestCase):
             self.assertEqual(fila["nombre_usuario"], nuevo_nombre)
 
     def test_permite_conservar_el_propio_nombre(self):
-        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_a})
+        resp = self.client.put("/api/auth/perfil", json={"usuario": self.nombre_a, "password_actual": "password123"})
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
 
     def test_permite_cambiar_nombre_a_mostrar_sin_afectar_al_usuario_de_login(self):
@@ -104,3 +113,84 @@ class ActualizarPerfilTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PerfilNoCambiaPasswordTests(ActualizarPerfilTests):
+    """A-3: PUT /api/auth/perfil ya no cambia la contraseña."""
+
+    def test_rechaza_el_campo_password(self):
+        resp = self.client.put("/api/auth/perfil", json={"password": "otraPassword999"})
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+
+        # Y la contraseña original sigue siendo valida.
+        self.client.post("/api/auth/logout")
+        resp = self.client.post(
+            "/api/auth/login", json={"usuario": self.nombre_a, "password": "password123"}
+        )
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+
+    def test_cambiar_el_login_exige_la_password_actual(self):
+        resp = self.client.put(
+            "/api/auth/perfil",
+            json={"usuario": f"{self.nombre_a}_x", "password_actual": "incorrecta"},
+        )
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+        with self.app.app_context():
+            fila = get_db().execute(
+                "SELECT nombre_usuario FROM usuarios WHERE id = ?", (self.usuario_a_id,)
+            ).fetchone()
+        self.assertEqual(fila["nombre_usuario"], self.nombre_a)
+
+    def test_el_nombre_a_mostrar_no_exige_reautenticacion(self):
+        """Es un dato cosmetico, no sirve para recuperar la cuenta."""
+        resp = self.client.put("/api/auth/perfil", json={"nombre": "Alias"})
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+
+
+class PerfilFijarEmailTests(ActualizarPerfilTests):
+    """A-3b: sin esto, una cuenta local no podia tener email NUNCA."""
+
+    def test_permite_fijar_el_email_y_queda_sin_verificar(self):
+        correo = f"{uuid.uuid4().hex[:8]}@ejemplo.com"
+        with patch.object(EmailService, "enviar_verificacion_email", return_value=True) as enviado:
+            resp = self.client.put(
+                "/api/auth/perfil",
+                json={"email": correo, "password_actual": "password123"},
+            )
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertEqual(resp.get_json()["email"], correo)
+        self.assertFalse(resp.get_json()["email_verificado"])
+        enviado.assert_called_once()
+
+        with self.app.app_context():
+            fila = get_db().execute(
+                "SELECT email, email_verificado FROM usuarios WHERE id = ?", (self.usuario_a_id,)
+            ).fetchone()
+        self.assertEqual(fila["email"], correo)
+        self.assertEqual(fila["email_verificado"], 0)
+
+    def test_exige_la_password_actual(self):
+        resp = self.client.put(
+            "/api/auth/perfil",
+            json={"email": "x@ejemplo.com", "password_actual": "incorrecta"},
+        )
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+
+    def test_rechaza_un_email_mal_formado(self):
+        resp = self.client.put(
+            "/api/auth/perfil",
+            json={"email": "no-es-un-email", "password_actual": "password123"},
+        )
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
+
+    def test_no_permite_reutilizar_el_email_de_otra_cuenta(self):
+        correo = f"{uuid.uuid4().hex[:8]}@ejemplo.com"
+        with self.app.app_context():
+            db = get_db()
+            db.execute("UPDATE usuarios SET email = ? WHERE id = ?", (correo, self.usuario_b_id))
+            db.commit()
+        resp = self.client.put(
+            "/api/auth/perfil",
+            json={"email": correo, "password_actual": "password123"},
+        )
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))

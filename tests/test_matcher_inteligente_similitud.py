@@ -31,15 +31,24 @@ class _Cursor:
 
 
 class _DbFalsa:
+    """El catalogo se pide ahora por hogar (A-1): la consulta lleva el JOIN con
+    stock_hogar y un parametro hogar_id, pero para estos tests da igual de
+    donde salen las filas -- lo que se prueba es la similitud, no el filtro."""
+
     def execute(self, consulta, parametros=None):
         if "FROM productos" in consulta:
             return _Cursor(CATALOGO)
         return _Cursor([])
 
 
+# Hogar cualquiera: buscar_en_catalogo devuelve None sin hogar_id, porque
+# emparejar contra el catalogo global era justo la fuga de A-1.
+HOGAR_ID = 1
+
+
 def _buscar(nombre_ocr):
     # Instancia nueva por busqueda: el matcher cachea el catalogo por instancia.
-    return MatcherInteligente().buscar_en_catalogo(nombre_ocr, _DbFalsa())
+    return MatcherInteligente().buscar_en_catalogo(nombre_ocr, _DbFalsa(), hogar_id=HOGAR_ID)
 
 
 def test_nombre_practicamente_igual_empareja():

@@ -20,7 +20,7 @@ class ProcesadorTicketsV2:
         self.parser = ParserMejorado()
         self.matcher = MatcherInteligente()
 
-    def procesar_completo(self, texto_ocr: str, db) -> List[Dict]:
+    def procesar_completo(self, texto_ocr: str, db, hogar_id=None) -> List[Dict]:
         """Procesa ticket completo: OCR → análisis contextual → matching."""
 
         if not texto_ocr or not texto_ocr.strip():
@@ -32,7 +32,7 @@ class ProcesadorTicketsV2:
         # 2. Para cada línea, buscar en catálogo e inferir datos
         resultado = []
         for linea in lineas:
-            item = self._procesar_linea(linea, db)
+            item = self._procesar_linea(linea, db, hogar_id)
             resultado.append(item)
 
         return resultado
@@ -40,7 +40,8 @@ class ProcesadorTicketsV2:
     def _procesar_linea(
         self,
         linea: LineaTicketMejorada,
-        db
+        db,
+        hogar_id=None,
     ) -> Dict:
         """Procesa una línea del ticket."""
 
@@ -49,7 +50,8 @@ class ProcesadorTicketsV2:
             linea.nombre,
             db,
             precio_total_ticket=linea.precio_total,
-            cantidad_ticket=linea.cantidad
+            cantidad_ticket=linea.cantidad,
+            hogar_id=hogar_id,
         )
 
         # 2. Deducir categoría si no hay match
@@ -96,7 +98,7 @@ class ProcesadorTicketsV2:
             "linea_original": linea.linea_original,
         }
 
-    def sugerir_correccion(self, item_procesado: Dict, db) -> Dict:
+    def sugerir_correccion(self, item_procesado: Dict, db, hogar_id=None) -> Dict:
         """Sugiere correcciones si confianza es baja.
 
         Se lee todo con .get(): este metodo recibe items de los dos motores de
@@ -149,7 +151,7 @@ class ProcesadorTicketsV2:
         return sugerencias
 
 
-def crear_respuesta_usuario(items: List[Dict], db) -> Dict:
+def crear_respuesta_usuario(items: List[Dict], db, hogar_id=None) -> Dict:
     """Formatea respuesta para enviar al frontend."""
 
     procesador = ProcesadorTicketsV2()
@@ -175,7 +177,7 @@ def crear_respuesta_usuario(items: List[Dict], db) -> Dict:
 
     # Agregar sugerencias de corrección
     for idx, item in enumerate(items):
-        sugerencias = procesador.sugerir_correccion(item, db)
+        sugerencias = procesador.sugerir_correccion(item, db, hogar_id)
         if sugerencias["correcciones"]:
             item["sugerencias"] = sugerencias
 

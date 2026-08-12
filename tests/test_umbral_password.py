@@ -41,13 +41,13 @@ class UmbralPasswordTests(unittest.TestCase):
             db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             db.commit()
 
-    def test_actualizar_perfil_rechaza_password_corta_de_menos_de_10(self):
-        resp = self.client.put("/api/auth/perfil", json={"password": "abc123456"})
-        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
-
-    def test_actualizar_perfil_acepta_password_de_10_o_mas(self):
+    def test_actualizar_perfil_ya_no_cambia_la_password(self):
+        """A-3: la rama `password` de PUT /api/auth/perfil se elimino porque
+        aplicaba el cambio sin pedir la contraseña actual. El umbral de
+        longitud se comprueba ahora solo donde se cambia de verdad, en
+        /api/auth/cambiar-password (los dos tests siguientes)."""
         resp = self.client.put("/api/auth/perfil", json={"password": "abc1234567"})
-        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
 
     def test_cambiar_password_rechaza_nueva_password_corta_de_menos_de_10(self):
         resp = self.client.post(

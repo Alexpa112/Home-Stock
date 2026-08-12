@@ -44,7 +44,6 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
   const [miembros, setMiembros] = useState<{ id: number; nombre_usuario: string; email: string | null; nivel: string }[]>([])
   const [propietario, setPropietario] = useState<{ nombre_usuario: string } | null>(null)
   const [busqueda, setBusqueda] = useState('')
-  const [resultados, setResultados] = useState<{ id: number; nombre_usuario: string; email: string | null }[]>([])
   const [nivelNuevo, setNivelNuevo] = useState<'ver' | 'comprar' | 'editar'>('editar')
   const [enlaceCompartible, setEnlaceCompartible] = useState<{ url: string; codigo: string; nombre_lista: string } | null>(null)
   const [cargandoEnlace, setCargandoEnlace] = useState(false)
@@ -132,7 +131,6 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
 
   const abrirCompartir = async (hogarId: number) => {
     setCompartiendoId(hogarId)
-    setResultados([])
     setBusqueda('')
     setEnlaceCompartible(null)
     try {
@@ -181,19 +179,12 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     window.open(url, '_blank')
   }
 
-  const buscarUsuarios = async (q: string) => {
-    setBusqueda(q)
-    if (q.trim().length < 2) {
-      setResultados([])
-      return
-    }
-    try {
-      const data: any = await permisos.buscarUsuarios(q.trim())
-      setResultados(data.usuarios || [])
-    } catch {
-      setResultados([])
-    }
-  }
+  // Antes esto llamaba a /api/hogares/buscar-usuarios en cada pulsacion, un
+  // endpoint que devolvia id + nombre de usuario + EMAIL de cualquier cuenta
+  // de la instalacion con un LIKE de 2 caracteres: con unos cuantos bigramas
+  // se volcaba la tabla de usuarios entera. Se elimino (A-2). El compartir no
+  // lo necesitaba: /compartir acepta el nombre de usuario exacto y responde
+  // siempre lo mismo exista o no, que es justo lo que evita la enumeracion.
 
   const compartirCon = async (nombreUsuario: string) => {
     if (!compartiendoId) return
@@ -202,7 +193,6 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
       await permisos.compartir(compartiendoId, { usuario: nombreUsuario, nivel: nivelNuevo })
       await abrirCompartir(compartiendoId)
       setBusqueda('')
-      setResultados([])
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_compartir'))
     }
@@ -490,8 +480,9 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                         <input
                           type="text"
                           value={busqueda}
-                          onChange={(e) => buscarUsuarios(e.target.value)}
-                          placeholder={t('placeholder_usuario_o_email')}
+                          onChange={(e) => setBusqueda(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && busqueda.trim().length >= 2) compartirCon(busqueda.trim()) }}
+                          placeholder={t('placeholder_usuario_exacto')}
                           className="input-field flex-1"
                         />
                         <select
@@ -504,20 +495,14 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                           <option value="ver">{t('ver')}</option>
                         </select>
                       </div>
-                      {resultados.length > 0 && (
-                        <div className="space-y-1">
-                          {resultados.map((u) => (
-                            <button
-                              key={u.id}
-                              onClick={() => compartirCon(u.nombre_usuario)}
-                              className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-muted text-sm"
-                            >
-                              <span>{u.nombre_usuario}</span>
-                              <UserPlus className="w-4 h-4 text-accent" />
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <button
+                        onClick={() => compartirCon(busqueda.trim())}
+                        disabled={busqueda.trim().length < 2}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        {t('enviar_invitacion')}
+                      </button>
                     </div>
 
                     <button

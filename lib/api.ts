@@ -395,7 +395,6 @@ export const categoriasGasto = {
 
 // ===== Hogares compartidos / permisos (stockhogar/rutas/permisos.py) =====
 export const permisos = {
-  buscarUsuarios: (q: string) => apiCall(`/api/hogares/buscar-usuarios?q=${encodeURIComponent(q)}`),
 
   // { propietario: {...}, miembros: [...] }
   miembros: (hogarId: number) => apiCall(`/api/hogares/${hogarId}/miembros`),

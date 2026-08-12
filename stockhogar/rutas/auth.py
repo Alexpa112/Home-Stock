@@ -1,7 +1,9 @@
 """Autenticación: login, registro, logout y gestión de usuarios."""
 import hashlib
+import hmac
 import io
 import json
+import re
 import secrets
 import time
 import zipfile
@@ -48,8 +50,55 @@ DURACION_TOKEN_VERIFICACION_SEGUNDOS = 24 * 60 * 60
 DURACION_TOKEN_RESET_SEGUNDOS = 60 * 60
 
 
+_REGEX_EMAIL = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
+
+# Hash señuelo con el que se compara cuando el usuario no existe o no tiene
+# contraseña, para que el coste en tiempo sea el mismo que el de un usuario
+# real y no se pueda enumerar por temporizacion (M-9). Se calcula una vez al
+# importar, no en cada peticion.
+_HASH_SEÑUELO = generate_password_hash("contraseña señuelo que nadie usa")
+
+
 def _hash_token(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _email_valido(email):
+    return bool(email) and len(email) <= 254 and bool(_REGEX_EMAIL.match(email))
+
+
+def _password_valida(password_hash, password):
+    """Comprueba la contraseña gastando siempre el mismo tiempo.
+
+    Dos motivos, ambos hallazgos de la auditoria:
+
+    - M-6: las cuentas creadas por OAuth tienen `password_hash` NULL y
+      `check_password_hash(None, ...)` lanza AttributeError. Como eso ocurria
+      ANTES de registrar_fallo(), esas cuentas quedaban exentas del limite de
+      intentos y devolvian un 500 que las distinguia de las inexistentes.
+    - M-9: si el usuario no existe no se pagaba el coste de scrypt (~116 ms),
+      asi que el tiempo de respuesta revelaba que cuentas existen. Aqui se
+      compara contra un hash señuelo para gastar lo mismo en ambos casos.
+    """
+    if not password_hash:
+        check_password_hash(_HASH_SEÑUELO, password or "")
+        return False
+    return check_password_hash(password_hash, password or "")
+
+
+def _enviar_token_verificacion_email(db, usuario_id, nombre_usuario, email):
+    """Invalida los tokens de verificacion previos, emite uno nuevo y lo envia."""
+    db.execute(
+        "UPDATE tokens_verificacion SET usado = 1 WHERE usuario_id = ? AND tipo = 'verificar_email' AND usado = 0",
+        (usuario_id,),
+    )
+    token = secrets.token_urlsafe(32)
+    db.execute(
+        "INSERT INTO tokens_verificacion (usuario_id, tipo, token_hash, expira) VALUES (?, 'verificar_email', ?, ?)",
+        (usuario_id, _hash_token(token), int(time.time()) + DURACION_TOKEN_VERIFICACION_SEGUNDOS),
+    )
+    db.commit()
+    EmailService.enviar_verificacion_email(email, nombre_usuario, token)
 
 
 def hay_usuarios(db):
@@ -177,7 +226,9 @@ def login():
     fila = db.execute(
         "SELECT * FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
     ).fetchone()
-    if fila is None or not check_password_hash(fila["password_hash"], password):
+    # _password_valida gasta siempre el mismo tiempo exista o no la cuenta y
+    # tolera password_hash NULL (cuentas OAuth), ver M-6 y M-9.
+    if fila is None or not _password_valida(fila["password_hash"], password):
         intentos_login.registrar_fallo(ip, nombre_usuario)
         auditoria.registrar(db, "login", usuario_id=fila["id"] if fila else None, ip=ip, resultado="fallo", usuario_intentado=nombre_usuario)
         db.commit()
@@ -330,18 +381,40 @@ def logout():
 @requerir_sesion
 @manejo_errores
 def actualizar_perfil():
-    """Actualizar usuario (login), nombre a mostrar y/o contraseña del usuario actual."""
+    """Actualizar usuario (login), nombre a mostrar y/o email del usuario actual.
+
+    NO cambia la contraseña (A-3): antes aceptaba un campo `password` y lo
+    aplicaba sin pedir la actual, mientras /api/auth/cambiar-password si la
+    exige. Con una sesion robada bastaba un PUT aqui para tomar la cuenta de
+    forma permanente y expulsar al dueño. El frontend nunca uso esa rama.
+    El cambio de contraseña vive solo en /api/auth/cambiar-password.
+
+    El cambio de usuario (login) y de email exigen la contraseña actual
+    (`password_actual`) por el mismo motivo: son los dos datos con los que se
+    recupera una cuenta, asi que no pueden cambiarse solo con la cookie.
+    """
     usuario_id = session.get("usuario_id")
     datos = request.get_json(force=True) or {}
     nombre_usuario_nuevo = datos.get("usuario", "").strip()
     nombre = datos.get("nombre", "").strip()
-    password = datos.get("password", "").strip()
+    email_nuevo = (datos.get("email") or "").strip().lower()
+    password_actual = datos.get("password_actual") or ""
+
+    if "password" in datos:
+        return APIResponse.error("err_usa_cambiar_password", 400)
 
     db = get_db()
     usuario = db.execute(
-        "SELECT nombre_usuario FROM usuarios WHERE id = ?",
+        "SELECT nombre_usuario, password_hash, email FROM usuarios WHERE id = ?",
         (usuario_id,)
     ).fetchone()
+
+    # Reautenticacion para los campos sensibles. Las cuentas creadas por OAuth
+    # no tienen password_hash: para ellas la prueba de identidad es el propio
+    # proveedor, asi que no se puede exigir aqui (ver _password_valida).
+    if (nombre_usuario_nuevo or email_nuevo) and usuario and usuario["password_hash"]:
+        if not _password_valida(usuario["password_hash"], password_actual):
+            return APIResponse.error("err_password_actual_incorrecta", 400)
 
     if not usuario:
         return APIResponse.no_autorizado()
@@ -371,23 +444,45 @@ def actualizar_perfil():
             (nombre, usuario_id)
         )
 
-    # Actualizar contraseña si se proporciona
-    if password:
-        if len(password) < LONGITUD_PASSWORD_MINIMA:
-            return APIResponse.validacion("err_password_min_8")
-        nuevo_hash = generate_password_hash(password)
-        db.execute(
-            "UPDATE usuarios SET password_hash = ?, session_version = session_version + 1 WHERE id = ?",
-            (nuevo_hash, usuario_id)
-        )
-        session["session_version"] = db.execute(
-            "SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)
-        ).fetchone()["session_version"]
-        auditoria.registrar(db, "cambio_password", usuario_id=usuario_id, ip=ip_cliente())
+    # Fijar o cambiar el email (A-3b). Sin esto, quien se registraba con
+    # usuario+contraseña no podia tener email NUNCA -- no existia ningun
+    # UPDATE de esa columna en todo el proyecto salvo email_verificado=1 --, y
+    # por tanto no podia recuperar la contraseña ni activar la verificacion en
+    # dos pasos. Eso convertia cualquier robo de sesion en perdida definitiva
+    # de la cuenta. El email entra SIN verificar y se envia el enlace: hasta
+    # que no se confirme no sirve para recuperar la contraseña (el reset exige
+    # email_verificado, ver solicitar_reset_password).
+    email_cambiado = False
+    if email_nuevo:
+        if not _email_valido(email_nuevo):
+            return APIResponse.validacion("err_email_invalido")
+        duplicado = db.execute(
+            "SELECT id FROM usuarios WHERE LOWER(email) = LOWER(?) AND id != ?",
+            (email_nuevo, usuario_id),
+        ).fetchone()
+        if duplicado:
+            # Respuesta generica: confirmar que un email ya esta registrado
+            # seria un oraculo de enumeracion (S-10).
+            return APIResponse.error("err_email_no_disponible", 400)
+        if (usuario["email"] or "").lower() != email_nuevo:
+            db.execute(
+                "UPDATE usuarios SET email = ?, email_verificado = 0 WHERE id = ?",
+                (email_nuevo, usuario_id),
+            )
+            email_cambiado = True
 
     db.commit()
-    fila = db.execute("SELECT nombre FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
-    return APIResponse.success({"usuario": session.get("usuario"), "nombre": fila["nombre"] if fila else None})
+
+    if email_cambiado:
+        _enviar_token_verificacion_email(db, usuario_id, usuario["nombre_usuario"], email_nuevo)
+
+    fila = db.execute("SELECT nombre, email, email_verificado FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    return APIResponse.success({
+        "usuario": session.get("usuario"),
+        "nombre": fila["nombre"] if fila else None,
+        "email": fila["email"] if fila else None,
+        "email_verificado": bool(fila["email_verificado"]) if fila else False,
+    })
 
 
 @bp.route("/api/auth/tema", methods=["POST"])
@@ -473,8 +568,20 @@ def cambiar_password():
         return APIResponse.no_autorizado()
 
     # Verificar contraseña actual
-    if not check_password_hash(usuario["password_hash"], password_actual):
+    if not _password_valida(usuario["password_hash"], password_actual):
         return APIResponse.error("err_password_actual_incorrecta", 400)
+
+    # M-10: la comprobacion de contraseñas filtradas solo se aplicaba en el
+    # registro y en el reset, no aqui. El usuario se registraba con una que
+    # pasaba el filtro y acto seguido la cambiaba por una conocida, que es el
+    # camino que se recorre para "poner una que recuerde". Como
+    # es_password_filtrada falla abierto si HIBP no responde, se añade ademas
+    # la regla local de que no puede repetir la anterior.
+    if _password_valida(usuario["password_hash"], password_nueva):
+        return APIResponse.validacion("err_password_igual_anterior")
+
+    if es_password_filtrada(password_nueva):
+        return APIResponse.validacion("err_password_filtrada")
 
     # Actualizar contraseña. session_version + 1 invalida cualquier otra
     # sesion abierta con esta cuenta (S-08) - la propia se refresca abajo.
@@ -651,18 +758,7 @@ def enviar_verificacion_email():
     if fila["email_verificado"]:
         return APIResponse.error("err_email_ya_verificado", 400)
 
-    db.execute(
-        "UPDATE tokens_verificacion SET usado = 1 WHERE usuario_id = ? AND tipo = 'verificar_email' AND usado = 0",
-        (usuario_id,),
-    )
-    token = secrets.token_urlsafe(32)
-    db.execute(
-        "INSERT INTO tokens_verificacion (usuario_id, tipo, token_hash, expira) VALUES (?, 'verificar_email', ?, ?)",
-        (usuario_id, _hash_token(token), int(time.time()) + DURACION_TOKEN_VERIFICACION_SEGUNDOS),
-    )
-    db.commit()
-
-    EmailService.enviar_verificacion_email(fila["email"], fila["nombre_usuario"], token)
+    _enviar_token_verificacion_email(db, usuario_id, fila["nombre_usuario"], fila["email"])
     return APIResponse.success({"mensaje": "verificacion_email_enviada"})
 
 

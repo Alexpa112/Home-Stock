@@ -33,15 +33,26 @@ class OptOutOcrLocalTests(unittest.TestCase):
                 (self.nombre_usuario, generate_password_hash("password123456"), ahora()),
             )
             self.usuario_id = cur.lastrowid
+            # /api/tickets/analizar exige ahora permiso 'ver' sobre un hogar
+            # (A-1): antes no comprobaba ninguno.
+            cur = db.execute(
+                "INSERT INTO hogares (nombre, usuario_propietario_id, privada, fecha_creacion, fecha_actualizacion) "
+                "VALUES (?, ?, 0, ?, ?)",
+                ("Hogar opt-out", self.usuario_id, ahora(), ahora()),
+            )
+            self.hogar_id = cur.lastrowid
             db.commit()
         with self.client.session_transaction() as sess:
             sess["usuario"] = self.nombre_usuario
             sess["usuario_id"] = self.usuario_id
+            sess["hogar_actual_id"] = self.hogar_id
 
     def tearDown(self):
         with self.app.app_context():
             db = get_db()
+            db.execute("DELETE FROM hogares WHERE id = ?", (self.hogar_id,))
             db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
+            db.execute("DELETE FROM uso_ocr_diario WHERE usuario_id = ?", (self.usuario_id,))
             db.commit()
 
     @patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value="")

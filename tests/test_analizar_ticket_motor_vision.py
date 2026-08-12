@@ -117,6 +117,14 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
                 ("Leche entera 1L", "Bebidas", "🥛", ahora(), ahora()),
             )
             producto_id = cur.lastrowid
+            # El catalogo del escaner se lee por hogar via stock_hogar (A-1):
+            # una fila de `productos` suelta ya no pertenece a ningun hogar y
+            # por tanto no debe emparejar. Esa es justamente la fuga cerrada.
+            db.execute(
+                "INSERT INTO stock_hogar (hogar_id, producto_id, cantidad, stock_minimo, "
+                "fecha_creacion, fecha_actualizacion) VALUES (?, ?, 0, 1, ?, ?)",
+                (self.hogar_id, producto_id, ahora(), ahora()),
+            )
             db.commit()
 
         _ClaudeFalso.respuesta = {

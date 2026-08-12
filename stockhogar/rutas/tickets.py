@@ -8,10 +8,14 @@ from pathlib import Path
 from flask import Blueprint, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..config import LIMITE_OCR_DIARIO
 from ..db import get_db
+from ..red import ip_cliente, limite_por_ip
 from ..translator import traducir
 from ..integraciones import ticket_ocr
+from ..servicios import cuota_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
+from ..servicios.ocr.catalogo import catalogo_del_hogar as _catalogo_del_hogar
 from ..servicios.ocr.claude_ocr import ClaudeOCR
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..utils import Validator
@@ -23,13 +27,15 @@ bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
 EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "heif", "pdf"}
 TAMANO_MAXIMO_MB = 10
 
+_UNIDADES_VALIDAS = ("ud", "kg", "g", "l", "ml")
+
 _MIME_POR_EXTENSION = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
     ".gif": "image/gif", ".bmp": "image/bmp", ".webp": "image/webp",
 }
 
 
-def _items_desde_ia(respuesta_ia, productos_catalogo, db):
+def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
     """Convierte la respuesta de la IA (ya emparejada con el catálogo) al
     mismo formato de "items" que produce ProcesadorTicketsV2, para que
     crear_respuesta_usuario() y el resto del flujo (confirmar_ticket, UI) no
@@ -120,6 +126,18 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db):
     return items
 
 
+def _producto_del_hogar(db, producto_id, hogar_id):
+    """¿Ese producto pertenece al inventario de este hogar?
+
+    `productos` no tiene columna de hogar: el aislamiento vive en
+    `stock_hogar`, asi que la pertenencia se comprueba ahi.
+    """
+    return db.execute(
+        "SELECT 1 FROM stock_hogar WHERE hogar_id = ? AND producto_id = ?",
+        (hogar_id, producto_id),
+    ).fetchone() is not None
+
+
 def _extension_permitida(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in EXTENSIONES_PERMITIDAS
 
@@ -183,6 +201,24 @@ def analizar_ticket():
     if not _extension_permitida(archivo.filename):
         return APIResponse.validacion("err_formato_no_permitido")
 
+    db = get_db()
+    usuario_id = session.get("usuario_id")
+
+    # A-1: hasta ahora esta ruta no comprobaba NINGUN permiso de hogar, y leia
+    # el catalogo `productos` entero de la instalacion. Se exige 'ver' y el
+    # hogar resultante es el que filtra el catalogo mas abajo.
+    hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="ver")
+    if hogar_id is None:
+        return APIResponse.no_permitido()
+
+    # A-6: la cuota diaria protegia /api/ocr/procesar-ticket, que nadie
+    # llamaba, mientras esta ruta -- la que usa el frontend -- no tenia
+    # ninguna. Se comprueba antes de gastar nada.
+    if cuota_ocr.uso_hoy(db, usuario_id) >= LIMITE_OCR_DIARIO:
+        return APIResponse.error("err_limite_ocr_diario", 429)
+    if limite_por_ip(f"analizar_ticket:{ip_cliente()}", 30, 60 * 60):
+        return APIResponse.error("err_demasiadas_peticiones", 429)
+
     archivo.seek(0, os.SEEK_END)
     tamano_bytes = archivo.tell()
     archivo.seek(0)
@@ -232,35 +268,41 @@ def analizar_ticket():
             if error_validacion:
                 return APIResponse.validacion(error_validacion)
 
-        db = get_db()
-        usuario_id = session.get("usuario_id")
         prefiere_ocr_local = bool(
             db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
         )
 
-        # Motor principal: Claude Vision API (gratuita, la mejor visión disponible)
+        # El catalogo SOLO del hogar activo (A-1). Antes esta consulta no
+        # llevaba `hogar_id` y era la unica del backend que leia `productos`
+        # sin unir con `stock_hogar` (todo el resto lo hace, ver productos.py y
+        # la exportacion RGPD de auth.py). Consecuencias que cerraba:
+        #  - _normalizar_producto_id validaba el id devuelto por el modelo
+        #    contra el catalogo global, asi que un id de OTRO hogar pasaba la
+        #    validacion y su nombre volvia al cliente en la respuesta.
+        #  - se enviaban a Anthropic los nombres de producto de todos los
+        #    hogares de la instalacion, cosa que la politica de privacidad no
+        #    declaraba.
+        productos_catalogo = _catalogo_del_hogar(db, hogar_id)
+
+        # Motor principal: Claude Vision API (la mejor visión disponible)
         items = None
         logger = logging.getLogger(__name__)
+        uso_motor_nube = False
 
         if not prefiere_ocr_local:
             claude = ClaudeOCR()
             if claude.disponible():
-                productos_catalogo = [
-                    dict(row)
-                    for row in db.execute(
-                        "SELECT id, nombre, categoria, icono FROM productos ORDER BY nombre"
-                    ).fetchall()
-                ]
                 try:
                     with open(ruta_imagen, "rb") as f:
                         imagen_bytes = f.read()
+                    uso_motor_nube = True
                     respuesta_ia = claude.procesar(
                         imagen_bytes,
                         productos_catalogo,
                         mime="application/pdf" if es_pdf else None,
                     )
                     if respuesta_ia is not None:
-                        items = _items_desde_ia(respuesta_ia, productos_catalogo, db)
+                        items = _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id)
                         logger.info(
                             "Ticket analizado con Claude Vision: %d items detectados",
                             len(items),
@@ -286,7 +328,7 @@ def analizar_ticket():
             try:
                 texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
                 proc = ProcesadorTicketsV2()
-                items = proc.procesar_completo(texto_ocr, db)
+                items = proc.procesar_completo(texto_ocr, db, hogar_id)
                 logger.info(
                     "Ticket analizado con Tesseract: %d lineas OCR, %d items detectados",
                     len(texto_ocr.splitlines()), len(items),
@@ -295,8 +337,13 @@ def analizar_ticket():
                 logger.error("Error con Tesseract: %s", str(e))
                 items = []
 
+        # La cuota se consume solo si se llego a llamar al motor de nube: el
+        # pipeline local (Tesseract) es gratuito y no tiene por que gastarla.
+        if uso_motor_nube:
+            cuota_ocr.incrementar(db, usuario_id)
+
         # Formatear respuesta para UI con sugerencias
-        respuesta = crear_respuesta_usuario(items, db)
+        respuesta = crear_respuesta_usuario(items, db, hogar_id)
 
     except Exception as e:
         # No se devuelve str(e) al cliente: puede filtrar rutas de fichero
@@ -339,19 +386,43 @@ def confirmar_ticket():
     actualizados = 0
 
     for item in items:
+        # OJO: lo que llega aqui es JSON del cliente, NO la salida del motor de
+        # OCR. El atacante controla cada campo, asi que se valida igual que en
+        # POST /api/productos (M-18). Sin el tope de longitud se podia insertar
+        # en `productos.nombre` una cadena de megabytes que luego se
+        # concatenaba en el prompt de cada escaneo.
         nombre = (item.get("nombre") or "").strip()
         if not nombre:
             continue
+        nombre = Validator.string_requerido(nombre, "nombre", 80)
         cantidad = Validator.entero_no_negativo(Validator.con_defecto(item, "cantidad", 1), "cantidad")
-        unidad = (item.get("unidad") or "ud").strip() or "ud"
+        unidad = (item.get("unidad") or "ud").strip().lower() or "ud"
+        if unidad not in _UNIDADES_VALIDAS:
+            unidad = "ud"
 
         precio_unitario = Validator.con_defecto(item, "precio_unitario", None)
+        if precio_unitario is not None:
+            try:
+                precio_unitario = float(precio_unitario)
+            except (TypeError, ValueError):
+                # Antes esto llegaba crudo a registrar_precio, donde comparar
+                # una cadena con 0 lanzaba TypeError -> 500 provocable.
+                precio_unitario = None
 
         producto_id = item.get("producto_id")
         if producto_id:
             producto_id = int(producto_id)
-            sumar_stock(db, producto_id, cantidad, hogar_id)
-            actualizados += 1
+            # El producto_id lo elige el cliente: hay que comprobar que
+            # pertenece a ESTE hogar antes de usarlo. sumar_stock ya lo hacia,
+            # pero registrar_precio no, y se acababan insertando filas de
+            # historial_precios apuntando a productos de otros hogares.
+            if not _producto_del_hogar(db, producto_id, hogar_id):
+                categoria = item.get("categoria") or "Otros"
+                producto_id = crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, hogar_id=hogar_id)
+                creados += 1
+            else:
+                sumar_stock(db, producto_id, cantidad, hogar_id)
+                actualizados += 1
         else:
             categoria = item.get("categoria") or "Otros"
             producto_id = crear_producto_nuevo(db, nombre, categoria, cantidad, unidad, hogar_id=hogar_id)

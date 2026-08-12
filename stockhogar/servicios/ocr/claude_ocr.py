@@ -32,6 +32,8 @@ import math
 import os
 from typing import List, Optional, Tuple
 
+from .catalogo import MAX_LONGITUD_NOMBRE
+
 logger = logging.getLogger(__name__)
 
 _MODELO = "claude-opus-5"
@@ -175,7 +177,7 @@ fidelización, cargos por bolsas, y cualquier texto legal o publicitario.
 
 Si la imagen no es un ticket ni una factura de compra, devuelve la lista vacía.
 
-Catálogo del hogar (id: nombre):
+Catálogo de este hogar (id: nombre):
 {catalogo}"""
 
 # Solo se añade cuando NO se pudo usar structured outputs (ver _crear_mensaje).
@@ -301,9 +303,14 @@ def _normalizar_unidad(unidad, cantidad: float) -> Tuple[str, float]:
 def _normalizar_producto_id(valor, ids_catalogo) -> Optional[int]:
     """Valida el id devuelto por el modelo contra el catálogo real.
 
-    Un id inventado (o de otro hogar) llegaría al confirmar el ticket como si
-    fuera un artículo existente, así que aquí se descarta y el artículo pasa a
-    tratarse como nuevo.
+    Un id inventado llegaría al confirmar el ticket como si fuera un artículo
+    existente, así que aquí se descarta y el artículo pasa a tratarse como
+    nuevo.
+
+    Que un id de OTRO hogar quede fuera no depende de esta función, sino de
+    que `ids_catalogo` venga ya filtrado por hogar: antes se construía con el
+    catálogo global y por eso un id ajeno pasaba la validación (A-1). El único
+    constructor del catálogo es servicios/ocr/catalogo.py, que sí filtra.
     """
     if isinstance(valor, bool) or valor is None:
         return None
@@ -479,8 +486,14 @@ class ClaudeOCR:
             } for mime_trozo, datos in imagenes]
             troceado = len(imagenes) > 1
 
+        # Cada nombre se trunca (M-18): confirmar_ticket no acotaba la
+        # longitud del nombre y con MAX_CONTENT_LENGTH de 20 MB se podia
+        # insertar en `productos` una cadena de megabytes que, al concatenarse
+        # aqui, hacia que TODA llamada excediese el contexto del modelo. El
+        # numero de entradas ya viene acotado por catalogo_del_hogar().
         catalogo = "\n".join(
-            f"{p['id']}: {p['nombre']}" for p in productos_catalogo
+            f"{p['id']}: {str(p['nombre'])[:MAX_LONGITUD_NOMBRE]}"
+            for p in productos_catalogo
         ) or "(catálogo vacío)"
         prompt = _PROMPT.format(catalogo=catalogo)
         if troceado:

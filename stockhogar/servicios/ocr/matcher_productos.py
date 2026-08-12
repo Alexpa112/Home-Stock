@@ -3,6 +3,8 @@ from typing import List, Dict, Optional, Tuple
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process as fuzzy_process
 
+from .catalogo import catalogo_del_hogar
+
 
 class MatcherProductos:
     """Busca coincidencias entre OCR y productos en catálogo.
@@ -15,7 +17,7 @@ class MatcherProductos:
     def __init__(self):
         self.umbral_coincidencia = 60  # % de similitud mínima
 
-    def buscar_en_catalogo(self, nombre_ocr: str, db) -> Optional[Dict]:
+    def buscar_en_catalogo(self, nombre_ocr: str, db, hogar_id=None) -> Optional[Dict]:
         """Busca mejor coincidencia en catálogo.
 
         Args:
@@ -28,10 +30,10 @@ class MatcherProductos:
         if not nombre_ocr or len(nombre_ocr) < 2:
             return None
 
-        # Obtener productos del catálogo
-        productos = db.execute(
-            "SELECT DISTINCT nombre, categoria, icono FROM productos ORDER BY nombre"
-        ).fetchall()
+        # Catálogo del hogar activo, nunca el global (A-1).
+        if hogar_id is None:
+            return None
+        productos = catalogo_del_hogar(db, hogar_id)
 
         if not productos:
             return None

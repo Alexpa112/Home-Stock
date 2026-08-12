@@ -15,39 +15,18 @@ from ..servicios.email_service import EmailService
 
 bp = Blueprint("permisos", __name__, url_prefix="/api/hogares")
 
-
-@bp.route("/buscar-usuarios", methods=["GET"])
-@requerir_sesion
-@manejo_errores
-def buscar_usuarios():
-    """Buscar usuarios para compartir hogares."""
-    usuario_id = session.get("usuario_id")
-    query = request.args.get("q", "").strip()
-
-    if not query or len(query) < 2:
-        return APIResponse.error("err_min_2_caracteres", 400)
-
-    db = get_db()
-
-    # Buscar usuarios por nombre_usuario o email
-    usuarios = db.execute(
-        """SELECT id, nombre_usuario, email
-           FROM usuarios
-           WHERE (nombre_usuario LIKE ? OR email LIKE ?)
-           AND id != ?
-           LIMIT 10""",
-        (f"%{query}%", f"%{query}%", usuario_id)
-    ).fetchall()
-
-    return APIResponse.success({
-        "usuarios": [
-            {
-                "id": u["id"],
-                "nombre_usuario": u["nombre_usuario"],
-                "email": u["email"]
-            } for u in usuarios
-        ]
-    })
+# ELIMINADO: GET /api/hogares/buscar-usuarios (hallazgo A-2 de la auditoria
+# 2026-08). Devolvia id + nombre_usuario + EMAIL de cualquier cuenta de la
+# instalacion con un `LIKE %q%` de dos caracteres, sin relacion con el hogar,
+# sin nivel y sin cuota: con ~1.300 bigramas mas sufijos de dominio se
+# recolectaba la tabla `usuarios` entera, lista para phishing dirigido. Era el
+# residuo de S-10, y contradecia el docstring de auth.py::buscar_usuarios_hogar
+# ("nunca todos los usuarios de la instalacion").
+#
+# No se sustituye por nada: el flujo de compartir ya no lo necesita. POST
+# /api/hogares/<id>/compartir acepta el nombre de usuario exacto y responde
+# SIEMPRE con el mismo mensaje generico exista o no la cuenta, que es
+# precisamente lo que impide enumerar.
 
 
 @bp.route("/<int:hogar_id>/miembros", methods=["GET"])

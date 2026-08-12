@@ -13,6 +13,12 @@ from typing import List, Dict, Optional, Tuple
 from difflib import SequenceMatcher
 from collections import Counter
 
+from .catalogo import catalogo_del_hogar
+
+# Centinela: None es un hogar_id valido de 'sin hogar', asi que no sirve para
+# distinguir 'cache vacia' de 'cache del hogar None'.
+_SIN_CACHE = object()
+
 try:
     from .parser_mejorado import TipoUnidad
 except ImportError:
@@ -108,14 +114,19 @@ class MatcherInteligente:
         # Catálogo cacheado por instancia: el mismo MatcherInteligente
         # procesa todas las líneas de un ticket, así que sin esta caché se
         # repetía el mismo SELECT completo de productos por cada línea.
+        # La clave lleva el hogar_id (A-1): antes la caché era del catálogo
+        # GLOBAL, así que las "alternativas" que se devolvían al cliente
+        # podían ser productos de otros hogares.
         self._cache_catalogo = None
+        self._cache_hogar_id = _SIN_CACHE
 
     def buscar_en_catalogo(
         self,
         nombre_ocr: str,
         db,
         precio_total_ticket: float = 0,
-        cantidad_ticket: float = 0
+        cantidad_ticket: float = 0,
+        hogar_id=None,
     ) -> Optional[Dict]:
         """Busca producto en catálogo con razonamiento inteligente.
 
@@ -132,11 +143,14 @@ class MatcherInteligente:
         if not nombre_ocr or len(nombre_ocr.strip()) < 2:
             return None
 
-        # 1. Obtener catálogo (cacheado para todo el ticket)
-        if self._cache_catalogo is None:
-            self._cache_catalogo = db.execute(
-                "SELECT id, nombre, categoria, icono FROM productos ORDER BY nombre"
-            ).fetchall()
+        # 1. Obtener catálogo del hogar (cacheado para todo el ticket).
+        # Sin hogar_id no se devuelve nada: es preferible no emparejar a
+        # emparejar contra el catálogo de otra familia (A-1).
+        if hogar_id is None:
+            return None
+        if self._cache_hogar_id != hogar_id:
+            self._cache_catalogo = catalogo_del_hogar(db, hogar_id)
+            self._cache_hogar_id = hogar_id
         productos = self._cache_catalogo
 
         if not productos:
