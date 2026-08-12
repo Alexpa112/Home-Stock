@@ -40,10 +40,13 @@ class MatcherProductos:
 
         nombres_catalogo = [p["nombre"] for p in productos]
 
-        # Búsqueda fuzzy
-        mejor_coincidencia, puntuacion = fuzzy_process.extractOne(
+        # Búsqueda fuzzy: rapidfuzz.process.extractOne retorna (match, score, index)
+        resultado = fuzzy_process.extractOne(
             nombre_ocr, nombres_catalogo, scorer=fuzz.token_set_ratio
         )
+        if resultado is None:
+            return None
+        mejor_coincidencia, puntuacion, _ = resultado
 
         # Verificar umbral
         if puntuacion < self.umbral_coincidencia:
