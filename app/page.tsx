@@ -47,7 +47,15 @@ function HomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { t } = useTranslation()
-  const destino = searchParams.get('next') || '/dashboard'
+
+  // M-12: validar que 'next' sea una ruta relativa del origen, no un redirect
+  // a otro dominio. Acepta rutas que empiezan con / y no contienen :/
+  const _validar_ruta_relativa = (ruta: string): boolean => {
+    return ruta.startsWith('/') && !ruta.includes('://')
+  }
+
+  const nextParam = searchParams.get('next') || '/dashboard'
+  const destino = _validar_ruta_relativa(nextParam) ? nextParam : '/dashboard'
   const [isLogin, setIsLogin] = useState(true)
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
