@@ -266,7 +266,29 @@ def _hash_codigo(codigo):
 
 
 DURACION_CODIGO_SEGUNDOS = 10 * 60
-MAX_INTENTOS_CODIGO = 5
+MAX_INTENTOS_CODIGO = 10
+MAX_REENVIOS_POR_HORA = 3
+VENTANA_REENVIOS_SEGUNDOS = 60 * 60
+
+
+def _contador_2fa(db, usuario_id, tipo):
+    """Cuenta intentos o reenvíos de 2FA en la última hora."""
+    ahora = int(time.time())
+    ventana = ahora - VENTANA_REENVIOS_SEGUNDOS
+    fila = db.execute(
+        "SELECT COUNT(*) AS n FROM intentos_2fa WHERE usuario_id = ? AND tipo = ? AND fecha > ?",
+        (usuario_id, tipo, ventana),
+    ).fetchone()
+    return fila["n"] if fila else 0
+
+
+def _registrar_intento_2fa(db, usuario_id, tipo):
+    """Registra un intento o reenvío de 2FA."""
+    db.execute(
+        "INSERT INTO intentos_2fa (usuario_id, tipo, fecha) VALUES (?, ?, ?)",
+        (usuario_id, tipo, int(time.time())),
+    )
+    db.commit()
 
 
 @bp.route("/api/auth/verificar-codigo", methods=["POST"])
@@ -276,24 +298,36 @@ def verificar_codigo_dos_pasos():
     if usuario_id is None:
         return APIResponse.no_autorizado()
 
+    ip = ip_cliente()
+    if limite_por_ip(f"2fa_verificar:{ip}", 10, 60 * 60):
+        return APIResponse.error("err_demasiados_intentos_2fa", 429)
+
     datos = request.get_json(force=True) or {}
     codigo = (datos.get("codigo") or "").strip()
 
     db = get_db()
+
+    # Bloqueo si se excedieron intentos en la última hora
+    intentos = _contador_2fa(db, usuario_id, "verificar")
+    if intentos >= MAX_INTENTOS_CODIGO:
+        session.pop("pendiente_2fa_usuario_id", None)
+        return APIResponse.error("err_demasiados_intentos_2fa", 429)
+
     fila = db.execute(
-        "SELECT codigo_hash, expira, intentos FROM codigos_dos_factor WHERE usuario_id = ?", (usuario_id,)
+        "SELECT codigo_hash, expira FROM codigos_dos_factor WHERE usuario_id = ?", (usuario_id,)
     ).fetchone()
 
-    if fila is None or fila["intentos"] >= MAX_INTENTOS_CODIGO or fila["expira"] < int(time.time()):
+    if fila is None or fila["expira"] < int(time.time()):
         session.pop("pendiente_2fa_usuario_id", None)
         return APIResponse.error("err_codigo_expirado", 400)
 
-    if _hash_codigo(codigo) != fila["codigo_hash"]:
-        db.execute("UPDATE codigos_dos_factor SET intentos = intentos + 1 WHERE usuario_id = ?", (usuario_id,))
-        db.commit()
+    # Usar hmac.compare_digest para evitar ataques de temporización (A-5)
+    if not hmac.compare_digest(_hash_codigo(codigo), fila["codigo_hash"]):
+        _registrar_intento_2fa(db, usuario_id, "verificar")
         return APIResponse.error("err_codigo_incorrecto", 400)
 
     db.execute("DELETE FROM codigos_dos_factor WHERE usuario_id = ?", (usuario_id,))
+    db.execute("DELETE FROM intentos_2fa WHERE usuario_id = ? AND tipo = 'verificar'", (usuario_id,))
     db.commit()
     usuario = db.execute("SELECT nombre_usuario, session_version FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
 
@@ -312,12 +346,23 @@ def reenviar_codigo_dos_pasos():
     if usuario_id is None:
         return APIResponse.no_autorizado()
 
+    ip = ip_cliente()
+    if limite_por_ip(f"2fa_reenvio:{ip}", 5, 60 * 60):
+        return APIResponse.error("err_demasiados_reenvios_2fa", 429)
+
     db = get_db()
+
+    # Bloqueo si se excedieron reenvíos en la última hora (A-5)
+    reenvios = _contador_2fa(db, usuario_id, "reenvio")
+    if reenvios >= MAX_REENVIOS_POR_HORA:
+        return APIResponse.error("err_demasiados_reenvios_2fa", 429)
+
     fila = db.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
     if fila is None or not fila["email"]:
         return APIResponse.no_autorizado()
 
     _generar_y_enviar_codigo(db, usuario_id, fila["email"])
+    _registrar_intento_2fa(db, usuario_id, "reenvio")
     return APIResponse.success({"reenviado": True})
 
 

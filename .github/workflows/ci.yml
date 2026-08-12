@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [dev2, produccion, main]
 
+# M-21: declarar permisos explícitos en vez de heredar los del repo.
+# gitleaks-action solo necesita lectura de contenido; los demás jobs no
+# usan GITHUB_TOKEN.
+permissions:
+  contents: read
+
 jobs:
   test-python:
     runs-on: ubuntu-latest
@@ -46,17 +52,16 @@ jobs:
 
   audit-deps:
     runs-on: ubuntu-latest
-    # No bloquea el pipeline: avisa de vulnerabilidades en dependencias de
-    # terceros que no controlamos directamente, sin impedir un merge por algo
-    # que no se puede arreglar en el acto. Revisar los avisos igualmente.
-    continue-on-error: true
+    # A-11: bloquea el pipeline si encuentra vulnerabilidades Críticas o Altas.
+    # pip-audit por defecto solo reporta, sin bloquear; se añade --desc para
+    # mostrar detalles. npm audit --audit-level=high ya bloquea.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: pip install pip-audit
-      - run: pip-audit -r requirements.txt
+      - run: pip-audit -r requirements.txt --desc
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

@@ -1283,6 +1283,24 @@ def _init_db_impl():
             "CREATE INDEX IF NOT EXISTS idx_intentos_login_clave ON intentos_login(clave, fecha_intento)"
         )
 
+        # Intentos y reenvios de codigos 2FA (A-5): contador independiente por
+        # usuario con maximo 10 intentos y 3 reenvios por hora. Diferente de
+        # intentos_login: este registra el tipo (verificar/reenvio) para poder
+        # contarlos independientemente.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS intentos_2fa (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                tipo TEXT NOT NULL,
+                fecha INTEGER NOT NULL
+            )
+            """
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_intentos_2fa_usuario ON intentos_2fa(usuario_id, tipo, fecha)"
+        )
+
         # Uso diario de OCR por usuario, para el limite de cuota (ver config.py
         # LIMITE_OCR_DIARIO y rutas/ocr_tickets.py).
         db.execute(

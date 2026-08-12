@@ -36,7 +36,7 @@ def validar_instalacion():
         "tesseract": False,
         "opencv": False,
         "pytesseract": False,
-        "fuzzywuzzy": False,
+        "rapidfuzz": False,
         "claude_api_key": bool(os.getenv("ANTHROPIC_API_KEY")),
         "claude_paquete": False,
     }
@@ -65,15 +65,15 @@ def validar_instalacion():
         validaciones["error_opencv"] = "opencv-python no está instalado"
 
     try:
-        from fuzzywuzzy import fuzz
-        validaciones["fuzzywuzzy"] = True
+        from rapidfuzz import fuzz  # noqa: F401
+        validaciones["rapidfuzz"] = True
     except ImportError:
-        validaciones["error_fuzzywuzzy"] = "fuzzywuzzy no está instalado"
+        validaciones["error_rapidfuzz"] = "rapidfuzz no está instalado"
 
     todas_ok = all(
         v is True
         for k, v in validaciones.items()
-        if k in ["tesseract", "opencv", "pytesseract", "fuzzywuzzy"]
+        if k in ["tesseract", "opencv", "pytesseract", "rapidfuzz"]
     )
 
     return APIResponse.success({"ok": todas_ok, "validaciones": validaciones})
