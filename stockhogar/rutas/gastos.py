@@ -601,7 +601,10 @@ def eliminar_liquidacion(liquidacion_id):
 
 
 def _extension_recibo_permitida(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in RECIBO_EXTENSIONES_PERMITIDAS
+    # M-15: usar Path().suffix consistentemente con el resto del codigo en vez
+    # de rsplit, que discrepaba permitiendo bypasses por dotfile (como .png).
+    extension = Path(filename).suffix.lower().lstrip(".")
+    return bool(extension) and extension in RECIBO_EXTENSIONES_PERMITIDAS
 
 
 @bp.route("/<int:gasto_id>/recibo", methods=["POST"])

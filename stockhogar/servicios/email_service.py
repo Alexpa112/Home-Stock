@@ -3,6 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
+import html
 
 from ..config import SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, APP_URL
 
@@ -39,14 +40,17 @@ class EmailService:
 
         try:
             enlace_invitacion = f"{APP_URL}/aceptar-invitacion/{codigo_invitacion}"
+            # M-14: escapar nombres que vienen del usuario para evitar inyeccion HTML
+            nombre_lista_escaped = html.escape(nombre_lista)
+            nombre_remitente_escaped = html.escape(nombre_remitente)
 
-            asunto = f"Te han compartido la lista '{nombre_lista}' en Dreame!"
+            asunto = f"Te han compartido la lista '{nombre_lista_escaped}' en Dreame!"
             cuerpo_html = f"""
             <html>
                 <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                     <h2>📦 ¡Bienvenido a Dreame!</h2>
 
-                    <p><strong>{nombre_remitente}</strong> te ha compartido la lista de la compra <strong>"{nombre_lista}"</strong>.</p>
+                    <p><strong>{nombre_remitente_escaped}</strong> te ha compartido la lista de la compra <strong>"{nombre_lista_escaped}"</strong>.</p>
 
                     <p>Nivel de acceso: <strong>{EmailService._traducir_nivel(nivel)}</strong></p>
 
@@ -121,12 +125,14 @@ class EmailService:
 
         try:
             enlace = f"{APP_URL}/verificar-email/{token}"
+            # M-14: escapar nombres que vienen del usuario para evitar inyeccion HTML
+            nombre_usuario_escaped = html.escape(nombre_usuario)
             asunto = "Verifica tu email en Dreame!"
             cuerpo_html = f"""
             <html>
                 <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                     <h2>✅ Verifica tu email</h2>
-                    <p>Hola <strong>{nombre_usuario}</strong>, confirma que esta es tu dirección de email:</p>
+                    <p>Hola <strong>{nombre_usuario_escaped}</strong>, confirma que esta es tu dirección de email:</p>
                     <p style="margin: 24px 0;">
                         <a href="{enlace}"
                            style="display: inline-block; background-color: #B5551A; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
@@ -155,12 +161,14 @@ class EmailService:
 
         try:
             enlace = f"{APP_URL}/restablecer-password/{token}"
+            # M-14: escapar nombres que vienen del usuario para evitar inyeccion HTML
+            nombre_usuario_escaped = html.escape(nombre_usuario)
             asunto = "Restablece tu contraseña en Dreame!"
             cuerpo_html = f"""
             <html>
                 <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                     <h2>🔑 Restablecer contraseña</h2>
-                    <p>Hola <strong>{nombre_usuario}</strong>, hemos recibido una solicitud para restablecer tu contraseña.</p>
+                    <p>Hola <strong>{nombre_usuario_escaped}</strong>, hemos recibido una solicitud para restablecer tu contraseña.</p>
                     <p style="margin: 24px 0;">
                         <a href="{enlace}"
                            style="display: inline-block; background-color: #B5551A; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
