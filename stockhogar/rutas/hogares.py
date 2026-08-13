@@ -190,8 +190,11 @@ def actualizar_lista(hogar_id):
     parametros.append(ahora())
     parametros.append(hogar_id)
 
+    # Bandit (B608) no puede verificar que las claves de `actualizaciones` son
+    # siempre literales fijos del código anterior (nunca claves de `datos`,
+    # que es lo que vendría del usuario), así que no hay inyección posible.
     campos = ", ".join(f"{k} = {v}" for k, v in actualizaciones.items())
-    db.execute(f"UPDATE hogares SET {campos} WHERE id = ?", parametros)
+    db.execute(f"UPDATE hogares SET {campos} WHERE id = ?", parametros)  # nosec B608
     db.commit()
 
     lista = db.execute(

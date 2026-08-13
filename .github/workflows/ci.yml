@@ -61,7 +61,13 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install pip-audit
-      - run: pip-audit -r requirements.txt --desc
+      # PYSEC-2026-3075 (stanza 1.10.1): torch.load con fallback insguro solo si
+      # se cargan ficheros pretrain .pt de origen no confiable; argostranslate
+      # fija stanza==1.10.1 exacto y solo usa sus modelos de traduccion
+      # empaquetados, nunca pretrain files externos, asi que no es explotable
+      # aqui. Sin fix disponible: la ultima argostranslate (1.11.0) sigue
+      # pinneando esa version exacta.
+      - run: pip-audit -r requirements.txt --desc --ignore-vuln PYSEC-2026-3075
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

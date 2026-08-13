@@ -208,8 +208,8 @@ class SuiteOCR:
         nombre_ocr = "Leche entera"
 
         # Simular búsqueda
-        from fuzzywuzzy import process, fuzz
-        resultado_match, score = process.extractOne(
+        from rapidfuzz import process, fuzz
+        resultado_match, score, _ = process.extractOne(
             nombre_ocr, nombres_catalogo, scorer=fuzz.token_set_ratio
         )
 
@@ -234,8 +234,8 @@ class SuiteOCR:
         nombres_catalogo = ["Leche entera", "Pan integral", "Manzanas rojas"]
         nombre_ocr = "Lechè entera"  # Error: accent
 
-        from fuzzywuzzy import process, fuzz
-        resultado_match, score = process.extractOne(
+        from rapidfuzz import process, fuzz
+        resultado_match, score, _ = process.extractOne(
             nombre_ocr, nombres_catalogo, scorer=fuzz.token_set_ratio
         )
 

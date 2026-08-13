@@ -61,7 +61,7 @@ def verificar_python_deps():
         "cv2": "opencv-python",
         "pytesseract": "pytesseract",
         "PIL": "Pillow",
-        "fuzzywuzzy": "fuzzywuzzy",
+        "rapidfuzz": "rapidfuzz",
         "numpy": "numpy",
     }
 

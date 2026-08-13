@@ -26,7 +26,7 @@ logs y caches de ejecucion", 2026-07-23), alcanzable desde
 
 ```
 $ git show origin/backup/dev2-produccion-pre-dev-promo-20260724:data/secret.json
-{"flask_secret_key": "6def2a03996f0fdcaf8b857e7308910a2d404331e63db13d98a6ac727b949d1c"}
+{"flask_secret_key": "<REDACTADO - ver S-18 sobre si se rotó o no>"}
 
 $ git ls-tree -r --name-only origin/backup/dev2-produccion-pre-dev-promo-20260724
 data/secret.json

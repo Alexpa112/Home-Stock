@@ -59,6 +59,24 @@ jobs:
           print('[OK] Escaneo de ticket PDF funciona en la imagen backend')
           "
 
+  build-backend-raspbian:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Se compila en la arquitectura nativa del runner (amd64), no armv7l:
+      # el objetivo no es probar la imagen final de la Pi, sino que la propia
+      # build (pip install + verificacion de imports de la linea 121) no se
+      # rompa por dependencias desincronizadas con requirements.txt, que es
+      # justo lo que dejo pasar antes a fuzzywuzzy tras migrar a rapidfuzz.
+      - name: Build backend image (Dockerfile.raspbian, verificacion de build)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.raspbian
+          push: false
+          load: false
+          tags: stockhogar-backend-raspbian:ci
+
   build-frontend:
     runs-on: ubuntu-latest
     steps:

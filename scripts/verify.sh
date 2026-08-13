@@ -64,7 +64,7 @@ echo -e "${BLUE}Verificaciones de Dependencias Python:${NC}"
 check "Flask instalado" "$COMPOSE exec -T stockhogar python3 -c 'import flask' 2>&1"
 check "OpenCV instalado" "$COMPOSE exec -T stockhogar python3 -c 'import cv2' 2>&1"
 check "Pytesseract instalado" "$COMPOSE exec -T stockhogar python3 -c 'import pytesseract' 2>&1"
-check "Fuzzywuzzy instalado" "$COMPOSE exec -T stockhogar python3 -c 'import fuzzywuzzy' 2>&1"
+check "Rapidfuzz instalado" "$COMPOSE exec -T stockhogar python3 -c 'import rapidfuzz' 2>&1"
 
 echo ""
 echo -e "${BLUE}Verificaciones de Sistema en Contenedor:${NC}"

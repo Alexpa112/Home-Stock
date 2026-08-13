@@ -149,7 +149,7 @@ def migrar_iconos_emoji_a_lucide(db):
             continue
         for emoji, nombre_lucide in MAPEO_EMOJI_A_ICONO_LUCIDE.items():
             db.execute(
-                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",
+                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",  # nosec B608 - tabla viene de tablas_con_icono, literal fijo
                 (nombre_lucide, emoji),
             )
         # Renombrados posteriores: algunos conceptos "hogar/UI" pasaron de
@@ -157,7 +157,7 @@ def migrar_iconos_emoji_a_lucide(db):
         # migradas al nombre Lucide antiguo se reasignan al nuevo nombre.
         for nombre_viejo, nombre_nuevo in RENOMBRES_ICONO.items():
             db.execute(
-                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",
+                f"UPDATE {tabla} SET icono = ? WHERE icono = ?",  # nosec B608 - tabla viene de tablas_con_icono, literal fijo
                 (nombre_nuevo, nombre_viejo),
             )
 
@@ -239,7 +239,7 @@ def _migrar_lista_compra_a_articulos(db):
 
             campos.append("?")  # fecha_creacion
 
-            select_clause = f"SELECT {', '.join(campos)} FROM lista_compra"
+            select_clause = f"SELECT {', '.join(campos)} FROM lista_compra"  # nosec B608 - campos son literales fijos del código
 
             db.execute(
                 f"""
@@ -273,7 +273,7 @@ def _renombrar_categoria(db, nombre_viejo, nombre_nuevo):
         db.execute("DELETE FROM categorias WHERE id = ?", (vieja["id"],))
 
     for tabla in ("productos", "articulos_lista", "historial_articulos", "articulos_personalizados"):
-        db.execute(f"UPDATE {tabla} SET categoria = ? WHERE categoria = ?", (nombre_nuevo, nombre_viejo))
+        db.execute(f"UPDATE {tabla} SET categoria = ? WHERE categoria = ?", (nombre_nuevo, nombre_viejo))  # nosec B608 - tabla viene de tupla literal fija
 
 
 def _reparar_fk_articulos_personalizados_old(db):
@@ -1060,13 +1060,12 @@ def _init_db_impl():
             )
             """
         )
-        db.execute(
-            f"""
+        consulta_migracion = f"""
             INSERT INTO articulos_compra (id, hogar_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, articulo_personalizado_id)
             SELECT id, lista_id, producto_id, nombre, unidad, categoria, icono, cantidad, sub_descripcion, origen, activo, fecha_completado, fecha_creacion, {col_art_pers} FROM articulos_lista
             WHERE id NOT IN (SELECT id FROM articulos_compra)
-            """
-        )
+            """  # nosec B608 - col_art_pers es "articulo_personalizado_id" o "NULL", literales fijos
+        db.execute(consulta_migracion)
         asegurar_columna(db, "articulos_compra", "dias_aviso", f"INTEGER NOT NULL DEFAULT {DIAS_AVISO_DEFECTO}")
         asegurar_columna(db, "articulos_compra", "fecha_actualizacion", "TEXT")
         db.execute(
@@ -1445,7 +1444,7 @@ def _init_db_impl():
                     )
                 columnas = [f["name"] for f in db.execute(f"PRAGMA table_info({tabla}_old)").fetchall()]
                 cols_sql = ", ".join(columnas)
-                db.execute(f"INSERT INTO {tabla} ({cols_sql}) SELECT {cols_sql} FROM {tabla}_old")
+                db.execute(f"INSERT INTO {tabla} ({cols_sql}) SELECT {cols_sql} FROM {tabla}_old")  # nosec B608 - tabla y cols_sql vienen de introspeccion del propio esquema, no de input externo
                 db.execute(f"DROP TABLE {tabla}_old")
                 db.commit()
 

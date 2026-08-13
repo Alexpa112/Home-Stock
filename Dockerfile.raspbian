@@ -118,7 +118,7 @@ RUN mkdir -p /app/data /app/logs /app/uploads /app/stockhogar/servicios/ocr \
     else \
         python3 -c "from stockhogar.servicios.traductor_argos import _asegurar_paquetes_instalados; _asegurar_paquetes_instalados(); print('[OK] Modelos de Argos Translate descargados')"; \
     fi \
-    && python3 -c "import flask, flask_wtf, cv2, pytesseract, fuzzywuzzy, gunicorn, platform, importlib; (importlib.import_module('argostranslate') if platform.machine() != 'armv7l' else None); print('[OK] Paquetes Python verificados')" \
+    && python3 -c "import flask, flask_wtf, cv2, pytesseract, rapidfuzz, gunicorn, platform, importlib; (importlib.import_module('argostranslate') if platform.machine() != 'armv7l' else None); print('[OK] Paquetes Python verificados')" \
     && python3 -c "import anthropic; print('[OK] anthropic', anthropic.__version__, '(motor principal del escaner de tickets)')" \
     && tesseract --version | head -1 && echo "[OK] Tesseract instalado" \
     && pdftoppm -v > /dev/null 2>&1 && echo "[OK] Poppler (pdftoppm) instalado" \

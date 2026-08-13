@@ -89,14 +89,14 @@ def oauth_google_callback():
     }
 
     try:
-        respuesta_token = requests.post(GOOGLE_TOKEN_URL, data=datos_token)
+        respuesta_token = requests.post(GOOGLE_TOKEN_URL, data=datos_token, timeout=10)
         respuesta_token.raise_for_status()
         tokens = respuesta_token.json()
         access_token = tokens.get("access_token")
 
         # Obtener información del usuario
         headers = {"Authorization": f"Bearer {access_token}"}
-        respuesta_usuario = requests.get(GOOGLE_USERINFO_URL, headers=headers)
+        respuesta_usuario = requests.get(GOOGLE_USERINFO_URL, headers=headers, timeout=10)
         respuesta_usuario.raise_for_status()
         info_usuario = respuesta_usuario.json()
 
@@ -231,7 +231,7 @@ def oauth_apple_callback():
     }
 
     try:
-        respuesta_token = requests.post(APPLE_TOKEN_URL, data=datos_token)
+        respuesta_token = requests.post(APPLE_TOKEN_URL, data=datos_token, timeout=10)
         respuesta_token.raise_for_status()
         tokens = respuesta_token.json()
 
