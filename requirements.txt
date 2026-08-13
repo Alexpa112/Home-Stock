@@ -6,7 +6,7 @@ requests>=2.34.2
 python-dotenv>=1.0.0
 fuzzywuzzy>=0.18.0
 python-Levenshtein>=0.21.0
-opencv-python-headless>=4.9,<=4.12.0.88
+opencv-python-headless<=5.0.0.93,>=5.0.0.93
 gunicorn>=22.0.0
 argostranslate>=1.9,<2; platform_machine != "armv7l"
 PyJWT>=2.13.0,<3
