@@ -15,8 +15,9 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements.txt && \
+    pip install --upgrade "msgpack>=1.2.1" "jaraco.context>=6.1.0"
 
 COPY . .
 
