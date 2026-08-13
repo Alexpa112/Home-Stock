@@ -1,0 +1,7 @@
+# CVE-2026-54499 / PYSEC-2026-3075 (stanza 1.10.1): RCE via torch.load con
+# fallback inseguro al cargar checkpoints .pt de "pretrain". argostranslate
+# fija stanza==1.10.1 exacto (su ultima version, 1.11.0, no lo ha destijado) y
+# solo usa sus propios modelos de traduccion empaquetados, nunca ficheros
+# pretrain externos, asi que no es explotable aqui. Ver tambien el
+# --ignore-vuln equivalente en ci.yml (job audit-deps, pip-audit).
+CVE-2026-54499

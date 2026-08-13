@@ -85,7 +85,8 @@ COPY requirements.txt .
 # Por eso aquí SÍ se quita --no-cache-dir (si no, pip no usaría este directorio).
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip install --upgrade pip setuptools wheel && \
-    pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+    pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt && \
+    pip install --upgrade "msgpack>=1.2.1" "jaraco.context>=6.1.0"
 
 COPY . /app/
 
