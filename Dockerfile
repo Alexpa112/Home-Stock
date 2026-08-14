@@ -14,10 +14,17 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY requirements.txt .
+# rm ensurepip/_bundled: la instalación de Python trae dentro sendos wheels
+# de pip y setuptools que solo usa "python -m ensurepip" para arrancar pip en
+# un virtualenv nuevo, cosa que aquí no se hace nunca (pip ya está instalado).
+# Nadie los importa en ejecución, pero Trivy los escanea como paquetes y
+# reportaba sus CVE (setuptools 70.3.0, y msgpack, que pip lleva vendorizado
+# dentro de su propio wheel). No se pueden arreglar con "pip install
+# --upgrade": no son paquetes instalados, son ficheros .whl en disco.
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt && \
-    pip install --upgrade "msgpack>=1.2.1" "jaraco.context>=6.1.0"
+    rm -rf /usr/local/lib/python*/ensurepip/_bundled
 
 COPY . .
 
