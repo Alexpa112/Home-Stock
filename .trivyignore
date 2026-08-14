@@ -5,3 +5,32 @@
 # pretrain externos, asi que no es explotable aqui. Ver tambien el
 # --ignore-vuln equivalente en ci.yml (job audit-deps, pip-audit).
 CVE-2026-54499
+
+# --- Falsos positivos de un SBOM obsoleto de la imagen base -----------------
+#
+# Los dos siguientes NO estan realmente en la imagen que construimos. Trivy los
+# atribuye a un target sintetico "Python" sin ruta de fichero, y el propio log
+# avisa de su origen:
+#
+#   WARN  Third-party SBOM may lead to inaccurate vulnerability detection
+#   WARN  Recommend using Trivy to generate SBOMs
+#
+# Es decir, salen de un SBOM de terceros que describe la imagen base tal como
+# estaba cuando se publico, no el sistema de ficheros final. La prueba es el
+# propio Report Summary del escaneo, que analiza los METADATA reales y les da
+# 0 vulnerabilidades:
+#
+#   usr/local/lib/python3.11/site-packages/setuptools-84.0.0.dist-info/METADATA  0
+#
+# setuptools real en la imagen: 84.0.0 (lo actualiza el "pip install --upgrade
+# pip setuptools wheel" del Dockerfile), no la 70.3.0 que reporta. Y de msgpack
+# no hay ni una sola entrada en el sistema de ficheros: no es dependencia de
+# requirements.txt, solo iba vendorizado dentro del wheel de pip que ya se
+# borra con el rm de ensurepip/_bundled.
+#
+# Antes de mantener estas dos lineas en una revision futura, reconfirmar con:
+#   docker run --rm <imagen> pip list | grep -Ei 'setuptools|msgpack'
+# Si ahi aparece una version vulnerable de verdad, hay que arreglarla, no
+# seguir ignorandola.
+CVE-2025-47273
+GHSA-6v7p-g79w-8964
