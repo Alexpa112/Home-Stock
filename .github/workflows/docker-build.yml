@@ -34,6 +34,13 @@ jobs:
           # el job audit-deps de ci.yml; este job además detecta las que
           # pudieran introducir en la construcción propia del Dockerfile.
           exit-code: "1"
+          # ignore-unfixed: bloquear solo por lo que se puede arreglar. La
+          # imagen base de Debian arrastra CVE sin parche publicado (perl,
+          # ncurses, util-linux... en estado "affected"/"fix_deferred"), que
+          # ningún cambio nuestro puede limpiar: con ellos contando, el job se
+          # quedaba en rojo permanente y enterraba los hallazgos que sí eran
+          # accionables. Se siguen viendo en el log, pero no tumban el build.
+          ignore-unfixed: true
 
       - name: Escanear ticket PDF de prueba dentro del contenedor
         run: |
@@ -85,6 +92,8 @@ jobs:
           image-ref: stockhogar-backend-raspbian:ci
           severity: "CRITICAL,HIGH"
           exit-code: "1"
+          # Ver el comentario del escaneo del backend x86_64.
+          ignore-unfixed: true
 
   build-frontend:
     runs-on: ubuntu-latest
@@ -106,3 +115,5 @@ jobs:
           severity: "CRITICAL,HIGH"
           # A-11: igual que el backend, bloquea con exit-code 1
           exit-code: "1"
+          # Ver el comentario del escaneo del backend x86_64.
+          ignore-unfixed: true
