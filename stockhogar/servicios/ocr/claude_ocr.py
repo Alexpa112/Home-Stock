@@ -33,6 +33,13 @@ import os
 from typing import List, Optional, Tuple
 
 from .catalogo import MAX_LONGITUD_NOMBRE
+from .validacion_importes import (
+    coherencia_linea,
+    confianza_item,
+    normalizar_importe,
+    precio_unitario_derivado,
+    validar_totales,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -127,13 +134,48 @@ _ESQUEMA_RESPUESTA = {
                         "description": "Id del catálogo, o null si no hay correspondencia clara.",
                         "anyOf": [{"type": "integer"}, {"type": "null"}],
                     },
+                    "precio_unitario": {
+                        "description": (
+                            "Precio por unidad SOLO si está impreso en el documento. "
+                            "null si el ticket únicamente muestra el importe de la línea."
+                        ),
+                        "anyOf": [{"type": "number"}, {"type": "null"}],
+                    },
+                    "precio_total": {
+                        "description": (
+                            "Importe cobrado por esta línea, tal como aparece. "
+                            "null si no consta."
+                        ),
+                        "anyOf": [{"type": "number"}, {"type": "null"}],
+                    },
+                    "confianza": {
+                        "type": "number",
+                        "description": (
+                            "0..1: seguridad real en la lectura de esta línea. "
+                            "Baja si el texto está borroso, cortado o ambiguo."
+                        ),
+                    },
                 },
-                "required": ["nombre_ticket", "cantidad", "unidad", "producto_id"],
+                "required": [
+                    "nombre_ticket", "cantidad", "unidad", "producto_id",
+                    "precio_unitario", "precio_total", "confianza",
+                ],
                 "additionalProperties": False,
             },
-        }
+        },
+        "totales": {
+            "type": "object",
+            "description": "Importes del pie del ticket. null en los que no consten.",
+            "properties": {
+                "subtotal": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "impuestos": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "total": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            },
+            "required": ["subtotal", "impuestos", "total"],
+            "additionalProperties": False,
+        },
     },
-    "required": ["productos"],
+    "required": ["productos", "totales"],
     "additionalProperties": False,
 }
 
@@ -151,6 +193,27 @@ Sobre cada campo:
 - cantidad y unidad: lo realmente comprado.
 - producto_id: el id del catálogo de abajo cuando el artículo se corresponda
   claramente con uno de ellos; null en cualquier otro caso. No inventes ids.
+- precio_unitario: el precio por unidad SOLO si está impreso en el documento
+  (columna de precio unitario, o formatos tipo "2 x 1,25" y "1,89 EUR/kg").
+  Si el ticket únicamente muestra el importe de la línea, devuelve null: no
+  lo calcules dividiendo, prefiero el hueco a un dato deducido.
+- precio_total: el importe cobrado por esa línea, tal como aparece. null si
+  no consta.
+- confianza: entre 0 y 1, tu seguridad real en la lectura de esa línea.
+  Bájala cuando el texto esté borroso, cortado, tapado o sea ambiguo. Es una
+  señal para avisar al usuario de qué revisar, así que no la infles.
+
+Precios:
+
+- Los importes pueden venir como "1,99", "1.99", "€1,99" o "1,99 EUR": no
+  cambies el valor, solo devuélvelo como número.
+- El importe de la línea suele ir alineado a la derecha, en su columna.
+- Un descuento aplicado a la línea puede aparecer como importe negativo.
+
+Totales del pie del ticket (objeto "totales"): subtotal, impuestos (IVA/IGIC)
+y total. Cada uno, null si no aparece impreso. No los deduzcas ni los sumes
+tú: se usan para comprobar la extracción, y un valor calculado por ti
+invalidaría esa comprobación.
 
 Cantidad y unidad:
 
@@ -191,12 +254,19 @@ Responde únicamente con un objeto JSON, sin texto alrededor y sin vallas de
 código, con esta forma exacta:
 
 {"productos": [
-  {"nombre_ticket": "Leche entera 1L", "cantidad": 2, "unidad": "ud", "producto_id": 7},
-  {"nombre_ticket": "Tomate pera", "cantidad": 0.85, "unidad": "kg", "producto_id": null}
-]}
+  {"nombre_ticket": "Leche entera 1L", "cantidad": 2, "unidad": "ud", "producto_id": 7,
+   "precio_unitario": 1.25, "precio_total": 2.50, "confianza": 0.95},
+  {"nombre_ticket": "Tomate pera", "cantidad": 0.85, "unidad": "kg", "producto_id": null,
+   "precio_unitario": 1.89, "precio_total": 1.61, "confianza": 0.8},
+  {"nombre_ticket": "Pan integral", "cantidad": 1, "unidad": "ud", "producto_id": null,
+   "precio_unitario": null, "precio_total": 1.49, "confianza": 0.9}
+], "totales": {"subtotal": 5.60, "impuestos": 0.0, "total": 5.60}}
 
-"unidad" es exactamente una de: ud, kg, g, l, ml. Los cuatro campos van siempre
-en cada artículo. Si el documento no tiene artículos: {"productos": []}"""
+"unidad" es exactamente una de: ud, kg, g, l, ml. Los siete campos van siempre
+en cada artículo (usa null en los precios que no consten, como en el tercer
+ejemplo). "totales" va siempre, con null en lo que no aparezca impreso. Si el
+documento no tiene artículos:
+{"productos": [], "totales": {"subtotal": null, "impuestos": null, "total": null}}"""
 
 _AVISO_TROZOS = """
 Las {n} imágenes son fragmentos consecutivos del mismo documento, de arriba
@@ -353,14 +423,53 @@ def _normalizar_items(productos, ids_catalogo) -> List[dict]:
             cantidad = 1.0
 
         unidad, cantidad = _normalizar_unidad(item.get("unidad"), cantidad)
+        cantidad = round(cantidad, 3)
+
+        # Los precios que no constan se quedan en None, nunca en 0: "gratis" y
+        # "el ticket no lo dice" son cosas distintas y la validacion
+        # matematica de abajo necesita distinguirlas.
+        precio_unitario = normalizar_importe(item.get("precio_unitario"))
+        precio_total = normalizar_importe(item.get("precio_total"))
+
+        coherente, motivo = coherencia_linea(cantidad, precio_unitario, precio_total)
+        producto_id = _normalizar_producto_id(item.get("producto_id"), ids_catalogo)
+
+        try:
+            confianza_modelo = float(item.get("confianza"))
+        except (TypeError, ValueError):
+            confianza_modelo = None
 
         normalizados.append({
             "nombre_ticket": nombre,
-            "cantidad": round(cantidad, 3),
+            "cantidad": cantidad,
             "unidad": unidad,
-            "producto_id": _normalizar_producto_id(item.get("producto_id"), ids_catalogo),
+            "producto_id": producto_id,
+            "precio_unitario": precio_unitario,
+            "precio_total": precio_total,
+            # Calculado, no leido: se expone aparte para que la pantalla de
+            # revision pueda mostrarlo como sugerencia sin que se confunda con
+            # un precio impreso en el ticket.
+            "precio_unitario_derivado": precio_unitario_derivado(cantidad, precio_total),
+            "coherencia_precio": motivo,
+            "confianza": confianza_item(
+                confianza_modelo,
+                coherente,
+                producto_id is not None,
+                precio_total is not None,
+            ),
         })
     return normalizados
+
+
+def _normalizar_totales(totales) -> dict:
+    """Normaliza el pie del ticket (subtotal / impuestos / total)."""
+    if not isinstance(totales, dict):
+        totales = {}
+    return {
+        "subtotal": normalizar_importe(totales.get("subtotal")),
+        "impuestos": normalizar_importe(totales.get("impuestos")),
+        "total": normalizar_importe(totales.get("total")),
+    }
 
 
 def _deduplicar_solape(items: List[dict]) -> List[dict]:
@@ -508,8 +617,19 @@ class ClaudeOCR:
         if troceado:
             items = _deduplicar_solape(items)
 
+        totales = _normalizar_totales(respuesta.get("totales"))
+        # La suma se compara DESPUES de deduplicar el solape: con los
+        # duplicados dentro nunca cuadraria en un ticket troceado.
+        cuadre = validar_totales(items, totales.get("total"))
+        if cuadre["comprobado"] and not cuadre["cuadra"]:
+            logger.warning(
+                "El ticket no cuadra: suma de artículos %.2f vs total impreso %.2f "
+                "(diferencia %.2f). Puede faltar algún artículo o haberse leído mal un importe.",
+                cuadre["suma_articulos"], cuadre["total_ticket"], cuadre["diferencia"],
+            )
+
         logger.info("Claude OCR detectó %d artículos", len(items))
-        return {"productos": items}
+        return {"productos": items, "totales": totales, "cuadre": cuadre}
 
     def _pedir_analisis(self, bloques, prompt) -> Optional[dict]:
         """Hace la llamada y devuelve el dict de la respuesta, o None."""
