@@ -162,7 +162,9 @@ class PeticionTests(unittest.TestCase):
             resultado = motor.procesar(_png(400, 400), [])
             prompt = creado["cliente"].messages.llamadas[0]["messages"][0]["content"][-1]["text"]
 
-        self.assertEqual(resultado, {"productos": []})
+        # La respuesta trae ademas "totales" y "cuadre" (pie del ticket y su
+        # comprobacion aritmetica); aqui solo interesa que no haya articulos.
+        self.assertEqual(resultado["productos"], [])
         self.assertIn("catálogo vacío", prompt)
 
 
