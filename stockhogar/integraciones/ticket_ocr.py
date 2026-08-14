@@ -10,6 +10,7 @@ import pytesseract
 from PIL import Image
 
 from ..servicios.ocr.procesador_imagen import ProcesadorImagen
+from ..servicios.ocr.reconstructor_espacial import reconstruir_lineas, lineas_a_texto
 
 _procesador_imagen = ProcesadorImagen()
 
@@ -43,7 +44,19 @@ def extraer_texto(ruta_imagen):
         # proceso al superar el límite (a diferencia del SIGKILL de gunicorn
         # por --timeout, que deja el tesseract original huérfano consumiendo
         # CPU indefinidamente).
-        return pytesseract.image_to_string(imagen, lang="spa", config="--psm 6", timeout=45)
+        #
+        # image_to_data (no image_to_string): se necesita la caja de cada
+        # palabra para reconstruir las líneas por coordenadas en vez de
+        # fiarse del renderizado interno de Tesseract, que en tickets reales
+        # (arrugas, inclinación residual, fuente de impresora térmica) a
+        # veces corta una misma línea visual en varias líneas de texto o
+        # descoloca el orden de las palabras. Ver reconstructor_espacial.py.
+        datos = pytesseract.image_to_data(
+            imagen, lang="spa", config="--psm 6", timeout=45,
+            output_type=pytesseract.Output.DICT,
+        )
+        lineas = reconstruir_lineas(datos)
+        return lineas_a_texto(lineas)
     except RuntimeError:
         raise RuntimeError(
             "La foto tardó demasiado en procesarse. Prueba con más luz, "
