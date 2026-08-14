@@ -103,24 +103,50 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
         # que no estuviera ya en el catalogo), /api/tickets/analizar respondia
         # 500 en cuanto Claude reconocia un producto nuevo. El escaner solo
         # parecia funcionar con el pipeline local, que si las rellenaba.
+        # Precios reales leidos del ticket. Antes iban a 0 fijo porque el
+        # esquema de Claude no los pedia; ahora si vienen, y un precio que el
+        # ticket no imprime llega como None y se queda en 0 solo de cara al
+        # resto del flujo (que espera numeros), pero sin marcarse como valido.
+        precio_unitario = item.get("precio_unitario")
+        precio_total = item.get("precio_total")
+        confianza_lectura = item.get("confianza")
+
+        if precio_total is not None and precio_total > 0:
+            precio_valido, razon_precio = matcher.validar_precio(precio_total, categoria)
+        else:
+            precio_valido, razon_precio = True, "sin_precio"
+        if item.get("coherencia_precio") not in (None, "cuadra", "sin_datos"):
+            # cantidad x unitario no cuadra con el total: el usuario deberia
+            # mirar esa linea antes de confirmar.
+            precio_valido = False
+            razon_precio = item["coherencia_precio"]
+
+        # confianza_nombre va en escala 0-100 (la que produce ParserMejorado);
+        # la del modelo viene en 0..1. Sin dato del modelo se usa 100 como
+        # antes, para no cambiar el comportamiento de los motores que no la dan.
+        confianza_nombre = (
+            round(confianza_lectura * 100, 1) if confianza_lectura is not None else 100
+        )
+
         items.append({
             "nombre": nombre,
             "cantidad": cantidad_formateada,
             "cantidad_sugerida": cantidad_formateada,
             "unidad": unidad,
             "cantidad_texto": f"{cantidad_formateada} {unidad}",
-            "precio_unitario": 0,
-            "precio_total": 0,
-            "confianza_nombre": 100,
-            "confianza_cantidad": 100,
+            "precio_unitario": precio_unitario if precio_unitario is not None else 0,
+            "precio_total": precio_total if precio_total is not None else 0,
+            "precio_unitario_derivado": item.get("precio_unitario_derivado"),
+            "confianza_nombre": confianza_nombre,
+            "confianza_cantidad": confianza_nombre,
             "es_promocion": False,
             "producto_id": producto_id,
             "categoria": categoria,
             "icono": catalogado.get("icono") if catalogado else None,
             "confianza_match": confianza_match,
             "alternativas": [],
-            "precio_valido": True,
-            "razon_precio": "OK",
+            "precio_valido": precio_valido,
+            "razon_precio": razon_precio,
             "linea_original": nombre,
         })
     return items
@@ -288,6 +314,8 @@ def analizar_ticket():
         items = None
         logger = logging.getLogger(__name__)
         uso_motor_nube = False
+        totales_ticket = None
+        cuadre_ticket = None
 
         if not prefiere_ocr_local:
             claude = ClaudeOCR()
@@ -303,6 +331,8 @@ def analizar_ticket():
                     )
                     if respuesta_ia is not None:
                         items = _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id)
+                        totales_ticket = respuesta_ia.get("totales")
+                        cuadre_ticket = respuesta_ia.get("cuadre")
                         logger.info(
                             "Ticket analizado con Claude Vision: %d items detectados",
                             len(items),
@@ -344,6 +374,22 @@ def analizar_ticket():
 
         # Formatear respuesta para UI con sugerencias
         respuesta = crear_respuesta_usuario(items, db, hogar_id)
+
+        # Totales del pie del ticket y su comprobación aritmética. Solo los da
+        # el motor de vision; con Tesseract van a None y el frontend
+        # simplemente no los muestra.
+        if totales_ticket:
+            respuesta["totales"] = totales_ticket
+        if cuadre_ticket:
+            respuesta["cuadre"] = cuadre_ticket
+            if cuadre_ticket.get("comprobado") and not cuadre_ticket.get("cuadra"):
+                respuesta.setdefault("advertencias", []).append({
+                    "tipo": "descuadre",
+                    "mensaje": (
+                        "La suma de los artículos no coincide con el total del "
+                        "ticket: revisa que no falte ninguno."
+                    ),
+                })
 
     except Exception as e:
         # No se devuelve str(e) al cliente: puede filtrar rutas de fichero
