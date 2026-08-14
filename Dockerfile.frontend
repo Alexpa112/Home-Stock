@@ -59,8 +59,24 @@ RUN if [ -f pnpm-lock.yaml ]; then \
 FROM node:20-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+# apt-get upgrade: la imagen base se publica cada varias semanas y arrastra
+# paquetes de Debian con parche ya disponible. Trivy los marca (y bloquea el
+# build) con razon: aqui si hay algo que hacer, a diferencia de los CVE sin
+# correccion publicada, que se filtran con ignore-unfixed en el workflow.
+# Concretamente traia libgnutls30 con dos CRITICAL (CVE-2026-33845 y
+# CVE-2026-42010) y libcap2 con CVE-2026-4878, todos corregidos en Bookworm.
+#
+# npm install -g npm: el npm que viene en la imagen base empaqueta sus propias
+# dependencias (tar, glob, minimatch, cross-spawn, sigstore, ip-address), y son
+# esas -no las de nuestro package.json, que estan limpias- las que Trivy
+# reportaba, incluida una CRITICAL en tar (CVE-2026-59873). Actualizar npm las
+# renueva de golpe.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g npm@latest \
+    && npm cache clean --force
 
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
