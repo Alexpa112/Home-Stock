@@ -86,6 +86,7 @@ export default function ShoppingPage() {
   const inputImportarRef = useRef<HTMLInputElement>(null)
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
   const [modalEdicionId, setModalEdicionId] = useState<number | null>(null)
+  const [quickAddLoading, setQuickAddLoading] = useState(false)
   const [edicionCompleta, setEdicionCompleta] = useState<{ nombre: string; cantidad: number | null; unidad: string; categoria: string; dias_aviso: number | null }>({ nombre: '', cantidad: 1, unidad: 'ud', categoria: 'Otros', dias_aviso: 30 })
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
   const [catalogoQuery, setCatalogoQuery] = useState('')
@@ -262,7 +263,9 @@ export default function ShoppingPage() {
 
   // Añade directamente un artículo del catálogo (grid de "tocar para añadir").
   const handleQuickAdd = async (item: ArticuloCatalogo) => {
+    if (quickAddLoading) return
     try {
+      setQuickAddLoading(true)
       setError('')
       const creado: any = await articulosLista.anadir(item.nombre, {
         categoria: item.categoria || undefined,
@@ -273,6 +276,8 @@ export default function ShoppingPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : t('err_anadir_articulo')
       setError(message)
+    } finally {
+      setQuickAddLoading(false)
     }
   }
 
@@ -717,7 +722,8 @@ export default function ShoppingPage() {
                     key={`${item.origen}-${item.nombre}`}
                     type="button"
                     onClick={() => handleQuickAdd(item)}
-                    className="card !p-2 flex flex-col items-center text-center gap-1 hover:bg-muted transition-colors"
+                    disabled={quickAddLoading}
+                    className="card !p-2 flex flex-col items-center text-center gap-1 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
                       {item.icono ? (

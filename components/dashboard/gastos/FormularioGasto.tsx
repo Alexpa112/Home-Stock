@@ -94,7 +94,10 @@ export function FormularioGasto({
     (acc, uid) => acc + (parseFloat(form.importesPorMiembro[uid] || '0') || 0),
     0
   )
-  const reparteCuadra = form.seleccionados.size === 0 || Math.abs(sumaReparto - importeTotal) <= TOLERANCIA_REPARTO
+  const todosParticipanesConImporte = Array.from(form.seleccionados).every(
+    (uid) => parseFloat(form.importesPorMiembro[uid] || '0') > 0
+  )
+  const reparteCuadra = form.seleccionados.size === 0 || (Math.abs(sumaReparto - importeTotal) <= TOLERANCIA_REPARTO && todosParticipanesConImporte)
 
   return (
     <form id={id} onSubmit={onSubmit} className="space-y-6">

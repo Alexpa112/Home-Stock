@@ -488,7 +488,14 @@ export default function GastosPage() {
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.usuario_pagador_id || form.seleccionados.size === 0) return
+    if (!form.usuario_pagador_id) {
+      setError(t('err_seleccionar_pagador') || 'Selecciona quién pagó')
+      return
+    }
+    if (form.seleccionados.size === 0) {
+      setError(t('err_sin_participantes') || 'Debe haber al menos un participante')
+      return
+    }
 
     const datos = {
       descripcion: form.descripcion.trim(),
@@ -853,7 +860,7 @@ export default function GastosPage() {
                 <button type="button" onClick={handleGuardarPresupuesto} className="btn-primary !px-4">{t('guardar')}</button>
                 <button type="button" onClick={() => setEditandoPresupuesto(false)} className="btn-secondary !px-4">{t('cancelar')}</button>
               </div>
-            ) : resumenMes?.presupuesto_mensual ? (
+            ) : resumenMes?.presupuesto_mensual !== null && resumenMes?.presupuesto_mensual !== undefined ? (
               <>
                 <div className="flex items-baseline justify-between">
                   <span className="text-lg font-bold tabular-nums">{formatImporte(resumenMes.gasto_mes, simboloMoneda)}</span>
