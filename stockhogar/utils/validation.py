@@ -48,6 +48,31 @@ class Validator:
         return max(minimo, min(numero, maximo))
 
     @staticmethod
+    def cantidad_stock(valor: Any, nombre_campo: str = "cantidad", maximo: float = 100_000) -> float:
+        """Valida una cantidad de stock, que puede ser fraccionaria.
+
+        No se puede usar entero_no_negativo aquí: hace int(valor), que TRUNCA
+        en silencio. Como el escáner de tickets trabaja con unidades de peso y
+        volumen (kg, g, l, ml), un artículo a granel llega con cantidades como
+        0,850 kg, y truncar lo convertía en 0: el artículo se daba por
+        importado pero entraba al stock con cero unidades.
+
+        Se devuelve int cuando el valor es entero para no ensuciar con ".0" las
+        cantidades normales (la columna es INTEGER; SQLite guarda el decimal
+        como REAL solo cuando de verdad lo hay).
+        """
+        try:
+            numero = round(float(valor), 3)
+        except (TypeError, ValueError) as e:
+            raise ValidationError(f"La {nombre_campo} debe ser un número") from e
+        if numero != numero or numero in (float("inf"), float("-inf")):
+            raise ValidationError(f"La {nombre_campo} debe ser un número")
+        if numero < 0:
+            raise ValidationError(f"La {nombre_campo} no puede ser negativa")
+        numero = min(numero, maximo)
+        return int(numero) if numero == int(numero) else numero
+
+    @staticmethod
     def decimal_positivo(valor: Any, nombre_campo: str, maximo: float = 1_000_000) -> float:
         """Valida un importe monetario: número positivo, redondeado a 2
         decimales, con un tope superior para evitar importes absurdos."""

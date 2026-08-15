@@ -36,6 +36,28 @@ def test_separador_de_millares_no_se_confunde_con_decimal():
     assert normalizar_importe("1 250,00") == 1250.00
 
 
+def test_formato_anglosajon_se_lee_igual_de_bien():
+    # Regresion: se asumia que el decimal era siempre la coma, asi que
+    # "1,250.00" se leia como 1,25 EUR y "12,345" como 12,34. Una factura en
+    # formato anglosajon entraba con importes ~1000 veces menores.
+    assert normalizar_importe("1,250.00") == 1250.00
+    assert normalizar_importe("12,345") == 12345.00
+    assert normalizar_importe("1,250,000.50") == 1250000.50
+
+
+def test_un_separador_con_tres_digitos_es_millares_en_ambos_formatos():
+    assert normalizar_importe("1.250") == 1250.00
+    assert normalizar_importe("1,250") == 1250.00
+    assert normalizar_importe("1.250.000") == 1250000.00
+
+
+def test_pero_con_parte_entera_cero_son_decimales():
+    # "0,850" son ochocientos cincuenta gramos expresados con 3 decimales,
+    # no ochocientos cincuenta: nadie escribe los millares empezando por 0.
+    assert normalizar_importe("0,850") == 0.85
+    assert normalizar_importe("0.850") == 0.85
+
+
 def test_importe_negativo_de_un_descuento():
     assert normalizar_importe("-0,50") == -0.50
 

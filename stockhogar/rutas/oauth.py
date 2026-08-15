@@ -23,6 +23,12 @@ APPLE_AUTH_URL = "https://appleid.apple.com/auth/authorize"
 APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
 APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
 
+# Parametro con el que se le pide a la pantalla de login que abra directamente
+# el formulario del codigo 2FA (ver los callbacks de mas abajo). El frontend lo
+# lee en app/page.tsx; si se renombra aqui hay que renombrarlo alli, y
+# test_oauth_2fa_redirect.py falla a proposito si solo se cambia en un lado.
+PARAM_CODIGO_2FA = "codigo_2fa"
+
 # Cliente JWKS de Apple: cachea las claves publicas y las refresca solas
 # cuando aparece un "kid" que no conoce.
 _apple_jwks_client = PyJWKClient(APPLE_JWKS_URL)
@@ -169,8 +175,16 @@ def oauth_google_callback():
             from .auth import _generar_y_enviar_codigo
             _generar_y_enviar_codigo(db, usuario_id, fila_usuario["email"])
             session["pendiente_2fa_usuario_id"] = usuario_id
-            # Redirigir a una página de espera de código (el frontend debe manejarla)
-            return redirect(f"{APP_URL}/verificar-codigo-2fa?metodo=oauth")
+            # A la pantalla de login con el formulario del código ya abierto.
+            # Antes esto apuntaba a "/verificar-codigo-2fa", una página que no
+            # existe en el frontend: el usuario con 2FA que entraba por OAuth
+            # se comía un 404 y no podía terminar de iniciar sesión (y si su
+            # cuenta se creó con OAuth no tiene contraseña con la que entrar
+            # por el otro camino). El formulario del código vive dentro de la
+            # propia pantalla de login (app/page.tsx), que lo abre al ver este
+            # parámetro; desde ahí llama a /api/auth/verificar-codigo, que lee
+            # el pendiente_2fa_usuario_id que acabamos de guardar.
+            return redirect(f"{APP_URL}/?{PARAM_CODIGO_2FA}=1")
 
         # Si no tiene 2FA, crear sesión directamente
         session["usuario"] = fila_usuario["nombre_usuario"]
@@ -309,8 +323,16 @@ def oauth_apple_callback():
             from .auth import _generar_y_enviar_codigo
             _generar_y_enviar_codigo(db, usuario_id, fila_usuario["email"])
             session["pendiente_2fa_usuario_id"] = usuario_id
-            # Redirigir a una página de espera de código (el frontend debe manejarla)
-            return redirect(f"{APP_URL}/verificar-codigo-2fa?metodo=oauth")
+            # A la pantalla de login con el formulario del código ya abierto.
+            # Antes esto apuntaba a "/verificar-codigo-2fa", una página que no
+            # existe en el frontend: el usuario con 2FA que entraba por OAuth
+            # se comía un 404 y no podía terminar de iniciar sesión (y si su
+            # cuenta se creó con OAuth no tiene contraseña con la que entrar
+            # por el otro camino). El formulario del código vive dentro de la
+            # propia pantalla de login (app/page.tsx), que lo abre al ver este
+            # parámetro; desde ahí llama a /api/auth/verificar-codigo, que lee
+            # el pendiente_2fa_usuario_id que acabamos de guardar.
+            return redirect(f"{APP_URL}/?{PARAM_CODIGO_2FA}=1")
 
         # Si no tiene 2FA, crear sesión directamente
         session["usuario"] = fila_usuario["nombre_usuario"]

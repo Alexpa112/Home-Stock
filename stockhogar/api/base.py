@@ -1,9 +1,44 @@
 """Base OOP para blueprints API - Patrón de responsabilidad única."""
 from functools import wraps
-from flask import jsonify, session
+from flask import g, jsonify, session
 from ..utils.validation import ValidationError
 from ..translator import traducir
 from ..db import get_db
+
+
+def session_version_en_bd():
+    """session_version que la BD tiene para el usuario de la sesión.
+
+    Devuelve None si no hay usuario en sesión o la cuenta ya no existe. El
+    resultado se cachea en `g` porque lo consultan tanto el guardián global
+    (exigir_sesion) como este decorador, y sin la caché serían dos consultas
+    por petición.
+    """
+    if "session_version_bd" in g:
+        return g.session_version_bd
+
+    usuario_id = session.get("usuario_id")
+    fila = None
+    if usuario_id:
+        fila = get_db().execute(
+            "SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)
+        ).fetchone()
+    g.session_version_bd = fila["session_version"] if fila else None
+    return g.session_version_bd
+
+
+def sesion_revocada() -> bool:
+    """True si la cookie trae una session_version que la BD ya no reconoce.
+
+    Ocurre tras un cambio de contraseña, un reset, desactivar el 2FA o pulsar
+    "cerrar otras sesiones". Solo se exige si la cookie YA trae
+    session_version: una sesión anterior al despliegue que introdujo el campo
+    se deja pasar hasta que se renueve con un login nuevo, para no forzar un
+    cierre de sesión masivo de cookies válidas ya emitidas.
+    """
+    if "session_version" not in session or not session.get("usuario_id"):
+        return False
+    return session.get("session_version") != session_version_en_bd()
 
 
 class APIResponse:
@@ -64,23 +99,16 @@ def requerir_sesion(f):
         usuario_id = session.get("usuario_id")
         if not usuario_id:
             return APIResponse.no_autorizado()
-        fila = get_db().execute(
-            "SELECT session_version FROM usuarios WHERE id = ?", (usuario_id,)
-        ).fetchone()
-        if not fila:
+        if session_version_en_bd() is None:
+            # La cuenta ya no existe (borrada desde otro dispositivo, BD
+            # restaurada...). Sin esto el usuario_id fantasma llega a los
+            # INSERT con FK hacia `usuarios` y sale un 500 en vez de un 401.
             session.clear()
             return APIResponse.no_autorizado()
-        # session_version (S-08): si no coincide con la BD, esta sesion se
-        # invalido explicitamente (cambio de password, reset, desactivar
-        # 2FA o "cerrar otras sesiones") desde otro dispositivo/momento.
-        # Mismo trato que una cuenta borrada: limpiar y pedir volver a
-        # entrar, en vez de dejar pasar una sesion que ya no deberia valer.
-        # Solo se exige si la cookie YA trae session_version (todas las
-        # rutas de login/registro/OAuth lo fijan desde este cambio): una
-        # sesion de ANTES de este despliegue no lo tiene y se deja pasar tal
-        # cual hasta que se renueve con un login nuevo, para no forzar un
-        # cierre de sesion masivo de cookies validas ya emitidas.
-        if "session_version" in session and session.get("session_version") != fila["session_version"]:
+        # session_version (S-08): ver sesion_revocada(). El guardián global ya
+        # limpia la sesión en este caso, pero se comprueba también aquí para
+        # que el decorador siga siendo autosuficiente.
+        if sesion_revocada():
             session.clear()
             return APIResponse.no_autorizado()
         return f(*args, **kwargs)

@@ -186,6 +186,23 @@ def create_app():
 
     @app.before_request
     def exigir_sesion():
+        # Antes de mirar nada mas: si la cookie trae una session_version que la
+        # BD ya no reconoce, la sesion esta revocada y se descarta aqui, para
+        # TODAS las rutas. La comprobacion vivia solo dentro de @requerir_sesion,
+        # asi que las rutas que leen la sesion sin ese decorador -entre ellas
+        # /api/auth/estado, que devuelve email, nombre y preferencias- seguian
+        # sirviendo los datos del usuario con una cookie robada aunque la
+        # victima hubiera pulsado "cerrar otras sesiones" o cambiado la
+        # contraseña, durante los 365 dias de vida de la cookie.
+        #
+        # Se limpia y se sigue el flujo normal: en una ruta publica la peticion
+        # continua ya sin sesion (estado dira "no hay usuario", y el login puede
+        # rehacerse con normalidad), y en una protegida cae en el 401/redirect
+        # de aqui abajo.
+        from .api.base import sesion_revocada
+        if sesion_revocada():
+            session.clear()
+
         if request.endpoint in RUTAS_PUBLICAS:
             return None
         if not session.get("usuario"):

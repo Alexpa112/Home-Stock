@@ -26,19 +26,74 @@ _TOLERANCIA_LINEA = 0.02
 _TOLERANCIA_FIJA_TOTAL = 0.05
 _TOLERANCIA_POR_ARTICULO = 0.01
 
-# Un importe puede venir con símbolo delante o detrás, con el código de
-# divisa, y con coma o punto decimal. El separador de millares (raro en un
-# ticket de supermercado, habitual en una factura de mayorista) se retira
-# antes de convertir.
+# Un importe puede venir con símbolo delante o detrás y con el código de
+# divisa. Aquí solo se recorta el número completo (dígitos con sus posibles
+# separadores); decidir cuál de ellos es el decimal se hace aparte, en
+# _texto_a_numero, porque depende de todo el número y no se puede expresar
+# bien en la propia expresión regular.
 _RE_IMPORTE = re.compile(
     r"""
     (?P<signo>-)?\s*
     (?:[€$]|eur|usd)?\s*
-    (?P<numero>\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)
+    (?P<numero>\d(?:[\d.,\s]*\d)?)
     \s*(?:[€$]|eur|usd)?
     """,
     re.IGNORECASE | re.VERBOSE,
 )
+
+
+def _texto_a_numero(numero: str) -> Optional[float]:
+    """Interpreta el número de un importe decidiendo cuál es su separador
+    decimal, para leer igual de bien "1.250,00" que "1,250.00".
+
+    Antes se asumía que el decimal era siempre la coma y que los millares
+    solo se escribían con punto o espacio. Con eso, un importe en formato
+    anglosajón se malinterpretaba en silencio: "1,250.00" se leía como 1,25 €
+    (y "12,345" como 12,34), así que una factura de mayorista en ese formato
+    entraba con importes ~1000 veces menores.
+
+    Reglas, en orden:
+    - Los espacios siempre son millares.
+    - Si aparecen los dos separadores, el decimal es el ÚLTIMO que aparece y
+      el otro es de millares ("1.250,00" -> coma decimal; "1,250.00" -> punto).
+    - Si solo aparece uno y está repetido, es de millares ("1.250.000").
+    - Si solo aparece uno y va seguido de exactamente 3 dígitos, es de
+      millares ("1.250" y "12,345" son 1250 y 12345 en sus respectivos
+      formatos)... salvo que la parte entera sea 0, porque "0,850" es un valor
+      con tres decimales, no ochocientos cincuenta.
+    - En cualquier otro caso es el separador decimal ("1,99", "1.99").
+    """
+    numero = numero.replace(" ", "")
+    if not numero:
+        return None
+
+    pos_punto = numero.rfind(".")
+    pos_coma = numero.rfind(",")
+
+    if pos_punto != -1 and pos_coma != -1:
+        decimal = "." if pos_punto > pos_coma else ","
+    elif pos_punto != -1 or pos_coma != -1:
+        separador = "." if pos_punto != -1 else ","
+        entero, _, ultimo_grupo = numero.rpartition(separador)
+        repetido = entero.count(separador) > 0
+        parte_entera_es_cero = entero.replace(separador, "").lstrip("0") == ""
+        if repetido or (len(ultimo_grupo) == 3 and not parte_entera_es_cero):
+            decimal = None  # todos son de millares
+        else:
+            decimal = separador
+    else:
+        decimal = None
+
+    if decimal is None:
+        limpio = numero.replace(".", "").replace(",", "")
+    else:
+        millares = "," if decimal == "." else "."
+        limpio = numero.replace(millares, "").replace(decimal, ".")
+
+    try:
+        return float(limpio)
+    except ValueError:
+        return None
 
 
 def normalizar_importe(valor) -> Optional[float]:
@@ -61,19 +116,8 @@ def normalizar_importe(valor) -> Optional[float]:
     if not match:
         return None
 
-    numero = match.group("numero")
-    # Separador de millares: se quita antes de decidir el decimal. Un punto o
-    # espacio seguido de exactamente 3 dígitos que no es el final de la cadena
-    # es millares ("1.250,00"); el último separador con 1-2 decimales es el
-    # decimal real.
-    numero = re.sub(r"[.\s](?=\d{3}(?:[.,]|$))", "", numero)
-    numero = numero.replace(",", ".")
-
-    try:
-        resultado = float(numero)
-    except ValueError:
-        return None
-    if not math.isfinite(resultado):
+    resultado = _texto_a_numero(match.group("numero"))
+    if resultado is None or not math.isfinite(resultado):
         return None
     if match.group("signo"):
         resultado = -resultado
