@@ -186,18 +186,20 @@ def registrar():
         "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
     ).fetchone()
     if existente:
-        return APIResponse.error("err_usuario_duplicado", 400)
-
-    db.execute(
-        "INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion, terminos_version_aceptada, terminos_fecha_aceptacion) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (nombre_usuario, generate_password_hash(password), ahora(), VERSION_TERMINOS, ahora()),
-    )
-
-    # Iniciar sesión automáticamente después de registrar
-    usuario = db.execute(
-        "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
-    ).fetchone()
+        usuario = existente
+    else:
+        try:
+            db.execute(
+                "INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion, terminos_version_aceptada, terminos_fecha_aceptacion) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (nombre_usuario, generate_password_hash(password), ahora(), VERSION_TERMINOS, ahora()),
+            )
+            db.commit()
+            usuario = db.execute(
+                "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
+            ).fetchone()
+        except Exception:
+            raise ValidationError("No se pudo completar el registro")
 
     auditoria.registrar(db, "registro", usuario_id=usuario["id"], ip=ip_cliente())
     db.commit()
@@ -363,6 +365,8 @@ def reenviar_codigo_dos_pasos():
 
     _generar_y_enviar_codigo(db, usuario_id, fila["email"])
     _registrar_intento_2fa(db, usuario_id, "reenvio")
+    db.execute("DELETE FROM intentos_2fa WHERE usuario_id = ? AND tipo = 'verificar'", (usuario_id,))
+    db.commit()
     return APIResponse.success({"reenviado": True})
 
 

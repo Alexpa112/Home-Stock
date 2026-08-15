@@ -68,7 +68,7 @@ def log_client_error():
         return APIResponse.error("err_demasiadas_peticiones", 429)
 
     datos = request.get_json(force=True) or {}
-    nivel = datos.get("nivel", "info").lower()  # info, warning, error
+    nivel = (datos.get("nivel") or "info").lower()  # info, warning, error
     mensaje = str(datos.get("mensaje", ""))
     contexto = datos.get("contexto", {})
 

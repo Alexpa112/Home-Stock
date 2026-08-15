@@ -69,6 +69,8 @@ def crear_lista():
     color = Validator.color_hex(datos.get("color"), "#B5551A")
     simbolo_moneda = Validator.string_opcional(datos.get("simbolo_moneda"), "€", 5)
     privada = datos.get("privada", True)
+    if not isinstance(privada, bool):
+        raise ValidationError("privada debe ser verdadero o falso")
 
     db = get_db()
     total_propios = db.execute(
@@ -81,7 +83,7 @@ def crear_lista():
         """INSERT INTO hogares
            (nombre, descripcion, usuario_propietario_id, privada, icono, color, simbolo_moneda, fecha_creacion, fecha_actualizacion)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-        (nombre, descripcion, usuario_id, int(privada), icono, color, simbolo_moneda, ahora(), ahora()),
+        (nombre, descripcion, usuario_id, 1 if privada else 0, icono, color, simbolo_moneda, ahora(), ahora()),
     )
     nueva_lista_id = cur.fetchone()["id"]
 
@@ -173,8 +175,11 @@ def actualizar_lista(hogar_id):
         parametros.append(presupuesto_mensual)
 
     if "privada" in datos:
+        privada = datos.get("privada", True)
+        if not isinstance(privada, bool):
+            raise ValidationError("privada debe ser verdadero o falso")
         actualizaciones["privada"] = "?"
-        parametros.append(int(datos.get("privada", True)))
+        parametros.append(1 if privada else 0)
 
     if not actualizaciones:
         return APIResponse.error("err_nada_que_actualizar", 400)
