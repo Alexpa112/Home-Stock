@@ -45,10 +45,12 @@ class MatcherInteligente:
                 "calabacín", "berenjena", "pepino", "pimiento", "brócoli",
                 "coliflor", "ajo", "cebollino", "perejil", "lechuga", "espinaca"
             ],
-            "Carnes y Pescados": [
+            "Carnes y Embutidos": [
                 "pollo", "pavo", "cerdo", "ternera", "cordero", "jamón",
                 "pechuga", "costilla", "filete", "carne", "embutido",
-                "salchichón", "mortadela", "chorizo", "fuet", "jamón",
+                "salchichón", "mortadela", "chorizo", "fuet"
+            ],
+            "Pescados y Mariscos": [
                 "pescado", "salmón", "trucha", "merluza", "bacalao",
                 "camarones", "langostino", "marisco", "mejillón", "ostra"
             ],
@@ -62,19 +64,19 @@ class MatcherInteligente:
                 "lejía", "limpiahogar", "quitalmanchas", "suavizante",
                 "deshollinador", "desatascador", "alambre", "estropajo"
             ],
-            "Higiene y Cuidado Personal": [
+            "Higiene": [
                 "papel", "pañuelos", "toallitas", "desodorante", "champú",
                 "jabón", "gel", "crema", "loción", "cepillo", "pasta dental",
                 "enjuague", "toalla", "servilleta", "tampones", "compresas",
-                "pañales", "toallitas húmedas", "desinfectante"
+                "toallitas húmedas"
             ],
             "Congelados": [
                 "congelado", "helado", "fruta congelada", "verdura congelada",
                 "pizza", "hamburguesa", "croqueta", "gamba", "filete", "nugget"
             ],
-            "Bebé y Niños": [
-                "pañal", "toallita", "biberón", "chupete", "papilla",
-                "leche infantil", "fortimel", "nutribén", "nestlé"
+            "Bebé": [
+                "pañal", "biberón", "chupete", "papilla",
+                "leche infantil", "fortimel", "nutribén"
             ],
             "Mascotas": [
                 "pienso", "comida", "perro", "gato", "pájaro", "pez",

@@ -31,7 +31,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
 
       // Sincronizar tema del backend con la clase CSS y localStorage
-      const tema = datos.usuario.tema_preferido || 'auto'
+      const tema = datos.tema_preferido || 'auto'
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
       const usarDark = tema === 'dark' || (tema === 'auto' && prefersDark)
       document.documentElement.classList.toggle('dark', usarDark)

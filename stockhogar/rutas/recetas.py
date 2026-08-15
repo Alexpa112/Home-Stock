@@ -35,6 +35,8 @@ def _validar_ingredientes(ingredientes):
 
     validados = []
     for ing in ingredientes:
+        if not isinstance(ing, dict):
+            raise ValidationError("cada ingrediente debe ser un objeto JSON")
         nombre = Validator.string_requerido(ing.get("nombre"), "nombre del ingrediente", 80)
         cantidad = Validator.entero_minimo(ing.get("cantidad") or 1, "cantidad")
         unidad = Validator.string_opcional(ing.get("unidad"), "ud", 20)

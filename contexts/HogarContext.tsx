@@ -27,6 +27,7 @@ interface HogarContextType {
   compartidos: Hogar[]
   hogarActivoId: number | null
   loading: boolean
+  error: string | null
   seleccionar: (id: number) => Promise<void>
   crear: (nombre: string) => Promise<void>
   refrescar: () => Promise<void>
@@ -43,6 +44,7 @@ export function HogarProvider({ children }: { children: ReactNode }) {
   const [compartidos, setCompartidos] = useState<Hogar[]>([])
   const [hogarActivoId, setHogarActivoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [avisoTemaHogar, setAvisoTemaHogar] = useState<string | null>(null)
 
   // Ultimo icono/color visto por hogar, para detectar si el hogar activo
@@ -57,6 +59,7 @@ export function HogarProvider({ children }: { children: ReactNode }) {
   const cargar = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       const data: any = await hogaresApi.listar()
       const todos: Hogar[] = [...(data.propias || []), ...(data.compartidas || [])]
       const hogarActivoIdNuevo = data.hogar_actual_id ?? null
@@ -79,9 +82,8 @@ export function HogarProvider({ children }: { children: ReactNode }) {
       setPropios(data.propias || [])
       setCompartidos(data.compartidas || [])
       setHogarActivoId(hogarActivoIdNuevo)
-    } catch {
-      // Sin conexion: se mantiene el estado anterior; ProtectedRoute ya
-      // habra redirigido si de verdad no hay sesion.
+    } catch (e) {
+      setError(t('err_cargar_hogares') || 'Error al cargar los hogares')
     } finally {
       setLoading(false)
     }
@@ -133,6 +135,7 @@ export function HogarProvider({ children }: { children: ReactNode }) {
         compartidos,
         hogarActivoId,
         loading,
+        error,
         seleccionar,
         crear,
         refrescar: cargar,

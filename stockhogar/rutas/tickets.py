@@ -111,7 +111,9 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
         precio_total = item.get("precio_total")
         confianza_lectura = item.get("confianza")
 
-        if precio_total is not None and precio_total > 0:
+        if precio_unitario is not None and precio_unitario > 0:
+            precio_valido, razon_precio = matcher.validar_precio(precio_unitario, categoria)
+        elif precio_total is not None and precio_total > 0:
             precio_valido, razon_precio = matcher.validar_precio(precio_total, categoria)
         else:
             precio_valido, razon_precio = True, "sin_precio"
@@ -461,7 +463,10 @@ def confirmar_ticket():
 
         producto_id = item.get("producto_id")
         if producto_id:
-            producto_id = int(producto_id)
+            try:
+                producto_id = int(producto_id)
+            except (TypeError, ValueError):
+                raise ValidationError("producto_id debe ser un número entero")
             # El producto_id lo elige el cliente: hay que comprobar que
             # pertenece a ESTE hogar antes de usarlo. sumar_stock ya lo hacia,
             # pero registrar_precio no, y se acababan insertando filas de

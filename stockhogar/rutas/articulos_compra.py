@@ -206,7 +206,7 @@ def anadir_o_sumar_articulo(
     sub_descripcion = (sub_descripcion or "").strip() or (
         recuerdo["sub_descripcion"] if recuerdo else None
     )
-    dias_aviso = int(dias_aviso or (recuerdo["dias_aviso"] if recuerdo else DIAS_AVISO_DEFECTO))
+    dias_aviso = Validator.entero_minimo(dias_aviso or (recuerdo["dias_aviso"] if recuerdo else DIAS_AVISO_DEFECTO), "días de aviso", 0, 365)
     codigo_barras = (codigo_barras or "").strip() or None
 
     # ===== LÓGICA NUEVA: Artículos Personalizados =====
@@ -370,17 +370,18 @@ def actualizar_articulo(item_id):
 
     if CAMPOS_EDITABLES & datos.keys():
         actual = DataConverter.articulo_lista_to_dict(fila)
-        nombre = (datos.get("nombre") or actual["nombre"]).strip() or actual["nombre"]
+        nombre = (datos.get("nombre") or actual["nombre"] or "").strip() or actual["nombre"]
         if "cantidad" in datos:
             cantidad = Validator.entero_minimo(datos.get("cantidad") or 1, "cantidad")
         else:
             cantidad = actual["cantidad"]
-        unidad = (datos.get("unidad") or actual["unidad"]).strip() or actual["unidad"]
+        unidad = (datos.get("unidad") or actual["unidad"] or "").strip() or actual["unidad"]
         categoria = normalizar_categoria(db, datos.get("categoria", actual["categoria"]))
         icono = (datos.get("icono", actual["icono"]) or "").strip() or None
         sub_descripcion = (datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
-        dias_aviso = int(
-            Validator.con_defecto(datos, "dias_aviso", actual.get("dias_aviso") or DIAS_AVISO_DEFECTO)
+        dias_aviso = Validator.entero_minimo(
+            Validator.con_defecto(datos, "dias_aviso", actual.get("dias_aviso") or DIAS_AVISO_DEFECTO),
+            "días de aviso", 0, 365
         )
 
         # Si el ítem aún apunta al catálogo estándar (sin articulo_personalizado_id)
@@ -576,10 +577,10 @@ def actualizar_articulo_personalizado(articulo_id):
         return APIResponse.error("err_nada_que_actualizar", 400)
 
     # Actualizar campos permitidos
-    nombre = (datos.get("nombre") or articulo["nombre"]).strip()
+    nombre = (datos.get("nombre") or articulo["nombre"] or "").strip()
     categoria = normalizar_categoria(db, datos.get("categoria") or articulo["categoria"])
     icono = (datos.get("icono") or articulo["icono"] or "").strip() or None
-    unidad = (datos.get("unidad") or articulo["unidad"]).strip()
+    unidad = (datos.get("unidad") or articulo["unidad"] or "").strip()
     sub_descripcion = (datos.get("sub_descripcion") or articulo["sub_descripcion"] or "").strip() or None
     dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", articulo["dias_aviso"]))
 

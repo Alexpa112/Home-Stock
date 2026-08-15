@@ -120,22 +120,20 @@ def buscar_catalogo():
     personalizados = []
     hogar_id = hogar_actual_con_permiso(db, session)
     if hogar_id:
-        propietario = db.execute(
-            "SELECT usuario_propietario_id FROM hogares WHERE id = ?", (hogar_id,)
-        ).fetchone()
-        if propietario:
-            if query:
-                personalizados = db.execute(
-                    "SELECT nombre, icono, categoria, unidad FROM articulos_personalizados "
-                    "WHERE usuario_propietario_id = ? AND LOWER(nombre) LIKE LOWER(?) "
-                    "ORDER BY LOWER(nombre) LIMIT 30",
-                    (propietario["usuario_propietario_id"], like),
-                ).fetchall()
-            else:
-                personalizados = db.execute(
-                    "SELECT nombre, icono, categoria, unidad FROM articulos_personalizados "
-                    "WHERE usuario_propietario_id = ? ORDER BY LOWER(nombre) LIMIT 30",
-                    (propietario["usuario_propietario_id"],),
+        if query:
+            personalizados = db.execute(
+                "SELECT DISTINCT nombre, icono, categoria, unidad FROM articulos_personalizados ap "
+                "WHERE ap.usuario_propietario_id IN (SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
+                "AND LOWER(ap.nombre) LIKE LOWER(?) "
+                "ORDER BY LOWER(ap.nombre) LIMIT 30",
+                (hogar_id, like),
+            ).fetchall()
+        else:
+            personalizados = db.execute(
+                "SELECT DISTINCT nombre, icono, categoria, unidad FROM articulos_personalizados ap "
+                "WHERE ap.usuario_propietario_id IN (SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
+                "ORDER BY LOWER(ap.nombre) LIMIT 30",
+                (hogar_id,),
                 ).fetchall()
 
     resultado = (

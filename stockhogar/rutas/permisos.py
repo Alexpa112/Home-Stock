@@ -207,11 +207,14 @@ def actualizar_permiso(hogar_id, usuario_id):
     if nivel not in ["ver", "comprar", "editar"]:
         return APIResponse.error("err_nivel_invalido", 400)
 
-    db.execute(
+    cur = db.execute(
         "UPDATE permisos_hogar SET nivel = ? WHERE hogar_id = ? AND usuario_id = ?",
         (nivel, hogar_id, usuario_id)
     )
     db.commit()
+
+    if cur.rowcount == 0:
+        return APIResponse.error("err_usuario_no_es_miembro", 404)
 
     return APIResponse.success({"mensaje": "Permiso actualizado"})
 

@@ -6,7 +6,7 @@ hogar: OCR + comprensión del documento en una sola llamada.
 
 Requiere ANTHROPIC_API_KEY (ver .env.example). Sin esa clave, sin el paquete
 `anthropic` instalado, o si la llamada falla (sin red, cuota agotada...), el
-flujo cae al pipeline local con Tesseract (ver gestor_ocr.py / rutas/tickets.py).
+flujo cae al pipeline local con Tesseract (ver rutas/tickets.py).
 
 Decisiones de diseño que afectan a la fiabilidad del reconocimiento:
 

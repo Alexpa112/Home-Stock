@@ -189,6 +189,8 @@ def crear_gasto():
     reparto = []
     suma_reparto = 0.0
     for participante in participantes:
+        if not isinstance(participante, dict):
+            raise ValidationError("cada participante debe ser un objeto JSON")
         usuario_id = participante.get("usuario_id")
         if usuario_id not in miembros_ids:
             raise ValidationError("Todos los participantes deben ser miembros del hogar")
@@ -850,6 +852,8 @@ def crear_gasto_recurrente():
     reparto = []
     suma_reparto = 0.0
     for participante in participantes:
+        if not isinstance(participante, dict):
+            raise ValidationError("cada participante debe ser un objeto JSON")
         usuario_id = participante.get("usuario_id")
         if usuario_id not in miembros_ids:
             raise ValidationError("Todos los participantes deben ser miembros del hogar")

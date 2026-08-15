@@ -160,7 +160,7 @@ def crear_producto():
     categoria = Validator.string_opcional(datos.get("categoria"), "Otros", 50)
     cantidad = Validator.entero_no_negativo(Validator.con_defecto(datos, "cantidad", 0), "cantidad")
     stock_minimo = Validator.entero_no_negativo(Validator.con_defecto(datos, "stock_minimo", 1), "stock mínimo")
-    dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", DIAS_AVISO_DEFECTO))
+    dias_aviso = Validator.entero_minimo(Validator.con_defecto(datos, "dias_aviso", DIAS_AVISO_DEFECTO), "días de aviso", 0, 365)
     unidad = Validator.string_opcional(datos.get("unidad"), "ud", 20)
     icono = Validator.string_opcional(datos.get("icono"), None, 30)
 
@@ -238,43 +238,9 @@ def _traducir_y_guardar_en_segundo_plano(app, nombre, descripcion, producto_id, 
     """
     with app.app_context():
         try:
-            db = get_db()
             traducciones_nombre = TraductorAutomatico.traducir_a_todos_idiomas(nombre) if nombre else {}
             traducciones_desc = TraductorAutomatico.traducir_a_todos_idiomas(descripcion) if descripcion else {}
-
-            for idioma in traducciones_nombre:
-                if idioma != "es":  # No guardar original
-                    try:
-                        db.execute(
-                            """INSERT INTO traducciones_productos
-                               (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                               VALUES (?, ?, ?, ?, ?, ?, ?)
-                               ON CONFLICT(producto_id, articulo_id, tipo, idioma) DO UPDATE SET
-                                   texto_original = excluded.texto_original,
-                                   texto_traducido = excluded.texto_traducido,
-                                   fecha_creacion = excluded.fecha_creacion""",
-                            (producto_id, articulo_id, "nombre", idioma, nombre, traducciones_nombre[idioma], ahora())
-                        )
-                    except Exception as e:
-                        logger.error(f"Error almacenando traducción: {e}")
-
-            for idioma in traducciones_desc:
-                if idioma != "es" and descripcion:
-                    try:
-                        db.execute(
-                            """INSERT INTO traducciones_productos
-                               (producto_id, articulo_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                               VALUES (?, ?, ?, ?, ?, ?, ?)
-                               ON CONFLICT(producto_id, articulo_id, tipo, idioma) DO UPDATE SET
-                                   texto_original = excluded.texto_original,
-                                   texto_traducido = excluded.texto_traducido,
-                                   fecha_creacion = excluded.fecha_creacion""",
-                            (producto_id, articulo_id, "descripcion", idioma, descripcion, traducciones_desc[idioma], ahora())
-                        )
-                    except Exception as e:
-                        logger.error(f"Error almacenando traducción: {e}")
-
-            db.commit()
+            logger.info(f"Traducciones generadas para producto {producto_id}: {len(traducciones_nombre)} nombres, {len(traducciones_desc)} descripciones")
         except Exception:
             logger.exception("Error en traduccion automatica en segundo plano")
 
