@@ -441,7 +441,11 @@ def confirmar_ticket():
         if not nombre:
             continue
         nombre = Validator.string_requerido(nombre, "nombre", 80)
-        cantidad = Validator.entero_no_negativo(Validator.con_defecto(item, "cantidad", 1), "cantidad")
+        # cantidad_stock, no entero_no_negativo: este endpoint acepta unidades
+        # de peso/volumen (ver _UNIDADES_VALIDAS), asi que "0,850 kg" es una
+        # cantidad legitima. Con int() se truncaba a 0 y el articulo entraba al
+        # stock vacio mientras la respuesta decia que se habia importado.
+        cantidad = Validator.cantidad_stock(Validator.con_defecto(item, "cantidad", 1))
         unidad = (item.get("unidad") or "ud").strip().lower() or "ud"
         if unidad not in _UNIDADES_VALIDAS:
             unidad = "ud"

@@ -950,3 +950,23 @@ LIMITE_RECIBOS_DIARIO_POR_USUARIO = 30
 # servicios/password_pwned.py para la comprobacion contra contraseñas
 # filtradas (Have I Been Pwned).
 LONGITUD_PASSWORD_MINIMA = 10
+
+# Redes desde las que se acepta que una peticion venga de nuestro propio proxy
+# y, por tanto, que su cabecera CF-Connecting-IP sea de fiar (ver red.py).
+#
+# La cadena real es: Internet -> Cloudflare Tunnel -> frontend (Next) -> Flask,
+# asi que a Flask siempre le llega desde una direccion privada de la red de
+# Docker. Una peticion que llegue desde una IP publica NO ha pasado por ese
+# proxy y su cabecera es, por definicion, la que haya querido poner el cliente.
+#
+# Por defecto: loopback y los rangos privados (RFC1918 y sus equivalentes IPv6).
+# Se puede ajustar con PROXIES_CONFIABLES (lista separada por comas); dejarla
+# vacia desactiva por completo la confianza en la cabecera.
+PROXIES_CONFIABLES = [
+    rango.strip()
+    for rango in os.getenv(
+        "PROXIES_CONFIABLES",
+        "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1/128,fc00::/7",
+    ).split(",")
+    if rango.strip()
+]

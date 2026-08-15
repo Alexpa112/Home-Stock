@@ -61,7 +61,14 @@ function HomeContent() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [requiereCodigo, setRequiereCodigo] = useState(false)
+  // 'codigo_2fa=1' lo pone el callback OAuth (stockhogar/rutas/oauth.py,
+  // PARAM_CODIGO_2FA) cuando el usuario tiene 2FA activo: la sesion aun no
+  // existe, solo queda pendiente meter el codigo, asi que se abre directamente
+  // este formulario en vez del de usuario/contrasena. El login por contrasena
+  // llega al mismo sitio por otra via (respuesta.requiere_codigo, mas abajo).
+  const [requiereCodigo, setRequiereCodigo] = useState(
+    searchParams.get('codigo_2fa') === '1'
+  )
   const [codigo, setCodigo] = useState('')
   const [aceptaTerminos, setAceptaTerminos] = useState(false)
   const [reenviando, setReenviando] = useState(false)
