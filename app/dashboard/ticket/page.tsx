@@ -200,17 +200,23 @@ export default function EscanearTicketPage() {
                       inputMode="text"
                     />
                     <div className="grid grid-cols-2 gap-2">
+                      {/* parseFloat, no parseInt: el escáner devuelve cantidades a
+                          peso (0,850 kg) y con parseInt el usuario que tocaba el
+                          campo las truncaba a 0, que es justo el dato que el
+                          backend ya conserva. step="any" evita además que el
+                          navegador marque el decimal como inválido. */}
                       <input
                         type="number"
                         value={item.cantidad}
                         min={0}
+                        step="any"
                         onChange={(e) =>
                           actualizarItem(idx, {
-                            cantidad: e.target.value === '' ? '' : parseInt(e.target.value) || 0,
+                            cantidad: e.target.value === '' ? '' : parseFloat(e.target.value) || 0,
                           })
                         }
                         className="input-field"
-                        inputMode="numeric"
+                        inputMode="decimal"
                         placeholder={t('cantidad')}
                       />
                       <input

@@ -19,7 +19,7 @@ from ..red import ip_cliente, limite_por_ip
 from ..servicios import auditoria, intentos_login
 from ..servicios.email_service import EmailService
 from ..servicios.password_pwned import es_password_filtrada
-from ..utils import Validator, DataConverter
+from ..utils import Validator, DataConverter, ValidationError
 
 bp = Blueprint("auth", __name__)
 

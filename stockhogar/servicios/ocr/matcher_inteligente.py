@@ -14,6 +14,7 @@ from difflib import SequenceMatcher
 from collections import Counter
 
 from .catalogo import catalogo_del_hogar
+from .parser_mejorado import _sin_tildes
 
 # Centinela: None es un hogar_id valido de 'sin hogar', asi que no sirve para
 # distinguir 'cache vacia' de 'cache del hogar None'.
@@ -102,15 +103,20 @@ class MatcherInteligente:
         }
 
         # Precios típicos por categoría (para validación)
+        # Las claves tienen que ser nombres de CATEGORIAS_DEFECTO (config.py),
+        # los mismos que devuelve deducir_categoria: si no coinciden, el .get()
+        # de validar_precio cae al rango por defecto (0, 100) y la validacion
+        # de precio deja de aplicarse a esa categoria sin que nada lo avise.
         self.rango_precios = {
             "Bebidas": (0.5, 3.0),
-            "Carnes y Pescados": (2.0, 15.0),
+            "Carnes y Embutidos": (2.0, 15.0),
+            "Pescados y Mariscos": (2.0, 15.0),
             "Frutas y Verduras": (0.5, 5.0),
-            "Higiene y Cuidado Personal": (0.5, 5.0),
+            "Higiene": (0.5, 5.0),
             "Congelados": (1.0, 8.0),
             "Limpieza": (0.5, 3.0),
             "Mascotas": (1.0, 10.0),
-            "Bebé y Niños": (1.0, 20.0),
+            "Bebé": (1.0, 20.0),
         }
 
         # Catálogo cacheado por instancia: el mismo MatcherInteligente
@@ -286,14 +292,21 @@ class MatcherInteligente:
     def deducir_categoria(self, nombre: str) -> Optional[str]:
         """Deduce categoría por palabras clave."""
 
-        nombre_lower = nombre.lower()
+        # Se comparan ambos lados sin tildes: las palabras clave las llevan
+        # ("champú", "salmón", "jamón") pero el ticket casi nunca, porque va en
+        # mayúsculas y el OCR se las come. Sin esto, "CHAMPU ANTICAIDA" no
+        # casaba con "champú" y el artículo se quedaba sin categoría.
+        nombre_lower = _sin_tildes(nombre.lower())
 
-        # Contar coincidencias por categoría
+        # Contar coincidencias por categoría, por palabra completa: comparando
+        # subcadenas, "PANAL" casaba con "pan" (-> Alimentación en vez de Bebé)
+        # y "SALMON" con "sal", que además empataba con la categoría correcta y
+        # la desempataba el orden del diccionario.
         puntuaciones = {}
         for categoria, palabras in self.palabras_categoria.items():
             coincidencias = sum(
                 1 for palabra in palabras
-                if palabra in nombre_lower
+                if re.search(rf"\b{re.escape(_sin_tildes(palabra))}\b", nombre_lower)
             )
             if coincidencias > 0:
                 puntuaciones[categoria] = coincidencias

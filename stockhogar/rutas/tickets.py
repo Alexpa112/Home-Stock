@@ -18,7 +18,8 @@ from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..servicios.ocr.catalogo import catalogo_del_hogar as _catalogo_del_hogar
 from ..servicios.ocr.claude_ocr import ClaudeOCR
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
-from ..utils import Validator
+from ..servicios.ocr.validacion_importes import normalizar_importe
+from ..utils import Validator, ValidationError
 from ..utils.imagenes import validar_y_recodificar
 from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso, registrar_precio
 
@@ -44,7 +45,15 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
     catalogo_por_id = {p["id"]: p for p in productos_catalogo}
     matcher = MatcherInteligente()
     items = []
-    for item in respuesta_ia.get("productos", []):
+    # Una linea mal formada no debe costar el ticket entero: esta funcion corre
+    # dentro del try que cae a Tesseract, asi que cualquier excepcion aqui
+    # descartaba TODOS los articulos que el modelo si habia leido bien.
+    productos_ia = respuesta_ia.get("productos")
+    if not isinstance(productos_ia, list):
+        productos_ia = []
+    for item in productos_ia:
+        if not isinstance(item, dict):
+            continue
         # Obtener nombre
         nombre = (item.get("nombre_ticket") or "").strip()
         if not nombre:
@@ -107,10 +116,18 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
         # esquema de Claude no los pedia; ahora si vienen, y un precio que el
         # ticket no imprime llega como None y se queda en 0 solo de cara al
         # resto del flujo (que espera numeros), pero sin marcarse como valido.
-        precio_unitario = item.get("precio_unitario")
-        precio_total = item.get("precio_total")
+        # normalizar_importe (no el valor crudo del modelo): aunque el esquema
+        # pide numeros y _procesar_respuesta ya los normaliza, un importe que
+        # llegue como cadena hacia estallar el '>' de aqui con TypeError. Y como
+        # esta funcion se llama dentro del try que cae a Tesseract, el ticket
+        # ENTERO se perdia en silencio por una sola linea mal tipada.
+        precio_unitario = normalizar_importe(item.get("precio_unitario"))
+        precio_total = normalizar_importe(item.get("precio_total"))
         confianza_lectura = item.get("confianza")
 
+        # Se valida el precio UNITARIO: el rango de matcher.validar_precio es
+        # por unidad, asi que comparar el total de la linea marcaba como anomalo
+        # cualquier multipack legitimo ("AGUA 1,5L x6 - 4,50€").
         if precio_unitario is not None and precio_unitario > 0:
             precio_valido, razon_precio = matcher.validar_precio(precio_unitario, categoria)
         elif precio_total is not None and precio_total > 0:
@@ -428,12 +445,18 @@ def confirmar_ticket():
         return APIResponse.no_permitido()
 
     datos = request.get_json(force=True) or {}
+    if not isinstance(datos, dict):
+        raise ValidationError("el cuerpo de la peticion debe ser un objeto JSON")
     items = datos.get("items") or []
+    if not isinstance(items, list):
+        raise ValidationError("items debe ser una lista")
 
     creados = 0
     actualizados = 0
 
     for item in items:
+        if not isinstance(item, dict):
+            raise ValidationError("cada item debe ser un objeto JSON")
         # OJO: lo que llega aqui es JSON del cliente, NO la salida del motor de
         # OCR. El atacante controla cada campo, asi que se valida igual que en
         # POST /api/productos (M-18). Sin el tope de longitud se podia insertar
