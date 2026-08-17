@@ -120,21 +120,29 @@ def buscar_catalogo():
     personalizados = []
     hogar_id = hogar_actual_con_permiso(db, session)
     if hogar_id:
+        # Los articulos visibles son los de TODOS los miembros del hogar: el
+        # propietario (que no tiene por que tener fila en permisos_hogar, ahi
+        # esta implicito) mas los invitados con permiso. Filtrar solo por
+        # permisos_hogar dejaba al propietario sin ver su propio catalogo.
+        miembros = (
+            "SELECT usuario_propietario_id FROM hogares WHERE id = ? "
+            "UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?"
+        )
         if query:
             personalizados = db.execute(
                 "SELECT DISTINCT nombre, icono, categoria, unidad FROM articulos_personalizados ap "
-                "WHERE ap.usuario_propietario_id IN (SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
+                f"WHERE ap.usuario_propietario_id IN ({miembros}) "
                 "AND LOWER(ap.nombre) LIKE LOWER(?) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
-                (hogar_id, like),
+                (hogar_id, hogar_id, like),
             ).fetchall()
         else:
             personalizados = db.execute(
                 "SELECT DISTINCT nombre, icono, categoria, unidad FROM articulos_personalizados ap "
-                "WHERE ap.usuario_propietario_id IN (SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
+                f"WHERE ap.usuario_propietario_id IN ({miembros}) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
-                (hogar_id,),
-                ).fetchall()
+                (hogar_id, hogar_id),
+            ).fetchall()
 
     resultado = (
         [{**dict(fila), "origen": "estandar"} for fila in estandar]
