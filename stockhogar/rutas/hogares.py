@@ -1,7 +1,7 @@
 """Rutas para gestionar hogares de compra (modelo Bring!)."""
-from flask import Blueprint, request, session
+from flask import Blueprint, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..autorizacion import nivel_acceso_hogar, nivel_alcanza, requerir_hogar
 from ..config import LIMITE_HOGARES_POR_USUARIO
 from ..db import ahora, get_db
@@ -62,7 +62,7 @@ def listar_listas():
 def crear_lista():
     """Crea una nueva lista (privada por defecto)."""
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 100)
     descripcion = Validator.string_opcional(datos.get("descripcion"), None, 500)
     icono = Validator.string_opcional(datos.get("icono"), "h-clipboard-document-list", 30)
@@ -131,7 +131,7 @@ def actualizar_lista(hogar_id):
     db = get_db()
     lista = db.execute("SELECT * FROM hogares WHERE id = ?", (hogar_id,)).fetchone()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     actualizaciones = {}
     parametros = []
 

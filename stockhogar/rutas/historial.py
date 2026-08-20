@@ -124,14 +124,17 @@ def buscar_catalogo():
         # propietario (que no tiene por que tener fila en permisos_hogar, ahi
         # esta implicito) mas los invitados con permiso. Filtrar solo por
         # permisos_hogar dejaba al propietario sin ver su propio catalogo.
-        miembros = (
-            "SELECT usuario_propietario_id FROM hogares WHERE id = ? "
-            "UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?"
-        )
+        #
+        # La subconsulta va escrita entera en cada literal, sin interpolar: un
+        # f-string aqui no metia ningun valor del usuario (todo va por bind
+        # params) pero bandit lo marca como B608 y la puerta security-python
+        # de CI falla con cualquier hallazgo de severidad media.
         if query:
             personalizados = db.execute(
                 "SELECT DISTINCT nombre, icono, categoria, unidad FROM articulos_personalizados ap "
-                f"WHERE ap.usuario_propietario_id IN ({miembros}) "
+                "WHERE ap.usuario_propietario_id IN ("
+                "    SELECT usuario_propietario_id FROM hogares WHERE id = ? "
+                "    UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
                 "AND LOWER(ap.nombre) LIKE LOWER(?) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
                 (hogar_id, hogar_id, like),
@@ -139,7 +142,9 @@ def buscar_catalogo():
         else:
             personalizados = db.execute(
                 "SELECT DISTINCT nombre, icono, categoria, unidad FROM articulos_personalizados ap "
-                f"WHERE ap.usuario_propietario_id IN ({miembros}) "
+                "WHERE ap.usuario_propietario_id IN ("
+                "    SELECT usuario_propietario_id FROM hogares WHERE id = ? "
+                "    UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
                 (hogar_id, hogar_id),
             ).fetchall()

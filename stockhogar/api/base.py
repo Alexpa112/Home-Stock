@@ -1,9 +1,29 @@
 """Base OOP para blueprints API - Patrón de responsabilidad única."""
 from functools import wraps
-from flask import g, jsonify, session
+from flask import g, jsonify, request, session
 from ..utils.validation import ValidationError
 from ..translator import traducir
 from ..db import get_db
+
+
+def cuerpo_json():
+    """Cuerpo JSON de la petición como dict, o {} si no viene ninguno.
+
+    Sustituye a `request.get_json(force=True) or {}`, que dejaba pasar
+    cualquier JSON válido: con un cuerpo escalar (`5`) o una lista, `datos`
+    NO era un dict y el primer `datos.get(...)` lanzaba AttributeError, que
+    @manejo_errores traduce a 500. Era un 500 provocable sin autenticar en las
+    rutas públicas (login, registrar, solicitar-reset-password, log/client).
+
+    Un cuerpo que no sea un objeto es un error del cliente, así que se lanza
+    ValidationError y el decorador responde 400.
+    """
+    datos = request.get_json(force=True, silent=True)
+    if datos is None:
+        return {}
+    if not isinstance(datos, dict):
+        raise ValidationError("el cuerpo de la peticion debe ser un objeto JSON")
+    return datos
 
 
 def session_version_en_bd():

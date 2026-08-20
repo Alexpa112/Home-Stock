@@ -8,11 +8,11 @@ import secrets
 import time
 import zipfile
 
-from flask import Blueprint, Response, request, session
+from flask import Blueprint, Response, session
 from flask_wtf.csrf import generate_csrf
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import APP_URL, LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
 from ..db import ahora, get_db
 from ..red import ip_cliente, limite_por_ip
@@ -169,7 +169,7 @@ def registrar():
         return APIResponse.error("err_registro_cerrado", 403)
 
     db = get_db()
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
     password = datos.get("password") or ""
 
@@ -216,7 +216,7 @@ def registrar():
 @manejo_errores
 def login():
     ip = ip_cliente()
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
 
     if intentos_login.bloqueada(ip, nombre_usuario):
@@ -304,7 +304,7 @@ def verificar_codigo_dos_pasos():
     if limite_por_ip(f"2fa_verificar:{ip}", 10, 60 * 60):
         return APIResponse.error("err_demasiados_intentos_2fa", 429)
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     codigo = (datos.get("codigo") or "").strip()
 
     db = get_db()
@@ -375,7 +375,7 @@ def reenviar_codigo_dos_pasos():
 @manejo_errores
 def cambiar_doble_factor():
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     activar = bool(datos.get("activo"))
 
     db = get_db()
@@ -443,7 +443,7 @@ def actualizar_perfil():
     recupera una cuenta, asi que no pueden cambiarse solo con la cookie.
     """
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre_usuario_nuevo = datos.get("usuario", "").strip()
     nombre = datos.get("nombre", "").strip()
     email_nuevo = (datos.get("email") or "").strip().lower()
@@ -540,7 +540,7 @@ def actualizar_perfil():
 def cambiar_tema():
     """Guarda la preferencia de tema (light/dark/auto) del usuario."""
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     tema = (datos.get("tema") or "auto").strip().lower()
 
     if tema not in ("light", "dark", "auto"):
@@ -559,7 +559,7 @@ def cambiar_tema():
 def cambiar_teclado_virtual():
     """Guarda si el usuario quiere el teclado virtual propio (on/off)."""
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     valor = (datos.get("teclado_virtual_activo") or "on").strip().lower()
 
     if valor not in ("on", "off"):
@@ -580,7 +580,7 @@ def cambiar_preferencia_ocr():
     tickets usa solo el pipeline local (Tesseract) sin enviar la foto a
     Anthropic, ver stockhogar/rutas/tickets.py::analizar_ticket."""
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     ocr_local = bool(datos.get("ocr_local"))
 
     db = get_db()
@@ -595,7 +595,7 @@ def cambiar_preferencia_ocr():
 def cambiar_password():
     """Cambiar contraseña del usuario actual."""
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     password_actual = datos.get("password_actual") or ""
     password_nueva = datos.get("password_nueva") or ""
     password_confirmacion = datos.get("password_confirmacion") or ""
@@ -844,7 +844,7 @@ def solicitar_reset_password():
     if limite_por_ip(f"reset_password:{ip}", 5, 60 * 60):
         return APIResponse.error("err_demasiadas_peticiones", 429)
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     identificador = (datos.get("usuario_o_email") or "").strip()
     respuesta_generica = APIResponse.success({"mensaje": "mensaje_reset_generico"})
     if not identificador:
@@ -876,7 +876,7 @@ def solicitar_reset_password():
 @bp.route("/api/auth/restablecer-password", methods=["POST"])
 @manejo_errores
 def restablecer_password():
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     token = (datos.get("token") or "").strip()
     password_nueva = datos.get("password_nueva") or ""
 
@@ -917,7 +917,7 @@ def restablecer_password():
 def actualizar_preferencias_listas():
     """Actualiza las preferencias de vista de la lista de la compra (lista/recuadros) y agrupación por categorías."""
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
 
     vista = (datos.get("vista_lista_compra") or "lista").strip().lower()
     agrupar = (datos.get("agrupar_categorias") or "off").strip().lower()

@@ -323,6 +323,7 @@
     "btn_rechazar": "Rechazar",
     "invitacion_rechazada_ok": "Invitación rechazada.",
     "err_usuario_duplicado": "Ya existe un usuario con ese nombre",
+    "err_articulo_personalizado_duplicado": "Ya tienes un artículo con ese nombre",
     "err_debe_aceptar_terminos": "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar",
     "acepta_terminos_texto": "He leído y acepto los Términos y Condiciones y la Política de Privacidad",
     "err_registro_cerrado": "El registro de nuevas cuentas está cerrado temporalmente",
@@ -788,7 +789,16 @@
     "compartida_puede_comprar": "Puedes marcar comprado",
     "compartida_solo_ver": "Solo puedes ver",
     "mostrar_password": "Mostrar contraseña",
-    "ocultar_password": "Ocultar contraseña"
+    "ocultar_password": "Ocultar contraseña",
+    "err_codigo_no_reconocido": "Código de barras no reconocido",
+    "err_demasiados_intentos_2fa": "Demasiados intentos con el código. Prueba de nuevo más tarde",
+    "err_demasiados_reenvios_2fa": "Has pedido el código demasiadas veces. Prueba de nuevo más tarde",
+    "err_email_invalido": "El correo electrónico no es válido",
+    "err_email_no_disponible": "Ese correo electrónico no está disponible",
+    "err_password_igual_anterior": "La nueva contraseña debe ser distinta de la actual",
+    "err_usa_cambiar_password": "Para cambiar la contraseña usa la opción de cambio de contraseña",
+    "err_usuario_no_es_miembro": "Ese usuario ya no es miembro del hogar",
+    "recurso_invitacion": "Invitación"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1117,6 +1127,7 @@
     "btn_rechazar": "Rexeitar",
     "invitacion_rechazada_ok": "Invitacion rexeitada.",
     "err_usuario_duplicado": "Xa existe un usuario con ese nome",
+    "err_articulo_personalizado_duplicado": "Xa tes un artigo con ese nome",
     "err_debe_aceptar_terminos": "Debes aceptar os Termos e Condicións e a Política de Privacidade para continuar",
     "acepta_terminos_texto": "Lin e acepto os Termos e Condicións e a Política de Privacidade",
     "enlace_terminos": "Termos e Condicións",
@@ -1579,7 +1590,16 @@
     "compartida_puede_comprar": "Podes marcar como comprado",
     "compartida_solo_ver": "So podes ver",
     "mostrar_password": "Mostrar contrasinal",
-    "ocultar_password": "Ocultar contrasinal"
+    "ocultar_password": "Ocultar contrasinal",
+    "err_codigo_no_reconocido": "Código de barras non recoñecido",
+    "err_demasiados_intentos_2fa": "Demasiados intentos co código. Proba de novo máis tarde",
+    "err_demasiados_reenvios_2fa": "Pediches o código demasiadas veces. Proba de novo máis tarde",
+    "err_email_invalido": "O correo electrónico non é válido",
+    "err_email_no_disponible": "Ese correo electrónico non está dispoñible",
+    "err_password_igual_anterior": "O novo contrasinal debe ser distinto do actual",
+    "err_usa_cambiar_password": "Para cambiar o contrasinal usa a opción de cambio de contrasinal",
+    "err_usuario_no_es_miembro": "Ese usuario xa non é membro do fogar",
+    "recurso_invitacion": "Invitación"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -1908,6 +1928,7 @@
     "btn_rechazar": "Decline",
     "invitacion_rechazada_ok": "Invitation declined.",
     "err_usuario_duplicado": "A user with that name already exists",
+    "err_articulo_personalizado_duplicado": "You already have an item with that name",
     "err_debe_aceptar_terminos": "You must accept the Terms and Conditions and the Privacy Policy to continue",
     "acepta_terminos_texto": "I have read and accept the Terms and Conditions and the Privacy Policy",
     "enlace_terminos": "Terms and Conditions",
@@ -2370,7 +2391,16 @@
     "compartida_puede_comprar": "You can mark as bought",
     "compartida_solo_ver": "You can only view",
     "mostrar_password": "Show password",
-    "ocultar_password": "Hide password"
+    "ocultar_password": "Hide password",
+    "err_codigo_no_reconocido": "Barcode not recognised",
+    "err_email_invalido": "The email address is not valid",
+    "err_demasiados_intentos_2fa": "Too many code attempts. Try again later",
+    "err_demasiados_reenvios_2fa": "You have requested the code too many times. Try again later",
+    "err_email_no_disponible": "That email address is not available",
+    "err_password_igual_anterior": "The new password must be different from the current one",
+    "err_usa_cambiar_password": "To change your password use the change password option",
+    "err_usuario_no_es_miembro": "That user is no longer a member of the household",
+    "recurso_invitacion": "Invitation"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -2699,6 +2729,7 @@
     "btn_rechazar": "Rejeitar",
     "invitacion_rechazada_ok": "Convite rejeitado.",
     "err_usuario_duplicado": "Já existe um usuário com esse nome",
+    "err_articulo_personalizado_duplicado": "Já tem um artigo com esse nome",
     "err_debe_aceptar_terminos": "Deves aceitar os Termos e Condições e a Política de Privacidade para continuar",
     "acepta_terminos_texto": "Li e aceito os Termos e Condições e a Política de Privacidade",
     "enlace_terminos": "Termos e Condições",
@@ -3161,7 +3192,16 @@
     "compartida_puede_comprar": "Podes marcar como comprado",
     "compartida_solo_ver": "So podes ver",
     "mostrar_password": "Mostrar senha",
-    "ocultar_password": "Ocultar senha"
+    "ocultar_password": "Ocultar senha",
+    "err_codigo_no_reconocido": "Código de barras não reconhecido",
+    "err_demasiados_intentos_2fa": "Demasiadas tentativas com o código. Tente novamente mais tarde",
+    "err_demasiados_reenvios_2fa": "Pediu o código demasiadas vezes. Tente novamente mais tarde",
+    "err_email_invalido": "O e-mail não é válido",
+    "err_email_no_disponible": "Esse e-mail não está disponível",
+    "err_password_igual_anterior": "A nova palavra-passe deve ser diferente da atual",
+    "err_usa_cambiar_password": "Para alterar a palavra-passe use a opção de alteração de palavra-passe",
+    "err_usuario_no_es_miembro": "Esse utilizador já não é membro da casa",
+    "recurso_invitacion": "Convite"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -3490,6 +3530,7 @@
     "btn_rechazar": "Refuser",
     "invitacion_rechazada_ok": "Invitation refusee.",
     "err_usuario_duplicado": "Un utilisateur avec ce nom existe déjà",
+    "err_articulo_personalizado_duplicado": "Vous avez déjà un article portant ce nom",
     "err_debe_aceptar_terminos": "Vous devez accepter les Conditions Générales et la Politique de Confidentialité pour continuer",
     "acepta_terminos_texto": "J'ai lu et j'accepte les Conditions Générales et la Politique de Confidentialité",
     "enlace_terminos": "Conditions Générales",
@@ -3952,7 +3993,16 @@
     "compartida_puede_comprar": "Vous pouvez marquer comme achete",
     "compartida_solo_ver": "Vous pouvez seulement consulter",
     "mostrar_password": "Afficher le mot de passe",
-    "ocultar_password": "Masquer le mot de passe"
+    "ocultar_password": "Masquer le mot de passe",
+    "err_codigo_no_reconocido": "Code-barres non reconnu",
+    "err_demasiados_intentos_2fa": "Trop de tentatives avec le code. Réessayez plus tard",
+    "err_demasiados_reenvios_2fa": "Vous avez demandé le code trop de fois. Réessayez plus tard",
+    "err_email_invalido": "L'adresse e-mail n'est pas valide",
+    "err_email_no_disponible": "Cette adresse e-mail n'est pas disponible",
+    "err_password_igual_anterior": "Le nouveau mot de passe doit être différent de l'actuel",
+    "err_usa_cambiar_password": "Pour changer le mot de passe, utilisez l’option de changement de mot de passe",
+    "err_usuario_no_es_miembro": "Cet utilisateur n'est plus membre du foyer",
+    "recurso_invitacion": "Invitation"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4281,6 +4331,7 @@
     "btn_rechazar": "Rifiuta",
     "invitacion_rechazada_ok": "Invito rifiutato.",
     "err_usuario_duplicado": "Esiste già un utente con questo nome",
+    "err_articulo_personalizado_duplicado": "Hai già un articolo con questo nome",
     "err_debe_aceptar_terminos": "Devi accettare i Termini e Condizioni e l'Informativa sulla Privacy per continuare",
     "acepta_terminos_texto": "Ho letto e accetto i Termini e Condizioni e l'Informativa sulla Privacy",
     "enlace_terminos": "Termini e Condizioni",
@@ -4743,7 +4794,16 @@
     "compartida_puede_comprar": "Puoi segnare come acquistato",
     "compartida_solo_ver": "Puoi solo visualizzare",
     "mostrar_password": "Mostra password",
-    "ocultar_password": "Nascondi password"
+    "ocultar_password": "Nascondi password",
+    "err_codigo_no_reconocido": "Codice a barre non riconosciuto",
+    "err_demasiados_intentos_2fa": "Troppi tentativi con il codice. Riprova più tardi",
+    "err_demasiados_reenvios_2fa": "Hai richiesto il codice troppe volte. Riprova più tardi",
+    "err_email_invalido": "L'indirizzo email non è valido",
+    "err_email_no_disponible": "Questo indirizzo email non è disponibile",
+    "err_password_igual_anterior": "La nuova password deve essere diversa da quella attuale",
+    "err_usa_cambiar_password": "Per cambiare la password usa l’opzione di cambio password",
+    "err_usuario_no_es_miembro": "Questo utente non è più membro della casa",
+    "recurso_invitacion": "Invito"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5072,6 +5132,7 @@
     "btn_rechazar": "Ablehnen",
     "invitacion_rechazada_ok": "Einladung abgelehnt.",
     "err_usuario_duplicado": "Ein Benutzer mit diesem Namen existiert bereits",
+    "err_articulo_personalizado_duplicado": "Du hast bereits einen Artikel mit diesem Namen",
     "err_debe_aceptar_terminos": "Du musst die Nutzungsbedingungen und die Datenschutzerklärung akzeptieren, um fortzufahren",
     "acepta_terminos_texto": "Ich habe die Nutzungsbedingungen und die Datenschutzerklärung gelesen und akzeptiere sie",
     "enlace_terminos": "Nutzungsbedingungen",
@@ -5534,6 +5595,15 @@
     "compartida_puede_comprar": "Du kannst als gekauft markieren",
     "compartida_solo_ver": "Du kannst nur ansehen",
     "mostrar_password": "Passwort anzeigen",
-    "ocultar_password": "Passwort ausblenden"
+    "ocultar_password": "Passwort ausblenden",
+    "err_codigo_no_reconocido": "Barcode nicht erkannt",
+    "err_demasiados_intentos_2fa": "Zu viele Versuche mit dem Code. Versuche es später erneut",
+    "err_demasiados_reenvios_2fa": "Du hast den Code zu oft angefordert. Versuche es später erneut",
+    "err_email_invalido": "Die E-Mail-Adresse ist ungültig",
+    "err_email_no_disponible": "Diese E-Mail-Adresse ist nicht verfügbar",
+    "err_password_igual_anterior": "Das neue Passwort muss sich vom aktuellen unterscheiden",
+    "err_usa_cambiar_password": "Zum Ändern des Passworts nutze die Passwort-ändern-Option",
+    "err_usuario_no_es_miembro": "Dieser Benutzer ist kein Mitglied des Haushalts mehr",
+    "recurso_invitacion": "Einladung"
   }
 }

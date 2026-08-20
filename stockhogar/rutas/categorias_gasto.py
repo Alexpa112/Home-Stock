@@ -1,8 +1,8 @@
 """Rutas para gestionar categorías de gasto (editables desde la app),
 catálogo independiente del de categorías de producto (ver rutas/categorias.py)."""
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import CATEGORIA_GASTO_DEFECTO
 from ..db import get_db
 from ..translator import traducir
@@ -34,7 +34,7 @@ def listar_categorias_gasto():
 @requerir_sesion
 @manejo_errores
 def crear_categoria_gasto():
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 50)
     icono = Validator.string_opcional(datos.get("icono"), "h-folder", 30)
 

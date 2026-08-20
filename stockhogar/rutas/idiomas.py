@@ -2,9 +2,9 @@
 import re
 import unicodedata
 
-from flask import Blueprint, request, session
+from flask import Blueprint, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..db import get_db
 from ..translator import IDIOMAS_DISPONIBLES, traducir, obtener_idiomas, traducir_todas_para_idioma
 
@@ -43,7 +43,7 @@ def cambiar_idioma():
     1. Sesión (inmediato)
     2. BD (persistencia)
     """
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     idioma = (datos.get("idioma") or "es").strip().lower()
 
     # Validar idioma
@@ -96,7 +96,7 @@ def traducir_claves():
 
     Útil para sincronizar UI desde JavaScript.
     """
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     idioma = (datos.get("idioma") or session.get("idioma", "es")).lower()
     claves = datos.get("claves", [])
 
