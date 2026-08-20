@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Blueprint, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import LIMITE_OCR_DIARIO
 from ..db import get_db
 from ..red import ip_cliente, limite_por_ip
@@ -444,7 +444,7 @@ def confirmar_ticket():
     if not hogar_id:
         return APIResponse.no_permitido()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     if not isinstance(datos, dict):
         raise ValidationError("el cuerpo de la peticion debe ser un objeto JSON")
     items = datos.get("items") or []

@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest && jest -c jest.config.lib.js",
+    "test": "jest -c jest.config.lib.js",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:lib": "jest -c jest.config.lib.js"

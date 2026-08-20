@@ -1,10 +1,10 @@
 """Rutas para gestionar permisos y compartir hogares."""
 import secrets
 
-from flask import Blueprint, request, session
+from flask import Blueprint, session
 from datetime import datetime, timedelta
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..autorizacion import requerir_hogar
 from ..config import APP_URL, LIMITE_INVITACIONES_DIARIO_POR_HOGAR
 from ..db import ahora, get_db
@@ -82,7 +82,7 @@ def compartir_lista(hogar_id):
     """Compartir lista con otro usuario o por email."""
     usuario_id = session.get("usuario_id")
     db = get_db()
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
 
     # Obtener email o nombre de usuario destino (acepta "usuario" como alias)
     email_destino = (datos.get("email") or "").strip()
@@ -194,7 +194,7 @@ def actualizar_permiso(hogar_id, usuario_id):
     """Actualizar nivel de permiso de un usuario."""
     usuario_actual_id = session.get("usuario_id")
     db = get_db()
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
 
     if usuario_id == usuario_actual_id:
         # El propietario no tiene fila en permisos_hogar (su acceso viene de

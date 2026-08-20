@@ -5,7 +5,7 @@ import logging
 import threading
 from flask import Blueprint, Response, current_app, g, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..utils import Validator, DataConverter, ValidationError
@@ -155,7 +155,7 @@ def listar_productos():
 @requerir_sesion
 @manejo_errores
 def crear_producto():
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 80)
     categoria = Validator.string_opcional(datos.get("categoria"), "Otros", 50)
     cantidad = Validator.entero_no_negativo(Validator.con_defecto(datos, "cantidad", 0), "cantidad")
@@ -262,7 +262,7 @@ def traducir_producto_auto():
     # usuario cambia de lista mientras el hilo en segundo plano sigue vivo.
     g._omitir_refresco_sesion = True
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre = Validator.string_opcional(datos.get("nombre"), "", 80)
     descripcion = Validator.string_opcional(datos.get("descripcion"), "", 200)
     producto_id = datos.get("producto_id")  # Opcional
@@ -357,7 +357,7 @@ def actualizar_producto(producto_id):
     if not fila:
         return APIResponse.no_encontrado("recurso_producto")
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     actual = DataConverter.producto_to_dict(fila)
 
     if "delta" not in datos and not hogar_actual_con_permiso(db, session, nivel_requerido="editar"):

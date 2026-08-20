@@ -1,8 +1,8 @@
 """Recetas del hogar (P-06): lista de ingredientes reutilizable para anadir
 de golpe a la lista de la compra los que falten."""
-from flask import Blueprint, request, session
+from flask import Blueprint, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
 from ..utils import Validator, ValidationError
@@ -68,7 +68,7 @@ def crear_receta():
     if not hogar_id:
         return APIResponse.no_permitido()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 100)
     icono = Validator.string_opcional(datos.get("icono"), None, 30)
     ingredientes = _validar_ingredientes(datos.get("ingredientes"))
@@ -110,7 +110,7 @@ def actualizar_receta(receta_id):
     if error:
         return error
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     if "nombre" in datos:
         nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 100)
         db.execute("UPDATE recetas SET nombre = ? WHERE id = ?", (nombre, receta_id))

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Blueprint, Response, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import LIMITE_RECIBOS_DIARIO_POR_USUARIO
 from ..db import ahora, get_db
 from ..servicios.push_service import enviar_push_a_usuario
@@ -171,7 +171,7 @@ def crear_gasto():
     if not hogar_id:
         return APIResponse.no_permitido()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     descripcion = Validator.string_requerido(datos.get("descripcion"), "descripción", 200)
     importe_total = Validator.decimal_positivo(datos.get("importe_total"), "importe total")
     fecha = Validator.string_opcional(datos.get("fecha"), ahora(), 30)
@@ -251,7 +251,7 @@ def actualizar_gasto(gasto_id):
     if error:
         return error
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     actualizaciones = {}
     parametros = []
 
@@ -526,7 +526,7 @@ def crear_liquidacion():
     if not hogar_id:
         return APIResponse.no_permitido()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     usuario_origen_id = datos.get("usuario_origen_id")
     usuario_destino_id = datos.get("usuario_destino_id")
     importe = Validator.decimal_positivo(datos.get("importe"), "importe")
@@ -821,7 +821,7 @@ def crear_gasto_recurrente():
     if not hogar_id:
         return APIResponse.no_permitido()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     descripcion = Validator.string_requerido(datos.get("descripcion"), "descripción", 200)
     importe_total = Validator.decimal_positivo(datos.get("importe_total"), "importe total")
     categoria = normalizar_categoria_gasto(db, datos.get("categoria"))
@@ -900,7 +900,7 @@ def actualizar_gasto_recurrente(recurrente_id):
     if not hogar_id or recurrente["hogar_id"] != hogar_id:
         return APIResponse.no_permitido()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     if "activo" in datos:
         db.execute("UPDATE gastos_recurrentes SET activo = ? WHERE id = ?", (1 if datos["activo"] else 0, recurrente_id))
         db.commit()

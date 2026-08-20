@@ -1,7 +1,7 @@
 """Rutas para gestionar categorías de productos (editables desde la app)."""
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import CATEGORIA_DEFECTO
 from ..db import get_db
 from ..translator import traducir
@@ -29,7 +29,7 @@ def listar_categorias():
 @requerir_sesion
 @manejo_errores
 def crear_categoria():
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 50)
     icono = Validator.string_opcional(datos.get("icono"), "h-folder", 30)
 

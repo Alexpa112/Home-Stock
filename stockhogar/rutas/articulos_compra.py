@@ -4,7 +4,7 @@ import io
 import logging
 from flask import Blueprint, Response, request, session, jsonify
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
+from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
@@ -300,8 +300,10 @@ def anadir_o_sumar_articulo(
 def anadir_articulo():
     """Añade un artículo a una lista (requiere permiso 'editar')."""
     usuario_id = session.get("usuario_id")
-    datos = request.get_json(force=True) or {}
-    nombre = (datos.get("nombre") or "").strip()
+    datos = cuerpo_json()
+    # str(): un {"nombre": 5} pasaba el `or ""` (5 es truthy) y reventaba el
+    # .strip() con AttributeError -> 500 en vez de 400.
+    nombre = str(datos.get("nombre") or "").strip()
 
     if not nombre:
         return APIResponse.error("err_nombre_obligatorio", 400)
@@ -347,7 +349,7 @@ def actualizar_articulo(item_id):
     if fila is None:
         return APIResponse.no_encontrado("recurso_articulo")
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     if not datos:
         return APIResponse.validacion("err_nada_que_actualizar")
 
@@ -370,15 +372,15 @@ def actualizar_articulo(item_id):
 
     if CAMPOS_EDITABLES & datos.keys():
         actual = DataConverter.articulo_lista_to_dict(fila)
-        nombre = (datos.get("nombre") or actual["nombre"] or "").strip() or actual["nombre"]
+        nombre = str(datos.get("nombre") or actual["nombre"] or "").strip() or actual["nombre"]
         if "cantidad" in datos:
             cantidad = Validator.entero_minimo(datos.get("cantidad") or 1, "cantidad")
         else:
             cantidad = actual["cantidad"]
-        unidad = (datos.get("unidad") or actual["unidad"] or "").strip() or actual["unidad"]
+        unidad = str(datos.get("unidad") or actual["unidad"] or "").strip() or actual["unidad"]
         categoria = normalizar_categoria(db, datos.get("categoria", actual["categoria"]))
-        icono = (datos.get("icono", actual["icono"]) or "").strip() or None
-        sub_descripcion = (datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
+        icono = str(datos.get("icono", actual["icono"]) or "").strip() or None
+        sub_descripcion = str(datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
         dias_aviso = Validator.entero_minimo(
             Validator.con_defecto(datos, "dias_aviso", actual.get("dias_aviso") or DIAS_AVISO_DEFECTO),
             "días de aviso", 0, 365
@@ -572,17 +574,33 @@ def actualizar_articulo_personalizado(articulo_id):
     if not _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, nivel_requerido="editar"):
         return APIResponse.no_permitido()
 
-    datos = request.get_json(force=True) or {}
+    datos = cuerpo_json()
     if not datos:
         return APIResponse.error("err_nada_que_actualizar", 400)
 
     # Actualizar campos permitidos
-    nombre = (datos.get("nombre") or articulo["nombre"] or "").strip()
+    nombre = str(datos.get("nombre") or articulo["nombre"] or "").strip()
     categoria = normalizar_categoria(db, datos.get("categoria") or articulo["categoria"])
-    icono = (datos.get("icono") or articulo["icono"] or "").strip() or None
-    unidad = (datos.get("unidad") or articulo["unidad"] or "").strip()
-    sub_descripcion = (datos.get("sub_descripcion") or articulo["sub_descripcion"] or "").strip() or None
-    dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", articulo["dias_aviso"]))
+    icono = str(datos.get("icono") or articulo["icono"] or "").strip() or None
+    unidad = str(datos.get("unidad") or articulo["unidad"] or "").strip()
+    sub_descripcion = str(datos.get("sub_descripcion") or articulo["sub_descripcion"] or "").strip() or None
+    dias_aviso = Validator.entero_minimo(
+        Validator.con_defecto(datos, "dias_aviso", articulo["dias_aviso"]),
+        "días de aviso", 0, 365,
+    )
+
+    # articulos_personalizados tiene UNIQUE(nombre, usuario_propietario_id), asi
+    # que renombrar un articulo al nombre de otro que ya tiene el usuario
+    # (p. ej. "Leche desnatada" -> "Leche") lanzaba IntegrityError y salia como
+    # 500 sin explicar nada. Se comprueba antes y se responde 400.
+    if nombre.lower() != (articulo["nombre"] or "").lower():
+        ya_existe = db.execute(
+            "SELECT 1 FROM articulos_personalizados "
+            "WHERE LOWER(nombre) = LOWER(?) AND usuario_propietario_id = ? AND id != ?",
+            (nombre, articulo["usuario_propietario_id"], articulo_id),
+        ).fetchone()
+        if ya_existe:
+            return APIResponse.error("err_articulo_personalizado_duplicado", 400)
 
     db.execute(
         """UPDATE articulos_personalizados
