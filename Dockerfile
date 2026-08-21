@@ -51,4 +51,11 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # intermedio de la cadena del escáner (llamada a la API 180s < worker 240s <
 # abort del frontend 270s, ver servicios/ocr/claude_ocr.py): deja 60s para la
 # subida de la foto, el troceado y el emparejado contra el catálogo.
-CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 240 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]
+# --keep-alive 75: gunicorn cierra las conexiones keep-alive a los 2 segundos
+# (su valor por defecto), pero el proxy del frontend (next.config.mjs reescribe
+# /api/* hacia aqui) mantiene los sockets abiertos bastante mas. Cuando reutiliza
+# uno que gunicorn acaba de cerrar, la peticion muere con ECONNRESET y Next
+# responde 500: se veian 500 esporadicos en /api/cache-version y compañia sin
+# que en el log de Flask apareciera nada, porque la peticion no llegaba a entrar.
+# 75s deja el cierre en manos del proxy, que si sabe reintentar.
+CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 240 --keep-alive 75 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]

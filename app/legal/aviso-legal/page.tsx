@@ -38,7 +38,7 @@ export default function AvisoLegalPage() {
 
       <h2>Propiedad intelectual</h2>
       <p>
-        El código, el diseño y la marca "Dreame!" son propiedad de {titular}. No está permitida su
+        El código, el diseño y la marca «Dreame!» son propiedad de {titular}. No está permitida su
         reproducción, distribución o modificación sin autorización previa, salvo lo que
         expresamente permita la licencia del código si este se publica como software libre.
       </p>

@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { CheckCircle2, AlertCircle, Loader } from 'lucide-react'
 import { auth } from '@/lib/api'
+import Image from 'next/image'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { PieLegal } from '@/components/shared/PieLegal'
 
 export default function RestablecerPasswordPage() {
   const params = useParams<{ token: string }>()
@@ -41,8 +43,14 @@ export default function RestablecerPasswordPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4">
       <div className="max-w-sm w-full space-y-4">
+        {/* Misma cabecera que el resto de pantallas publicas: quien llega aqui
+            desde un correo no tenia ninguna señal de en que app esta. */}
+        <div className="flex items-center justify-center gap-2.5">
+          <Image src="/icon.svg" alt="Dreame" width={40} height={40} priority />
+          <span className="text-lg font-bold">Dreame!</span>
+        </div>
         <h1 className="text-xl font-semibold text-center">{t('titulo_restablecer_password')}</h1>
 
         {estado === 'enviando' && (
@@ -94,6 +102,7 @@ export default function RestablecerPasswordPage() {
           </form>
         )}
       </div>
+      <PieLegal className="mt-8" />
     </main>
   )
 }

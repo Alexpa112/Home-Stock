@@ -802,7 +802,9 @@
     "err_seleccionar_pagador": "Indica quién pagó el gasto",
     "err_sin_participantes": "Selecciona al menos un participante",
     "err_cargar_hogares": "No se han podido cargar tus hogares",
-    "ir_a_iniciar_sesion": "Volver a iniciar sesión"
+    "ir_a_iniciar_sesion": "Volver a iniciar sesión",
+    "aviso_motor_ocr_degradado": "El motor de reconocimiento en la nube no está disponible en este servidor: los tickets se leen solo con reconocimiento local, bastante menos preciso.",
+    "catalogo_sin_coincidencias": "Ningún artículo coincide con la búsqueda"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1607,7 +1609,9 @@
     "err_seleccionar_pagador": "Indica quen pagou o gasto",
     "err_sin_participantes": "Selecciona polo menos un participante",
     "err_cargar_hogares": "Non se puideron cargar os teus fogares",
-    "ir_a_iniciar_sesion": "Volver a iniciar sesión"
+    "ir_a_iniciar_sesion": "Volver a iniciar sesión",
+    "aviso_motor_ocr_degradado": "O motor de recoñecemento na nube non está dispoñible neste servidor: os tíckets léense só con recoñecemento local, bastante menos preciso.",
+    "catalogo_sin_coincidencias": "Ningún artigo coincide coa busca"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2412,7 +2416,9 @@
     "err_seleccionar_pagador": "Choose who paid for the expense",
     "err_sin_participantes": "Select at least one participant",
     "err_cargar_hogares": "Could not load your households",
-    "ir_a_iniciar_sesion": "Back to sign in"
+    "ir_a_iniciar_sesion": "Back to sign in",
+    "aviso_motor_ocr_degradado": "The cloud recognition engine is not available on this server: receipts are read with local recognition only, which is noticeably less accurate.",
+    "catalogo_sin_coincidencias": "No item matches your search"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3217,7 +3223,9 @@
     "err_seleccionar_pagador": "Indique quem pagou a despesa",
     "err_sin_participantes": "Selecione pelo menos um participante",
     "err_cargar_hogares": "Não foi possível carregar as suas casas",
-    "ir_a_iniciar_sesion": "Voltar a iniciar sessão"
+    "ir_a_iniciar_sesion": "Voltar a iniciar sessão",
+    "aviso_motor_ocr_degradado": "O motor de reconhecimento na nuvem não está disponível neste servidor: os talões são lidos apenas com reconhecimento local, bastante menos preciso.",
+    "catalogo_sin_coincidencias": "Nenhum artigo corresponde à pesquisa"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4022,7 +4030,9 @@
     "err_seleccionar_pagador": "Indiquez qui a payé la dépense",
     "err_sin_participantes": "Sélectionnez au moins un participant",
     "err_cargar_hogares": "Impossible de charger vos foyers",
-    "ir_a_iniciar_sesion": "Retour à la connexion"
+    "ir_a_iniciar_sesion": "Retour à la connexion",
+    "aviso_motor_ocr_degradado": "Le moteur de reconnaissance dans le cloud n'est pas disponible sur ce serveur : les tickets sont lus uniquement en local, avec bien moins de précision.",
+    "catalogo_sin_coincidencias": "Aucun article ne correspond à la recherche"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4827,7 +4837,9 @@
     "err_seleccionar_pagador": "Indica chi ha pagato la spesa",
     "err_sin_participantes": "Seleziona almeno un partecipante",
     "err_cargar_hogares": "Non è stato possibile caricare le tue case",
-    "ir_a_iniciar_sesion": "Torna ad accedere"
+    "ir_a_iniciar_sesion": "Torna ad accedere",
+    "aviso_motor_ocr_degradado": "Il motore di riconoscimento nel cloud non è disponibile su questo server: gli scontrini vengono letti solo in locale, con precisione decisamente inferiore.",
+    "catalogo_sin_coincidencias": "Nessun articolo corrisponde alla ricerca"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5632,6 +5644,8 @@
     "err_seleccionar_pagador": "Gib an, wer die Ausgabe bezahlt hat",
     "err_sin_participantes": "Wähle mindestens eine Person aus",
     "err_cargar_hogares": "Deine Haushalte konnten nicht geladen werden",
-    "ir_a_iniciar_sesion": "Zurück zur Anmeldung"
+    "ir_a_iniciar_sesion": "Zurück zur Anmeldung",
+    "aviso_motor_ocr_degradado": "Die Cloud-Erkennung ist auf diesem Server nicht verfügbar: Belege werden nur lokal erkannt, deutlich ungenauer.",
+    "catalogo_sin_coincidencias": "Kein Artikel passt zur Suche"
   }
 }

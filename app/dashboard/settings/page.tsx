@@ -18,6 +18,11 @@ export default function SettingsPage() {
   const [cargandoDobleFactor, setCargandoDobleFactor] = useState(false)
   const [emailVerificado, setEmailVerificado] = useState(true)
   const [ocrLocal, setOcrLocal] = useState(false)
+  // Si el servidor no tiene el motor de nube (sin ANTHROPIC_API_KEY o sin el
+  // paquete `anthropic`), el escaner cae a Tesseract y reconoce bastante peor,
+  // pero nada lo indicaba en la interfaz: el usuario solo veia que "el escaner
+  // funciona mal".
+  const [motorNubeDisponible, setMotorNubeDisponible] = useState(true)
   const [cargandoOcrLocal, setCargandoOcrLocal] = useState(false)
   const [enviandoVerificacion, setEnviandoVerificacion] = useState(false)
   const [verificacionEnviada, setVerificacionEnviada] = useState(false)
@@ -104,6 +109,10 @@ export default function SettingsPage() {
         setDobleFactorActivo(!!data.doble_factor_activo)
         setEmailVerificado(!!data.email_verificado)
         setOcrLocal(!!data.ocr_local)
+
+        auth.validarInstalacionOcr()
+          .then((diag: any) => setMotorNubeDisponible(Boolean(diag?.claude_api_key && diag?.claude_paquete)))
+          .catch(() => setMotorNubeDisponible(true))  // ante la duda, no alarmar
 
         const pref = data.tema_preferido || 'auto'
         const aplicarOscuro =
@@ -500,6 +509,12 @@ export default function SettingsPage() {
           <div className="flex-1">
             <p className="text-sm">{t('ocr_local_titulo')}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{t('ocr_local_descripcion')}</p>
+            {!motorNubeDisponible && (
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1.5 flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{t('aviso_motor_ocr_degradado')}</span>
+              </p>
+            )}
           </div>
           <button
             onClick={() => cambiarOcrLocal(!ocrLocal)}
