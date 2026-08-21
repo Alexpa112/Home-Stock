@@ -17,6 +17,7 @@ import io
 import logging
 
 from PIL import Image, UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,25 @@ def validar_y_recodificar(imagen_bytes: bytes, extension: str):
         salida = io.BytesIO()
         if formato_esperado == "JPEG" and imagen.mode not in ("RGB", "L"):
             imagen = imagen.convert("RGB")
+        # Pillow arrastra parte de `info` al guardar: el EXIF si se pierde,
+        # pero el marcador de comentario (COM) del JPEG y el texto de los PNG
+        # sobrevivian a la recodificacion, en contra de lo que promete el
+        # docstring de este modulo. Son campos de texto libre controlados por
+        # quien sube el fichero, asi que se vacian antes de guardar.
+        for clave in ("comment", "exif", "icc_profile", "XML:com.adobe.xmp"):
+            imagen.info.pop(clave, None)
+        imagen.encoderinfo = {}
         imagen.save(salida, format=formato_esperado)
         return salida.getvalue(), None
+    except DecompressionBombError:
+        # "Bomba de descompresion": un fichero diminuto cuya cabecera declara
+        # dimensiones enormes (p.ej. 60000x60000 = 3.600 millones de pixeles).
+        # Pillow lo detecta y lanza esta excepcion, que NO hereda de las de
+        # abajo, asi que se escapaba de este except y salia un 500 en las dos
+        # subidas de la app (foto de ticket y recibo de gasto) con un PNG de
+        # unos pocos bytes. Es una entrada mal formada como cualquier otra:
+        # se rechaza con el mismo 400 que el resto.
+        logger.warning("Imagen rechazada por dimensiones desproporcionadas (posible bomba de descompresion)")
+        return None, "err_formato_no_permitido"
     except (UnidentifiedImageError, OSError, ValueError):
         return None, "err_formato_no_permitido"
