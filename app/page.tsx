@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import { PieLegal } from '@/components/shared/PieLegal'
 import { User, Lock, ArrowRight, ShieldCheck, Mail } from 'lucide-react'
 import { auth } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
@@ -455,12 +456,7 @@ function HomeContent() {
         </div>
       </div>
 
-      <footer className="pb-6 px-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <a href="/legal/aviso-legal" className="hover:text-foreground hover:underline">{t('enlace_aviso_legal')}</a>
-        <a href="/legal/privacidad" className="hover:text-foreground hover:underline">{t('enlace_privacidad')}</a>
-        <a href="/legal/terminos" className="hover:text-foreground hover:underline">{t('enlace_terminos')}</a>
-        <a href="/legal/cookies" className="hover:text-foreground hover:underline">{t('enlace_cookies')}</a>
-      </footer>
+      <PieLegal />
     </main>
   )
 }

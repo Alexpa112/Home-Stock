@@ -45,14 +45,14 @@ export default function TerminosPage() {
 
       <h2>6. Gratuidad y disponibilidad</h2>
       <p>
-        Dreame! es un servicio gratuito, sin publicidad ni pagos. Se presta "tal cual", sin
+        Dreame! es un servicio gratuito, sin publicidad ni pagos. Se presta «tal cual», sin
         garantizar una disponibilidad ininterrumpida: puede haber paradas por mantenimiento o
         causas ajenas a nuestro control.
       </p>
 
       <h2>7. Propiedad intelectual</h2>
       <p>
-        El código, el diseño y la marca "Dreame!" pertenecen a {titular}. El contenido que tú
+        El código, el diseño y la marca «Dreame!» pertenecen a {titular}. El contenido que tú
         introduces (productos, listas, fotos de tickets) sigue siendo tuyo; nos autorizas a
         tratarlo únicamente para prestarte el servicio.
       </p>

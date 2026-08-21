@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { TrendingDown, BookOpen, Trash2, Pencil, LineChart } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi, articulosPersonalizados as articulosPersonalizadosApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { filtrarPorNombre } from '@/lib/texto'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { IconPicker } from '@/components/dashboard/IconPicker'
 import { GraficoColumnas } from '@/components/dashboard/GraficoColumnas'
@@ -39,6 +40,9 @@ export default function HistorialPage() {
   const [porProducto, setPorProducto] = useState<ProductoConsumo[]>([])
   const [porDia, setPorDia] = useState<{ dia: string; consumo: number }[]>([])
   const [catalogo, setCatalogo] = useState<ArticuloCatalogo[]>([])
+  // El catálogo sembrado pasa de 700 artículos: sin filtro, la tarjeta era un
+  // muro con scroll donde no se podía comprobar si algo estaba o no.
+  const [busquedaCatalogo, setBusquedaCatalogo] = useState('')
   const [personalizados, setPersonalizados] = useState<ArticuloPersonalizado[]>([])
   const [eliminandoId, setEliminandoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -48,6 +52,11 @@ export default function HistorialPage() {
   const [iconoEdit, setIconoEdit] = useState<string | undefined>(undefined)
   const [mostrarIconPickerId, setMostrarIconPickerId] = useState<number | null>(null)
   const [guardandoId, setGuardandoId] = useState<number | null>(null)
+
+  // filtrarPorNombre ignora tildes y mayusculas: el catalogo lleva acentos
+  // ("Plátano") y quien busca casi nunca los escribe. Vive en lib/texto.ts
+  // para poder probarlo (lib/__tests__/texto.test.ts).
+  const catalogoFiltrado = filtrarPorNombre(catalogo, busquedaCatalogo)
 
   useEffect(() => {
     cargarConsumo(dias)
@@ -201,13 +210,27 @@ export default function HistorialPage() {
           {t('descripcion_catalogo_aprendido')}
         </p>
         {catalogo.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto">
-            {catalogo.map((a, i) => (
-              <div key={i} className="p-2 rounded-lg bg-muted text-sm truncate" title={a.nombre}>
-                {a.nombre}
+          <>
+            <input
+              type="search"
+              value={busquedaCatalogo}
+              onChange={(e) => setBusquedaCatalogo(e.target.value)}
+              placeholder={t('buscar_en_catalogo')}
+              className="input-field"
+              aria-label={t('buscar_en_catalogo')}
+            />
+            {catalogoFiltrado.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto">
+                {catalogoFiltrado.map((a, i) => (
+                  <div key={i} className="p-2 rounded-lg bg-muted text-sm truncate" title={a.nombre}>
+                    {a.nombre}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-2">{t('catalogo_sin_coincidencias')}</p>
+            )}
+          </>
         )}
       </div>
 

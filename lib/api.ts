@@ -226,6 +226,10 @@ export const auth = {
     return result
   },
 
+  // Diagnostico del motor de OCR (stockhogar/rutas/ocr_tickets.py). Se usa en
+  // Ajustes para avisar si el escaner va a caer a Tesseract.
+  validarInstalacionOcr: () => apiCall('/api/ocr/validar-instalacion'),
+
   cambiarPreferenciaOcr: (ocrLocal: boolean) =>
     apiCall('/api/auth/preferencia-ocr', { method: 'POST', body: JSON.stringify({ ocr_local: ocrLocal }) }),
 

@@ -189,11 +189,22 @@ def crear_respuesta_usuario(items: List[Dict], db, hogar_id=None) -> Dict:
             "mensaje": f"{len(sin_match)} productos no encontrados en catálogo. Revisa manualmente."
         })
 
-    confianza_promedio = resultado["resumen"]["confianza_promedio"]
-    if confianza_promedio < 0.6:
-        resultado["advertencias"].append({
-            "tipo": "confianza_baja",
-            "mensaje": "Confianza baja en los matches. El OCR pudo tener dificultades."
-        })
+    # La confianza se mide SOLO sobre los articulos que si se emparejaron con
+    # el catalogo. La media global incluia a los que no tienen match (confianza
+    # 0), asi que con el catalogo vacio -el caso de cualquier usuario nuevo-
+    # este aviso saltaba siempre junto al de arriba y repetia lo mismo con
+    # otras palabras: dos avisos amarillos en cada escaneo, que acaban
+    # ignorandose los dos. Si no hay ningun match, no hay nada que decir sobre
+    # la calidad de los matches.
+    emparejados = [i for i in items if i.get("producto_id")]
+    if emparejados:
+        confianza_emparejados = (
+            sum(i.get("confianza_match", 0) for i in emparejados) / len(emparejados)
+        )
+        if confianza_emparejados < 0.6:
+            resultado["advertencias"].append({
+                "tipo": "confianza_baja",
+                "mensaje": "Confianza baja en los matches. El OCR pudo tener dificultades."
+            })
 
     return resultado
