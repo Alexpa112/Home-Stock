@@ -49,10 +49,30 @@ def listar_listas():
         (usuario_id, usuario_id),
     ).fetchall()
 
+    # Se informa del hogar EFECTIVO, no del valor crudo de la sesión: nada fija
+    # hogar_actual_id al iniciar sesión (solo se pone al crear o seleccionar un
+    # hogar, y se borra al salir/borrar el que estaba activo), asi que aqui
+    # llegaba null mientras el resto del backend ya servia datos del hogar por
+    # defecto que resuelve hogar_actual_con_permiso. Con ese null, el layout
+    # del dashboard (`if (!hogarActivoId)`) tapaba TODAS las paginas con el
+    # selector de hogares: el usuario abria "Escanear" y no veia el escaner.
+    # Se fija tambien en la sesion para que las siguientes peticiones no
+    # tengan que volver a resolverlo.
+    #
+    # Import diferido: servicios/stock.py importa _usuario_tiene_permiso de
+    # ESTE modulo, asi que hacerlo arriba crearia un ciclo (mismo patron que
+    # rutas/historial.py::buscar_catalogo).
+    from ..servicios.stock import hogar_actual_con_permiso
+
+    hogar_actual_id = hogar_actual_con_permiso(db, session)
+    if hogar_actual_id and session.get("hogar_actual_id") != hogar_actual_id:
+        session["hogar_actual_id"] = hogar_actual_id
+        session.modified = True
+
     return APIResponse.success({
         "propias": [DataConverter.lista_to_dict(l, usuario_id, include_detalles=True) for l in propias],
         "compartidas": [DataConverter.lista_to_dict(l, usuario_id, include_detalles=True) for l in compartidas],
-        "hogar_actual_id": session.get("hogar_actual_id"),
+        "hogar_actual_id": hogar_actual_id,
     })
 
 
