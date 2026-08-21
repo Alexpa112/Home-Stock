@@ -29,7 +29,15 @@ def registrar_precio(db, producto_id, hogar_id, precio):
 
 
 def hogar_actual_con_permiso(db, session, nivel_requerido=None):
-    """Devuelve el hogar_id activo del usuario si tiene permiso, o None."""
+    """Devuelve el hogar_id activo del usuario si tiene permiso, o None.
+
+    Si la sesión no trae hogar_actual_id (login recién hecho: nada lo fija al
+    iniciar sesión; o el usuario acaba de salir/borrar el hogar que tenía
+    activo, que lo elimina de la sesión) se resuelve uno por defecto: primero
+    un hogar propio, y si no tiene ninguno, uno compartido con él. Sin el
+    segundo caso, un usuario que solo participa en hogares de otros se
+    quedaba sin hogar efectivo.
+    """
     usuario_id = session.get("usuario_id")
     hogar_id = session.get("hogar_actual_id")
     if not hogar_id:
@@ -40,6 +48,13 @@ def hogar_actual_con_permiso(db, session, nivel_requerido=None):
             "ORDER BY fecha_actualizacion DESC LIMIT 1",
             (usuario_id,)
         ).fetchone()
+        if not lista:
+            lista = db.execute(
+                "SELECT h.id FROM hogares h, permisos_hogar p "
+                "WHERE h.id = p.hogar_id AND p.usuario_id = ? "
+                "ORDER BY h.fecha_actualizacion DESC LIMIT 1",
+                (usuario_id,)
+            ).fetchone()
         if not lista:
             return None
         hogar_id = lista["id"]
