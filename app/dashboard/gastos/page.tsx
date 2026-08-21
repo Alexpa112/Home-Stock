@@ -115,12 +115,19 @@ type Vista = 'gastos' | 'balances' | 'resumen'
 
 const fechaHoy = () => new Date().toISOString().slice(0, 10)
 
-const FORM_VACIO = (participantesPorDefecto: number[] = []): EstadoFormularioGasto => ({
+const FORM_VACIO = (
+  participantesPorDefecto: number[] = [],
+  pagadorPorDefecto: number | null = null,
+): EstadoFormularioGasto => ({
   descripcion: '',
   importe_total: '',
   categoria: null,
   fecha: fechaHoy(),
-  usuario_pagador_id: null,
+  // Quien apunta el gasto suele ser quien lo ha pagado, y en un hogar de una
+  // sola persona no hay ninguna otra opción: dejarlo en "—" obligaba a
+  // desplegar el selector siempre, y si no lo hacías el navegador soltaba su
+  // propio aviso ("Please select an item in the list") en inglés.
+  usuario_pagador_id: pagadorPorDefecto,
   seleccionados: new Set(participantesPorDefecto),
   importesPorMiembro: {},
   porcentajesPorMiembro: {},
@@ -445,7 +452,7 @@ export default function GastosPage() {
   }
 
   const abrirModalNuevo = () => {
-    setForm(FORM_VACIO(miembros.map((m) => m.id)))
+    setForm(FORM_VACIO(miembros.map((m) => m.id), usuarioId))
     setShowForm(true)
   }
 
@@ -489,11 +496,11 @@ export default function GastosPage() {
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.usuario_pagador_id) {
-      setError(t('err_seleccionar_pagador') || 'Selecciona quién pagó')
+      setError(t('err_seleccionar_pagador'))
       return
     }
     if (form.seleccionados.size === 0) {
-      setError(t('err_sin_participantes') || 'Debe haber al menos un participante')
+      setError(t('err_sin_participantes'))
       return
     }
 

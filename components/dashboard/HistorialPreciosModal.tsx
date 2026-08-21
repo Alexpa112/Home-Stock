@@ -22,7 +22,7 @@ interface HistorialPreciosModalProps {
 // barra proporcional al maximo del historial es suficiente para ver la
 // tendencia sin anadir dependencias nuevas.
 export function HistorialPreciosModal({ productoId, nombreProducto, onCerrar }: HistorialPreciosModalProps) {
-  const { t } = useTranslation()
+  const { t, idioma } = useTranslation()
   const [entradas, setEntradas] = useState<EntradaPrecio[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -64,7 +64,10 @@ export function HistorialPreciosModal({ productoId, nombreProducto, onCerrar }: 
               {[...entradas].reverse().map((entrada, i) => (
                 <li key={i} className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground w-20 shrink-0">
-                    {new Date(entrada.fecha).toLocaleDateString()}
+                    {/* Con el idioma de la app, no el del navegador (mismo
+                        criterio que las fechas de gastos). */}
+                    {new Intl.DateTimeFormat(idioma, { dateStyle: 'short' })
+                      .format(new Date(entrada.fecha))}
                   </span>
                   <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                     <div

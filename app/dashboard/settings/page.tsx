@@ -10,7 +10,7 @@ import { usePushNotifications } from '@/lib/usePushNotifications'
 
 export default function SettingsPage() {
   const { preferences, updatePreferences } = useListPreferences()
-  const { t, cambiarIdioma: aplicarIdiomaContexto } = useTranslation()
+  const { t, idioma, cambiarIdioma: aplicarIdiomaContexto } = useTranslation()
   const notificacionesPush = usePushNotifications()
   const [darkMode, setDarkMode] = useState(false)
   const [user, setUser] = useState<{ usuario?: string; nombre?: string | null; email?: string | null; id?: number }>({})
@@ -770,7 +770,14 @@ export default function SettingsPage() {
                 <li key={i} className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{ev.evento}</span>
                   <span className={ev.resultado === 'fallo' ? 'text-red-500' : ''}>
-                    {new Date(ev.fecha * 1000).toLocaleString()}
+                    {/* Con el idioma de la app, no el del navegador: sin esto,
+                        un usuario con la app en español pero el navegador en
+                        inglés veía "8/21/2026, 9:58 PM" en vez de
+                        "21/8/2026, 21:58". El resto de fechas de la app ya
+                        usan Intl con `idioma` (ver components/dashboard/gastos). */}
+                    {new Intl.DateTimeFormat(idioma, {
+                      dateStyle: 'short', timeStyle: 'short',
+                    }).format(new Date(ev.fecha * 1000))}
                   </span>
                 </li>
               ))}

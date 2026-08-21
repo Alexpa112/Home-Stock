@@ -23,7 +23,17 @@ export function useCacheBuster() {
           cache: 'no-store',
           headers: { 'pragma': 'no-cache', 'cache-control': 'no-cache' },
         });
+        // Sin este guardia, una respuesta de error (401 sin sesion, 502 del
+        // proxy...) seguia siendo JSON, asi que data.version salia undefined,
+        // newVersion valia la cadena "undefined" y el codigo de abajo lo
+        // tomaba por una version NUEVA: borraba el service worker y todas las
+        // caches y recargaba la pagina sola. Una version que no es un numero
+        // no dice nada del despliegue, asi que se ignora y se reintenta.
+        if (!res.ok) throw new Error('cache-version HTTP ' + res.status);
         const data = await res.json();
+        if (!Number.isFinite(Number(data?.version))) {
+          throw new Error('cache-version sin version numerica');
+        }
         const newVersion = String(data.version);
         const savedVersion = localStorage.getItem(CACHE_VERSION_KEY);
 

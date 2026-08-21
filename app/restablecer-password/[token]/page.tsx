@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { CheckCircle2, AlertCircle, Loader } from 'lucide-react'
 import { auth } from '@/lib/api'
@@ -84,6 +85,12 @@ export default function RestablecerPasswordPage() {
             <button type="submit" className="btn-primary w-full">
               {t('btn_restablecer_password')}
             </button>
+            {/* Salida de la pantalla: si el enlace ha caducado, el error se ve
+                aqui y sin este enlace no habia forma de volver al login mas que
+                editando la URL a mano. */}
+            <Link href="/" className="block text-center text-sm text-muted-foreground hover:underline">
+              {t('ir_a_iniciar_sesion')}
+            </Link>
           </form>
         )}
       </div>

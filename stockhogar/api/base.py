@@ -47,6 +47,7 @@ def session_version_en_bd():
     return g.session_version_bd
 
 
+
 def sesion_revocada() -> bool:
     """True si la cookie trae una session_version que la BD ya no reconoce.
 
@@ -58,7 +59,26 @@ def sesion_revocada() -> bool:
     """
     if "session_version" not in session or not session.get("usuario_id"):
         return False
-    return session.get("session_version") != session_version_en_bd()
+    try:
+        version_bd = session_version_en_bd()
+    except Exception:
+        # Esta funcion corre en el guardian global (before_request), FUERA de
+        # @manejo_errores: una excepcion aqui no se convertia en un JSON de
+        # error sino en la pagina 500 de Flask, y el cliente recibia HTML donde
+        # esperaba JSON. Se ha visto con "database is locked" cuando otra
+        # conexion mantiene una escritura mas alla del busy_timeout.
+        #
+        # Ante un fallo de BD se responde "no revocada" a proposito: dar por
+        # revocada la sesion cerraria la sesion a TODO el mundo por un problema
+        # pasajero de la base de datos. No se cachea nada, asi que la siguiente
+        # peticion vuelve a comprobarlo.
+        import logging
+        logging.getLogger(__name__).warning(
+            "No se pudo comprobar session_version; se deja pasar la peticion",
+            exc_info=True,
+        )
+        return False
+    return session.get("session_version") != version_bd
 
 
 class APIResponse:

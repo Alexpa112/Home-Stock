@@ -798,7 +798,11 @@
     "err_password_igual_anterior": "La nueva contraseña debe ser distinta de la actual",
     "err_usa_cambiar_password": "Para cambiar la contraseña usa la opción de cambio de contraseña",
     "err_usuario_no_es_miembro": "Ese usuario ya no es miembro del hogar",
-    "recurso_invitacion": "Invitación"
+    "recurso_invitacion": "Invitación",
+    "err_seleccionar_pagador": "Indica quién pagó el gasto",
+    "err_sin_participantes": "Selecciona al menos un participante",
+    "err_cargar_hogares": "No se han podido cargar tus hogares",
+    "ir_a_iniciar_sesion": "Volver a iniciar sesión"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1599,7 +1603,11 @@
     "err_password_igual_anterior": "O novo contrasinal debe ser distinto do actual",
     "err_usa_cambiar_password": "Para cambiar o contrasinal usa a opción de cambio de contrasinal",
     "err_usuario_no_es_miembro": "Ese usuario xa non é membro do fogar",
-    "recurso_invitacion": "Invitación"
+    "recurso_invitacion": "Invitación",
+    "err_seleccionar_pagador": "Indica quen pagou o gasto",
+    "err_sin_participantes": "Selecciona polo menos un participante",
+    "err_cargar_hogares": "Non se puideron cargar os teus fogares",
+    "ir_a_iniciar_sesion": "Volver a iniciar sesión"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2400,7 +2408,11 @@
     "err_password_igual_anterior": "The new password must be different from the current one",
     "err_usa_cambiar_password": "To change your password use the change password option",
     "err_usuario_no_es_miembro": "That user is no longer a member of the household",
-    "recurso_invitacion": "Invitation"
+    "recurso_invitacion": "Invitation",
+    "err_seleccionar_pagador": "Choose who paid for the expense",
+    "err_sin_participantes": "Select at least one participant",
+    "err_cargar_hogares": "Could not load your households",
+    "ir_a_iniciar_sesion": "Back to sign in"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3201,7 +3213,11 @@
     "err_password_igual_anterior": "A nova palavra-passe deve ser diferente da atual",
     "err_usa_cambiar_password": "Para alterar a palavra-passe use a opção de alteração de palavra-passe",
     "err_usuario_no_es_miembro": "Esse utilizador já não é membro da casa",
-    "recurso_invitacion": "Convite"
+    "recurso_invitacion": "Convite",
+    "err_seleccionar_pagador": "Indique quem pagou a despesa",
+    "err_sin_participantes": "Selecione pelo menos um participante",
+    "err_cargar_hogares": "Não foi possível carregar as suas casas",
+    "ir_a_iniciar_sesion": "Voltar a iniciar sessão"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4002,7 +4018,11 @@
     "err_password_igual_anterior": "Le nouveau mot de passe doit être différent de l'actuel",
     "err_usa_cambiar_password": "Pour changer le mot de passe, utilisez l’option de changement de mot de passe",
     "err_usuario_no_es_miembro": "Cet utilisateur n'est plus membre du foyer",
-    "recurso_invitacion": "Invitation"
+    "recurso_invitacion": "Invitation",
+    "err_seleccionar_pagador": "Indiquez qui a payé la dépense",
+    "err_sin_participantes": "Sélectionnez au moins un participant",
+    "err_cargar_hogares": "Impossible de charger vos foyers",
+    "ir_a_iniciar_sesion": "Retour à la connexion"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4803,7 +4823,11 @@
     "err_password_igual_anterior": "La nuova password deve essere diversa da quella attuale",
     "err_usa_cambiar_password": "Per cambiare la password usa l’opzione di cambio password",
     "err_usuario_no_es_miembro": "Questo utente non è più membro della casa",
-    "recurso_invitacion": "Invito"
+    "recurso_invitacion": "Invito",
+    "err_seleccionar_pagador": "Indica chi ha pagato la spesa",
+    "err_sin_participantes": "Seleziona almeno un partecipante",
+    "err_cargar_hogares": "Non è stato possibile caricare le tue case",
+    "ir_a_iniciar_sesion": "Torna ad accedere"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5604,6 +5628,10 @@
     "err_password_igual_anterior": "Das neue Passwort muss sich vom aktuellen unterscheiden",
     "err_usa_cambiar_password": "Zum Ändern des Passworts nutze die Passwort-ändern-Option",
     "err_usuario_no_es_miembro": "Dieser Benutzer ist kein Mitglied des Haushalts mehr",
-    "recurso_invitacion": "Einladung"
+    "recurso_invitacion": "Einladung",
+    "err_seleccionar_pagador": "Gib an, wer die Ausgabe bezahlt hat",
+    "err_sin_participantes": "Wähle mindestens eine Person aus",
+    "err_cargar_hogares": "Deine Haushalte konnten nicht geladen werden",
+    "ir_a_iniciar_sesion": "Zurück zur Anmeldung"
   }
 }

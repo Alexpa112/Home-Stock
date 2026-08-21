@@ -83,7 +83,7 @@ export function HogarProvider({ children }: { children: ReactNode }) {
       setCompartidos(data.compartidas || [])
       setHogarActivoId(hogarActivoIdNuevo)
     } catch (e) {
-      setError(t('err_cargar_hogares') || 'Error al cargar los hogares')
+      setError(t('err_cargar_hogares'))
     } finally {
       setLoading(false)
     }
