@@ -124,8 +124,6 @@ Test-Result "Botón submit existe" $result $true
 $result = if ($HTML.Contains('href="/auth/google"')) { "PASS" } else { "FAIL" }
 Test-Result "Botón Google OAuth existe" $result
 
-$result = if ($HTML.Contains('href="/auth/apple"')) { "PASS" } else { "FAIL" }
-Test-Result "Botón Apple OAuth existe" $result
 
 Write-Host ""
 

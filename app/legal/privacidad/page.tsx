@@ -18,7 +18,7 @@ export default function PrivacidadPage() {
       <ul>
         <li>
           <strong>Cuenta:</strong> nombre de usuario y contraseña (guardada cifrada, nunca en
-          claro), o email, nombre y foto de perfil si te registras con Google o Apple.
+          claro), o email, nombre y foto de perfil si te registras con Google.
         </li>
         <li>
           <strong>Contenido que introduces:</strong> productos de tu inventario, listas de la
@@ -51,7 +51,7 @@ export default function PrivacidadPage() {
       <h2>Base legal</h2>
       <p>
         La ejecución del servicio que solicitas al crear una cuenta (art. 6.1.b RGPD) y, cuando
-        inicias sesión con Google o Apple o marcas la casilla de aceptación al registrarte, tu
+        inicias sesión con Google o marcas la casilla de aceptación al registrarte, tu
         consentimiento expreso (art. 6.1.a RGPD).
       </p>
 
@@ -70,7 +70,6 @@ export default function PrivacidadPage() {
           a hacerse solo con reconocimiento local en el servidor, algo menos preciso pero sin
           salir del dispositivo.
         </li>
-        <li><strong>Apple Inc.:</strong> únicamente si inicias sesión con «Continuar con Apple».</li>
       </ul>
 
       <h2>Cuánto tiempo conservamos tus datos</h2>

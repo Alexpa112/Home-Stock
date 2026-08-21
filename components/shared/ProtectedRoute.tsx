@@ -39,7 +39,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       localStorage.setItem('theme', usarDark ? 'dark' : 'light')
 
       // Usuarios ya logueados antes de esta version de Terminos/Privacidad, o
-      // que entraron por Google/Apple (no pasan por la casilla del formulario
+      // que entraron por Google (no pasan por la casilla del formulario
       // de registro manual): deben aceptar antes de ver el resto de la app.
       setTerminosPendientes(Boolean(datos.terminos_pendientes))
       setIsAuthorized(true)

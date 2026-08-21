@@ -898,15 +898,10 @@ CATALOGO_DEFECTO = [
     ("Snack horneado de legumbres", "Snacks y Dulces", "salad", "pack", None),
 ]
 
-# Configuración OAuth para Google y Apple
-# Obtén estas credenciales en:
-# - Google: https://console.cloud.google.com/
-# - Apple: https://developer.apple.com/
+# Configuración OAuth para Google
+# Obtén estas credenciales en https://console.cloud.google.com/
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-APPLE_CLIENT_ID = os.getenv("APPLE_CLIENT_ID", "")
-APPLE_CLIENT_SECRET = os.getenv("APPLE_CLIENT_SECRET", "")
-APPLE_TEAM_ID = os.getenv("APPLE_TEAM_ID", "")
 
 # Configuración de Email (para invitaciones a compartir listas)
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")

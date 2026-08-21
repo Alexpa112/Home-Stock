@@ -1,4 +1,4 @@
-"""Tests de regresion para el flujo OAuth (login con Google/Apple).
+"""Tests de regresion para el flujo OAuth (login con Google).
 
 Cubre el bug donde el callback solo guardaba session["usuario_id"] pero el
 guardian global (exigir_sesion en stockhogar/__init__.py) tambien exige
