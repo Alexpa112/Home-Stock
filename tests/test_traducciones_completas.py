@@ -59,6 +59,28 @@ class TraduccionesCompletasTests(unittest.TestCase):
         self.assertGreater(len(self.traducciones["es"]), 100)
         self.assertIn("es", self.traducciones)
 
+    def test_las_traducciones_base_del_frontend_estan_al_dia(self):
+        """lib/traduccionesBase.ts es una copia generada del idioma por defecto.
+
+        El frontend la usa como estado inicial para que el HTML del servidor y
+        el primer pintado no salgan con las claves en crudo. Si se desincroniza
+        de translations.json, vuelven a aparecer claves sin traducir en la
+        primera carga. Regenerar con scripts/generar_traducciones_base.py.
+        """
+        generado = RAIZ / "lib" / "traduccionesBase.ts"
+        self.assertTrue(generado.exists(), "falta lib/traduccionesBase.ts")
+
+        texto = generado.read_text(encoding="utf-8")
+        inicio = texto.index("{")
+        fin = texto.rindex("}") + 1
+        base = json.loads(texto[inicio:fin])
+
+        self.assertEqual(
+            base, self.traducciones["es"],
+            "lib/traduccionesBase.ts no coincide con translations.json['es']: "
+            "ejecuta `python scripts/generar_traducciones_base.py`",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import TRADUCCIONES_BASE from '@/lib/traduccionesBase'
 
 interface TranslationContextType {
   idioma: string
@@ -37,7 +38,15 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   // traducir mientras se confirma el idioma real con el backend.
   const idiomaInicial = typeof window !== 'undefined' ? (localStorage.getItem('idioma_preferido') || 'es') : 'es'
   const [idioma, setIdioma] = useState(idiomaInicial)
-  const [traducciones, setTraducciones] = useState<Record<string, string>>(() => leerCache(idiomaInicial) || {})
+  // TRADUCCIONES_BASE (español, empaquetado) como punto de partida: la caché
+  // solo existe en visitas repetidas, así que sin él la PRIMERA carga —y todo
+  // el HTML que genera el servidor, que no tiene localStorage— salía con las
+  // claves en crudo hasta que respondía /api/idiomas/todos/<idioma>. Eso se
+  // veía en pantalla y además rompía la hidratación de React (#418) en todas
+  // las páginas, porque el texto del servidor no coincidía con el del cliente.
+  const [traducciones, setTraducciones] = useState<Record<string, string>>(
+    () => leerCache(idiomaInicial) || TRADUCCIONES_BASE
+  )
   const [cargando, setCargando] = useState(true)
 
   // Cargar idioma guardado y traducciones
@@ -68,7 +77,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   }, [])
 
   const t = (clave: string): string => {
-    return traducciones[clave] || clave
+    // Si al idioma activo le falta una clave, se cae al español antes que a la
+    // clave: el usuario prefiere leer "Guardar" a leer "btn_guardar".
+    return traducciones[clave] || TRADUCCIONES_BASE[clave] || clave
   }
 
   const cambiarIdioma = async (nuevoIdioma: string) => {

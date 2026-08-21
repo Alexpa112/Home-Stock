@@ -192,7 +192,6 @@ export function FormularioGasto({
             value={form.usuario_pagador_id ?? ''}
             onChange={(e) => onCambiarPagador(Number(e.target.value))}
             className="input-field"
-            required
           >
             <option value="" disabled>—</option>
             {miembros.map((m) => (
