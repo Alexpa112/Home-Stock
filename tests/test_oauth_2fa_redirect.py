@@ -3,7 +3,7 @@ pantalla que el frontend sirva de verdad.
 
 Bug real: al forzar el 2FA en OAuth (M-5) los callbacks redirigian a
 "/verificar-codigo-2fa", una ruta que NO existe en el App Router. El usuario
-con 2FA que entraba por Google/Apple se comia un 404 y no podia terminar de
+con 2FA que entraba por Google se comia un 404 y no podia terminar de
 iniciar sesion; si ademas su cuenta se habia creado por OAuth (password_hash
 NULL) tampoco tenia el login por contrasena como alternativa, asi que quedaba
 fuera hasta editar la base de datos a mano.

@@ -385,7 +385,7 @@ def _init_db_impl():
             """
         )
 
-        # Tabla para cuentas OAuth (Google, Apple)
+        # Tabla para cuentas OAuth (Google)
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS oauth_accounts (

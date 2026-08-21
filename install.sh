@@ -599,7 +599,6 @@ step_start "Configurar variables de entorno (.env)"
 # .env.example, y si existe solo se le añaden las claves que falten.
 REQUIRED_VARS=(
     GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
-    APPLE_CLIENT_ID APPLE_CLIENT_SECRET APPLE_TEAM_ID
     SMTP_SERVER SMTP_PORT SMTP_USER SMTP_PASSWORD SMTP_FROM
     APP_URL
     STOCKHOGAR_PORT
@@ -630,7 +629,7 @@ if [[ ! -f ".env" ]]; then
 else
     # El respaldo del .env NO puede vivir en data/backups/: ese directorio lo
     # sirve por HTTP el Panel de Gestion para descargar copias de seguridad, y
-    # el .env lleva en claro las credenciales OAuth de Google/Apple, la
+    # el .env lleva en claro las credenciales OAuth de Google, la
     # contraseña SMTP, la API key de Anthropic y la de Postgres. Va a un
     # directorio del usuario, fuera del volumen que se monta en el contenedor,
     # y con permisos 600 desde el momento de crearlo (install -m, no cp).

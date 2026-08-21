@@ -178,9 +178,6 @@ test_result "Botón submit existe (id=btnFormulario)" "$PASS" "true"
 PASS=$(echo "$HTML" | grep -q 'href="/auth/google"' && echo "PASS" || echo "FAIL")
 test_result "Botón Google OAuth existe" "$PASS"
 
-# Test 5.3: Botón OAuth Apple
-PASS=$(echo "$HTML" | grep -q 'href="/auth/apple"' && echo "PASS" || echo "FAIL")
-test_result "Botón Apple OAuth existe" "$PASS"
 
 echo ""
 

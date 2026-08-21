@@ -11,7 +11,7 @@ interface AceptarTerminosModalProps {
 
 // Pantalla bloqueante (sin cierre ni click-fuera) para usuarios que ya tenían
 // sesión iniciada antes de esta version de los Terminos/Privacidad, o que
-// entraron por Google/Apple y por tanto nunca pasaron por la casilla de
+// entraron por Google y por tanto nunca pasaron por la casilla de
 // aceptacion del formulario de registro manual (ver app/page.tsx).
 export function AceptarTerminosModal({ onAceptado }: AceptarTerminosModalProps) {
   const { t } = useTranslation()

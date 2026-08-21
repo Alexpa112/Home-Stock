@@ -61,7 +61,6 @@ Check "type=password" ($web.Contains('type="password"'))
 Write-Host "`nBOTONES:" -ForegroundColor Yellow
 Check "Boton submit" ($web.Contains('type="submit"'))
 Check "OAuth Google" ($web.Contains('/auth/google'))
-Check "OAuth Apple" ($web.Contains('/auth/apple'))
 
 Write-Host "`nJAVASCRIPT:" -ForegroundColor Yellow
 Check "mostrarLogin()" ($web.Contains("function mostrarLogin"))

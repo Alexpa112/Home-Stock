@@ -17,7 +17,7 @@ uploads/
 # Secretos. Sin estas lineas, los dos Dockerfile de backend (COPY . /app/) se
 # llevan el .env real del host a una capa de la imagen cuando install.sh
 # compila localmente en la Pi (fallback de `docker compose pull`, y siempre con
-# --reinstall). Ahi quedan GOOGLE_CLIENT_SECRET, APPLE_CLIENT_SECRET,
+# --reinstall). Ahi quedan GOOGLE_CLIENT_SECRET,
 # SMTP_PASSWORD, ANTHROPIC_API_KEY y POSTGRES_PASSWORD, extraibles con
 # `docker save` y supervivientes a cualquier cambio posterior del .env del
 # host. Los secretos solo deben llegar en tiempo de ejecucion, por el

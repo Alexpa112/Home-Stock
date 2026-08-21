@@ -108,7 +108,7 @@ const nextConfig = {
           destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/:path*`,
         },
         {
-          // Login con Google/Apple (stockhogar/rutas/oauth.py): tiene que
+          // Login con Google (stockhogar/rutas/oauth.py): tiene que
           // pasar por este mismo proxy, no ser una llamada directa al
           // backend, para que la cookie de sesion que fija el callback
           // quede en el MISMO origen (este frontend) que luego hace las

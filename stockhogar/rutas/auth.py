@@ -36,8 +36,6 @@ RUTAS_PUBLICAS = {
     "auth.restablecer_password",
     "oauth.oauth_google",
     "oauth.oauth_google_callback",
-    "oauth.oauth_apple",
-    "oauth.oauth_apple_callback",
     "paginas.log_client_error",
     "paginas.csrf_token",
     "paginas.mantenimiento_estado",
@@ -410,7 +408,7 @@ def cambiar_doble_factor():
 def aceptar_terminos():
     """Registra la aceptación de la versión vigente de Términos y Privacidad.
 
-    Cubre tanto al usuario que se registra por Google/Apple (no pasa por el
+    Cubre tanto al usuario que se registra por Google (no pasa por el
     formulario de registro, así que no acepta ahí) como al que ya tenía
     cuenta antes de introducir esta versión de los términos.
     """
