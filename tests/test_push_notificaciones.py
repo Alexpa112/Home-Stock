@@ -1,7 +1,11 @@
 """Tests de suscripciones push (P-01) y del script de avisos de caducidad
 (P-07)."""
+import base64
 import importlib.util
+import shutil
+import stat
 import sys
+import tempfile
 import unittest
 import uuid
 from pathlib import Path
@@ -11,6 +15,7 @@ from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
+from stockhogar.servicios import push_service
 
 
 class SuscripcionesPushTests(unittest.TestCase):
@@ -39,13 +44,35 @@ class SuscripcionesPushTests(unittest.TestCase):
             db.commit()
 
     def test_vapid_clave_publica_devuelve_string(self):
-        try:
-            import py_vapid
-        except ImportError:
-            self.skipTest("py-vapid no disponible (opcional en CI)")
+        """Ya no se salta si falta py-vapid: es dependencia obligatoria en
+        requirements.txt. Cuando estaba comentada, este test se saltaba y tapaba
+        que la clave publica se servia VACIA, con lo que activar las
+        notificaciones era imposible."""
         resp = self.client.get("/api/push/vapid-clave-publica")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
-        self.assertTrue(resp.get_json()["clave_publica"])
+        self.assertTrue(
+            resp.get_json()["clave_publica"],
+            "clave publica VAPID vacia: el navegador no puede suscribirse",
+        )
+
+    def test_borrar_el_usuario_borra_sus_suscripciones(self):
+        """La politica de privacidad declara que desactivar/eliminar la cuenta
+        borra la suscripcion: depende de ON DELETE CASCADE, que a su vez depende
+        de PRAGMA foreign_keys (db.py). Si alguien lo apagara, quedarian
+        endpoints huerfanos de cuentas ya borradas."""
+        endpoint = f"https://fcm.googleapis.com/fake/{uuid.uuid4().hex}"
+        self.client.post(
+            "/api/push/suscribir",
+            json={"endpoint": endpoint, "keys": {"p256dh": "p", "auth": "a"}},
+        )
+        with self.app.app_context():
+            db = get_db()
+            db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
+            db.commit()
+            fila = db.execute(
+                "SELECT id FROM push_subscriptions WHERE endpoint = ?", (endpoint,)
+            ).fetchone()
+            self.assertIsNone(fila, "la suscripcion sobrevive al borrado de la cuenta")
 
     def test_suscribir_y_desuscribir(self):
         endpoint = f"https://fcm.googleapis.com/fake/{uuid.uuid4().hex}"
@@ -101,10 +128,8 @@ class EnviarPushTests(unittest.TestCase):
 
     @patch("stockhogar.servicios.push_service.webpush")
     def test_enviar_push_con_suscripcion_caducada_la_borra(self, mock_webpush):
-        try:
-            from pywebpush import WebPushException
-        except ImportError:
-            self.skipTest("pywebpush no disponible (opcional en CI)")
+        from pywebpush import WebPushException
+
         from stockhogar.servicios.push_service import enviar_push
 
         respuesta_falsa = MagicMock()
@@ -139,10 +164,6 @@ class EnviarPushTests(unittest.TestCase):
 
     @patch("stockhogar.servicios.push_service.webpush")
     def test_enviar_push_exitoso_devuelve_true(self, mock_webpush):
-        try:
-            import pywebpush
-        except ImportError:
-            self.skipTest("pywebpush no disponible (opcional en CI)")
         from stockhogar.servicios.push_service import enviar_push
 
         mock_webpush.return_value = None
@@ -150,6 +171,97 @@ class EnviarPushTests(unittest.TestCase):
             db = get_db()
             suscripcion = {"id": 1, "endpoint": "https://x.example/y", "p256dh": "p", "auth": "a"}
             self.assertTrue(enviar_push(db, suscripcion, "titulo", "cuerpo"))
+
+
+class ClaveVapidTests(unittest.TestCase):
+    """La clave VAPID identifica al SERVIDOR ante el servicio push de cada
+    navegador. push_service.py solo la CARGABA `if ruta.exists()` y nada la
+    generaba nunca, asi que `_vapid` quedaba en None para siempre y
+    `clave_publica_vapid()` devolvia "": el navegador no tenia con que
+    suscribirse y el interruptor de Ajustes no podia funcionar en ningun
+    despliegue. Estos tests atan la generacion."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.ruta = Path(self.tmp) / "vapid_private_key.pem"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _con_ruta_temporal(self):
+        return patch.object(push_service, "_VAPID_KEY_PATH", self.ruta)
+
+    def test_la_clave_se_genera_si_el_fichero_no_existe(self):
+        with self._con_ruta_temporal():
+            self.assertFalse(self.ruta.exists())
+            vapid = push_service._cargar_o_crear_vapid()
+            self.assertTrue(self.ruta.exists(), "no se genero data/vapid_private_key.pem")
+            self.assertIsNotNone(vapid)
+
+    def test_la_clave_privada_se_crea_con_permisos_0600(self):
+        with self._con_ruta_temporal():
+            push_service._cargar_o_crear_vapid()
+            self.assertEqual(stat.S_IMODE(self.ruta.stat().st_mode), 0o600)
+
+    def test_la_clave_no_cambia_entre_arranques(self):
+        """Si cambiara, las suscripciones ya entregadas al navegador (que
+        guarda la clave publica con la que se suscribio) dejarian de valer."""
+        with self._con_ruta_temporal():
+            push_service._cargar_o_crear_vapid()
+            primera = self.ruta.read_bytes()
+            push_service._cargar_o_crear_vapid()
+            self.assertEqual(self.ruta.read_bytes(), primera)
+
+    def test_dos_workers_a_la_vez_no_se_pisan_la_clave(self):
+        """Con varios workers de gunicorn arrancando en paralelo, el segundo en
+        crear el fichero no debe sobrescribir la clave del primero (O_EXCL)."""
+        with self._con_ruta_temporal():
+            push_service._crear_clave_vapid()
+            primera = self.ruta.read_bytes()
+            push_service._crear_clave_vapid()  # El que pierde la carrera.
+            self.assertEqual(self.ruta.read_bytes(), primera)
+
+    def test_la_clave_publica_es_un_punto_p256_sin_comprimir(self):
+        """Formato que exige PushManager.subscribe({applicationServerKey}):
+        base64url sin padding de 65 bytes (0x04 + X + Y)."""
+        with self._con_ruta_temporal():
+            vapid = push_service._cargar_o_crear_vapid()
+            with patch.object(push_service, "_vapid", vapid):
+                clave = push_service.clave_publica_vapid()
+
+        self.assertTrue(clave)
+        self.assertNotIn("=", clave)
+        crudo = base64.urlsafe_b64decode(clave + "=" * (-len(clave) % 4))
+        self.assertEqual(len(crudo), 65)
+        self.assertEqual(crudo[0], 0x04)
+
+    def test_install_sh_programa_el_cron_de_avisos_de_caducidad(self):
+        """El script de avisos se escribio para un cron diario y ese cron no se
+        instalaba en ningun sitio: se podian activar las notificaciones y no
+        llegar nunca ninguna, porque nadie ejecutaba el script."""
+        raiz = Path(__file__).resolve().parent.parent
+        instalador = (raiz / "install.sh").read_text(encoding="utf-8")
+        self.assertIn(
+            "enviar_avisos_caducidad.py", instalador,
+            "install.sh no programa el envio de avisos: las notificaciones push "
+            "se activarian pero no llegaria ninguna",
+        )
+        self.assertIn("crontab -", instalador)
+
+    def test_requirements_declara_las_dependencias_de_push(self):
+        """Estuvieron comentadas ("opcional, se instala en produccion"), asi que
+        ningun despliegue construido desde requirements.txt podia enviar push."""
+        texto = Path(__file__).resolve().parent.parent / "requirements.txt"
+        lineas = [
+            l.strip() for l in texto.read_text(encoding="utf-8").splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+        for paquete in ("py-vapid", "pywebpush"):
+            with self.subTest(paquete=paquete):
+                self.assertTrue(
+                    any(l.startswith(paquete) for l in lineas),
+                    f"{paquete} no esta declarado (o sigue comentado) en requirements.txt",
+                )
 
 
 class AvisosCaducidadScriptTests(unittest.TestCase):

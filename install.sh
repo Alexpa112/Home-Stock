@@ -927,6 +927,26 @@ else
     log_info "Rama actual distinta de 'produccion'; se omite el cron de auto-actualización (actívalo manualmente si lo necesitas)."
 fi
 
+# Avisos de caducidad (P-07). scripts/enviar_avisos_caducidad.py se escribió
+# para ejecutarse "una vez al día vía cron del sistema" (así lo dice su propio
+# docstring), pero ese cron nunca se instaló: activar las notificaciones en
+# Ajustes funcionaba y luego no llegaba ningún aviso, porque nadie ejecutaba el
+# script. Se lanza dentro del contenedor (container_name fijo en
+# docker-compose.yml) porque ahí están las dependencias y la BD montada.
+# A diferencia del cron de auto-actualización, este no depende de la rama.
+CRON_CADUCIDAD="30 9 * * * docker exec stockhogar-app python scripts/enviar_avisos_caducidad.py >> $SCRIPT_DIR/logs/avisos_caducidad.log 2>&1"
+if check_cmd crontab; then
+    if crontab -l 2>/dev/null | grep -qF "enviar_avisos_caducidad.py"; then
+        log_info "El cron de avisos de caducidad ya estaba instalado"
+    else
+        (crontab -l 2>/dev/null; echo "$CRON_CADUCIDAD") | crontab -
+        log_success "Cron de avisos de caducidad instalado (cada día a las 09:30)"
+    fi
+else
+    log_warning "No hay 'crontab' disponible; añade esto manualmente para que lleguen los avisos de caducidad:"
+    log_warning "  $CRON_CADUCIDAD"
+fi
+
 step_end
 
 ################################################################################

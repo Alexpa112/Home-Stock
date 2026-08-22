@@ -6,7 +6,7 @@ export default function PrivacidadPage() {
   const { titular, email_contacto, dominio } = useDatosLegales()
 
   return (
-    <LegalPageLayout titulo="Política de Privacidad" ultimaActualizacion="4 de agosto de 2026">
+    <LegalPageLayout titulo="Política de Privacidad" ultimaActualizacion="22 de agosto de 2026">
       <h2>Responsable del tratamiento</h2>
       <ul>
         <li><strong>Titular:</strong> {titular}</li>
@@ -39,6 +39,12 @@ export default function PrivacidadPage() {
           <strong>Preferencias:</strong> idioma, tema (claro/oscuro) y otras opciones de la
           aplicación.
         </li>
+        <li>
+          <strong>Notificaciones push:</strong> solo si las activas en Ajustes, guardamos la
+          dirección de entrega («endpoint») que genera tu navegador para ese dispositivo y las
+          claves con las que se cifra cada aviso. No es un identificador que hayas facilitado tú:
+          lo crea el navegador y se puede anular en cualquier momento desactivando el interruptor.
+        </li>
       </ul>
 
       <h2>Con qué finalidad</h2>
@@ -69,6 +75,13 @@ export default function PrivacidadPage() {
           este envío a la nube desde Ajustes («Escanear tickets solo en local»): el escaneo pasará
           a hacerse solo con reconocimiento local en el servidor, algo menos preciso pero sin
           salir del dispositivo.
+        </li>
+        <li>
+          <strong>El servicio de notificaciones de tu navegador</strong> (Google LLC para Chrome y
+          Android, Mozilla Foundation para Firefox, Apple Inc. para Safari), únicamente si activas
+          las notificaciones push: es el intermediario que las entrega al dispositivo. El contenido
+          de cada aviso viaja cifrado de extremo a extremo, de modo que ese servicio no puede
+          leerlo. Desactivar el interruptor en Ajustes corta el envío y borra la suscripción.
         </li>
       </ul>
 

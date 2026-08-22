@@ -16,10 +16,16 @@ cryptography>=50.0,<51
 # Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db_backend.py).
 # -binary evita compilar contra libpq en la Raspberry Pi.
 psycopg2-binary>=2.9,<3
-# Notificaciones push (P-01/P-07): OPCIONAL, se instala en produccion si es necesario.
-# http-ece (cifrado del payload) requiere compilacion, lo que falla en CI;
-# como el codigo ya maneja la ausencia con graceful degradation, se omite de
-# la instalacion automatica pero puede instalarse manualmente si se necesita.
-# py-vapid y pywebpush son transdependencias de push, comentadas:
-# py-vapid>=1.7,<2
-# pywebpush>=2.0,<3  # Instalacion optativa en produccion
+# Notificaciones push del navegador (P-01) y avisos de caducidad (P-07).
+# Estuvieron comentadas por suponer que http-ece (el cifrado del payload)
+# requeria compilacion; no es asi: es Python puro y usa 'cryptography', que ya
+# esta arriba. Sin estos dos paquetes el usuario ve el interruptor de Ajustes
+# pero activarlo no puede funcionar, porque el servidor no tiene clave VAPID.
+py-vapid>=1.9,<2
+# pywebpush 2.x arrastra aiohttp (extension en C) solo por su API asincrona,
+# que aqui no se usa: se envia con webpush() sincrono. En armv7l PyPI no
+# publica wheel de aiohttp y la imagen no lleva compilador, asi que se limita a
+# 1.14 (Python puro: cryptography, http-ece, requests, py-vapid), con la misma
+# firma de webpush(). Mismo patron de marcador que argostranslate mas arriba.
+pywebpush>=2.0,<3; platform_machine != "armv7l"
+pywebpush>=1.14,<2; platform_machine == "armv7l"

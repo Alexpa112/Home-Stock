@@ -18,6 +18,18 @@ function base64UrlADataUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
+ * La UI pinta el error con t(error), asi que solo sirve una clave de
+ * traduccion. Los errores propios y los del backend ya lo son; lo que llega
+ * de las Web APIs (DOMException de pushManager.subscribe, TypeError de red) es
+ * texto libre en el idioma del navegador y se sustituye por una clave
+ * genérica, para no mostrarle al usuario un mensaje sin traducir.
+ */
+function mensajeDeError(err: unknown): string {
+  const mensaje = err instanceof Error ? err.message : ''
+  return /^[a-z0-9_]+$/.test(mensaje) ? mensaje : 'err_conexion_servidor'
+}
+
+/**
  * Suscripcion a notificaciones push del navegador (P-01). El registro del
  * SW ya lo hace RootLayoutClient.tsx de forma global (tambien lo necesita
  * el modo offline, P-02); el register() de aqui es idempotente (el
@@ -32,9 +44,20 @@ export function usePushNotifications() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const disponible = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
-    setSoportado(disponible)
-    if (!disponible) return
+    const soportaNavegador = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
+    if (!soportaNavegador) {
+      setSoportado(false)
+      return
+    }
+
+    // El navegador puede con push, pero hace falta que el servidor tenga clave
+    // VAPID (py-vapid instalado y data/vapid_private_key.pem generada). Si no
+    // la tiene, se oculta el interruptor en vez de ofrecerlo y fallar al
+    // pulsarlo: sin clave publica, pushManager.subscribe() lanza una
+    // DOMException del navegador que no dice nada al usuario.
+    push.vapidClavePublica()
+      .then(({ clave_publica }) => setSoportado(!!clave_publica))
+      .catch(() => setSoportado(false))
 
     navigator.serviceWorker.register('/sw.js').then(async (registro) => {
       const suscripcionActual = await registro.pushManager.getSubscription()
@@ -46,6 +69,9 @@ export function usePushNotifications() {
     setCargando(true)
     setError('')
     try {
+      if (typeof Notification === 'undefined') {
+        throw new Error('err_push_no_disponible')
+      }
       if (Notification.permission === 'denied') {
         throw new Error('permiso_notificaciones_denegado')
       }
@@ -56,6 +82,13 @@ export function usePushNotifications() {
 
       const registro = await navigator.serviceWorker.ready
       const { clave_publica } = await push.vapidClavePublica()
+      if (!clave_publica) {
+        // Servidor sin clave VAPID: no se llama a subscribe() con una clave
+        // vacia, porque el error resultante seria un mensaje del navegador en
+        // su propio idioma y sin traduccion posible.
+        setSoportado(false)
+        throw new Error('err_push_no_disponible')
+      }
       const suscripcion = await registro.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: base64UrlADataUint8Array(clave_publica),
@@ -65,7 +98,7 @@ export function usePushNotifications() {
       await push.suscribir(suscripcion.endpoint, claves)
       setSuscrito(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'err_conexion_servidor')
+      setError(mensajeDeError(err))
     } finally {
       setCargando(false)
     }
@@ -83,7 +116,7 @@ export function usePushNotifications() {
       }
       setSuscrito(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'err_conexion_servidor')
+      setError(mensajeDeError(err))
     } finally {
       setCargando(false)
     }
