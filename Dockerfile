@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Dockerfile genérico (x86_64) para desarrollo/pruebas.
 # Para despliegue en Raspberry Pi usa Dockerfile.raspbian (ver docker-compose.yml).
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
