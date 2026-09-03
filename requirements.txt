@@ -22,7 +22,7 @@ argostranslate>=1.9,<2; platform_machine != "armv7l"
 cryptography>=50.0,<51
 # Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db_backend.py).
 # -binary evita compilar contra libpq en la Raspberry Pi.
-psycopg2-binary>=2.9,<3
+psycopg2-binary>=2.9.12,<3
 # Notificaciones push del navegador (P-01) y avisos de caducidad (P-07).
 # Estuvieron comentadas por suponer que http-ece (el cifrado del payload)
 # requeria compilacion; no es asi: es Python puro y usa 'cryptography', que ya
