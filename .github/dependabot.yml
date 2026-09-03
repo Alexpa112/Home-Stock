@@ -1,16 +1,32 @@
+# Dependabot lee ESTE fichero de la rama por defecto del repositorio (main),
+# pero el flujo del proyecto es dev2 -> produccion y main no se despliega ni se
+# mantiene al dia. Sin `target-branch`, dependabot abria sus PR contra main:
+# se acumularon 12 contra una rama congelada el 07-08-2026, proponiendo cambios
+# sobre dependencias que en produccion ya no existen (python-Levenshtein,
+# retirado al pasar a rapidfuzz) o que estan deliberadamente topadas
+# (opencv-python-headless <=4.12.0.88, porque una version posterior dejo de
+# publicar wheel para armv7l y rompio el build de la Raspberry Pi).
+#
+# Con `target-branch: "dev2"` dependabot lee los manifiestos de dev2 y abre los
+# PR contra dev2, que es donde se revisan las dependencias antes de promocionar.
+# Este fichero se mantiene en main solo por eso; el resto del contenido de main
+# esta obsoleto a proposito.
 version: 2
 updates:
   - package-ecosystem: "pip"
     directory: "/"
+    target-branch: "dev2"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/"
+    target-branch: "dev2"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/"
+    target-branch: "dev2"
     schedule:
       interval: "weekly"
