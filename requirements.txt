@@ -19,7 +19,7 @@ opencv-python-headless>=4.9,<=4.12.0.88
 # arranque del contenedor con "unrecognized arguments".
 gunicorn>=26.0,<27
 argostranslate>=1.9,<2; platform_machine != "armv7l"
-cryptography>=50.0,<51
+cryptography>=50.0.1,<51
 # Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db_backend.py).
 # -binary evita compilar contra libpq en la Raspberry Pi.
 psycopg2-binary>=2.9,<3
