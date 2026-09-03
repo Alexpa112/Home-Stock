@@ -1043,7 +1043,7 @@ export default function StockPage() {
                   {cat.nombre}
                   <span className="text-xs text-muted-foreground ml-auto">{productosCat.length} {productosCat.length !== 1 ? t('producto_plural') : t('producto_singular')}</span>
                 </h2>
-                <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3'}>
+                <div className={modoVista === 'lista' ? 'space-y-2 lista-larga' : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 lista-larga-grid'}>
                   {productosCat.map(renderProducto)}
                 </div>
               </div>
@@ -1052,7 +1052,7 @@ export default function StockPage() {
         </div>
       ) : (
         // Vista sin agrupar
-        <div className={modoVista === 'lista' ? 'space-y-2' : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3'}>
+        <div className={modoVista === 'lista' ? 'space-y-2 lista-larga' : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 lista-larga-grid'}>
           {filteredItems.map(renderProducto)}
         </div>
       )}

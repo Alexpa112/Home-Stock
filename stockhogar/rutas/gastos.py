@@ -81,14 +81,48 @@ def _avisar_si_supera_presupuesto(db, hogar_id):
         )
 
 
-def _gasto_a_dict(db, gasto):
-    participantes = db.execute(
-        """SELECT gp.usuario_id, gp.importe, COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario
-           FROM gastos_participantes gp, usuarios u
-           WHERE gp.usuario_id = u.id AND gp.gasto_id = ?
+# Columnas del gasto que necesita la respuesta JSON, en lugar de "g.*". El
+# comodin arrastraba imagen_recibo, un BLOB con la foto del recibo, para
+# terminar usandolo solo como bool(...): listar 300 gastos con recibo leia
+# todas las fotos del disco y las descartaba. Aqui se sustituye por la
+# comprobacion hecha en SQL, que no mueve los bytes.
+COLUMNAS_GASTO = """g.id, g.descripcion, g.importe_total, g.fecha, g.categoria,
+           g.usuario_pagador_id, (g.imagen_recibo IS NOT NULL) AS tiene_recibo"""
+
+
+def _participantes_del_hogar(db, hogar_id):
+    """Participantes de TODOS los gastos del hogar en una consulta, agrupados
+    por gasto_id.
+
+    Antes se consultaba gasto por gasto dentro de _gasto_a_dict: listar el
+    hogar costaba una consulta por gasto (medido: 308 sentencias SQL con 300
+    gastos). Se filtra por hogar_id en vez de por una lista IN (...) de ids
+    para no depender de SQLITE_LIMIT_VARIABLE_NUMBER, que varia segun como se
+    haya compilado SQLite en cada maquina.
+    """
+    filas = db.execute(
+        """SELECT gp.gasto_id, gp.usuario_id, gp.importe,
+               COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario
+           FROM gastos_participantes gp, usuarios u, gastos g
+           WHERE gp.usuario_id = u.id AND gp.gasto_id = g.id AND g.hogar_id = ?
            ORDER BY COALESCE(u.nombre, u.nombre_usuario)""",
-        (gasto["id"],),
+        (hogar_id,),
     ).fetchall()
+    agrupados = {}
+    for fila in filas:
+        agrupados.setdefault(fila["gasto_id"], []).append(fila)
+    return agrupados
+
+
+def _gasto_a_dict(db, gasto, participantes=None):
+    if participantes is None:
+        participantes = db.execute(
+            """SELECT gp.usuario_id, gp.importe, COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario
+               FROM gastos_participantes gp, usuarios u
+               WHERE gp.usuario_id = u.id AND gp.gasto_id = ?
+               ORDER BY COALESCE(u.nombre, u.nombre_usuario)""",
+            (gasto["id"],),
+        ).fetchall()
     return {
         "id": gasto["id"],
         "descripcion": gasto["descripcion"],
@@ -97,7 +131,7 @@ def _gasto_a_dict(db, gasto):
         "categoria": gasto["categoria"],
         "usuario_pagador_id": gasto["usuario_pagador_id"],
         "pagador_nombre": gasto["pagador_nombre"],
-        "tiene_recibo": bool(gasto["imagen_recibo"]),
+        "tiene_recibo": bool(gasto["tiene_recibo"]),
         "participantes": [
             {"usuario_id": p["usuario_id"], "importe": p["importe"], "nombre_usuario": p["nombre_usuario"]}
             for p in participantes
@@ -118,14 +152,17 @@ def listar_gastos():
     _generar_gastos_recurrentes_pendientes(db, hogar_id, session.get("usuario_id"))
 
     gastos = db.execute(
-        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
+        f"""SELECT {COLUMNAS_GASTO}, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
            WHERE g.usuario_pagador_id = u.id AND g.hogar_id = ?
-           ORDER BY g.fecha DESC, g.id DESC""",
+           ORDER BY g.fecha DESC, g.id DESC""",  # nosec B608 - COLUMNAS_GASTO es una constante literal del modulo
         (hogar_id,),
     ).fetchall()
 
-    return APIResponse.success([_gasto_a_dict(db, g) for g in gastos])
+    participantes = _participantes_del_hogar(db, hogar_id)
+    return APIResponse.success(
+        [_gasto_a_dict(db, g, participantes.get(g["id"], [])) for g in gastos]
+    )
 
 
 @bp.route("/resumen-mes", methods=["GET"])
@@ -220,17 +257,30 @@ def crear_gasto():
     _avisar_si_supera_presupuesto(db, hogar_id)
 
     gasto = db.execute(
-        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
+        f"""SELECT {COLUMNAS_GASTO}, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
-           WHERE g.usuario_pagador_id = u.id AND g.id = ?""",
+           WHERE g.usuario_pagador_id = u.id AND g.id = ?""",  # nosec B608 - COLUMNAS_GASTO es una constante literal del modulo
         (gasto_id,),
     ).fetchone()
     return APIResponse.success(_gasto_a_dict(db, gasto), 201)
 
 
-def _obtener_gasto_con_permiso(db, gasto_id, nivel_requerido="editar"):
-    """Devuelve (gasto, None) o (None, respuesta_error) tras comprobar permiso."""
-    gasto = db.execute("SELECT * FROM gastos WHERE id = ?", (gasto_id,)).fetchone()
+def _obtener_gasto_con_permiso(db, gasto_id, nivel_requerido="editar", con_imagen=False):
+    """Devuelve (gasto, None) o (None, respuesta_error) tras comprobar permiso.
+
+    `con_imagen` solo lo pide la ruta que sirve el recibo. El resto (editar,
+    borrar, subir otra foto) no necesita los bytes de la imagen, y con SELECT *
+    se leia el recibo entero del disco para acabar descartandolo.
+    """
+    columnas = "*" if con_imagen else (
+        "id, hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, "
+        "creado_por_usuario_id, fecha_creacion, categoria, imagen_recibo_mime, "
+        "(imagen_recibo IS NOT NULL) AS tiene_recibo"
+    )
+    gasto = db.execute(
+        f"SELECT {columnas} FROM gastos WHERE id = ?",  # nosec B608 - `columnas` es uno de dos literales fijos de arriba
+        (gasto_id,),
+    ).fetchone()
     if not gasto:
         return None, APIResponse.no_encontrado("recurso_gasto")
 
@@ -315,9 +365,9 @@ def actualizar_gasto(gasto_id):
     db.commit()
 
     gasto = db.execute(
-        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
+        f"""SELECT {COLUMNAS_GASTO}, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
-           WHERE g.usuario_pagador_id = u.id AND g.id = ?""",
+           WHERE g.usuario_pagador_id = u.id AND g.id = ?""",  # nosec B608 - COLUMNAS_GASTO es una constante literal del modulo
         (gasto_id,),
     ).fetchone()
     return APIResponse.success(_gasto_a_dict(db, gasto))
@@ -452,12 +502,13 @@ def exportar_gastos_csv():
         return APIResponse.no_permitido()
 
     gastos = db.execute(
-        """SELECT g.*, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
+        f"""SELECT {COLUMNAS_GASTO}, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
            FROM gastos g, usuarios u
            WHERE g.usuario_pagador_id = u.id AND g.hogar_id = ?
-           ORDER BY g.fecha, g.id""",
+           ORDER BY g.fecha, g.id""",  # nosec B608 - COLUMNAS_GASTO es una constante literal del modulo
         (hogar_id,),
     ).fetchall()
+    participantes_por_gasto = _participantes_del_hogar(db, hogar_id)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer, delimiter=";")
@@ -468,14 +519,7 @@ def exportar_gastos_csv():
     ])
 
     for gasto in gastos:
-        participantes = db.execute(
-            """SELECT gp.importe, COALESCE(u.nombre, u.nombre_usuario) AS nombre_usuario
-               FROM gastos_participantes gp, usuarios u
-               WHERE gp.usuario_id = u.id AND gp.gasto_id = ?
-               ORDER BY COALESCE(u.nombre, u.nombre_usuario)""",
-            (gasto["id"],),
-        ).fetchall()
-        for participante in participantes:
+        for participante in participantes_por_gasto.get(gasto["id"], []):
             writer.writerow([
                 gasto["fecha"],
                 gasto["descripcion"],
@@ -672,7 +716,7 @@ def subir_recibo(gasto_id):
 def obtener_recibo(gasto_id):
     """Sirve la foto de recibo adjunta a un gasto."""
     db = get_db()
-    gasto, error = _obtener_gasto_con_permiso(db, gasto_id, nivel_requerido="ver")
+    gasto, error = _obtener_gasto_con_permiso(db, gasto_id, nivel_requerido="ver", con_imagen=True)
     if error:
         return error
     if not gasto["imagen_recibo"]:

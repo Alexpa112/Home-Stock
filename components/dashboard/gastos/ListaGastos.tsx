@@ -61,7 +61,11 @@ export function ListaGastos({
                 {formatImporte(grupo.total, simboloMoneda)}
               </span>
             </div>
-            <div className="space-y-2">
+            {/* lista-larga va en ESTE contenedor y no en el del grupo: la
+                cabecera del mes es sticky y la contencion de
+                content-visibility le crearia un nuevo bloque contenedor, con
+                lo que dejaria de quedarse pegada arriba al desplazar. */}
+            <div className="space-y-2 lista-larga">
               {grupo.gastos.map((gasto) => (
                 <GastoCard
                   key={gasto.id}

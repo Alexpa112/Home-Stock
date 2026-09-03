@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import TRADUCCIONES_BASE from '@/lib/traduccionesBase'
 
 interface TranslationContextType {
@@ -76,13 +76,20 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     cargarTraducciones()
   }, [])
 
-  const t = (clave: string): string => {
+  // t() y cambiarIdioma() van memoizados, y el value tambien: al recrearse en
+  // cada render, cualquier efecto o useCallback que los llevara en sus
+  // dependencias se reejecutaba sin motivo. El caso concreto que se veia:
+  // HogarContext.cargar dependia de [t], asi que cada render de este provider
+  // provocaba otra peticion a /api/hogares y, con ella, el spinner de pantalla
+  // completa del dashboard.
+  const t = useCallback(
     // Si al idioma activo le falta una clave, se cae al español antes que a la
     // clave: el usuario prefiere leer "Guardar" a leer "btn_guardar".
-    return traducciones[clave] || TRADUCCIONES_BASE[clave] || clave
-  }
+    (clave: string): string => traducciones[clave] || TRADUCCIONES_BASE[clave] || clave,
+    [traducciones]
+  )
 
-  const cambiarIdioma = async (nuevoIdioma: string) => {
+  const cambiarIdioma = useCallback(async (nuevoIdioma: string) => {
     try {
       const cache = leerCache(nuevoIdioma)
       if (cache) setTraducciones(cache)
@@ -98,13 +105,15 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     } catch (err) {
       console.error('Error cambiando idioma:', err)
     }
-  }
+  }, [])
 
-  return (
-    <TranslationContext.Provider value={{ idioma, traducciones, cargando, t, cambiarIdioma }}>
-      {children}
-    </TranslationContext.Provider>
+  const valor = useMemo(
+    () => ({ idioma, traducciones, cargando, t, cambiarIdioma }),
+    [idioma, traducciones, cargando, t, cambiarIdioma]
   )
+
+  return <TranslationContext.Provider value={valor}>{children}</TranslationContext.Provider>
+
 }
 
 export function useTranslation() {

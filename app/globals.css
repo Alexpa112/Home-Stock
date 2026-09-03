@@ -145,6 +145,31 @@
     transition: box-shadow 200ms ease, opacity 200ms ease;
   }
 
+  /* Listas que pueden tener cientos de filas (stock, lista de la compra,
+     gastos). Con content-visibility el navegador se salta el maquetado y el
+     pintado de las filas que quedan fuera de la pantalla, que es de donde
+     salian los tirones al desplazar: con 400 productos el arbol pasa de 9.800
+     nodos y, en un movil lento, algun fotograma se iba a 165 ms.
+
+     No se pierde nada: las filas siguen TODAS en el DOM (la busqueda del
+     navegador las encuentra, los lectores de pantalla las anuncian y no hay
+     virtualizacion que pueda desincronizar el scroll). contain-intrinsic-size
+     da la altura estimada de una fila aun sin pintar, para que la barra de
+     desplazamiento no salte; el valor es orientativo, 'auto' hace que el
+     navegador recuerde la real en cuanto la pinta una vez. */
+  .lista-larga > * {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 76px;
+  }
+
+  /* 160px es la altura medida de una tarjeta de la rejilla de stock; con un
+     valor mas bajo la barra de desplazamiento se quedaba un 5% corta hasta
+     que las filas se pintaban. */
+  .lista-larga-grid > * {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 160px;
+  }
+
   .btn-primary {
     @apply inline-flex h-12 items-center justify-center rounded-xl bg-accent px-6 py-3 text-base font-semibold text-accent-foreground hover:opacity-90 active:scale-95 transition-all duration-200 shadow-sm;
     min-height: 48px;
