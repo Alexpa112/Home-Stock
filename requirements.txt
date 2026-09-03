@@ -10,7 +10,14 @@ requests>=2.28.0
 python-dotenv>=1.0.0
 rapidfuzz>=3.0,<4
 opencv-python-headless>=4.9,<=4.12.0.88
-gunicorn>=22.0,<23
+# El tope <23 venia de la revision de dependencias vulnerables (6da71071) y se
+# habia quedado fijo, con lo que habria bloqueado un parche de seguridad de
+# gunicorn. Se sube a la 26, probada con los flags reales del CMD de los
+# Dockerfile (gthread, 4 hilos, keep-alive 75): sirve igual y mantiene la
+# conexion viva entre peticiones. Ojo si se baja este minimo: el CMD usa
+# --no-control-socket, que no existe antes de la 26.0.0 y haria fallar el
+# arranque del contenedor con "unrecognized arguments".
+gunicorn>=26.0,<27
 argostranslate>=1.9,<2; platform_machine != "armv7l"
 cryptography>=50.0,<51
 # Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db_backend.py).

@@ -45,9 +45,8 @@ jobs:
         with:
           node-version: "20"
       - run: npm ci
-      # jest.config.js (legacy, JS vanilla) no tiene tests reales ahora mismo
-      # (ver su comentario sobre stockhogar/static/modules); solo se ejecuta
-      # el proyecto de jest.config.lib.js (lib/**/__tests__, TS).
+      # jest.config.lib.js es ya la unica config (jest.config.js apuntaba a
+      # stockhogar/static, borrado en la migracion a Next, y se ha eliminado).
       - run: npx jest -c jest.config.lib.js
 
   audit-deps:

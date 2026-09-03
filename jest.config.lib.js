@@ -1,7 +1,10 @@
-// Config de Jest para las funciones puras de lib/*.ts (Next.js/TSX), separada
-// de jest.config.js (que cubre los módulos JS vanilla legacy de
-// stockhogar/static). Se ejecuta con `npm run test:lib`; `npm test` corre
-// ambos proyectos.
+// Única config de Jest del proyecto: cubre las funciones puras de lib/*.ts.
+// Antes convivía con jest.config.js (+ jest.setup.js), que apuntaba a los
+// módulos JS vanilla de stockhogar/static; esa carpeta desapareció en la
+// migración a Next y no quedaba ni un .test.js, así que se han borrado. Con
+// ellos se fue la dependencia jest-environment-jsdom: aquí el entorno es
+// 'node' y los tests que necesitan window/localStorage los simulan a mano
+// (ver lib/__tests__/dataCache.test.ts).
 const path = require('path')
 
 module.exports = {
