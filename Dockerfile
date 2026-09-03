@@ -58,4 +58,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # responde 500: se veian 500 esporadicos en /api/cache-version y compañia sin
 # que en el log de Flask apareciera nada, porque la peticion no llegaba a entrar.
 # 75s deja el cierre en manos del proxy, que si sabe reintentar.
-CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 240 --keep-alive 75 --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]
+# --no-control-socket: gunicorn 26 abre por defecto un socket de control en
+# $HOME/.gunicorn/gunicorn.ctl. Aqui no se usa, y en la imagen de la Raspberry
+# el usuario del contenedor se crea con `useradd -M` (sin home), asi que cada
+# arranque escupia un "[ERROR] Control server error: No such file or directory"
+# en el log sin que nada estuviera roto. Desactivarlo deja el arranque limpio.
+CMD ["sh", "-c", "gunicorn --workers 2 --worker-class gthread --threads 4 --timeout 240 --keep-alive 75 --no-control-socket --bind 0.0.0.0:${PORT} --access-logfile - --error-logfile - 'stockhogar:create_app()'"]
