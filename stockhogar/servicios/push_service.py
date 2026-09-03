@@ -12,6 +12,7 @@ notificaciones, pero no se pierde ningun dato de usuario.
 import base64
 import json
 import logging
+import os
 
 from cryptography.hazmat.primitives import serialization
 
@@ -36,17 +37,50 @@ from ..config import DATA_DIR, EMAIL_CONTACTO_LEGAL
 logger = logging.getLogger(__name__)
 
 _VAPID_KEY_PATH = DATA_DIR / "vapid_private_key.pem"
+
+
+def _crear_clave_vapid():
+    """Genera el par de claves y lo escribe con O_EXCL y permisos 0600 desde
+    el primer byte.
+
+    No se delega en Vapid.save_key (que abre el fichero en modo "wb"): con
+    varios workers de gunicorn arrancando a la vez, dos podrian generar claves
+    distintas y el ultimo en escribir dejaria invalidas las suscripciones que
+    el otro ya hubiera entregado al navegador. Con O_EXCL solo uno crea el
+    fichero; el que pierde la carrera recibe FileExistsError y lee la clave
+    del ganador. Ademas evita la ventana en la que la clave privada existiria
+    con permisos 0644.
+    """
+    vapid = Vapid()
+    vapid.generate_keys()
+    try:
+        descriptor = os.open(_VAPID_KEY_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        return  # Otro worker la creo primero: se usa la suya.
+    with os.fdopen(descriptor, "wb") as fichero:
+        fichero.write(vapid.private_pem())
+
+
+def _cargar_o_crear_vapid():
+    """Devuelve la Vapid del despliegue, creando la clave la primera vez.
+
+    Antes solo se cargaba `if _VAPID_KEY_PATH.exists()`, y como nada generaba
+    el fichero, `_vapid` quedaba en None para siempre: la clave publica que
+    pide el navegador se servia vacia y activar las notificaciones era
+    imposible en cualquier despliegue nuevo.
+    """
+    if not _VAPID_KEY_PATH.exists():
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _crear_clave_vapid()
+    return Vapid.from_file(str(_VAPID_KEY_PATH))
+
+
 _vapid = None
 if _VAPID_DISPONIBLE:
     try:
-        if _VAPID_KEY_PATH.exists():
-            _vapid = Vapid.from_file(str(_VAPID_KEY_PATH))
-            try:
-                _VAPID_KEY_PATH.chmod(0o600)
-            except OSError:
-                pass
+        _vapid = _cargar_o_crear_vapid()
     except Exception as e:
-        logger.warning("No se pudo cargar clave VAPID: %s", e)
+        logger.warning("No se pudo cargar ni generar la clave VAPID: %s", e)
 
 
 def clave_publica_vapid() -> str:

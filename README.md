@@ -326,6 +326,13 @@ nuevos en `origin/produccion`:
   `/api/auto-actualizacion` o desde el Panel de Gestión).
 - El log queda en `logs/auto_update.log`.
 
+`install.sh` instala además (en cualquier rama) un segundo cron diario a
+las 09:30 que ejecuta dentro del contenedor
+`scripts/enviar_avisos_caducidad.py`: es lo que envía las notificaciones
+push de «revisa la caducidad» a quienes las hayan activado en Ajustes. Sin
+ese cron el interruptor se activa pero no llega ningún aviso. El log queda
+en `logs/avisos_caducidad.log`.
+
 **Refresco del frontend:** la app no usa Service Worker. El frontend
 consulta cada 15 s el endpoint `/api/cache-version` (que cambia con cada
 `git pull`, al variar el `mtime` de `docker-compose.yml`). En cuanto

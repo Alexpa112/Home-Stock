@@ -74,14 +74,31 @@ class SinLoginAppleTests(unittest.TestCase):
                 sobran = [c for c in entradas if "apple" in c.lower()]
                 self.assertEqual(sobran, [], f"{idioma} conserva claves de Apple: {sobran}")
 
-    def test_la_politica_de_privacidad_no_declara_a_apple(self):
-        """REGLA 11: si ya no se envian datos a Apple, no puede seguir declarada."""
+    def test_la_politica_de_privacidad_no_declara_a_apple_como_via_de_acceso(self):
+        """REGLA 11: retirado el login con Apple, la politica no puede seguir
+        declarando que se envian datos a Apple *para identificarte*.
+
+        No se exige que la palabra "Apple" desaparezca del documento: si un
+        usuario de Safari activa las notificaciones push, el servicio de Apple
+        (APNs) es realmente el intermediario que las entrega, y eso hay que
+        declararlo. Lo que se prohibe es volver a nombrarlo como proveedor de
+        identidad. Por eso cada mencion a Apple debe estar en el parrafo de
+        notificaciones, no en el de inicio de sesion.
+        """
         texto = (RAIZ / "app" / "legal" / "privacidad" / "page.tsx").read_text(encoding="utf-8")
-        self.assertNotIn(
-            "Apple", texto,
-            "la politica de privacidad no debe seguir nombrando a Apple como "
-            "tercero al que se ceden datos",
-        )
+
+        for frase in ("Continuar con Apple", "sesión con Apple", "Sign in with Apple"):
+            with self.subTest(frase=frase):
+                self.assertNotIn(frase, texto, "Apple no puede volver como via de acceso")
+
+        parrafos = [p for p in texto.split("<li>") if "Apple" in p]
+        for parrafo in parrafos:
+            with self.subTest(parrafo=parrafo[:60]):
+                self.assertIn(
+                    "notificaciones", parrafo.lower(),
+                    "Apple solo puede aparecer como servicio de entrega de "
+                    "notificaciones push, no por ningun otro tratamiento",
+                )
 
 
 if __name__ == "__main__":

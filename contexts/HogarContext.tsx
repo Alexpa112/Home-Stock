@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode, useCallback } from 'react'
 import { hogares as hogaresApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -56,10 +56,29 @@ export function HogarProvider({ children }: { children: ReactNode }) {
   const edicionLocalRef = useRef(false)
   const primeraCargaRef = useRef(true)
 
-  const cargar = useCallback(async () => {
+  // t() se lee por referencia y no como dependencia: TranslationContext lo
+  // recreaba en cada render, asi que `cargar` cambiaba de identidad, el
+  // useEffect de la carga inicial se volvia a ejecutar y /api/hogares se pedia
+  // varias veces por montaje (medido: el dashboard hacia 16 peticiones donde
+  // bastaban 10). Solo se usa para el texto de error, que no necesita
+  // reejecutar nada cuando cambia el idioma.
+  const tRef = useRef(t)
+  tRef.current = t
+
+  // `silencioso` distingue el refresco de fondo de la carga inicial. Sin esa
+  // distincion, cada ciclo del poll ponia loading=true y dashboard/layout.tsx
+  // sustituia TODA la pantalla por el spinner: cada 60 s la app parpadeaba, el
+  // arbol de `children` se desmontaba y con el se perdian scroll, filtros y
+  // modales abiertos, y al remontar cada pagina volvia a pedir sus datos
+  // (medido: /api/productos, /api/categorias y /api/articulos otra vez). El
+  // error tampoco se propaga en un refresco silencioso: un 500 puntual de
+  // fondo no debe tirar al usuario al selector de hogares vacio.
+  const cargar = useCallback(async (silencioso = false) => {
     try {
-      setLoading(true)
-      setError(null)
+      if (!silencioso) {
+        setLoading(true)
+        setError(null)
+      }
       const data: any = await hogaresApi.listar()
       const todos: Hogar[] = [...(data.propias || []), ...(data.compartidas || [])]
       const hogarActivoIdNuevo = data.hogar_actual_id ?? null
@@ -70,8 +89,8 @@ export function HogarProvider({ children }: { children: ReactNode }) {
         if (activoNuevo && anterior && (activoNuevo.color !== anterior.color || activoNuevo.icono !== anterior.icono)) {
           setAvisoTemaHogar(
             activoNuevo.actualizado_por_nombre
-              ? t('aviso_tema_hogar_cambiado_con_nombre').replace('{nombre}', activoNuevo.actualizado_por_nombre)
-              : t('aviso_tema_hogar_cambiado')
+              ? tRef.current('aviso_tema_hogar_cambiado_con_nombre').replace('{nombre}', activoNuevo.actualizado_por_nombre)
+              : tRef.current('aviso_tema_hogar_cambiado')
           )
         }
       }
@@ -83,11 +102,11 @@ export function HogarProvider({ children }: { children: ReactNode }) {
       setCompartidos(data.compartidas || [])
       setHogarActivoId(hogarActivoIdNuevo)
     } catch (e) {
-      setError(t('err_cargar_hogares'))
+      if (!silencioso) setError(tRef.current('err_cargar_hogares'))
     } finally {
-      setLoading(false)
+      if (!silencioso) setLoading(false)
     }
-  }, [t])
+  }, [])
 
   useEffect(() => {
     cargar()
@@ -99,24 +118,24 @@ export function HogarProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        cargar()
+        cargar(true)
       }
     }, INTERVALO_REVISION_TEMA_MS)
     return () => clearInterval(interval)
   }, [cargar])
 
-  const seleccionar = async (id: number) => {
+  const seleccionar = useCallback(async (id: number) => {
     await hogaresApi.seleccionar(id)
     setHogarActivoId(id)
-  }
+  }, [])
 
-  const crear = async (nombre: string) => {
+  const crear = useCallback(async (nombre: string) => {
     const nuevo: any = await hogaresApi.crear(nombre)
     await cargar()
     setHogarActivoId(nuevo.id)
-  }
+  }, [cargar])
 
-  const actualizarHogar = async (id: number, datos: Record<string, unknown>) => {
+  const actualizarHogar = useCallback(async (id: number, datos: Record<string, unknown>) => {
     edicionLocalRef.current = true
     try {
       await hogaresApi.actualizar(id, datos)
@@ -124,29 +143,33 @@ export function HogarProvider({ children }: { children: ReactNode }) {
     } finally {
       edicionLocalRef.current = false
     }
-  }
+  }, [cargar])
 
-  const cerrarAvisoTemaHogar = () => setAvisoTemaHogar(null)
+  const cerrarAvisoTemaHogar = useCallback(() => setAvisoTemaHogar(null), [])
 
-  return (
-    <HogarContext.Provider
-      value={{
-        propios,
-        compartidos,
-        hogarActivoId,
-        loading,
-        error,
-        seleccionar,
-        crear,
-        refrescar: cargar,
-        actualizarHogar,
-        avisoTemaHogar,
-        cerrarAvisoTemaHogar,
-      }}
-    >
-      {children}
-    </HogarContext.Provider>
+  // El value va memoizado y las acciones con useCallback: al ser un objeto
+  // literal nuevo en cada render, TODO consumidor de useHogar() se repintaba
+  // en cada render del provider aunque no hubiera cambiado nada de lo que lee.
+  const valor = useMemo(
+    () => ({
+      propios,
+      compartidos,
+      hogarActivoId,
+      loading,
+      error,
+      seleccionar,
+      crear,
+      refrescar: cargar,
+      actualizarHogar,
+      avisoTemaHogar,
+      cerrarAvisoTemaHogar,
+    }),
+    [propios, compartidos, hogarActivoId, loading, error, seleccionar, crear,
+     cargar, actualizarHogar, avisoTemaHogar, cerrarAvisoTemaHogar]
   )
+
+  return <HogarContext.Provider value={valor}>{children}</HogarContext.Provider>
+
 }
 
 export function useHogar() {

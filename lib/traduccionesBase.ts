@@ -381,6 +381,7 @@ const TRADUCCIONES_BASE: Record<string, string> = {
   "err_password_min_4": "La contraseña debe tener mínimo 4 caracteres",
   "err_password_min_8": "La contraseña debe tener al menos 10 caracteres",
   "err_procesando_ticket": "Error procesando ticket",
+  "err_push_no_disponible": "Las notificaciones push no estan disponibles en este servidor.",
   "err_recurso_no_encontrado": "{recurso} no encontrado",
   "err_registro_cerrado": "El registro de nuevas cuentas está cerrado temporalmente",
   "err_renombrar_hogar": "Error al renombrar el hogar",

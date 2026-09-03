@@ -600,14 +600,14 @@ export default function ShoppingPage() {
                     {getCategoryIcon(categoria) && <IconRenderer name={getCategoryIcon(categoria)} className="w-4 h-4" />}
                     {categoria}
                   </h3>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 lista-larga-grid">
                     {items.map((item) => renderItemGridTile(item, false))}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 lista-larga-grid">
               {filteredPendingItems.map((item) => renderItemGridTile(item, false))}
             </div>
           )}
@@ -625,14 +625,14 @@ export default function ShoppingPage() {
                     {getCategoryIcon(categoria) && <IconRenderer name={getCategoryIcon(categoria)} className="w-4 h-4" />}
                     {categoria}
                   </h3>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 lista-larga-grid">
                     {items.map((item) => renderItemGridTile(item, true))}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 lista-larga-grid">
               {filteredBoughtItems.map((item) => renderItemGridTile(item, true))}
             </div>
           )}
@@ -900,14 +900,14 @@ export default function ShoppingPage() {
                         {getCategoryIcon(categoria) && <IconRenderer name={getCategoryIcon(categoria)} className="w-4 h-4" />}
                         {categoria}
                       </h3>
-                      <div className="space-y-2 ml-2">
+                      <div className="space-y-2 ml-2 lista-larga">
                         {items.map((item) => renderItemRow(item, false))}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 lista-larga">
                   {filteredPendingItems.map((item) => renderItemRow(item, false))}
                 </div>
               )}
@@ -934,14 +934,14 @@ export default function ShoppingPage() {
                         {getCategoryIcon(categoria) && <IconRenderer name={getCategoryIcon(categoria)} className="w-4 h-4" />}
                         {categoria}
                       </h3>
-                      <div className="space-y-2 ml-2">
+                      <div className="space-y-2 ml-2 lista-larga">
                         {items.map((item) => renderItemRow(item, true))}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 lista-larga">
                   {filteredBoughtItems.map((item) => renderItemRow(item, true))}
                 </div>
               )}
