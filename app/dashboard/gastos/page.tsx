@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, AlertCircle, Receipt, HandCoins, Download, Repeat, Pause, Play, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
 import { HojaCompleta } from '@/components/dashboard/HojaCompleta'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { BarraHorizontal } from '@/components/dashboard/BarraHorizontal'
 import { GraficoColumnas } from '@/components/dashboard/GraficoColumnas'
@@ -644,22 +644,17 @@ export default function GastosPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold flex items-center gap-2">
-            <Receipt className="w-7 h-7" /> {t('nav_gastos')}
-          </h1>
-        </div>
-        <MenuAcciones
-          label={t('acciones_gastos')}
-          acciones={[
-            { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
-            { icono: <HandCoins className="w-4 h-4" />, etiqueta: t('registrar_pago'), onClick: abrirLiquidacionManual, grupo: t('menu_esta_pantalla') },
-            { icono: <Repeat className="w-4 h-4" />, etiqueta: t('gasto_recurrente'), onClick: () => setShowRecurrenteForm(true), grupo: t('menu_esta_pantalla') },
-            ...accionesIrA(t),
-          ]}
-        />
-      </div>
+      <CabeceraPantalla
+        titulo={t('nav_gastos')}
+        icono={<Receipt className="w-6 h-6 lg:w-7 lg:h-7 shrink-0" />}
+        labelAcciones={t('acciones_gastos')}
+        acciones={[
+          { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+          { icono: <HandCoins className="w-4 h-4" />, etiqueta: t('registrar_pago'), onClick: abrirLiquidacionManual, grupo: t('menu_esta_pantalla') },
+          { icono: <Repeat className="w-4 h-4" />, etiqueta: t('gasto_recurrente'), onClick: () => setShowRecurrenteForm(true), grupo: t('menu_esta_pantalla') },
+          ...accionesIrA(t),
+        ]}
+      />
 
       <SegmentedControl
         valor={vista}

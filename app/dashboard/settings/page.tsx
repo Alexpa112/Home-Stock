@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { usePushNotifications } from '@/lib/usePushNotifications'
 
 export default function SettingsPage() {
@@ -297,11 +298,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">{t('ajustes')}</h1>
-        <p className="text-muted-foreground mt-1">{t('subtitulo_ajustes')}</p>
-      </div>
+      <CabeceraPantalla titulo={t('ajustes')} subtitulo={t('subtitulo_ajustes')} />
 
       {/* Error Message */}
       {error && (

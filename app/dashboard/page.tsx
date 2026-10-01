@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart, Download, Upload } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { useAccionAnadir } from '@/lib/accionAnadir'
 import { SearchBar } from '@/components/dashboard/SearchBar'
@@ -629,32 +629,25 @@ export default function StockPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">{t('mi_stock')}</h1>
-          <p className="text-muted-foreground mt-1">{t('subtitulo_stock')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
-            className="btn-primary flex items-center gap-2 min-h-[44px]"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">{t('añadir_producto')}</span>
-            <span className="sm:hidden">{t('añadir')}</span>
-          </button>
-          <MenuAcciones
-            label={t('mas_acciones')}
-            acciones={[
-              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
-              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click(), grupo: t('menu_esta_pantalla') },
-              ...accionesIrA(t),
-            ]}
-          />
-          <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
-        </div>
-      </div>
+      <CabeceraPantalla
+        titulo={t('mi_stock')}
+        subtitulo={t('subtitulo_stock')}
+        acciones={[
+          { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+          { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click(), grupo: t('menu_esta_pantalla') },
+          ...accionesIrA(t),
+        ]}
+      >
+        {/* En móvil el alta va en el botón flotante del layout. */}
+        <button
+          onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
+          className="hidden lg:flex btn-primary items-center gap-2 min-h-[44px]"
+        >
+          <Plus className="w-5 h-5" />
+          {t('añadir_producto')}
+        </button>
+      </CabeceraPantalla>
+      <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
 
       {/* Filtros compactos — opciones de filtrado rápido */}
       <div className="flex flex-wrap items-center gap-2">

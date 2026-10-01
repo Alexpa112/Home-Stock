@@ -87,7 +87,8 @@ class MenuAccionesIrATests(unittest.TestCase):
             with self.subTest(pantalla=rel):
                 src = (DASHBOARD / rel).read_text(encoding="utf-8")
                 self.assertIn("accionesIrA(t", src)
-                self.assertIn("<MenuAcciones", src)
+                # Desde la fase 2 el menu se pinta dentro de CabeceraPantalla.
+                self.assertIn("<CabeceraPantalla", src)
 
     def test_el_grupo_ir_a_enlaza_a_recetas_e_historial(self):
         src = (RAIZ / "components" / "dashboard" / "accionesIrA.tsx").read_text(encoding="utf-8")

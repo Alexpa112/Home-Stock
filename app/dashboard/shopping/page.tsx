@@ -6,7 +6,7 @@ import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { Modal } from '@/components/dashboard/Modal'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { useAccionAnadir } from '@/lib/accionAnadir'
 import { BarcodeScanner } from '@/components/shared/BarcodeScanner'
@@ -647,34 +647,25 @@ export default function ShoppingPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">{t('lista_compra')}</h1>
-          <p className="text-muted-foreground mt-1">
-            {pendientes.length} {t('articulos_pendientes')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="btn-primary flex items-center gap-2 min-h-[44px]"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">{t('añadir_articulo')}</span>
-            <span className="sm:hidden">{t('añadir')}</span>
-          </button>
-          <MenuAcciones
-            label={t('mas_acciones')}
-            acciones={[
-              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
-              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click(), grupo: t('menu_esta_pantalla') },
-              ...accionesIrA(t),
-            ]}
-          />
-          <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
-        </div>
-      </div>
+      <CabeceraPantalla
+        titulo={t('lista_compra')}
+        subtitulo={`${pendientes.length} ${t('articulos_pendientes')}`}
+        acciones={[
+          { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+          { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click(), grupo: t('menu_esta_pantalla') },
+          ...accionesIrA(t),
+        ]}
+      >
+        {/* En móvil el alta va en el botón flotante del layout. */}
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="hidden lg:flex btn-primary items-center gap-2 min-h-[44px]"
+        >
+          <Plus className="w-5 h-5" />
+          {t('añadir_articulo')}
+        </button>
+      </CabeceraPantalla>
+      <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
 
       {/* Vista Controls */}
       {items.length > 0 && !loading && (

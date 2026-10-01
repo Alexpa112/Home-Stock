@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { TrendingDown, BookOpen, Trash2, Pencil, LineChart } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi, articulosPersonalizados as articulosPersonalizadosApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { filtrarPorNombre } from '@/lib/texto'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
@@ -133,13 +133,11 @@ export default function HistorialPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">{t('historial')}</h1>
-          <p className="text-muted-foreground mt-1">{t('subtitulo_historial')}</p>
-        </div>
-        <MenuAcciones label={t('mas_acciones')} acciones={accionesIrA(t, 'historial')} />
-      </div>
+      <CabeceraPantalla
+        titulo={t('historial')}
+        subtitulo={t('subtitulo_historial')}
+        acciones={accionesIrA(t, 'historial')}
+      />
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg text-sm">{error}</div>

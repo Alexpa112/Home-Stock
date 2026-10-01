@@ -804,7 +804,8 @@
     "catalogo_sin_coincidencias": "Ningún artículo coincide con la búsqueda",
     "menu_ir_a": "Ir a",
     "menu_esta_pantalla": "Esta pantalla",
-    "aria_anadir_flotante": "Añadir"
+    "aria_anadir_flotante": "Añadir",
+    "cambiar_hogar": "Cambiar de hogar"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1611,7 +1612,8 @@
     "catalogo_sin_coincidencias": "Ningún artigo coincide coa busca",
     "menu_ir_a": "Ir a",
     "menu_esta_pantalla": "Esta pantalla",
-    "aria_anadir_flotante": "Engadir"
+    "aria_anadir_flotante": "Engadir",
+    "cambiar_hogar": "Cambiar de fogar"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2418,7 +2420,8 @@
     "catalogo_sin_coincidencias": "No item matches your search",
     "menu_ir_a": "Go to",
     "menu_esta_pantalla": "This screen",
-    "aria_anadir_flotante": "Add"
+    "aria_anadir_flotante": "Add",
+    "cambiar_hogar": "Switch household"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3225,7 +3228,8 @@
     "catalogo_sin_coincidencias": "Nenhum artigo corresponde à pesquisa",
     "menu_ir_a": "Ir para",
     "menu_esta_pantalla": "Este ecrã",
-    "aria_anadir_flotante": "Adicionar"
+    "aria_anadir_flotante": "Adicionar",
+    "cambiar_hogar": "Mudar de lar"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4032,7 +4036,8 @@
     "catalogo_sin_coincidencias": "Aucun article ne correspond à la recherche",
     "menu_ir_a": "Aller à",
     "menu_esta_pantalla": "Cet écran",
-    "aria_anadir_flotante": "Ajouter"
+    "aria_anadir_flotante": "Ajouter",
+    "cambiar_hogar": "Changer de foyer"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4839,7 +4844,8 @@
     "catalogo_sin_coincidencias": "Nessun articolo corrisponde alla ricerca",
     "menu_ir_a": "Vai a",
     "menu_esta_pantalla": "Questa schermata",
-    "aria_anadir_flotante": "Aggiungi"
+    "aria_anadir_flotante": "Aggiungi",
+    "cambiar_hogar": "Cambia casa"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5646,6 +5652,7 @@
     "catalogo_sin_coincidencias": "Kein Artikel passt zur Suche",
     "menu_ir_a": "Gehe zu",
     "menu_esta_pantalla": "Dieser Bildschirm",
-    "aria_anadir_flotante": "Hinzufügen"
+    "aria_anadir_flotante": "Hinzufügen",
+    "cambiar_hogar": "Haushalt wechseln"
   }
 }

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Camera, FileUp, Upload, Check, AlertTriangle, Loader } from 'lucide-react'
 import { tickets } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { suspenderPorEdicion, reanudarPorEdicion } from '@/lib/editSuspension'
 
@@ -89,15 +89,11 @@ export default function EscanearTicketPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">{t('escanear_ticket_simple')}</h1>
-          <p className="text-muted-foreground mt-1">
-            {t('subtitulo_escanear_ticket')}
-          </p>
-        </div>
-        <MenuAcciones label={t('mas_acciones')} acciones={accionesIrA(t)} />
-      </div>
+      <CabeceraPantalla
+        titulo={t('escanear_ticket_simple')}
+        subtitulo={t('subtitulo_escanear_ticket')}
+        acciones={accionesIrA(t)}
+      />
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg text-sm flex items-start gap-2">

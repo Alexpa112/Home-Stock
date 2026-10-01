@@ -112,6 +112,7 @@ const TRADUCCIONES_BASE: Record<string, string> = {
   "caducados": "caducados",
   "cambiando": "Cambiando...",
   "cambiar_foto": "Cambiar foto",
+  "cambiar_hogar": "Cambiar de hogar",
   "cambiar_icono": "Cambiar icono",
   "cambiar_idioma": "Cambiar idioma",
   "cambiar_lista": "Cambiar lista",

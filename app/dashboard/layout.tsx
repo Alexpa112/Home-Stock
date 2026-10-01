@@ -13,6 +13,7 @@ import { HogarProvider, useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { auth } from '@/lib/api'
 import { dispararAnadir } from '@/lib/accionAnadir'
+import { useAbrirSelectorHogar } from '@/lib/selectorHogar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -30,6 +31,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const [mostrarSelectorHogar, setMostrarSelectorHogar] = useState(false)
   const hogarActivo = [...propios, ...compartidos].find((h) => h.id === hogarActivoId)
+  // El chip de hogar de la cabecera de cada pantalla abre el selector.
+  useAbrirSelectorHogar(() => setMostrarSelectorHogar(true))
 
   // El color del hogar activo se convierte en el acento de toda la UI
   // (botones, badges, focus rings...) sobreescribiendo la variable que
@@ -212,29 +215,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
         {/* ── Contenido principal ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Header móvil: logo + selector de hogar (abre pantalla completa) */}
-          <header className="sticky top-0 z-40 lg:hidden flex items-center justify-between h-12 px-4 border-b border-border bg-card/90 backdrop-blur-sm gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-accent">
-                <Image src="/icon.svg" alt="Dreame" width={24} height={24} priority />
-              </div>
-              <span className="text-base font-bold tracking-tight">Dreame!</span>
-            </div>
-            <button
-              onClick={() => setMostrarSelectorHogar(true)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors"
-            >
-              <div
-                className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 text-white"
-                style={{ backgroundColor: hogarActivo?.color || '#B5551A' }}
-              >
-                {hogarActivo?.icono ? <IconRenderer name={hogarActivo.icono} className="w-3 h-3" /> : <Home className="w-3 h-3" />}
-              </div>
-              <span className="text-xs font-semibold max-w-[9rem] truncate">{hogarActivo?.nombre}</span>
-              <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
-          </header>
-
           {/* Scroll area */}
           <main className="flex-1 overflow-y-auto pb-28 lg:pb-0">
             {children}

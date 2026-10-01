@@ -5,7 +5,7 @@ import { Plus, ChefHat, X, AlertCircle, ShoppingCart, Pencil, Trash2 } from 'luc
 import { Modal } from '@/components/dashboard/Modal'
 import { recetas as recetasApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { getCached, setCached } from '@/lib/dataCache'
 
@@ -121,17 +121,21 @@ export default function RecetasPage() {
 
   return (
     <div className="max-w-lg mx-auto p-4 lg:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <ChefHat className="w-5 h-5" /> {t('nav_recetas')}
-        </h1>
-        <div className="flex items-center gap-2">
-          <button onClick={abrirNuevo} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> {t('nueva_receta')}
-          </button>
-          <MenuAcciones label={t('mas_acciones')} acciones={accionesIrA(t, 'recetas')} />
-        </div>
-      </div>
+      <CabeceraPantalla
+        titulo={t('nav_recetas')}
+        icono={<ChefHat className="w-5 h-5 shrink-0" />}
+        acciones={accionesIrA(t, 'recetas')}
+      >
+        {/* Solo icono en móvil: con el chip y el menú no cabe el texto sin aplastar el título. */}
+        <button
+          onClick={abrirNuevo}
+          aria-label={t('nueva_receta')}
+          className="btn-primary flex items-center justify-center gap-2 min-h-[44px] min-w-[44px]"
+        >
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">{t('nueva_receta')}</span>
+        </button>
+      </CabeceraPantalla>
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
