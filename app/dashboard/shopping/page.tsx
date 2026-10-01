@@ -7,6 +7,8 @@ import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/C
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { Modal } from '@/components/dashboard/Modal'
 import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
+import { useAccionAnadir } from '@/lib/accionAnadir'
 import { BarcodeScanner } from '@/components/shared/BarcodeScanner'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
 import { buscarCatalogo, buscarPorCodigoBarras } from '@/lib/catalogo'
@@ -162,6 +164,8 @@ export default function ShoppingPage() {
       setLoading(false)
     }
   }
+
+  useAccionAnadir(() => setShowForm(true))
 
   const handleExportarCsv = async () => {
     try {
@@ -663,8 +667,9 @@ export default function ShoppingPage() {
           <MenuAcciones
             label={t('mas_acciones')}
             acciones={[
-              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
-              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click() },
+              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click(), grupo: t('menu_esta_pantalla') },
+              ...accionesIrA(t),
             ]}
           />
           <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />

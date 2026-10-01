@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Palette, X, Receipt, ChefHat } from 'lucide-react'
+import { Package, ShoppingCart, Settings, LogOut, Camera, History, Home, ChevronsUpDown, ChevronDown, Palette, X, Receipt, ChefHat, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { SelectorHogarPantallaCompleta } from '@/components/shared/SelectorHogarPantallaCompleta'
@@ -12,6 +12,7 @@ import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { HogarProvider, useHogar } from '@/contexts/HogarContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { auth } from '@/lib/api'
+import { dispararAnadir } from '@/lib/accionAnadir'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -235,7 +236,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* Scroll area */}
-          <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+          <main className="flex-1 overflow-y-auto pb-28 lg:pb-0">
             {children}
           </main>
         </div>
@@ -263,6 +264,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             })}
           </div>
         </nav>
+
+        {/* ── Botón flotante "añadir" (móvil): Stock y Compra. Gastos tiene el suyo. ── */}
+        {(pathname === '/dashboard' || pathname === '/dashboard/shopping') && (
+          <button
+            type="button"
+            onClick={dispararAnadir}
+            aria-label={t('aria_anadir_flotante')}
+            className="lg:hidden fixed z-40 right-4 bottom-[calc(var(--mobile-toolbar-h)+0.875rem)] w-14 h-14 rounded-2xl bg-accent text-accent-foreground shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        )}
 
         {/* ── Toast: otro miembro cambió el estilo del hogar activo ── */}
         {avisoTemaHogar && (

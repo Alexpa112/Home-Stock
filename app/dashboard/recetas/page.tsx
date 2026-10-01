@@ -5,6 +5,8 @@ import { Plus, ChefHat, X, AlertCircle, ShoppingCart, Pencil, Trash2 } from 'luc
 import { Modal } from '@/components/dashboard/Modal'
 import { recetas as recetasApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { getCached, setCached } from '@/lib/dataCache'
 
 const CACHE_KEY_RECETAS = 'recetas:lista'
@@ -123,9 +125,12 @@ export default function RecetasPage() {
         <h1 className="text-xl font-bold flex items-center gap-2">
           <ChefHat className="w-5 h-5" /> {t('nav_recetas')}
         </h1>
-        <button onClick={abrirNuevo} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> {t('nueva_receta')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={abrirNuevo} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> {t('nueva_receta')}
+          </button>
+          <MenuAcciones label={t('mas_acciones')} acciones={accionesIrA(t, 'recetas')} />
+        </div>
       </div>
 
       {error && (

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart, Download, Upload } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
+import { useAccionAnadir } from '@/lib/accionAnadir'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { IconPicker } from '@/components/dashboard/IconPicker'
@@ -194,6 +196,7 @@ export default function StockPage() {
     setFormIcono(undefined)
     setShowForm(true)
   }
+  useAccionAnadir(abrirNuevo)
 
   const abrirEdicion = (item: Producto) => {
     setEditandoId(item.id)
@@ -644,8 +647,9 @@ export default function StockPage() {
           <MenuAcciones
             label={t('mas_acciones')}
             acciones={[
-              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
-              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click() },
+              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click(), grupo: t('menu_esta_pantalla') },
+              ...accionesIrA(t),
             ]}
           />
           <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />

@@ -5,6 +5,7 @@ import { Plus, AlertCircle, Receipt, HandCoins, Download, Repeat, Pause, Play, T
 import { Modal } from '@/components/dashboard/Modal'
 import { HojaCompleta } from '@/components/dashboard/HojaCompleta'
 import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { BarraHorizontal } from '@/components/dashboard/BarraHorizontal'
 import { GraficoColumnas } from '@/components/dashboard/GraficoColumnas'
 import { SegmentedControl } from '@/components/dashboard/SegmentedControl'
@@ -652,9 +653,10 @@ export default function GastosPage() {
         <MenuAcciones
           label={t('acciones_gastos')}
           acciones={[
-            { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
-            { icono: <HandCoins className="w-4 h-4" />, etiqueta: t('registrar_pago'), onClick: abrirLiquidacionManual },
-            { icono: <Repeat className="w-4 h-4" />, etiqueta: t('gasto_recurrente'), onClick: () => setShowRecurrenteForm(true) },
+            { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+            { icono: <HandCoins className="w-4 h-4" />, etiqueta: t('registrar_pago'), onClick: abrirLiquidacionManual, grupo: t('menu_esta_pantalla') },
+            { icono: <Repeat className="w-4 h-4" />, etiqueta: t('gasto_recurrente'), onClick: () => setShowRecurrenteForm(true), grupo: t('menu_esta_pantalla') },
+            ...accionesIrA(t),
           ]}
         />
       </div>
