@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart, Download, Upload } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart, Download, Upload, Timer, Check } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
@@ -199,6 +199,7 @@ export default function StockPage() {
   useAccionAnadir(abrirNuevo)
 
   const abrirEdicion = (item: Producto) => {
+    setConfirmandoId(null)
     setEditandoId(item.id)
     setFormData({
       nombre: item.nombre,
@@ -492,7 +493,7 @@ export default function StockPage() {
             }`}
           >
             {añadidoIds.has(item.id) ? (
-              <>✓ {t('añadido_a_la_compra')}</>
+              <><Check className="w-3 h-3 inline" /> {t('añadido_a_la_compra')}</>
             ) : añadiendoIds.has(item.id) ? (
               <>{t('añadiendo')}</>
             ) : (
@@ -506,54 +507,41 @@ export default function StockPage() {
 
   // Vista "Lista": fila compacta al estilo Bring! — icono, nombre y
   // cantidad en una sola línea, pensada para revisar el inventario rápido.
+  // Fila densa (rediseño móvil 3A): icono, nombre, categoría y ±1. Pulsar la
+  // zona izquierda abre el detalle (editar, eliminar, historial de precios);
+  // "añadir a la compra" sigue a un toque en los productos bajo mínimo.
   const renderProductoLista = (item: Producto) => {
     const icono = getCategoryIcon(item.categoria)
     const bajoMinimo = item.cantidad <= item.stock_minimo
     return (
-      <div key={item.id} className="card !p-3 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          {icono ? (
-            <IconRenderer name={icono} className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <Package className="w-5 h-5 text-muted-foreground" />
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="font-medium text-foreground truncate">{item.nombre}</p>
-            {bajoMinimo && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title={t('bajo_minimo')} />}
-            {item.revisar_caducidad && <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" title={t('revisar_caducidad')} />}
-          </div>
-          <p className="text-xs text-muted-foreground truncate">{item.categoria} · {item.unidad}</p>
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => handleAjustarCantidad(item.id, -1)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-base font-medium"
-            aria-label={t('aria_restar_uno')}
-            disabled={item.cantidad <= 0}
-          >
-            −
-          </button>
-          <span className={`text-base font-bold w-7 text-center tabular-nums ${bajoMinimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
-            {item.cantidad}
+      <div key={item.id} className="card !p-2 flex items-center gap-2">
+        <button
+          onClick={() => abrirEdicion(item)}
+          className="flex-1 min-w-0 flex items-center gap-3 text-left rounded-xl min-h-[44px]"
+          aria-label={`${t('editar')} ${item.nombre}`}
+        >
+          <span className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            {icono ? (
+              <IconRenderer name={icono} className="w-5 h-5 text-muted-foreground" />
+            ) : (
+              <Package className="w-5 h-5 text-muted-foreground" />
+            )}
           </span>
-          <button
-            onClick={() => handleAjustarCantidad(item.id, 1)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted active:scale-95 transition-all text-base font-medium"
-            aria-label={t('aria_sumar_uno')}
-          >
-            +
-          </button>
-        </div>
+          <span className="flex-1 min-w-0">
+            <span className="flex items-center gap-1.5">
+              <span className="font-medium text-foreground truncate">{item.nombre}</span>
+              {bajoMinimo && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title={t('bajo_minimo')} />}
+              {item.revisar_caducidad && <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" title={t('revisar_caducidad')} />}
+            </span>
+            <span className="block text-xs text-muted-foreground truncate">{item.categoria} · {item.unidad}</span>
+          </span>
+        </button>
 
         {bajoMinimo && (
           <button
             onClick={() => handleAñadirACompra(item)}
             disabled={añadiendoIds.has(item.id)}
-            className={`w-9 h-9 flex items-center justify-center rounded-lg shrink-0 transition-all active:scale-95 ${
+            className={`w-11 h-11 flex items-center justify-center rounded-xl shrink-0 transition-all active:scale-95 ${
               añadidoIds.has(item.id)
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                 : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
@@ -565,40 +553,26 @@ export default function StockPage() {
           </button>
         )}
 
-        <button
-          onClick={() => abrirEdicion(item)}
-          className="w-9 h-9 flex items-center justify-center hover:bg-muted rounded-lg transition-colors shrink-0"
-          aria-label={t('editar')}
-        >
-          <Pencil className="w-4 h-4 text-muted-foreground" />
-        </button>
-
-        {confirmandoId === item.id ? (
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => handleDeleteItem(item.id)}
-              className="px-2 h-9 flex items-center text-xs font-semibold text-white bg-red-500 rounded-lg transition-colors"
-              aria-label={t('aria_confirmar_eliminacion')}
-            >
-              {t('si')}
-            </button>
-            <button
-              onClick={() => setConfirmandoId(null)}
-              className="px-2 h-9 flex items-center text-xs font-semibold text-foreground bg-muted rounded-lg transition-colors"
-              aria-label={t('cancelar')}
-            >
-              {t('no')}
-            </button>
-          </div>
-        ) : (
+        <div className="flex items-center shrink-0">
           <button
-            onClick={() => handleDeleteItem(item.id)}
-            className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors shrink-0"
-            aria-label={t('eliminar')}
+            onClick={() => handleAjustarCantidad(item.id, -1)}
+            className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+            aria-label={t('aria_restar_uno')}
+            disabled={item.cantidad <= 0}
           >
-            <Trash2 className="w-4 h-4 text-red-500" />
+            −
           </button>
-        )}
+          <span className={`text-base font-bold w-8 text-center tabular-nums ${bajoMinimo ? 'text-red-500 dark:text-red-400' : 'text-accent'}`}>
+            {item.cantidad}
+          </span>
+          <button
+            onClick={() => handleAjustarCantidad(item.id, 1)}
+            className="w-11 h-11 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-all text-lg font-medium"
+            aria-label={t('aria_sumar_uno')}
+          >
+            +
+          </button>
+        </div>
       </div>
     )
   }
@@ -650,24 +624,24 @@ export default function StockPage() {
       <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
 
       {/* Filtros compactos — opciones de filtrado rápido */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
         <button
           onClick={() => setFiltro('todos')}
           aria-label={t('aria_ver_todos_articulos')}
           aria-pressed={filtro === 'todos'}
-          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`px-2.5 min-h-[44px] shrink-0 whitespace-nowrap inline-flex items-center gap-1 rounded-xl text-sm font-medium transition-all ${
             filtro === 'todos'
               ? 'bg-accent text-accent-foreground'
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          📦 {stats.totalItems} {t('articulos')}
+          <Package className="w-4 h-4" /> {stats.totalItems} {t('articulos')}
         </button>
         <button
           onClick={() => setFiltro(filtro === 'bajo_minimo' ? 'todos' : 'bajo_minimo')}
           aria-label={filtro === 'bajo_minimo' ? t('aria_quitar_filtro_bajo_stock') : t('aria_filtrar_bajo_stock')}
           aria-pressed={filtro === 'bajo_minimo'}
-          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`px-2.5 min-h-[44px] shrink-0 whitespace-nowrap inline-flex items-center gap-1 rounded-xl text-sm font-medium transition-all ${
             filtro === 'bajo_minimo'
               ? 'bg-red-500 text-white'
               : stats.bajoMinimo > 0
@@ -675,13 +649,13 @@ export default function StockPage() {
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          🛒 {stats.bajoMinimo} {t('bajo_stock')}
+          <ShoppingCart className="w-4 h-4" /> {stats.bajoMinimo} {t('bajo_stock')}
         </button>
         <button
           onClick={() => setFiltro(filtro === 'por_revisar' ? 'todos' : 'por_revisar')}
           aria-label={filtro === 'por_revisar' ? t('aria_quitar_filtro_caducidad') : t('aria_filtrar_revisar_caducidad')}
           aria-pressed={filtro === 'por_revisar'}
-          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`px-2.5 min-h-[44px] shrink-0 whitespace-nowrap inline-flex items-center gap-1 rounded-xl text-sm font-medium transition-all ${
             filtro === 'por_revisar'
               ? 'bg-yellow-500 text-white'
               : stats.porRevisar > 0
@@ -689,7 +663,7 @@ export default function StockPage() {
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          ⏱️ {stats.porRevisar} {t('caducados')}
+          <Timer className="w-4 h-4" /> {stats.porRevisar} {t('caducados')}
         </button>
       </div>
 
@@ -941,6 +915,40 @@ export default function StockPage() {
                 {t('cancelar')}
               </button>
             </div>
+
+            {editandoId && (
+              confirmandoId === editandoId ? (
+                <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
+                  <span className="text-sm text-red-600 dark:text-red-400">{t('eliminar_pregunta')}</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { handleDeleteItem(editandoId); setShowForm(false); setEditandoId(null) }}
+                      className="px-4 min-h-[44px] text-sm font-semibold text-white bg-red-500 rounded-xl"
+                      aria-label={t('aria_confirmar_eliminacion')}
+                    >
+                      {t('si')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmandoId(null)}
+                      className="px-4 min-h-[44px] text-sm font-semibold text-foreground bg-muted rounded-xl"
+                      aria-label={t('cancelar')}
+                    >
+                      {t('no')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteItem(editandoId)}
+                  className="w-full flex items-center justify-center gap-2 min-h-[44px] mt-1 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" /> {t('eliminar')}
+                </button>
+              )
+            )}
           </form>
         </div>
         </Modal>
@@ -982,17 +990,17 @@ export default function StockPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setModoVista('lista')}
-              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'lista' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+              className={`px-3 min-h-[44px] inline-flex items-center gap-1.5 rounded-xl font-medium text-sm transition-colors ${modoVista === 'lista' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
               title={t('titulo_vista_lista')}
             >
-              📋 {t('vista_lista')}
+              <List className="w-4 h-4" /> {t('vista_lista')}
             </button>
             <button
               onClick={() => setModoVista('grid')}
-              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${modoVista === 'grid' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
+              className={`px-3 min-h-[44px] inline-flex items-center gap-1.5 rounded-xl font-medium text-sm transition-colors ${modoVista === 'grid' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:bg-muted-darker'}`}
               title={t('titulo_vista_grid')}
             >
-              ⊞ {t('grid')}
+              <Grid3x3 className="w-4 h-4" /> {t('grid')}
             </button>
           </div>
         </div>
