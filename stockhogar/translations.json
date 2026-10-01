@@ -805,7 +805,8 @@
     "menu_ir_a": "Ir a",
     "menu_esta_pantalla": "Esta pantalla",
     "aria_anadir_flotante": "Añadir",
-    "cambiar_hogar": "Cambiar de hogar"
+    "cambiar_hogar": "Cambiar de hogar",
+    "progreso_compra": "{comprados} de {total} comprados"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1613,7 +1614,8 @@
     "menu_ir_a": "Ir a",
     "menu_esta_pantalla": "Esta pantalla",
     "aria_anadir_flotante": "Engadir",
-    "cambiar_hogar": "Cambiar de fogar"
+    "cambiar_hogar": "Cambiar de fogar",
+    "progreso_compra": "{comprados} de {total} mercados"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2421,7 +2423,8 @@
     "menu_ir_a": "Go to",
     "menu_esta_pantalla": "This screen",
     "aria_anadir_flotante": "Add",
-    "cambiar_hogar": "Switch household"
+    "cambiar_hogar": "Switch household",
+    "progreso_compra": "{comprados} of {total} bought"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3229,7 +3232,8 @@
     "menu_ir_a": "Ir para",
     "menu_esta_pantalla": "Este ecrã",
     "aria_anadir_flotante": "Adicionar",
-    "cambiar_hogar": "Mudar de lar"
+    "cambiar_hogar": "Mudar de lar",
+    "progreso_compra": "{comprados} de {total} comprados"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4037,7 +4041,8 @@
     "menu_ir_a": "Aller à",
     "menu_esta_pantalla": "Cet écran",
     "aria_anadir_flotante": "Ajouter",
-    "cambiar_hogar": "Changer de foyer"
+    "cambiar_hogar": "Changer de foyer",
+    "progreso_compra": "{comprados} sur {total} achetés"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4845,7 +4850,8 @@
     "menu_ir_a": "Vai a",
     "menu_esta_pantalla": "Questa schermata",
     "aria_anadir_flotante": "Aggiungi",
-    "cambiar_hogar": "Cambia casa"
+    "cambiar_hogar": "Cambia casa",
+    "progreso_compra": "{comprados} su {total} acquistati"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5653,6 +5659,7 @@
     "menu_ir_a": "Gehe zu",
     "menu_esta_pantalla": "Dieser Bildschirm",
     "aria_anadir_flotante": "Hinzufügen",
-    "cambiar_hogar": "Haushalt wechseln"
+    "cambiar_hogar": "Haushalt wechseln",
+    "progreso_compra": "{comprados} von {total} gekauft"
   }
 }

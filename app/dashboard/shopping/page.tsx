@@ -7,6 +7,8 @@ import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/C
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { Modal } from '@/components/dashboard/Modal'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
+import { FilaDeslizable } from '@/components/dashboard/FilaDeslizable'
+import { BarraRapida, SugerenciaCatalogo } from '@/components/dashboard/BarraRapida'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { useAccionAnadir } from '@/lib/accionAnadir'
 import { BarcodeScanner } from '@/components/shared/BarcodeScanner'
@@ -84,6 +86,8 @@ export default function ShoppingPage() {
   const [formUnidad, setFormUnidad] = useState<string | undefined>(undefined)
   const [formCodigoBarras, setFormCodigoBarras] = useState<string | undefined>(undefined)
   const [mostrarEscaner, setMostrarEscaner] = useState(false)
+  // Barra rápida (móvil): el botón flotante la abre en vez del formulario completo.
+  const [barraRapida, setBarraRapida] = useState(false)
   const [errorEscaner, setErrorEscaner] = useState('')
   const inputImportarRef = useRef<HTMLInputElement>(null)
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
@@ -165,7 +169,7 @@ export default function ShoppingPage() {
     }
   }
 
-  useAccionAnadir(() => setShowForm(true))
+  useAccionAnadir(() => setBarraRapida(true))
 
   const handleExportarCsv = async () => {
     try {
@@ -282,6 +286,25 @@ export default function ShoppingPage() {
       setError(message)
     } finally {
       setQuickAddLoading(false)
+    }
+  }
+
+  // Alta desde la barra rápida: misma llamada que el formulario completo.
+  // Devuelve true si se añadió, para que la barra limpie el campo y siga abierta.
+  const handleAnadirRapido = async (nombre: string, sugerencia?: SugerenciaCatalogo): Promise<boolean> => {
+    try {
+      setError('')
+      const creado: any = await articulosLista.anadir(nombre, {
+        categoria: sugerencia?.categoria || undefined,
+        icono: sugerencia?.icono || undefined,
+        unidad: sugerencia?.unidad || undefined,
+      })
+      if (creado?.id) fusionarArticulo(creado)
+      return true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('err_anadir_articulo')
+      setError(message)
+      return false
     }
   }
 
@@ -405,6 +428,13 @@ export default function ShoppingPage() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressDisparado = useRef(false)
 
+  // Si el dedo empieza a deslizar, la pulsación larga (editar) no debe llegar a
+  // dispararse: ambos gestos comparten los mismos eventos táctiles de la fila.
+  const cancelarLongPress = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
+  }
+
   const crearLongPress = (item: ArticuloLista) => {
     const iniciar = () => {
       longPressDisparado.current = false
@@ -466,8 +496,14 @@ export default function ShoppingPage() {
   }
 
   const renderItemRow = (item: ArticuloLista, isCompleted: boolean = false) => (
-    <div
+    <FilaDeslizable
       key={item.id}
+      restaura={isCompleted}
+      onCompletar={() => handleToggleBought(item.id, !isCompleted)}
+      onMovimiento={cancelarLongPress}
+      bloqueado={() => longPressDisparado.current}
+    >
+    <div
       className={`card flex items-center justify-between gap-4 ${isCompleted ? 'opacity-60' : ''}`}
       {...crearLongPress(item)}
     >
@@ -536,6 +572,7 @@ export default function ShoppingPage() {
         </button>
       )}
     </div>
+    </FilaDeslizable>
   )
 
   // Tile "color por categoría": el icono ocupa un bloque de color propio de
@@ -666,6 +703,28 @@ export default function ShoppingPage() {
         </button>
       </CabeceraPantalla>
       <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
+
+      {/* Progreso: comprados sobre el total visible (los comprados son los recientes). */}
+      {items.length > 0 && !loading && (
+        <div className="space-y-1.5">
+          <div
+            role="progressbar"
+            aria-label={t('progreso_compra')}
+            aria-valuemin={0}
+            aria-valuemax={items.length}
+            aria-valuenow={completados.length}
+            className="h-2 rounded-full bg-muted overflow-hidden"
+          >
+            <div
+              className="h-full rounded-full bg-green-500 transition-[width] duration-300"
+              style={{ width: `${Math.round((completados.length / items.length) * 100)}%` }}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {t('progreso_compra').replace('{comprados}', String(completados.length)).replace('{total}', String(items.length))}
+          </p>
+        </div>
+      )}
 
       {/* Vista Controls */}
       {items.length > 0 && !loading && (
@@ -838,6 +897,19 @@ export default function ShoppingPage() {
           </form>
         </div>
         </Modal>
+      )}
+
+      {barraRapida && (
+        <BarraRapida
+          onAnadir={handleAnadirRapido}
+          onCerrar={() => setBarraRapida(false)}
+          onEscanear={() => { setBarraRapida(false); setShowForm(true); setMostrarEscaner(true) }}
+          onMasOpciones={(nombre) => {
+            setBarraRapida(false)
+            setFormData((prev) => ({ ...prev, nombre }))
+            setShowForm(true)
+          }}
+        />
       )}
 
       {mostrarEscaner && (
@@ -1049,6 +1121,8 @@ export default function ShoppingPage() {
           </div>
         </Modal>
       )}
+      {/* Hueco para que la barra rápida no tape la última fila. */}
+      {barraRapida && <div className="h-48 lg:hidden" aria-hidden="true" />}
     </div>
   )
 }

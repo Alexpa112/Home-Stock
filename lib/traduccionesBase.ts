@@ -658,6 +658,7 @@ const TRADUCCIONES_BASE: Record<string, string> = {
   "productos": "Productos",
   "productos_check": "Productos (/api/productos)",
   "productos_detectados_contador": "{n} producto(s) detectado(s)",
+  "progreso_compra": "{comprados} de {total} comprados",
   "promocion_detectada": "Promoción detectada",
   "propietario": "PROPIETARIO",
   "propietario_rol": "Propietario",

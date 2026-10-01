@@ -251,7 +251,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             type="button"
             onClick={dispararAnadir}
             aria-label={t('aria_anadir_flotante')}
-            className="lg:hidden fixed z-40 right-4 bottom-[calc(var(--mobile-toolbar-h)+0.875rem)] w-14 h-14 rounded-2xl bg-accent text-accent-foreground shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
+            className="lg:hidden [body[data-barra-rapida]_&]:hidden fixed z-40 right-4 bottom-[calc(var(--mobile-toolbar-h)+0.875rem)] w-14 h-14 rounded-2xl bg-accent text-accent-foreground shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
           >
             <Plus className="w-6 h-6" />
           </button>
