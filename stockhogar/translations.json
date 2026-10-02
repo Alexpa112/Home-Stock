@@ -808,7 +808,12 @@
     "cambiar_hogar": "Cambiar de hogar",
     "progreso_compra": "{comprados} de {total} comprados",
     "aviso_cantidad_dudosa": "Cantidad dudosa: {cantidad} unidades no parece real, ¿es un peso? Revísala antes de importar.",
-    "importar_n_al_stock": "Importar {n} al stock"
+    "importar_n_al_stock": "Importar {n} al stock",
+    "ajustes_grupo_cuenta": "Cuenta",
+    "ajustes_grupo_apariencia": "Apariencia e idioma",
+    "ajustes_grupo_datos": "Historial y categorías",
+    "ajustes_grupo_seguridad": "Seguridad y privacidad",
+    "ajustes_grupo_legal": "Legal"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1619,7 +1624,12 @@
     "cambiar_hogar": "Cambiar de fogar",
     "progreso_compra": "{comprados} de {total} mercados",
     "aviso_cantidad_dudosa": "Cantidade dubidosa: {cantidad} unidades non parece real, ¿é un peso? Revísaa antes de importar.",
-    "importar_n_al_stock": "Importar {n} ao stock"
+    "importar_n_al_stock": "Importar {n} ao stock",
+    "ajustes_grupo_cuenta": "Conta",
+    "ajustes_grupo_apariencia": "Aparencia e idioma",
+    "ajustes_grupo_datos": "Historial e categorías",
+    "ajustes_grupo_seguridad": "Seguridade e privacidade",
+    "ajustes_grupo_legal": "Legal"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2430,7 +2440,12 @@
     "cambiar_hogar": "Switch household",
     "progreso_compra": "{comprados} of {total} bought",
     "aviso_cantidad_dudosa": "Doubtful quantity: {cantidad} units doesn't look right, is it a weight? Check it before importing.",
-    "importar_n_al_stock": "Import {n} to stock"
+    "importar_n_al_stock": "Import {n} to stock",
+    "ajustes_grupo_cuenta": "Account",
+    "ajustes_grupo_apariencia": "Appearance and language",
+    "ajustes_grupo_datos": "History and categories",
+    "ajustes_grupo_seguridad": "Security and privacy",
+    "ajustes_grupo_legal": "Legal"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3241,7 +3256,12 @@
     "cambiar_hogar": "Mudar de lar",
     "progreso_compra": "{comprados} de {total} comprados",
     "aviso_cantidad_dudosa": "Quantidade duvidosa: {cantidad} unidades não parece real, é um peso? Verifique antes de importar.",
-    "importar_n_al_stock": "Importar {n} para o stock"
+    "importar_n_al_stock": "Importar {n} para o stock",
+    "ajustes_grupo_cuenta": "Conta",
+    "ajustes_grupo_apariencia": "Aparência e idioma",
+    "ajustes_grupo_datos": "Histórico e categorias",
+    "ajustes_grupo_seguridad": "Segurança e privacidade",
+    "ajustes_grupo_legal": "Legal"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4052,7 +4072,12 @@
     "cambiar_hogar": "Changer de foyer",
     "progreso_compra": "{comprados} sur {total} achetés",
     "aviso_cantidad_dudosa": "Quantité douteuse : {cantidad} unités semble peu réaliste, est-ce un poids ? Vérifiez avant d'importer.",
-    "importar_n_al_stock": "Importer {n} au stock"
+    "importar_n_al_stock": "Importer {n} au stock",
+    "ajustes_grupo_cuenta": "Compte",
+    "ajustes_grupo_apariencia": "Apparence et langue",
+    "ajustes_grupo_datos": "Historique et catégories",
+    "ajustes_grupo_seguridad": "Sécurité et confidentialité",
+    "ajustes_grupo_legal": "Mentions légales"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4863,7 +4888,12 @@
     "cambiar_hogar": "Cambia casa",
     "progreso_compra": "{comprados} su {total} acquistati",
     "aviso_cantidad_dudosa": "Quantità dubbia: {cantidad} unità sembra poco realistico, è un peso? Controllala prima di importare.",
-    "importar_n_al_stock": "Importa {n} nello stock"
+    "importar_n_al_stock": "Importa {n} nello stock",
+    "ajustes_grupo_cuenta": "Account",
+    "ajustes_grupo_apariencia": "Aspetto e lingua",
+    "ajustes_grupo_datos": "Cronologia e categorie",
+    "ajustes_grupo_seguridad": "Sicurezza e privacy",
+    "ajustes_grupo_legal": "Note legali"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5674,6 +5704,11 @@
     "cambiar_hogar": "Haushalt wechseln",
     "progreso_compra": "{comprados} von {total} gekauft",
     "aviso_cantidad_dudosa": "Zweifelhafte Menge: {cantidad} Stück wirkt unrealistisch, ist es ein Gewicht? Bitte vor dem Import prüfen.",
-    "importar_n_al_stock": "{n} in den Bestand importieren"
+    "importar_n_al_stock": "{n} in den Bestand importieren",
+    "ajustes_grupo_cuenta": "Konto",
+    "ajustes_grupo_apariencia": "Darstellung und Sprache",
+    "ajustes_grupo_datos": "Verlauf und Kategorien",
+    "ajustes_grupo_seguridad": "Sicherheit und Datenschutz",
+    "ajustes_grupo_legal": "Rechtliches"
   }
 }
