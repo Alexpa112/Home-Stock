@@ -806,7 +806,9 @@
     "menu_esta_pantalla": "Esta pantalla",
     "aria_anadir_flotante": "Añadir",
     "cambiar_hogar": "Cambiar de hogar",
-    "progreso_compra": "{comprados} de {total} comprados"
+    "progreso_compra": "{comprados} de {total} comprados",
+    "aviso_cantidad_dudosa": "Cantidad dudosa: {cantidad} unidades no parece real, ¿es un peso? Revísala antes de importar.",
+    "importar_n_al_stock": "Importar {n} al stock"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1615,7 +1617,9 @@
     "menu_esta_pantalla": "Esta pantalla",
     "aria_anadir_flotante": "Engadir",
     "cambiar_hogar": "Cambiar de fogar",
-    "progreso_compra": "{comprados} de {total} mercados"
+    "progreso_compra": "{comprados} de {total} mercados",
+    "aviso_cantidad_dudosa": "Cantidade dubidosa: {cantidad} unidades non parece real, ¿é un peso? Revísaa antes de importar.",
+    "importar_n_al_stock": "Importar {n} ao stock"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2424,7 +2428,9 @@
     "menu_esta_pantalla": "This screen",
     "aria_anadir_flotante": "Add",
     "cambiar_hogar": "Switch household",
-    "progreso_compra": "{comprados} of {total} bought"
+    "progreso_compra": "{comprados} of {total} bought",
+    "aviso_cantidad_dudosa": "Doubtful quantity: {cantidad} units doesn't look right, is it a weight? Check it before importing.",
+    "importar_n_al_stock": "Import {n} to stock"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3233,7 +3239,9 @@
     "menu_esta_pantalla": "Este ecrã",
     "aria_anadir_flotante": "Adicionar",
     "cambiar_hogar": "Mudar de lar",
-    "progreso_compra": "{comprados} de {total} comprados"
+    "progreso_compra": "{comprados} de {total} comprados",
+    "aviso_cantidad_dudosa": "Quantidade duvidosa: {cantidad} unidades não parece real, é um peso? Verifique antes de importar.",
+    "importar_n_al_stock": "Importar {n} para o stock"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4042,7 +4050,9 @@
     "menu_esta_pantalla": "Cet écran",
     "aria_anadir_flotante": "Ajouter",
     "cambiar_hogar": "Changer de foyer",
-    "progreso_compra": "{comprados} sur {total} achetés"
+    "progreso_compra": "{comprados} sur {total} achetés",
+    "aviso_cantidad_dudosa": "Quantité douteuse : {cantidad} unités semble peu réaliste, est-ce un poids ? Vérifiez avant d'importer.",
+    "importar_n_al_stock": "Importer {n} au stock"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4851,7 +4861,9 @@
     "menu_esta_pantalla": "Questa schermata",
     "aria_anadir_flotante": "Aggiungi",
     "cambiar_hogar": "Cambia casa",
-    "progreso_compra": "{comprados} su {total} acquistati"
+    "progreso_compra": "{comprados} su {total} acquistati",
+    "aviso_cantidad_dudosa": "Quantità dubbia: {cantidad} unità sembra poco realistico, è un peso? Controllala prima di importare.",
+    "importar_n_al_stock": "Importa {n} nello stock"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5660,6 +5672,8 @@
     "menu_esta_pantalla": "Dieser Bildschirm",
     "aria_anadir_flotante": "Hinzufügen",
     "cambiar_hogar": "Haushalt wechseln",
-    "progreso_compra": "{comprados} von {total} gekauft"
+    "progreso_compra": "{comprados} von {total} gekauft",
+    "aviso_cantidad_dudosa": "Zweifelhafte Menge: {cantidad} Stück wirkt unrealistisch, ist es ein Gewicht? Bitte vor dem Import prüfen.",
+    "importar_n_al_stock": "{n} in den Bestand importieren"
   }
 }
