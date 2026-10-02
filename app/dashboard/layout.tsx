@@ -265,7 +265,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <span className="text-sm flex-1">{avisoTemaHogar}</span>
               <button
                 onClick={cerrarAvisoTemaHogar}
-                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-muted shrink-0"
+                className="w-11 h-11 flex items-center justify-center rounded-md hover:bg-muted shrink-0"
                 aria-label={t('cancelar')}
               >
                 <X className="w-3.5 h-3.5" />

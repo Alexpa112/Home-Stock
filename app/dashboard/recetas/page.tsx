@@ -220,7 +220,7 @@ export default function RecetasPage() {
                       type="button"
                       onClick={() => setIngredientes((prev) => prev.filter((_, i) => i !== idx))}
                       aria-label={t('eliminar')}
-                      className="w-9 h-9 shrink-0 flex items-center justify-center"
+                      className="w-11 h-11 shrink-0 flex items-center justify-center"
                     >
                       <X className="w-4 h-4 text-red-500" />
                     </button>

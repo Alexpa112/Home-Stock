@@ -27,7 +27,7 @@ export function HojaCompleta({ titulo, onCerrar, cabeceraDerecha, children }: Ho
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-shrink-0">
         <button
           onClick={onCerrar}
-          className="w-9 h-9 flex items-center justify-center hover:bg-muted rounded-lg transition-colors"
+          className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
           aria-label={titulo}
         >
           <X className="w-5 h-5" />

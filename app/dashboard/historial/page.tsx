@@ -153,7 +153,7 @@ export default function HistorialPage() {
               <button
                 key={r}
                 onClick={() => cambiarRango(r)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-h-[36px] ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                   dias === r
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -275,7 +275,7 @@ export default function HistorialPage() {
                     <button
                       type="button"
                       onClick={() => setMostrarIconPickerId(a.id)}
-                      className="w-8 h-8 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
+                      className="w-11 h-11 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
                       aria-label={t('cambiar_icono')}
                     >
                       {iconoEdit ? (

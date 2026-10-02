@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string>({ opciones, valor, onCambiar 
           role="tab"
           aria-selected={valor === o.valor}
           onClick={() => onCambiar(o.valor)}
-          className={`flex-1 min-h-[40px] rounded-lg text-sm font-semibold transition-colors ${
+          className={`flex-1 min-h-[44px] rounded-lg text-sm font-semibold transition-colors ${
             valor === o.valor ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
           }`}
         >

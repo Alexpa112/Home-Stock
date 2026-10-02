@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { PieLegal } from '@/components/shared/PieLegal'
-import { User, Lock, ArrowRight, ShieldCheck, Mail } from 'lucide-react'
+import { User, Lock, ArrowRight, ShieldCheck, Mail, AlertTriangle, Check } from 'lucide-react'
 import { auth } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -266,13 +266,13 @@ function HomeContent() {
 
                 {error && (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200 flex gap-2">
-                    <span className="text-lg">⚠️</span>
+                    <AlertTriangle className="w-5 h-5 shrink-0" aria-hidden="true" />
                     <span>{error}</span>
                   </div>
                 )}
                 {reenviado && (
                   <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-200 flex gap-2">
-                    <span className="text-lg">✓</span>
+                    <Check className="w-5 h-5 shrink-0" aria-hidden="true" />
                     <span>{t('codigo_reenviado')}</span>
                   </div>
                 )}

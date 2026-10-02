@@ -774,17 +774,16 @@ export default function SettingsPage() {
       <section aria-labelledby="ajustes-grupo-seguridad">
       <h2 id="ajustes-grupo-seguridad" className="px-1 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('ajustes_grupo_seguridad')}</h2>
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
-        <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+        {/* Una sola fila-botón: antes repetía la misma etiqueta como texto y como
+            botón, y en móvil partía el texto en cuatro líneas. */}
+        <button
+          onClick={handleCerrarOtrasSesiones}
+          disabled={cerrandoOtrasSesiones}
+          className="w-full px-4 py-3 flex items-center gap-3 min-h-[44px] text-left hover:bg-muted transition-colors disabled:opacity-50"
+        >
           <ShieldCheck className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
-          <span className="flex-1 text-sm">{t('btn_cerrar_otras_sesiones')}</span>
-          <button
-            onClick={handleCerrarOtrasSesiones}
-            disabled={cerrandoOtrasSesiones}
-            className="text-sm font-medium text-accent hover:underline disabled:opacity-50 shrink-0"
-          >
-            {cerrandoOtrasSesiones ? t('procesando') : t('btn_cerrar_otras_sesiones')}
-          </button>
-        </div>
+          <span className="flex-1 text-sm">{cerrandoOtrasSesiones ? t('procesando') : t('btn_cerrar_otras_sesiones')}</span>
+        </button>
         {eventosSeguridad.length > 0 && (
           <div className="px-4 py-3">
             <p className="text-sm font-medium mb-2">{t('titulo_eventos_seguridad')}</p>
@@ -808,17 +807,14 @@ export default function SettingsPage() {
           </div>
         )}
         {/* Exportacion de datos personales (S-22, RGPD) */}
-        <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+        <button
+          onClick={handleExportarMisDatos}
+          disabled={exportandoDatos}
+          className="w-full px-4 py-3 flex items-center gap-3 min-h-[44px] text-left hover:bg-muted transition-colors disabled:opacity-50"
+        >
           <History className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
-          <span className="flex-1 text-sm">{t('btn_exportar_mis_datos')}</span>
-          <button
-            onClick={handleExportarMisDatos}
-            disabled={exportandoDatos}
-            className="text-sm font-medium text-accent hover:underline disabled:opacity-50 shrink-0"
-          >
-            {exportandoDatos ? t('procesando') : t('btn_exportar_mis_datos')}
-          </button>
-        </div>
+          <span className="flex-1 text-sm">{exportandoDatos ? t('procesando') : t('btn_exportar_mis_datos')}</span>
+        </button>
       </div>
       </section>
 

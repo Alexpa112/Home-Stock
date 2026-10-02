@@ -691,20 +691,20 @@ export default function GastosPage() {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleTogglePausaRecurrente(r)}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
+                        className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
                         aria-label={t(r.activo ? 'pausar' : 'reanudar')}
                       >
                         {r.activo ? <Pause className="w-4 h-4 text-muted-foreground" /> : <Play className="w-4 h-4 text-muted-foreground" />}
                       </button>
                       {confirmandoRecurrenteId === r.id ? (
                         <div className="flex items-center gap-1">
-                          <button onClick={() => handleEliminarRecurrente(r.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
-                          <button onClick={() => setConfirmandoRecurrenteId(null)} className="px-2 h-8 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
+                          <button onClick={() => handleEliminarRecurrente(r.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
+                          <button onClick={() => setConfirmandoRecurrenteId(null)} className="px-3 h-11 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleEliminarRecurrente(r.id)}
-                          className="w-8 h-8 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                          className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
                           aria-label={t('eliminar')}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />

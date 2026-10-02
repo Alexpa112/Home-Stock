@@ -76,7 +76,7 @@ export default function CategoriasGastoPage() {
   return (
     <div className="max-w-lg mx-auto p-4 lg:p-6 space-y-6">
       <div className="flex items-center gap-2">
-        <Link href="/dashboard/gastos" className="w-9 h-9 flex items-center justify-center hover:bg-muted rounded-lg transition-colors">
+        <Link href="/dashboard/gastos" className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-xl transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold">{t('categorias_gasto')}</h1>
@@ -125,11 +125,11 @@ export default function CategoriasGastoPage() {
               {confirmandoEliminarId === cat.id ? (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-red-600 dark:text-red-400 mr-0.5">{t('eliminar_pregunta')}</span>
-                  <button onClick={() => handleEliminar(cat.id)} className="px-2 py-1 text-xs text-white bg-red-500 rounded-md font-medium">{t('si')}</button>
-                  <button onClick={() => setConfirmandoEliminarId(null)} className="px-2 py-1 text-xs bg-muted rounded-md font-medium">{t('no')}</button>
+                  <button onClick={() => handleEliminar(cat.id)} className="px-3 min-h-[44px] text-xs text-white bg-red-500 rounded-md font-medium">{t('si')}</button>
+                  <button onClick={() => setConfirmandoEliminarId(null)} className="px-3 min-h-[44px] text-xs bg-muted rounded-md font-medium">{t('no')}</button>
                 </div>
               ) : (
-                <button onClick={() => handleEliminar(cat.id)} aria-label={`${t('eliminar')} ${cat.nombre}`}>
+                <button onClick={() => handleEliminar(cat.id)} aria-label={`${t('eliminar')} ${cat.nombre}`} className="p-3.5 -m-3.5">
                   <X className="w-4 h-4 text-red-500" />
                 </button>
               )}

@@ -68,7 +68,7 @@ export function InvitacionesPendientes() {
             onClick={() => aceptar(inv.codigo_invitacion)}
             disabled={procesando === inv.codigo_invitacion}
             aria-label={t('btn_aceptar')}
-            className="w-7 h-7 flex items-center justify-center rounded-md bg-accent text-accent-foreground shrink-0 disabled:opacity-50"
+            className="w-11 h-11 flex items-center justify-center rounded-md bg-accent text-accent-foreground shrink-0 disabled:opacity-50"
           >
             <Check className="w-4 h-4" />
           </button>
@@ -76,7 +76,7 @@ export function InvitacionesPendientes() {
             onClick={() => rechazar(inv.codigo_invitacion)}
             disabled={procesando === inv.codigo_invitacion}
             aria-label={t('btn_rechazar')}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-muted shrink-0 disabled:opacity-50"
+            className="w-11 h-11 flex items-center justify-center rounded-md hover:bg-muted shrink-0 disabled:opacity-50"
           >
             <X className="w-3.5 h-3.5" />
           </button>

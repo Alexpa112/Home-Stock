@@ -734,7 +734,7 @@ export default function StockPage() {
                 <button
                   type="button"
                   onClick={() => setMostrarIconPickerCategoria(true)}
-                  className="w-9 h-9 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
+                  className="w-11 h-11 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
                   aria-label={t('cambiar_icono')}
                 >
                   {nuevaCategoriaIcono ? (
@@ -805,7 +805,7 @@ export default function StockPage() {
               <button
                 type="button"
                 onClick={() => setMostrarIconPicker(true)}
-                className="btn-secondary btn-sm"
+                className="btn-secondary btn-sm min-h-[44px]"
               >
                 {t('cambiar_icono')}
               </button>

@@ -541,7 +541,7 @@ export default function ShoppingPage() {
 
       <button
         onClick={() => abrirModalEdicion(item)}
-        className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
+        className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
         aria-label={t('editar')}
       >
         <Pencil className="w-4 h-4 text-muted-foreground" />
@@ -551,13 +551,13 @@ export default function ShoppingPage() {
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => handleDeleteItem(item.id)}
-            className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl"
+            className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl"
           >
             {t('si')}
           </button>
           <button
             onClick={() => setConfirmandoId(null)}
-            className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl"
+            className="px-3 h-11 text-xs font-semibold text-foreground bg-muted rounded-xl"
           >
             {t('no')}
           </button>
@@ -565,7 +565,7 @@ export default function ShoppingPage() {
       ) : (
         <button
           onClick={() => handleDeleteItem(item.id)}
-          className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
+          className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
           aria-label={t('eliminar')}
         >
           <Trash2 className="w-4 h-4 text-red-500" />
