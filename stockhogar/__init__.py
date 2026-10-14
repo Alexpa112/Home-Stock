@@ -215,7 +215,27 @@ def create_app():
 
     db.init_db()
     _registrar_estado_escaner()
+    _precalentar_diccionario()
     return app
+
+
+def _precalentar_diccionario():
+    """Construye el diccionario de articulos del escaner en segundo plano.
+
+    Cuesta ~1 s en un PC y varios en una Raspberry Pi; sin esto lo pagaria el
+    primer ticket que se escanee tras arrancar. Si falla, el escaner sigue
+    funcionando sin el (ver identificar_articulo).
+    """
+    import threading
+
+    def _cargar():
+        try:
+            from .servicios.ocr.diccionario import obtener
+            obtener()
+        except Exception:  # pragma: no cover - el escaner degrada solo
+            logging.getLogger(__name__).exception("No se pudo precalentar el diccionario de articulos")
+
+    threading.Thread(target=_cargar, name="diccionario-articulos", daemon=True).start()
 
 
 def _registrar_estado_escaner():

@@ -410,7 +410,7 @@ ABREVIATURAS = {
 # Palabras de relleno: no identifican el articulo. Se ignoran al comparar.
 RELLENO = {
     # conectores
-    "de", "del", "la", "el", "los", "las", "en", "con", "para", "y", "a", "al", "un", "una", "por", "o", "e",
+    "de", "del", "la", "el", "los", "las", "en", "para", "y", "a", "al", "un", "una", "por", "o", "e",
     # envases y presentacion
     "bolsa", "bolsas", "bandeja", "bandejas", "paquete", "paquetes", "pack", "packs", "lata", "latas", "bote", "botes",
     "botella", "botellas", "brick", "bricks", "envase", "caja", "cajas", "sobre", "sobres", "tarro", "tarros",
@@ -426,3 +426,10 @@ RELLENO = {
     "sabor", "sabores", "gama", "linea", "tipo", "estilo",
     "dia", "marca", "mdd", "mm", "pvp", "iva", "eur", "euro", "euros",
 }
+
+# Ampliaciones (ronda 2): truncados frecuentes de ticket.
+ABREVIATURAS.update({
+    "lact": ("lactosa",), "lacto": ("lactosa",), "sinlact": ("sin lactosa",),
+    "desn": ("desnatada",), "desnat": ("desnatada",),
+    "congel": ("congelado",),
+})

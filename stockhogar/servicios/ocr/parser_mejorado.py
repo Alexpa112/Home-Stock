@@ -137,7 +137,7 @@ class ParserMejorado:
         # "0" suelto, y ese "0,85" espurio se colaba como precio_unitario
         # real (ver _extraer_precios) en vez de descartarse.
         self.regex_precio = re.compile(
-            r'(?<![A-Za-záéíóúñ])(\d*[.,]\d{2})(?!\d)\s*(€|\$)?',
+            r'(?<![A-WYZa-wyzáéíóúñ])(\d*[.,]\d{2})(?!\d)\s*(€|\$)?',  # la x de "2x1,50" no pega el precio al nombre
             re.IGNORECASE
         )
         self.regex_precio_unitario = re.compile(
@@ -151,6 +151,22 @@ class ParserMejorado:
         self.regex_detalle_multiplicador = re.compile(
             r'(\d{1,3})\s*[xX×]{1,2}\s*(\d+[.,]\d{2})\s*(?:€|eur)?', re.IGNORECASE
         )
+
+        # "DETERGENTE LIQ  2 UN  11,98" (Alcampo, Eroski, Consum): la cantidad va
+        # tras el nombre, marcada con UN/UD/UDS, y delante del importe.
+        self.regex_cantidad_un = re.compile(
+            r'(?<![\d,.])(\d{1,3})\s*(?:un|uds?|unid(?:ades)?)\b\.?(?=\s+\d+[.,]\d{2}|\s*$)',
+            re.IGNORECASE
+        )
+        # "1,088 kg x 14,50/kg" en su propio renglon (Aldi, Dia): peso y precio por kilo
+        # del articulo anterior.
+        self.regex_detalle_peso = re.compile(
+            r'(\d+[.,]\d{1,3})\s*(kg|g|l|ml)\s*[xX×]?\s*(?:(\d+[.,]\d{2})\s*(?:€|eur)?\s*(?:/\s*(?:kg|g|l|ml|ud))?)?',
+            re.IGNORECASE
+        )
+        # Renglon con solo un importe ("15,78"): el precio del articulo anterior cuando
+        # el nombre y el peso ocupan un renglon y el importe cae en el siguiente.
+        self.regex_solo_precio = re.compile(r'(\d+[.,]\d{2})\s*(?:€|eur)?\s*[A-Za-z]?')
 
         # Patrones típicos de cabecera (nombre de tienda, dirección, CIF, teléfono)
         self.regex_cif_nif = re.compile(r'\b[A-Z]\d{7,8}[A-Z0-9]?\b')
@@ -227,6 +243,19 @@ class ParserMejorado:
                 anterior.cantidad_texto = f"{anterior.cantidad:g} ud"
                 anterior.precio_unitario = self._parsear_precio(detalle.group(2))
                 continue
+            peso = self.regex_detalle_peso.fullmatch(linea)
+            if peso and productos:
+                anterior = productos[-1]
+                anterior.cantidad = float(peso.group(1).replace(',', '.'))
+                anterior.unidad = self.unidades_map.get(peso.group(2).lower(), TipoUnidad.UNIDAD)
+                anterior.cantidad_texto = f"{anterior.cantidad:g} {anterior.unidad.value}"
+                if peso.group(3):
+                    anterior.precio_unitario = self._parsear_precio(peso.group(3))
+                continue
+            solo_precio = self.regex_solo_precio.fullmatch(linea)
+            if solo_precio and productos and not productos[-1].precio_total:
+                productos[-1].precio_total = self._parsear_precio(solo_precio.group(1))
+                continue
             if self._es_linea_valida(linea):
                 # Pasar contexto (línea anterior/siguiente)
                 contexto_anterior = lineas_limpias[idx - 1] if idx > 0 else ""
@@ -295,7 +324,7 @@ class ParserMejorado:
             r'\b(total|subtotal|tot|cambio|tarjeta|efectivo|visa|mastercard)\b',
             re.IGNORECASE | re.UNICODE
         )
-        regex_cierre_debil = re.compile(r'\b(importe|pago)\b', re.IGNORECASE | re.UNICODE)
+        regex_cierre_debil = re.compile(r'\b(importe|pago|suma)\b', re.IGNORECASE | re.UNICODE)
         regex_encabezado_tabla = re.compile(
             r'(descripcion|articulo|cantidad|cant|precio|p\.unit|total)',
             re.IGNORECASE | re.UNICODE
@@ -570,6 +599,15 @@ class ParserMejorado:
             except ValueError:
                 pass
 
+        # "1,577 MORTADELA 8,20" (Consum): columna de cantidad con tres decimales y sin
+        # unidad. Un peso impreso asi ("0,850", "1,577") es siempre kg: ninguna
+        # cantidad de unidades lleva tres decimales.
+        match_peso_suelto = re.match(r'(\d{1,3}[.,]\d{3})\s+(?=[a-záéíóúñ])', linea, re.IGNORECASE | re.UNICODE)
+        if match_peso_suelto:
+            cantidad = float(match_peso_suelto.group(1).replace(',', '.'))
+            if cantidad > 0:
+                return cantidad, TipoUnidad.KILOGRAMO, f"{cantidad:g} kg"
+
         # Cantidad suelta al principio de la línea (p.ej. "2 COCA COLA 1,80",
         # "3 COCA COLA 1,5L") -> cantidad = ese número, sea cual sea la
         # unidad de envase que aparezca despues en el nombre.
@@ -581,6 +619,13 @@ class ParserMejorado:
                     return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
             except ValueError:
                 pass
+
+        # "DETERGENTE LIQ  2 UN  11,98": cantidad marcada con UN/UD tras el nombre.
+        match_un = self.regex_cantidad_un.search(linea)
+        if match_un:
+            cantidad = float(match_un.group(1))
+            if cantidad > 0:
+                return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
 
         # "YOGUR NATURAL  4 x 0,55  2,20" o la linea de detalle "4 x 0,55":
         # el multiplicador manda sobre el tamano de envase del nombre.
@@ -670,6 +715,10 @@ class ParserMejorado:
             flags=re.IGNORECASE
         )
 
+        # Codigo de articulo / EAN al principio ("400137 MEJILLON ESCABECHE"): 5 a 13
+        # digitos seguidos nunca son una cantidad.
+        nombre = re.sub(r'^\d{5,13}\s+(?=\D)', '', nombre)
+
         # Quitar precio unitario (@1.20€/kg)
         nombre = re.sub(self.regex_precio_unitario, '', nombre)
 
@@ -682,8 +731,14 @@ class ParserMejorado:
         # (p.ej. "YOGUR NATURAL 4 x 0,55 2,20" -> "YOGUR NATURAL")
         nombre = re.sub(r'(?<![\w])\d{1,3}\s*[xX×]{1,2}(?=\s|$)', ' ', nombre)
 
+        # Quitar la cantidad marcada con UN/UD ("2 UN")
+        nombre = re.sub(self.regex_cantidad_un, ' ', nombre)
+
         # Quitar cantidad con unidad real
         nombre = re.sub(self.regex_cantidad_unidad, '', nombre)
+
+        # Quitar el peso suelto del principio ("1,577 MORTADELA")
+        nombre = re.sub(r'^\d{1,3}[.,]\d{3}\s+(?=[a-záéíóúñ])', '', nombre, flags=re.IGNORECASE | re.UNICODE)
 
         # Quitar cantidad suelta al principio de la línea (p.ej. "2 Coca Cola")
         nombre = self.regex_cantidad_inicial.sub('', nombre)

@@ -35,7 +35,7 @@ from rapidfuzz import fuzz, process
 
 from .datos_abreviaturas import ABREVIATURAS, RELLENO
 from .datos_marcas import MARCAS
-from . import datos_articulos_a, datos_articulos_b, datos_articulos_c
+from . import datos_articulos_a, datos_articulos_b, datos_articulos_c, datos_articulos_d, datos_off
 
 # Umbrales (ajustados con tests/test_diccionario_articulos.py).
 CONFIANZA_CANONICO = 0.80   # a partir de aqui se usa el nombre del catalogo
@@ -51,6 +51,8 @@ MODIFICADORES = {
     "fileteado", "fileteada", "envasado", "envasada", "natural_", "eco", "ecologico", "ecologica",
     "bio", "nacional", "importacion", "primera", "extra_", "categoria", "calibre", "temporada",
     "bandeja", "malla", "granel", "cesta", "clase", "gr", "ud", "uds", "x",
+    "filete", "filetes", "rodaja", "rodajas", "loncha", "lonchas", "trozo", "trozos", "taco", "tacos",
+    "tira", "tiras", "tarro", "lata", "latas", "brik", "botella", "botellin",
 }
 
 _RAICES_MODIFICADORES = None  # se rellena tras definir _raiz
@@ -67,16 +69,33 @@ def _sin_tildes(texto: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
 
 
+# Pares que solo se distinguen por la -o/-a final y son cosas distintas: unificar
+# genero ("entera"/"entero") los confundiria ("pimiento"/"pimienta").
+_GENERO_DISTINTO = {
+    "pimiento", "pimienta", "naranjo", "naranja", "cuchillo", "cuchilla", "bolso", "bolsa", "cerdo", "cerda",
+    "olivo", "oliva", "manzano", "manzana", "almendro", "almendra", "cesto", "cesta", "plato", "plata", "palo",
+    "pala", "caldo", "calda", "huevo", "hueva", "gamba", "gambo", "cereza", "cerezo", "ciruelo", "ciruela",
+    "limon", "limona", "bombo", "bomba", "barro", "barra", "mano", "mana", "puerro", "puerra", "lomo", "loma",
+    "foco", "foca", "jamon", "jamona", "pollo", "polla", "queso", "quesa", "rollo", "rolla", "cola", "colo",
+}
+
+
 def _raiz(token: str) -> str:
     """Forma comparable de una palabra: sin plural ni genero (tomates -> tomat,
     entera/entero -> enter). Se aplica a los DOS lados de cada comparacion."""
-    if len(token) > 4 and token.endswith("es") and token[-3] in "nrldzjx":
+    if token in _GENERO_DISTINTO:
+        return token
+    if len(token) > 4 and token.endswith("es") and token[-3] in "nrldzjxc":
         token = token[:-2]
+        if token in _GENERO_DISTINTO:
+            return token
     elif len(token) > 3 and token.endswith("s"):
         token = token[:-1]
+        if token in _GENERO_DISTINTO:
+            return token
     if len(token) > 4 and token[-1] in "aeo":
         token = token[:-1]
-    return token
+    return token.replace("z", "c")
 
 
 def _tokens_crudos(texto: str) -> List[str]:
@@ -85,6 +104,8 @@ def _tokens_crudos(texto: str) -> List[str]:
     para poder deshacer la confusion despues; el resto separa palabras."""
     t = _sin_tildes(texto.lower().replace("ñ", "n"))
     t = re.sub(r"[^a-z0-9€@$|!/%.,]+", " ", t)
+    # "P.MUSLO", "B.JAMON": el punto separa palabras (P. = pieza, B. = bandeja)
+    t = re.sub(r"(?<=[a-z])\.(?=[a-z])", " ", t)
     salida = []
     for pieza in t.split():
         pieza = pieza.strip(".,/")
@@ -99,6 +120,8 @@ def _tokens_crudos(texto: str) -> List[str]:
             continue
         pieza = pieza.replace("/", "")
         pieza = re.sub(r"[,]", "", pieza)
+        if len(pieza) == 1 and pieza.isalpha() and pieza not in ABREVIATURAS:
+            continue
         if pieza:
             salida.append(pieza)
     return salida
@@ -114,6 +137,7 @@ class Entrada:
     unidad: str = "ud"
     icono: Optional[str] = None
     variantes: List[Tuple[str, ...]] = field(default_factory=list)  # tuplas de raices
+    generado: bool = False  # viene de Open Food Facts: pierde ante un articulo curado
 
 
 @dataclass
@@ -138,6 +162,7 @@ class Diccionario:
         self._vocabulario: Dict[str, int] = {}                # raiz -> frecuencia
         self._palabra_raiz: Dict[str, str] = {}               # raiz -> palabra mostrable
         self._marcas: List[Tuple[str, ...]] = []
+        self._acentuada: Dict[str, str] = {}   # 'panales' -> 'pañales' (como se escribe de verdad)
         self._votos_categoria: Dict[str, Dict[str, float]] = {}
         self._cargar()
 
@@ -154,11 +179,13 @@ class Diccionario:
             salida.append(_raiz(t))
         return salida
 
-    def _anadir_entrada(self, nombre, categoria, unidad, icono, alias):
+    def _anadir_entrada(self, nombre, categoria, unidad, icono, alias, generado=False):
         clave = self._normalizar_nombre(nombre)
         entrada = self._por_nombre.get(clave)
+        if entrada is not None and generado:
+            return  # lo curado a mano no se toca
         if entrada is None:
-            entrada = Entrada(nombre=nombre, categoria=categoria, unidad=unidad or "ud", icono=icono)
+            entrada = Entrada(nombre=nombre, categoria=categoria, unidad=unidad or "ud", icono=icono, generado=generado)
             self._por_nombre[clave] = entrada
             self.entradas.append(entrada)
             self._anadir_variante(entrada, nombre)
@@ -187,7 +214,8 @@ class Diccionario:
         for nombre, categoria, icono, unidad, _sub in CATALOGO_DEFECTO:
             self._anadir_entrada(nombre, categoria, unidad, icono, [])
 
-        for modulo in (datos_articulos_a, datos_articulos_b, datos_articulos_c):
+        for modulo in (datos_articulos_a, datos_articulos_b, datos_articulos_c, datos_articulos_d, datos_off):
+            generado = modulo is datos_off
             categoria = None
             for linea in modulo.TEXTO.splitlines():
                 linea = linea.strip()
@@ -204,10 +232,20 @@ class Diccionario:
                     continue
                 existente = self._por_nombre.get(self._normalizar_nombre(nombre))
                 cat = existente.categoria if existente else categoria
-                self._anadir_entrada(nombre, cat, unidad or (existente.unidad if existente else "ud"), None, alias)
+                self._anadir_entrada(nombre, cat, unidad or (existente.unidad if existente else "ud"), None, alias, generado)
 
+        self._recoger_acentos()
         self._podar_variantes()
         self._construir_indices()
+
+    def _recoger_acentos(self):
+        """El ticket va en mayusculas y sin tildes ("PANALES", "CHAMPINONES"): el
+        nombre limpio recupera la ortografia real del catalogo (pañales, champiñones)."""
+        for e in sorted(self.entradas, key=lambda x: x.generado):  # lo curado manda
+            for palabra in re.findall(r"[^\W\d_]+", e.nombre.lower()):
+                clave = _sin_tildes(palabra.replace("ñ", "n"))
+                if clave != palabra:
+                    self._acentuada.setdefault(clave, palabra)
 
     def _podar_variantes(self):
         """Quita alias redundantes: uno que ya contiene todas las palabras del
@@ -236,7 +274,7 @@ class Diccionario:
                 for raiz in v:
                     self._indice.setdefault(raiz, []).append((i, j))
                     self._vocabulario[raiz] = self._vocabulario.get(raiz, 0) + 1
-                    peso = 1.0 / len(v)
+                    peso = (0.4 if e.generado else 1.0) / len(v)
                     votos = self._votos_categoria.setdefault(raiz, {})
                     votos[e.categoria] = votos.get(e.categoria, 0.0) + peso
         # Palabras conocidas aunque no esten en un nombre de articulo.
@@ -256,7 +294,9 @@ class Diccionario:
         self._lista_vocabulario = list(self._vocabulario)
         # Palabras mostrables (para devolver "entera" y no "enter").
         for palabra in {t for e in self.entradas for v in (e.nombre,) for t in _tokens_crudos(v)}:
-            self._palabra_raiz.setdefault(_raiz(palabra), palabra)
+            actual = self._palabra_raiz.get(_raiz(palabra))
+            if actual is None or (len(palabra), palabra) < (len(actual), actual):  # singular y estable
+                self._palabra_raiz[_raiz(palabra)] = palabra
         for exp in ABREVIATURAS.values():
             for palabra in exp:
                 for t in palabra.split():
@@ -279,6 +319,19 @@ class Diccionario:
         for c in candidatos:
             if _raiz(c) in self._vocabulario:
                 return c
+        # Truncado de impresora ("MANTEQ", "DETERG"): prefijo unico del vocabulario.
+        for c in candidatos:
+            base = re.sub(r"[^a-z]", "", c)
+            if len(base) < 6:
+                continue  # "maria" no es "marisco"
+            # Solo si lo escrito es una parte sustancial de la palabra (>= 60 %):
+            # "edam" no puede ser "edamame", pero "manteq" si es "mantequilla".
+            cands = [v for v in self._lista_vocabulario
+                     if v.startswith(_raiz(base)) and len(v) <= len(base) + 6 and len(_raiz(base)) >= 0.6 * len(v)]
+            if cands:
+                # Varias formas de la misma palabra ("mantequill"/"mantequil"): la mas usada.
+                mejor_c = max(cands, key=lambda v: (self._vocabulario.get(v, 0), -len(v)))
+                return self._palabra_raiz.get(mejor_c, mejor_c)
         mejor = None
         for c in candidatos:
             if c.isdigit() or len(c) < 4:
@@ -286,26 +339,14 @@ class Diccionario:
             raiz = _raiz(c)
             if len(raiz) < 5:
                 continue  # raices cortas ("mari") se parecen a cualquier otra ("mar")
-            corte = 85 if len(raiz) <= 6 else (84 if len(raiz) <= 8 else 88)
-            r = process.extractOne(raiz, [v for v in self._lista_vocabulario if abs(len(v) - len(raiz)) <= 1],
+            corte = 80 if len(raiz) <= 6 else (84 if len(raiz) <= 8 else 88)
+            r = process.extractOne(raiz, [v for v in self._lista_vocabulario if len(v) >= 5 and abs(len(v) - len(raiz)) <= 1],
                                    scorer=fuzz.ratio, score_cutoff=corte)
             if r and (mejor is None or r[1] > mejor[1]):
                 mejor = r
         if mejor:
             return self._palabra_raiz.get(mejor[0], mejor[0])
-        # Truncado de impresora ("MANTEQ", "DETERG"): prefijo unico del vocabulario.
-        base = re.sub(r"[^a-z]", "", next(iter(candidatos)))
-        if len(base) >= 4:
-            cands = [v for v in self._lista_vocabulario if v.startswith(_raiz(base)) and len(v) <= len(base) + 6]
-            if len(cands) == 1:
-                return self._palabra_raiz.get(cands[0], cands[0])
         return re.sub(r"[^a-z0-9]", "", token) or token
-
-    def _opciones_abreviatura(self, token: str) -> Tuple[str, ...]:
-        exp = ABREVIATURAS.get(token)
-        if exp:
-            return tuple(" ".join(dict.fromkeys(" ".join(e for e in exp[:1]).split())) for _ in (0,)) if len(exp) == 1 else exp
-        return (token,)
 
     def _quitar_marcas(self, raices: List[str]) -> List[str]:
         if not raices:
@@ -349,9 +390,10 @@ class Diccionario:
             lecturas = nuevas[:MAX_COMBINACIONES]
         return lecturas
 
-    def _contenido(self, palabras: List[str]) -> List[str]:
+    def _contenido(self, palabras: List[str], quitar_marcas: bool = True) -> List[str]:
         palabras = [p for p in palabras if p not in RELLENO and not _CANTIDAD.match(p)]
-        palabras = self._quitar_marcas(palabras)
+        if quitar_marcas:
+            palabras = self._quitar_marcas(palabras)
         return [r for r in map(_raiz, palabras) if r not in _RAICES_MODIFICADORES]
 
     def _emparejar(self, contenido: List[str]) -> Tuple[Optional[Entrada], float, bool]:
@@ -378,7 +420,17 @@ class Diccionario:
             prefijo = tuple(contenido[:len(variante)]) == variante or set(contenido[:len(variante)]) == set(variante)
             if len(variante) == 1 and extra >= 2 and not prefijo:
                 continue  # una palabra suelta en mitad de una frase larga no identifica
-            clave = (confianza >= CONFIANZA_CANONICO, prefijo, confianza, len(variante), -extra, -j)
+            e_ = self.entradas[i]
+            canonica = confianza >= CONFIANZA_CANONICO
+            if canonica and not prefijo and len(contenido) > len(variante) and contenido[0] not in variante:
+                # "galletas chips choco" no es "chocolate": el nombre casado no
+                # contiene el sustantivo principal (la primera palabra).
+                canonica = False
+                confianza = min(confianza, CONFIANZA_CANONICO - 0.01)
+            # Lo curado a mano gana a lo generado, y un sustantivo principal curado
+            # ("harina") gana a un nombre generado completo con categoria dudosa.
+            nivel = (3 if canonica else 2 if prefijo else 0) if not e_.generado else (1 if canonica else 0)
+            clave = (nivel, confianza, len(variante), -extra, -j)
             if mejor_clave is None or clave > mejor_clave:
                 mejor_clave = clave
                 mejor = (self.entradas[i], confianza, prefijo)
@@ -408,12 +460,15 @@ class Diccionario:
             return Identificacion("", None, None, None, 0.0, "ninguna", "")
         mejor_ent, mejor_conf, mejor_lectura, mejor_pref = None, 0.0, None, False
         for lectura in self._lecturas(texto):
-            contenido = self._contenido(lectura)
-            ent, conf, pref = self._emparejar(contenido)
-            if mejor_lectura is None or conf > mejor_conf:
-                mejor_ent, mejor_conf, mejor_lectura, mejor_pref = ent, conf, lectura, pref
+            # Una marca a veces ES el articulo ("Nutella", "Oreo", "Coca-Cola"):
+            # se prueba sin marcas y con ellas, y gana la lectura que mejor casa.
+            for quitar in (True, False):
+                contenido = self._contenido(lectura, quitar)
+                ent, conf, pref = self._emparejar(contenido)
+                if mejor_lectura is None or conf > mejor_conf:
+                    mejor_ent, mejor_conf, mejor_lectura, mejor_pref = ent, conf, lectura, pref
         lectura = mejor_lectura or []
-        limpio = " ".join(w for w in lectura if not _CANTIDAD.match(w)).strip()
+        limpio = " ".join(self._acentuada.get(w, w) for w in lectura if not _CANTIDAD.match(w)).strip()
         limpio = limpio.title() if limpio else texto.title()
         if mejor_ent is not None and mejor_conf >= CONFIANZA_CANONICO:
             return Identificacion(

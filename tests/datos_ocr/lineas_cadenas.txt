@@ -1,0 +1,163 @@
+# Estilo de tickets de cadenas (truncados, abreviados, mayusculas). Escrito de memoria de formatos reales.
+# Se uso para AMPLIAR el diccionario; el conjunto de verdad ciega es lineas_ciego2.txt.
+P.PECHUGA POLLO ENTERA|Carnes y Embutidos
+P.MUSLO POLLO BDJA|Carnes y Embutidos
+B.JAMON COCIDO EXTRA LONCHAS|Carnes y Embutidos
+SALCHICHAS FRANKFURT|Carnes y Embutidos
+CHOPED PAVO|Carnes y Embutidos
+MORTADELA ACEITUNAS|Carnes y Embutidos
+LOMO EMBUCHADO|Carnes y Embutidos
+HAMBURGUESA MIXTA 2U|Carnes y Embutidos
+COSTILLAS CERDO ADOB|Carnes y Embutidos
+PALETILLA CORDERO|Carnes y Embutidos
+CONEJO TROCEADO|Carnes y Embutidos
+ALBONDIGAS CERDO|Carnes y Embutidos
+LECHE ENTERA 6X1L|Lácteos y Huevos
+LECHE DESN CALCIO|Lácteos y Huevos
+LECHE S/LACT SEMI|Lácteos y Huevos
+YOGUR GRIEGO NAT 4X125G|Lácteos y Huevos
+YOGUR LIQ FRESA|Lácteos y Huevos
+BIFIDUS NATURAL|Lácteos y Huevos
+QUESO FRESCO PASTEUR|Lácteos y Huevos
+QUESO CURADO CUÑA|Lácteos y Huevos
+QUESO TIERNO LONCHAS|Lácteos y Huevos
+QUESO PARMESANO RALL|Lácteos y Huevos
+MOZZARELLA FRESCA|Lácteos y Huevos
+REQUESON|Lácteos y Huevos
+HUEVOS CAMPEROS M 12U|Lácteos y Huevos
+NATILLAS VAINILLA|Lácteos y Huevos
+MARGARINA|Lácteos y Huevos
+TOMATE RAMA|Frutas y Verduras
+TOMATE CHERRY|Frutas y Verduras
+PEPINO|Frutas y Verduras
+BERENJENA|Frutas y Verduras
+PUERRO|Frutas y Verduras
+CALABAZA TROZO|Frutas y Verduras
+COLIFLOR|Frutas y Verduras
+BROCOLI|Frutas y Verduras
+ESPINACAS BOLSA|Frutas y Verduras
+JUDIAS VERDES|Frutas y Verduras
+MANZANA FUJI|Frutas y Verduras
+PERA CONFERENCIA|Frutas y Verduras
+KIWI|Frutas y Verduras
+MELOCOTON|Frutas y Verduras
+MANDARINA|Frutas y Verduras
+PLATANO|Frutas y Verduras
+PIÑA|Frutas y Verduras
+MELON|Frutas y Verduras
+CEREZAS|Frutas y Verduras
+SETAS|Frutas y Verduras
+PEREJIL|Frutas y Verduras
+BARRA PAN RUSTICA|Panadería y Bollería
+PAN BIMBO|Panadería y Bollería
+PAN HOT DOG|Panadería y Bollería
+PAN RALLADO|Panadería y Bollería
+NAPOLITANA CHOCOLATE|Panadería y Bollería
+DONUTS|Panadería y Bollería
+BIZCOCHO|Panadería y Bollería
+ROSQUILLAS|Panadería y Bollería
+TORTITAS TRIGO|Panadería y Bollería
+SALMON AHUMADO|Pescados y Mariscos
+FILETE PESCADILLA|Pescados y Mariscos
+PULPO COCIDO|Pescados y Mariscos
+CALAMARES ANILLAS|Pescados y Mariscos
+LANGOSTINO COCIDO|Pescados y Mariscos
+ATUN CLARO ACEITE OLIVA 3U|Pescados y Mariscos
+MEJILLON ESCABECHE|Pescados y Mariscos
+BONITO NORTE|Pescados y Mariscos
+ANCHOAS ACEITE|Pescados y Mariscos
+DORADA|Pescados y Mariscos
+TOMATE FRITO ESTILO CASERO|Despensa
+TOMATE NAT TRITURADO|Despensa
+ACEITUNAS RELLENAS ANCHOA|Snacks y Dulces
+PEPINILLOS|Despensa
+GARBANZO COCIDO 400G|Despensa
+ALUBIAS BLANCAS|Despensa
+LENTEJA PARDINA|Despensa
+SALSA BOLOÑESA|Despensa
+SALSA SOJA|Despensa
+ACEITE OLIVA SUAVE 1L|Despensa
+ACEITE OLIVA VIRGEN EXTRA 5L|Despensa
+VINAGRE VINO|Despensa
+SAL GRUESA|Despensa
+PIMIENTA NEGRA MOLIDA|Despensa
+ORÉGANO|Despensa
+LEVADURA|Despensa
+AZUCAR MORENO|Despensa
+EDULCORANTE|Despensa
+PASTA ESPAGUETI 500G|Cereales y Pasta
+PASTA MACARRON|Cereales y Pasta
+PASTA FIDEUA|Cereales y Pasta
+ARROZ LARGO|Despensa
+ARROZ INTEGRAL|Cereales y Pasta
+COUSCOUS|Cereales y Pasta
+MUESLI|Cereales y Pasta
+COPOS MAIZ|Cereales y Pasta
+GALLETAS INTEGRALES|Cereales y Pasta
+GALLETAS CHIPS CHOCO|Cereales y Pasta
+PATATAS FRITAS JAMON|Snacks y Dulces
+GANCHITOS|Snacks y Dulces
+PIPAS GIRASOL|Despensa
+CACAHUETES FRITOS|Despensa
+BOMBONES|Snacks y Dulces
+CHOCOLATE LECHE AVELLANAS|Snacks y Dulces
+CARAMELOS|Snacks y Dulces
+CHICLES|Snacks y Dulces
+BARRITAS CEREALES|Snacks y Dulces
+TURRON|Snacks y Dulces
+AGUA 1.5L|Bebidas
+AGUA MINERAL 6X1.5L|Bebidas
+COLA ZERO 2L|Bebidas
+REFRESCO LIMON|Bebidas
+CERVEZA SIN ALCOHOL|Bebidas
+CERVEZA 6X33CL|Bebidas
+VINO BLANCO VERDEJO|Bebidas
+CAVA BRUT|Bebidas
+GINEBRA|Bebidas
+RON|Bebidas
+ZUMO MELOCOTON|Bebidas
+BEBIDA ISOTONICA|Bebidas
+INFUSION MANZANILLA|Bebidas
+CAFE CAPSULAS COMPATIBLES|Bebidas
+CAFE SOLUBLE|Bebidas
+BEBIDA SOJA|Alternativas Vegetales
+BEBIDA ALMENDRAS|Alternativas Vegetales
+TOFU|Alternativas Vegetales
+HAMBURGUESA VEGETAL|Alternativas Vegetales
+PIZZA 4 QUESOS|Congelados
+PIZZA BARBACOA|Congelados
+CROQUETAS JAMON|Congelados
+HELADO CHOCOLATE|Congelados
+VERDURA SALTEAR|Congelados
+SOPA PASTA SOBRE|Despensa
+CALDO VERDURAS BRIK|Despensa
+DETERGENTE LIQ|Limpieza
+DETERGENTE CAPSULAS|Limpieza
+SUAVIZANTE CONC|Limpieza
+LAVAVAJILLAS PASTILLAS|Limpieza
+FREGONA|Limpieza
+LIMPIADOR BAÑO|Limpieza
+DESENGRASANTE|Limpieza
+SERVILLETAS|Limpieza
+PAPEL COCINA 2R|Limpieza
+PAPEL ALUMINIO|Limpieza
+FILM TRANSPARENTE|Limpieza
+BOLSA BASURA 30L|Limpieza
+PAPEL HIGIENICO 12R|Higiene
+GEL BAÑO|Higiene
+CHAMPU ANTICASPA|Higiene
+ACONDICIONADOR|Higiene
+CREMA HIDRATANTE|Higiene
+CEPILLO DIENTES|Higiene
+ENJUAGUE BUCAL|Higiene
+TOALLITAS DESMAQUILLANTES|Higiene
+COMPRESAS ALAS|Higiene
+PAÑUELOS PAPEL|Limpieza
+BASTONCILLOS|Higiene
+PAÑAL T3|Bebé
+LECHE CRECIMIENTO|Bebé
+POTITO FRUTAS|Bebé
+ARENA SANITARIA|Mascotas
+LATA PERRO|Mascotas
+SNACK GATO|Mascotas
+BOLSA ZARANDAJAS|NINGUNA

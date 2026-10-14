@@ -23,7 +23,7 @@ def _corpus(nombre):
         if not linea.strip() or linea.startswith("#"):
             continue
         p = linea.split("|")
-        filas.append((p[0], p[1], p[2] if len(p) > 2 else None))
+        filas.append((p[0], None if p[1] == "NINGUNA" else p[1], p[2] if len(p) > 2 else None))
     return filas
 
 
@@ -72,9 +72,42 @@ class IdentificacionTests(unittest.TestCase):
         self.assertEqual(r.nombre, "Tomate Pera")
         self.assertEqual(r.categoria, "Frutas y Verduras")
 
+    def test_una_marca_que_es_el_articulo_se_reconoce(self):
+        # "Nutella", "Oreo", "Fanta": la marca ES el producto; quitarla dejaria la linea vacia.
+        for texto, categoria in [("NUTELLA", "Despensa"), ("OREO", "Snacks y Dulces"), ("FANTA", "Bebidas")]:
+            with self.subTest(texto=texto):
+                self.assertEqual(identificar_articulo(texto).categoria, categoria)
+
+    def test_el_punto_de_pieza_o_bandeja_no_pega_palabras(self):
+        self.assertEqual(identificar_articulo("P.MUSLO POLLO BDJA").categoria, "Carnes y Embutidos")
+        self.assertEqual(identificar_articulo("B.JAMON COCIDO EXTRA LONCHAS").categoria, "Carnes y Embutidos")
+
+    def test_sin_y_con_no_son_lo_mismo(self):
+        self.assertNotEqual(identificar_articulo("MANTEQUILLA SIN SAL").nombre, "Mantequilla con sal")
+
+    def test_pimiento_no_es_pimienta(self):
+        self.assertEqual(identificar_articulo("PIMIENTO VERDE").categoria, "Frutas y Verduras")
+        self.assertEqual(identificar_articulo("PIMIENTA NEGRA").categoria, "Despensa")
+
+    def test_el_nombre_limpio_recupera_las_tildes_y_la_enie(self):
+        self.assertEqual(identificar_articulo("PANALES T5").nombre, "Pañales T5")
+        self.assertIn("Champiñones", identificar_articulo("CHAMPINONES BLANCOS BANDEJA").nombre)
+
+    def test_truncado_de_impresora(self):
+        self.assertEqual(identificar_articulo("MANTEQ SIN SAL").nombre, "Mantequilla Sin Sal")
+
+    def test_una_palabra_corta_no_se_expande_a_otra(self):
+        # "edam" (queso) no es "edamame"; "maria" (galletas) no es "marisco".
+        self.assertIn("Edam", identificar_articulo("QUESO EDAM LONCHAS").nombre)
+        self.assertNotIn("Edamame", identificar_articulo("QUESO EDAM LONCHAS").nombre)
+        self.assertNotIn("Marisco", identificar_articulo("GALLETAS MARIA").nombre)
+
+    def test_filete_no_es_el_sustantivo_principal(self):
+        self.assertEqual(identificar_articulo("FILETE PESCADILLA").categoria, "Pescados y Mariscos")
+
     def test_el_catalogo_se_carga_entero(self):
         d = obtener()
-        self.assertGreater(len(d.entradas), 850)
+        self.assertGreater(len(d.entradas), 3000)  # curado + Open Food Facts
         self.assertEqual(obtener(), d)  # instancia unica
 
 
@@ -102,9 +135,25 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual(ok, total)
 
     def test_conjunto_ciego(self):
-        # Medido: 0.886. La barra se deja algo por debajo; subirla al mejorar.
+        # Medido: 0.924. La barra se deja algo por debajo; subirla al mejorar.
         tasa, _, fallos = self._medir("lineas_ciego.txt")
-        self.assertGreaterEqual(tasa, 0.85, fallos)
+        self.assertGreaterEqual(tasa, 0.88, fallos)
+
+    def test_conjunto_ciego_2(self):
+        # Escrito tras ampliar el diccionario. Incluye ruido de OCR (QUE5O, L€CH€) y
+        # un texto sin sentido que NO debe identificarse. Medido: 0.931.
+        tasa, _, fallos = self._medir("lineas_ciego2.txt")
+        self.assertGreaterEqual(tasa, 0.90, fallos)
+
+    def test_lineas_de_cadenas(self):
+        tasa, _, fallos = self._medir("lineas_cadenas.txt")
+        self.assertGreaterEqual(tasa, 0.98, fallos)
+
+    def test_no_inventa_articulos_en_texto_sin_sentido(self):
+        d = obtener()
+        for texto in ("XLQWZ ZZKJ", "XYZQ MISTERIO", "BOLSA ZARANDAJAS", "QWRTP"):
+            with self.subTest(texto=texto):
+                self.assertIsNone(d.identificar(texto).categoria)
 
     def test_ninguna_linea_conocida_se_queda_sin_categoria(self):
         d = obtener()
