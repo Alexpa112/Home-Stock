@@ -1,0 +1,73 @@
+# texto del ticket | categoria esperada | nombre canonico esperado (opcional)
+LECHE ENT PASC 1L|Lácteos y Huevos|Leche entera
+LECHE SEMI HACENDADO|Lácteos y Huevos|Leche semidesnatada
+LLET DESNATADA|Lácteos y Huevos|Leche desnatada
+YOG NAT x4|Lácteos y Huevos|Yogur natural
+YOGUR GRIEGO DANONE|Lácteos y Huevos|Yogur griego
+QUESO RALLADO MEZCLA|Lácteos y Huevos
+QUESO LONCHAS EMMENTAL|Lácteos y Huevos
+MANTEQUILLA SIN SAL|Lácteos y Huevos
+HUEVOS L DOCENA|Lácteos y Huevos
+T€MAT€ PERA|Frutas y Verduras
+TOMATE TRITURADO HACENDADO|Despensa|Tomate triturado
+PLATANO CANARIAS|Frutas y Verduras
+MANZANA GOLDEN|Frutas y Verduras
+CEBOLLA MALLA|Frutas y Verduras
+PATATA LAVADA 3KG|Frutas y Verduras
+LECHUGA ROMANA|Frutas y Verduras
+ZANAHORIA BOLSA|Frutas y Verduras
+LIMON|Frutas y Verduras
+PAN BARRA CRISTAL|Panadería y Bollería
+PAN MOLDE INTEGRAL|Panadería y Bollería
+CROISSANT MANTEQUILLA|Panadería y Bollería
+PECHUGA POLLO FILETES|Carnes y Embutidos
+MUSLOS POLLO|Carnes y Embutidos
+CARNE PICADA MIXTA|Carnes y Embutidos
+SALCH PAVO|Carnes y Embutidos
+JAMON COCIDO EXTRA|Carnes y Embutidos
+CHORIZO SARTA|Carnes y Embutidos
+LOMO CERDO FILETEADO|Carnes y Embutidos
+SALMON FILETE|Pescados y Mariscos
+MERLUZA CONG|Pescados y Mariscos
+ATUN CLARO LATA|Pescados y Mariscos
+GAMBAS PELADAS|Pescados y Mariscos
+ACEITE OLIVA VIRGEN EXTRA 1L|Despensa|Aceite de oliva
+ARROZ REDONDO 1KG|Despensa
+ESPAGUETIS N5|Cereales y Pasta
+MACARRONES|Cereales y Pasta
+LENTEJAS COCIDAS|Despensa
+GARBANZOS COCIDOS|Despensa
+AZUCAR BLANCO|Despensa
+HARINA TRIGO|Despensa
+SAL FINA|Despensa
+CAFE MOLIDO NATURAL|Bebidas
+GALLETAS MARIA|Cereales y Pasta
+CHOCOLATE NEGRO 70%|Snacks y Dulces
+PATATAS FRITAS LISAS|Snacks y Dulces
+CEREALES CHOCO|Cereales y Pasta
+AGUA MINERAL 1,5L|Bebidas|Agua mineral
+COCA COLA ZERO|Bebidas
+CERVEZA LATA 33CL|Bebidas
+ZUMO NARANJA|Bebidas
+VINO TINTO RIOJA|Bebidas
+DETERG ROPA|Limpieza|Detergente lavadora
+LAVAVAJILLAS MANO|Limpieza
+SUAVIZANTE|Limpieza
+LEJIA 2L|Limpieza
+BAYETA MICROFIBRA|Limpieza
+BOLSAS BASURA|Limpieza
+PAPEL HIG 12R|Higiene
+CHAMPU|Higiene
+GEL DUCHA|Higiene
+PASTA DENTIFRICA|Higiene
+DESODORANTE ROLL ON|Higiene
+PAÑALES T4|Bebé
+PIENSO PERRO ADULTO|Mascotas
+ARENA GATOS|Mascotas
+PIZZA JAMON Y QUESO|Congelados
+HELADO VAINILLA|Congelados
+GUISANTES CONGELADOS|Congelados
+BEBIDA AVENA|Alternativas Vegetales
+PARACETAMOL 1G|Farmacia y Botiquín
+BOMBILLA LED|Ferretería
+PILAS AA|Hogar

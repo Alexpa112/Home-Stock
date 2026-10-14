@@ -117,7 +117,7 @@ class TicketsSinErrorInternoTests(unittest.TestCase):
         ]})
 
         self.assertEqual(respuesta.status_code, 200, respuesta.get_data(as_text=True))
-        nombres = [i["nombre"] for i in respuesta.get_json()["items"]]
+        nombres = [i["nombre_ticket"] for i in respuesta.get_json()["items"]]
         self.assertIn(
             "Agua Mineral", nombres,
             "una sola linea con el importe como cadena no debe costar el ticket "
@@ -141,7 +141,7 @@ class TicketsSinErrorInternoTests(unittest.TestCase):
             _producto_ia(nombre_ticket="Agua Mineral"),
         ]})
         self.assertEqual(respuesta.status_code, 200)
-        nombres = [i["nombre"] for i in respuesta.get_json()["items"]]
+        nombres = [i["nombre_ticket"] for i in respuesta.get_json()["items"]]
         self.assertIn("Agua Mineral", nombres)
 
     # --- 3) items mal formado -> 400, no 500 ----------------------------

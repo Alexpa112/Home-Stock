@@ -18,6 +18,7 @@ from ..servicios import cuota_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..servicios.ocr.catalogo import catalogo_del_hogar as _catalogo_del_hogar
 from ..servicios.ocr.claude_ocr import ClaudeOCR
+from ..servicios.ocr.diccionario import identificar_articulo
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..servicios.ocr.validacion_importes import normalizar_importe
 from ..utils import Validator, ValidationError
@@ -67,6 +68,7 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
             continue  # Saltar si no hay nombre
 
         nombre = nombre.title()
+        nombre_ticket = nombre
 
         # Obtener producto_id
         producto_id = item.get("producto_id")
@@ -81,13 +83,24 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
                 producto_id = None
 
         catalogado = catalogo_por_id.get(producto_id) if producto_id is not None else None
+        icono_dic = None
 
         if catalogado:
             nombre = catalogado["nombre"]
             categoria = catalogado["categoria"]
             confianza_match = 1.0
         else:
-            categoria = matcher.deducir_categoria(nombre) or "Otros"
+            # Producto nuevo para el hogar: el diccionario le da nombre limpio,
+            # categoria e icono igual que en el pipeline local, para que los dos
+            # motores devuelvan lo mismo ante el mismo ticket.
+            ident = identificar_articulo(nombre)
+            categoria = (ident.categoria if ident else None) or matcher.deducir_categoria(nombre) or "Otros"
+            icono_dic = ident.icono if ident else None
+            if ident is not None:
+                if ident.fuente == "catalogo":
+                    nombre = ident.nombre
+                elif ident.nombre_limpio:
+                    nombre = ident.nombre_limpio
             confianza_match = 0
             producto_id = None
 
@@ -154,6 +167,7 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
 
         items.append({
             "nombre": nombre,
+            "nombre_ticket": nombre_ticket,
             "cantidad": cantidad_formateada,
             "cantidad_sugerida": cantidad_formateada,
             "unidad": unidad,
@@ -166,7 +180,7 @@ def _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id=None):
             "es_promocion": False,
             "producto_id": producto_id,
             "categoria": categoria,
-            "icono": catalogado.get("icono") if catalogado else None,
+            "icono": catalogado.get("icono") if catalogado else icono_dic,
             "confianza_match": confianza_match,
             "alternativas": [],
             "precio_valido": precio_valido,

@@ -1,0 +1,80 @@
+# Conjunto ciego: escrito DESPUES de fijar el motor; no se usa para ajustar.
+LECHE SIN LACTOSA 1L|Lácteos y Huevos
+NATA PARA COCINAR|Lácteos y Huevos
+QUESO FRESCO BATIDO|Lácteos y Huevos
+QUESO MANCHEGO CURADO|Lácteos y Huevos
+FLAN HUEVO 4U|Lácteos y Huevos
+PIMIENTO VERDE|Frutas y Verduras
+CALABACIN|Frutas y Verduras
+AGUACATE|Frutas y Verduras
+UVAS BLANCAS S/PEPITAS|Frutas y Verduras
+NARANJA MESA|Frutas y Verduras
+FRESAS 500G|Frutas y Verduras
+AJO CABEZA|Frutas y Verduras
+CHAMPIÑON LAMINADO|Frutas y Verduras
+ENSALADA MEZCLA|Frutas y Verduras
+SANDIA|Frutas y Verduras
+BAGUETTE|Panadería y Bollería
+MAGDALENAS 12U|Panadería y Bollería
+PAN HAMBURGUESA|Panadería y Bollería
+TOSTADAS INTEGRALES|Panadería y Bollería
+HAMBURGUESA VACUNO|Carnes y Embutidos
+SOLOMILLO CERDO|Carnes y Embutidos
+PAVO FIAMBRE|Carnes y Embutidos
+BACON LONCHAS|Carnes y Embutidos
+TERNERA FILETES|Carnes y Embutidos
+SALCHICHON|Carnes y Embutidos
+BACALAO DESALADO|Pescados y Mariscos
+LUBINA|Pescados y Mariscos
+MEJILLONES|Pescados y Mariscos
+SARDINAS LATA|Pescados y Mariscos
+PALITOS SURIMI|Pescados y Mariscos
+ARROZ BASMATI|Despensa
+ACEITE GIRASOL|Despensa
+VINAGRE MANZANA|Despensa
+MAYONESA|Despensa
+KETCHUP|Despensa
+MIEL|Despensa
+MERMELADA FRESA|Despensa
+CALDO POLLO|Despensa
+MAIZ DULCE LATA|Despensa
+PIMENTON DULCE|Despensa
+FIDEOS FINOS|Cereales y Pasta
+TALLARINES|Cereales y Pasta
+COPOS AVENA|Cereales y Pasta
+NOCILLA|Snacks y Dulces
+TURRON BLANDO|Snacks y Dulces
+FRUTOS SECOS MIX|Snacks y Dulces
+PALOMITAS MICROONDAS|Snacks y Dulces
+CACAO SOLUBLE|Snacks y Dulces
+REFRESCO NARANJA|Bebidas
+TONICA|Bebidas
+AGUA CON GAS|Bebidas
+ISOTONICA|Bebidas
+TE VERDE 25 SOBRES|Bebidas
+CAPSULAS CAFE|Bebidas
+WHISKY|Bebidas
+LAVADORA DETERGENTE CAPSULAS|Limpieza
+LIMPIACRISTALES|Limpieza
+FREGASUELOS|Limpieza
+ESTROPAJO|Limpieza
+PASTILLAS LAVAVAJILLAS|Limpieza
+AMBIENTADOR|Limpieza
+GUANTES LATEX|Limpieza
+JABON MANOS|Higiene
+COMPRESAS|Higiene
+MAQUINILLAS AFEITAR|Higiene
+ALGODON|Higiene
+COLONIA|Higiene
+TOALLITAS BEBE|Bebé
+PAPILLA|Bebé
+COMIDA GATOS|Mascotas
+CROQUETAS PATATA|Congelados
+PATATAS PREFRITAS|Congelados
+LASAÑA|Congelados
+IBUPROFENO|Farmacia y Botiquín
+CURITAS|Farmacia y Botiquín
+BOLIGRAFO|Papelería y Oficina
+FOLIOS A4|Papelería y Oficina
+TORNILLOS|Ferretería
+CINTA ADHESIVA|Bazar

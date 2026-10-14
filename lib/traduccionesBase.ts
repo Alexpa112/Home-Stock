@@ -475,6 +475,7 @@ const TRADUCCIONES_BASE: Record<string, string> = {
   "idioma_sistema": "Idioma del sistema",
   "importar_csv": "Importar CSV",
   "importar_n_al_stock": "Importar {n} al stock",
+  "en_el_ticket": "En el ticket",
   "importe": "Importe",
   "importe_participante": "Importe participante",
   "importe_total": "Importe total",

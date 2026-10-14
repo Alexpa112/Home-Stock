@@ -13,6 +13,7 @@ import { prepararFotoParaSubida } from '@/lib/imagenSubida'
 // Shape real: ver stockhogar/servicios/ocr/procesador_tickets_v2.py:crear_respuesta_usuario
 interface ItemTicket {
   nombre: string
+  nombre_ticket?: string
   cantidad: number | ''
   unidad: string
   categoria: string
@@ -220,6 +221,10 @@ export default function EscanearTicketPage() {
 
                     <div className="flex-1 min-w-0 pt-0.5">
                       <p className="font-semibold text-sm break-words">{item.nombre || '—'}</p>
+                      {item.nombre_ticket && item.nombre_ticket.trim().toLowerCase() !== item.nombre.trim().toLowerCase() && (
+                        // Lo que decia el ticket, para que el usuario compruebe que el nombre limpio es el suyo.
+                        <p className="text-xs text-muted-foreground break-words">{t('en_el_ticket')}: {item.nombre_ticket}</p>
+                      )}
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {item.categoria && (
                           <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold text-muted-foreground">{item.categoria}</span>

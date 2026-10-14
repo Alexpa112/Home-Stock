@@ -156,7 +156,8 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         extraer.assert_called_once()
         nombres = [item["nombre"] for item in resp.get_json()["items"]]
-        self.assertIn("Leche Entera", nombres)
+        # El diccionario devuelve el nombre del catalogo ("Leche entera"), no el del ticket.
+        self.assertIn("Leche entera", nombres)
 
     def test_con_articulos_reconocidos_no_se_gasta_tesseract(self):
         _ClaudeFalso.respuesta = {
