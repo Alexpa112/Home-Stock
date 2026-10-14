@@ -36,7 +36,25 @@ class ProcesadorTicketsV2:
             item = self._procesar_linea(linea, db, hogar_id)
             resultado.append(item)
 
-        return resultado
+        return self._quitar_lineas_sin_importe(resultado)
+
+    # Con 3 o mas articulos con importe, una linea SIN importe y que no se reconoce como
+    # un articulo es casi siempre cabecera, direccion o continuacion de un nombre.
+    _MIN_ARTICULOS_CON_IMPORTE = 3
+
+    def _quitar_lineas_sin_importe(self, items: List[Dict]) -> List[Dict]:
+        con_importe = [i for i in items if (i.get("precio_total") or 0) > 0]
+        if len(con_importe) < self._MIN_ARTICULOS_CON_IMPORTE:
+            return items
+        conservar = []
+        for item in items:
+            sin_importe = not (item.get("precio_total") or 0) > 0
+            reconocido = bool(item.get("producto_id")) or item.get("origen_nombre") in ("catalogo", "catalogo_parcial", "categoria")
+            con_cantidad = item.get("cantidad") not in (None, 1, 1.0) or item.get("unidad") not in (None, "ud")
+            if sin_importe and not reconocido and not con_cantidad:
+                continue
+            conservar.append(item)
+        return conservar
 
     def _procesar_linea(
         self,

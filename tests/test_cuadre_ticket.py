@@ -34,19 +34,11 @@ class CuadreTests(unittest.TestCase):
     def test_sin_total_no_hay_cuadre(self):
         self.assertEqual(cuadrar_con_total([_item("Pan", 1, 1.0, 1.0)], "PAN 1,00")[1], None)
 
-    def test_corrige_la_cantidad_si_solo_una_cuadra(self):
-        # El OCR leyo "1" donde decia "4": 4 x 4,44 = 17,76 y el total lo confirma.
+    def test_nunca_cambia_una_cantidad_a_partir_del_total(self):
+        # Una linea que falta en el ticket haria "encajar" cualquier cantidad: no se adivina.
         items = [_item("Cepillo", 1, 4.44, 4.44), _item("Leche", 1, 1.20, 1.20), _item("Pan", 2, 0.85, 1.70)]
         out, cuadre = cuadrar_con_total(items, "TOTAL 20,66")
-        self.assertEqual(out[0]["cantidad"], 4.0)
-        self.assertEqual(out[0]["precio_total"], 17.76)
-        self.assertEqual(out[0]["corregido_por_total"], "cantidad")
-        self.assertTrue(cuadre["cuadra"])
-
-    def test_no_adivina_si_hay_mas_de_una_solucion(self):
-        items = [_item("A", 1, 2.00, 2.00), _item("B", 1, 2.00, 2.00)]
-        out, cuadre = cuadrar_con_total(items, "TOTAL 6,00")
-        self.assertEqual([i["cantidad"] for i in out], [1, 1])
+        self.assertEqual([i["cantidad"] for i in out], [1, 1, 2])
         self.assertFalse(cuadre["cuadra"])
 
     def test_rellena_la_unica_linea_sin_importe(self):
@@ -71,3 +63,31 @@ class CuadreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QuitarLineasQueNoSonArticulosTests(unittest.TestCase):
+    def _item(self, nombre, total, origen="ticket"):
+        it = _item(nombre, 1, total, total)
+        it["origen_nombre"] = origen
+        return it
+
+    def test_quita_el_subtotal_colado_si_es_la_unica_forma_de_cuadrar(self):
+        items = [self._item("Cola", 10.0), self._item("Pan", 5.0), self._item("Sub Totai", 15.0)]
+        out, cuadre = cuadrar_con_total(items, "TOTAL 15,00")
+        self.assertEqual([i["nombre"] for i in out], ["Cola", "Pan"])
+        self.assertTrue(cuadre["cuadra"])
+
+    def test_no_quita_un_articulo_reconocido(self):
+        items = [self._item("Cola", 10.0, "catalogo"), self._item("Pan", 5.0, "catalogo"), self._item("Leche", 15.0, "catalogo")]
+        out, _ = cuadrar_con_total(items, "TOTAL 15,00")
+        self.assertEqual(len(out), 3)
+
+    def test_con_dos_soluciones_no_adivina(self):
+        items = [self._item("A", 5.0), self._item("B", 5.0), self._item("C", 10.0)]
+        out, _ = cuadrar_con_total(items, "TOTAL 15,00")
+        self.assertEqual(len(out), 3)
+
+    def test_un_exceso_pequeno_no_se_toca(self):
+        items = [self._item("A", 5.0), self._item("B", 0.5), self._item("C", 10.0)]
+        out, _ = cuadrar_con_total(items, "TOTAL 15,00")
+        self.assertEqual(len(out), 3)

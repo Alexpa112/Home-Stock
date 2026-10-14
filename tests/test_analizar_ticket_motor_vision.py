@@ -216,14 +216,12 @@ class CuadreConElTotalImpresoTests(AnalizarTicketMotorVisionTests):
         self.assertFalse(d["cuadre"]["cuadra"])
         self.assertIn("descuadre", [a["tipo"] for a in d["advertencias"]])
 
-    def test_la_cantidad_mal_leida_se_corrige_y_se_marca(self):
-        texto = ("TIENDA X\n12/10/2026\nCEPILLO DIENTES 1 4,44 4,44\nLECHE 1 1,20 1,20\n"
-                 "PAN 2 0,85 1,70\nTOTAL 20,66\n")
+    def test_la_unica_linea_sin_importe_se_rellena_con_el_total(self):
+        texto = "TIENDA X\n12/10/2026\nPAN 2 1,85 3,70\nLECHE ENTERA\nTOTAL 4,90\n"
         d = self._analizar_texto(texto).get_json()
-        cepillo = next(i for i in d["items"] if "epillo" in i["nombre"])
-        self.assertEqual(cepillo["cantidad"], 4)
-        self.assertEqual(cepillo["corregido_por_total"], "cantidad")
-        self.assertTrue(d["cuadre"]["cuadra"])
+        leche = next(i for i in d["items"] if "eche" in i["nombre"])
+        self.assertEqual(leche["precio_total"], 1.2)
+        self.assertEqual(leche["corregido_por_total"], "importe")
 
     def test_sin_total_no_hay_cuadre(self):
         d = self._analizar_texto("TIENDA X\n12/10/2026\nPAN 1,00\nLECHE 1,20\n").get_json()

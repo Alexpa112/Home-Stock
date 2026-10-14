@@ -4,6 +4,8 @@ internet. La deteccion de articulo/cantidad es heuristica y aproximada:
 la pantalla de revision de la app siempre deja corregir el resultado a mano
 antes de tocar el stock.
 """
+import logging
+import os
 import re
 import statistics
 
@@ -11,6 +13,7 @@ import cv2
 import pytesseract
 from PIL import Image
 
+from . import ocr_rapid
 from ..servicios.ocr.procesador_imagen import ProcesadorImagen
 from ..servicios.ocr.reconstructor_espacial import reconstruir_lineas, lineas_a_texto
 
@@ -178,7 +181,10 @@ def _es_basura(texto, confianza_media):
     ("¡ +. ..b..“<XL£. noe ono.."). Se reconoce por tener muy pocos caracteres
     alfanumericos o una confianza muy baja SIN ningun importe: una linea con un
     importe legible nunca se descarta."""
-    if _RE_PRECIO_AL_FINAL.search(texto) or re.search(r"\d[.,]\d{2}", texto):
+    # Una linea con numeros (fecha, cajero, "Total Qty 1 80 91", un importe mal
+    # leido...) es texto real aunque el OCR la lea fea: solo se descarta lo que
+    # no tiene ni dos digitos.
+    if _RE_PRECIO_AL_FINAL.search(texto) or re.search(r"\d[.,]\d{2}", texto) or sum(c.isdigit() for c in texto) >= 2:
         return False
     sin_espacios = re.sub(r"\s", "", texto)
     if not sin_espacios:
@@ -189,17 +195,17 @@ def _es_basura(texto, confianza_media):
     # Una linea de texto real tiene palabras (3+ letras); el ruido son trozos
     # sueltos de 1-2 caracteres y signos.
     piezas = texto.split()
-    if len(piezas) >= 3:
+    if len(piezas) >= 5:
         palabras = [p for p in piezas if sum(c.isalpha() for c in p) >= 3 and sum(not c.isalnum() for c in p) <= 1]
         if len(palabras) / len(piezas) < 0.35:
             return True
     # Una raya de guiones leida como letras ("PIDA PAPA AAA PAPA PA AA"): casi todas
     # las "palabras" son cortas o repiten una o dos letras.
-    if len(piezas) >= 4:
+    if len(piezas) >= 6:
         pobres = [p for p in piezas if len(p) <= 2 or len(set(p.lower())) <= 2]
         if len(pobres) / len(piezas) >= 0.6:
             return True
-    return confianza_media < _CONFIANZA_BASURA and alnum < 12
+    return confianza_media < _CONFIANZA_BASURA and alnum < 6
 
 
 def _texto_con_relectura(lineas, gris):
@@ -229,8 +235,17 @@ def _texto_con_relectura(lineas, gris):
 
 
 # Segunda pasada con la imagen suavizada: ver ProcesadorImagen.procesar.
+_PSM = 6
 _CONFIANZA_PRIMERA_PASADA = 90
 _SUAVIZADO_SEGUNDA_PASADA = 2.5
+
+
+_MEJORA_MINIMA_SEGUNDA_PASADA = 4
+_RE_IMPORTE_SUELTO = re.compile(r"(?<![\d.,])\d{1,5}[.,]\d{2}(?!\d)")
+
+
+def _contar_importes(lineas):
+    return sum(len(_RE_IMPORTE_SUELTO.findall(l.texto)) for l in lineas)
 
 
 def _leer_pagina(gris):
@@ -239,7 +254,7 @@ def _leer_pagina(gris):
     palabra para reconstruir las lineas por coordenadas (ver
     reconstructor_espacial)."""
     datos = pytesseract.image_to_data(
-        Image.fromarray(gris), lang="spa", config="--psm 6", timeout=45,
+        Image.fromarray(gris), lang="spa", config=f"--psm {_PSM}", timeout=45,
         output_type=pytesseract.Output.DICT,
     )
     lineas = reconstruir_lineas(datos)
@@ -248,9 +263,34 @@ def _leer_pagina(gris):
     return lineas, (sum(n * c for n, c in pesos) / total if total else 0.0)
 
 
+logger = logging.getLogger(__name__)
+# Con menos importes que esto la lectura neuronal se considera fallida y se prueba Tesseract.
+_MIN_IMPORTES_MOTOR_NEURONAL = 2
+
+
+def _texto_con_motor_neuronal(imagen_bytes):
+    """Lectura con RapidOCR. Devuelve (texto, importes_leidos) o None si el motor
+    no esta o falla: el escaner entonces sigue con Tesseract."""
+    if os.environ.get("DREAME_OCR") == "tesseract" or not ocr_rapid.disponible():
+        return None
+    try:
+        imagen = _procesador_imagen.procesar_para_motor_neuronal(imagen_bytes)
+        lineas = ocr_rapid.leer_lineas(imagen)
+    except Exception:
+        logger.exception("Fallo del motor neuronal de OCR; se usara Tesseract")
+        return None
+    textos = [(l.y_centro, l.texto, _es_basura(l.texto, l.confianza_media)) for l in lineas]
+    texto = "\n".join(t for _, t, basura in textos if not basura)
+    return texto, _contar_importes(lineas)
+
+
 def extraer_texto(ruta_imagen):
     with open(ruta_imagen, "rb") as f:
         imagen_bytes = f.read()
+
+    neuronal = _texto_con_motor_neuronal(imagen_bytes)
+    if neuronal is not None and neuronal[1] >= _MIN_IMPORTES_MOTOR_NEURONAL:
+        return neuronal[0]
 
     # Reescalado a ancho óptimo (2000px) + corrección de orientación +
     # escala de grises + CLAHE: sin esto Tesseract corría sobre la foto
@@ -267,11 +307,14 @@ def extraer_texto(ruta_imagen):
         lineas, confianza = _leer_pagina(gris)
         if confianza < _CONFIANZA_PRIMERA_PASADA:
             # Lectura floja (impresion de puntos, foto borrosa): segunda pasada con
-            # la imagen suavizada y se queda la que lea con mas confianza.
+            # la imagen suavizada. La confianza de Tesseract NO sirve para elegir
+            # (en recibos reales subia mientras se perdian la mitad de los importes):
+            # gana la pasada que lee MAS importes, y solo si empatan, la de mas confianza.
             try:
                 gris2 = _procesador_imagen.procesar(imagen_bytes, suavizado=_SUAVIZADO_SEGUNDA_PASADA)
                 lineas2, confianza2 = _leer_pagina(gris2)
-                if confianza2 > confianza:
+                n1, n2 = _contar_importes(lineas), _contar_importes(lineas2)
+                if n2 > n1 or (n2 == n1 and confianza2 >= confianza + _MEJORA_MINIMA_SEGUNDA_PASADA):
                     lineas, gris = lineas2, gris2
             except RuntimeError:
                 pass  # la segunda pasada es opcional: se queda la primera

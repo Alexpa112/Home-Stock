@@ -100,6 +100,31 @@ class ProcesadorImagen:
         # procesa realmente rápido y bien en este tipo de tickets.
         return gray
 
+    def procesar_para_motor_neuronal(self, imagen_bytes, lado_maximo=2000):
+        """Imagen lista para un OCR neuronal (RapidOCR): recortada al papel,
+        derecha, sin sombras, en gris de 3 canales y con el lado largo acotado.
+
+        A diferencia de `procesar` (pensada para Tesseract) NO aplica mediana ni
+        CLAHE ni reescalado a 2000 px de ancho: el detector neuronal trabaja mejor
+        con la imagen casi cruda (en 250 recibos reales, la imagen cruda lee el 97 %
+        de los importes y la tratada para Tesseract el 96 %)."""
+        img = self._decodificar_respetando_exif(imagen_bytes)
+        if img is None:
+            img = cv2.imdecode(np.frombuffer(imagen_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("No se pudo decodificar la imagen")
+        img = self._detectar_y_recortar_ticket(img)
+        img = self._corregir_orientacion(img)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        alto, ancho = gray.shape[:2]
+        mayor = max(alto, ancho)
+        if mayor > lado_maximo:
+            escala = lado_maximo / mayor
+            gray = cv2.resize(gray, (int(ancho * escala), int(alto * escala)), interpolation=cv2.INTER_AREA)
+        gray = self._corregir_inclinacion_fina(gray)
+        gray = self._aplanar_iluminacion(gray)
+        return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
     @staticmethod
     def _aplanar_iluminacion(gray):
         """gray / fondo * 255. El fondo se estima quitando los trazos oscuros del

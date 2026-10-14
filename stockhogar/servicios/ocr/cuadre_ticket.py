@@ -6,13 +6,12 @@ los articulos tiene que dar ese total. Aqui se usa para dos cosas:
 
 1. Avisar (advertencia + dato `cuadre`) cuando no cuadra, para que el usuario
    mire el ticket antes de aceptar.
-2. Corregir lo que solo admite UNA solucion: la cantidad de un articulo cuyo
-   precio unitario esta leido y con la que, y solo con la que, la suma sale
-   exacta, o el importe de la unica linea sin importe. Cada correccion queda
-   marcada en el articulo (`corregido_por_total`) para que se vea.
+2. Rellenar el importe de la UNICA linea que no lo trae (lo que falta para llegar
+   al total). Queda marcado en el articulo (`corregido_por_total`).
 
-Nunca se toca un articulo si hay mas de una forma de cuadrar: ahi se avisa y
-se deja al usuario.
+No se corrigen cantidades a partir del total: una linea que falte en el ticket
+hace que "encaje" casi cualquier cantidad (se vio: un 2 pasaba a 5). La
+cantidad ya se cuadra linea a linea en el parser (cantidad x unitario = importe).
 """
 import re
 from typing import Dict, List, Optional, Tuple
@@ -50,6 +49,29 @@ def _importe(item: Dict) -> Optional[float]:
     return float(valor) if valor else None
 
 
+def _quitar_lineas_que_no_son_articulos(items: List[Dict], total: float) -> List[Dict]:
+    """Si la suma SUPERA el total, algo que no es un articulo se ha colado (un
+    subtotal, un importe de impuestos, un "pago"). Se quita solo si hay UNA forma de
+    cuadrar quitando una linea sin reconocer, y el exceso es de 1 EUR o mas (un exceso
+    menor suele ser un descuento sin aplicar, no una linea de mas)."""
+    importes = [_importe(i) for i in items]
+    if any(v is None for v in importes):
+        return items
+    exceso = round(sum(importes) - total, 2)
+    if exceso < 1.0:
+        return items
+    candidatos = [
+        k for k, item in enumerate(items)
+        if abs(importes[k] - exceso) <= _TOLERANCIA
+        and item.get("origen_nombre") not in ("catalogo", "hogar")
+        and not item.get("producto_id")
+    ]
+    if len(candidatos) != 1:
+        return items
+    k = candidatos[0]
+    return [i for n, i in enumerate(items) if n != k]
+
+
 def cuadrar_con_total(items: List[Dict], texto: str) -> Tuple[List[Dict], Optional[dict]]:
     """Devuelve (items, cuadre). `cuadre` es None si el ticket no trae total."""
     total = extraer_total_impreso(texto)
@@ -68,28 +90,8 @@ def cuadrar_con_total(items: List[Dict], texto: str) -> Tuple[List[Dict], Option
             items[k]["corregido_por_total"] = "importe"
             importes[k] = resto
 
-    if all(v is not None for v in importes):
-        diferencia = round(sum(importes) - total, 2)
-        # Con menos de 3 articulos casi cualquier diferencia "se arregla" cambiando
-        # una cantidad (y suele ser que falta una linea): ahi solo se avisa.
-        if abs(diferencia) > _TOLERANCIA and len(items) >= 3:
-            # Una cantidad mal leida: solo si UN articulo lo arregla y ninguno mas.
-            soluciones = []
-            for k, item in enumerate(items):
-                unitario = item.get("precio_unitario") or 0
-                if unitario <= 0 or item.get("unidad") != "ud":
-                    continue
-                necesario = round(importes[k] - diferencia, 2)
-                n = round(necesario / unitario)
-                if n >= 1 and abs(n * unitario - necesario) <= _TOLERANCIA and n != item.get("cantidad"):
-                    soluciones.append((k, n, necesario))
-            if len(soluciones) == 1:
-                k, n, necesario = soluciones[0]
-                items[k]["cantidad"] = float(n)
-                items[k]["cantidad_texto"] = f"{n:g} ud"
-                items[k]["cantidad_sugerida"] = float(n)
-                items[k]["precio_total"] = necesario
-                items[k]["corregido_por_total"] = "cantidad"
+    items = _quitar_lineas_que_no_son_articulos(items, total)
+    importes = [_importe(i) for i in items]
 
     resumen = validar_totales(
         [{"precio_total": _importe(i)} for i in items], total
