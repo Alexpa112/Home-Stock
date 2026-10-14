@@ -63,11 +63,13 @@ class RevisionConservaFuncionesTests(unittest.TestCase):
 
 class AvisoCantidadDudosaTests(unittest.TestCase):
     def test_la_regla_es_decimal_con_unidad_ud(self):
-        self.assertIn("unidad.trim().toLowerCase() === 'ud' && !Number.isInteger(cantidad)", REGLA)
+        self.assertIn("u === 'ud' && !Number.isInteger(cantidad)", REGLA)
+        self.assertIn("(u === 'kg' || u === 'l') && cantidad > PESO_MAXIMO_PLAUSIBLE", REGLA)
 
     def test_la_pagina_usa_la_regla_y_muestra_el_aviso(self):
-        self.assertIn("cantidadDudosa(item.cantidad, item.unidad)", PAGINA)
+        self.assertIn("motivoDeDuda(item.cantidad, item.unidad)", PAGINA)
         self.assertIn("aviso_cantidad_dudosa", PAGINA)
+        self.assertIn("aviso_cantidad_peso_alto", PAGINA)
         self.assertIn('role="note"', PAGINA)
 
     def test_el_aviso_no_bloquea_la_importacion(self):
@@ -80,6 +82,8 @@ class AvisoCantidadDudosaTests(unittest.TestCase):
         for idioma, textos in d.items():
             with self.subTest(idioma=idioma):
                 self.assertIn("{cantidad}", textos["aviso_cantidad_dudosa"])
+                for marcador in ("{cantidad}", "{unidad}"):
+                    self.assertIn(marcador, textos["aviso_cantidad_peso_alto"])
 
 
 if __name__ == "__main__":

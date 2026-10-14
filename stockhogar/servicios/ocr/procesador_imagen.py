@@ -53,6 +53,13 @@ class ProcesadorImagen:
         # Redimensionar para OCR óptimo
         gray = self._redimensionar_optimo(gray)
 
+        # Inclinacion fina (+-10 grados): una foto hecha a mano se tuerce 1-5
+        # grados, justo por debajo del umbral de _detectar_angulo_rotacion, y
+        # con esa deriva (decenas de px al otro lado del ticket) el
+        # reconstructor de lineas mezcla palabras de renglones distintos
+        # ("Agua Yogur Queso Mineral Natural Rallado").
+        gray = self._corregir_inclinacion_fina(gray)
+
         # Quitar ruido ISO (fotos con poca luz) ANTES del CLAHE de abajo:
         # CLAHE amplifica el contraste local, y sobre una foto ruidosa
         # amplifica igual de fuerte el grano del sensor que las letras,
@@ -252,6 +259,55 @@ class ProcesadorImagen:
             return float(angulo_promedio)
 
         return 0
+
+    # Rango y paso de la busqueda de inclinacion del texto (grados).
+    _INCLINACION_MAXIMA = 10.0
+    _INCLINACION_MINIMA_A_CORREGIR = 0.4
+
+    @staticmethod
+    def _rotar(img, angulo, interpolacion=cv2.INTER_NEAREST):
+        h, w = img.shape[:2]
+        M = cv2.getRotationMatrix2D((w / 2, h / 2), angulo, 1.0)
+        return cv2.warpAffine(img, M, (w, h), flags=interpolacion, borderMode=cv2.BORDER_REPLICATE)
+
+    def _estimar_inclinacion_texto(self, gray):
+        """Grados que hay que rotar `gray` para dejar los renglones horizontales.
+
+        Perfil de proyeccion: con el texto alineado, la suma de pixeles de tinta
+        por fila alterna picos (renglon) y valles (interlineado) muy marcados;
+        inclinado, se emborrona. Se prueba cada angulo y gana el de perfil mas
+        "afilado". Devuelve 0.0 si no hay texto suficiente para decidir.
+        """
+        h, w = gray.shape[:2]
+        if w > 700:
+            gray = cv2.resize(gray, (700, max(1, int(h * 700 / w))), interpolation=cv2.INTER_AREA)
+        _, tinta = cv2.threshold(
+            cv2.GaussianBlur(gray, (3, 3), 0), 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+        )
+        # El texto es la minoria de pixeles; si salen al reves, se invierte.
+        if tinta.mean() > 127:
+            tinta = 255 - tinta
+        if tinta.mean() < 1.0:  # casi sin tinta: nada que alinear
+            return 0.0
+
+        def puntuacion(angulo):
+            perfil = self._rotar(tinta, angulo).sum(axis=1, dtype=np.float64)
+            return float(np.sum(np.diff(perfil) ** 2))
+
+        m = self._INCLINACION_MAXIMA
+        mejor = max(np.arange(-m, m + 0.01, 1.0), key=puntuacion)
+        mejor = max(np.arange(mejor - 1.0, mejor + 1.01, 0.25), key=puntuacion)
+        # Si el mejor angulo no mejora de forma apreciable al de 0 grados, es
+        # ruido: no se toca la imagen.
+        if puntuacion(mejor) < puntuacion(0.0) * 1.02:
+            return 0.0
+        return float(mejor)
+
+    def _corregir_inclinacion_fina(self, gray):
+        angulo = self._estimar_inclinacion_texto(gray)
+        if abs(angulo) < self._INCLINACION_MINIMA_A_CORREGIR:
+            return gray
+        return self._rotar(gray, angulo, cv2.INTER_CUBIC)
 
     def _redimensionar_optimo(self, img):
         """Redimensiona imagen para OCR óptimo (ancho ~2000px)."""

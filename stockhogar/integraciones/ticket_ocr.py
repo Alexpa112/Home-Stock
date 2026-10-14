@@ -6,6 +6,7 @@ antes de tocar el stock.
 """
 import re
 
+import cv2
 import pytesseract
 from PIL import Image
 
@@ -25,6 +26,63 @@ PALABRAS_IGNORAR = [
 RE_PRECIO_FINAL = re.compile(r"[\d]{1,3}[.,]\d{2}\s*(€|eur)?\s*$", re.IGNORECASE)
 RE_CANTIDAD_INICIO = re.compile(r"^(\d+)\s*[xX]\s*(.+)$")
 RE_CANTIDAD_FINAL = re.compile(r"^(.+?)\s+(\d+)\s*(ud|uds|u|unid)\.?$", re.IGNORECASE)
+
+
+# Relectura de lineas dudosas. A veces Tesseract devuelve basura (confianza ~0)
+# para una linea corta y perfectamente legible, p.ej. "2 x 1,85" -> "ZA A OS",
+# justo la que da la cantidad de un articulo. El umbral interno de Tesseract
+# sobre el gris con CLAHE falla ahi; binarizar (Otsu) SOLO ese recorte y leerlo
+# como una unica linea lo resuelve. No se binariza la pagina entera porque con
+# la fuente de punto de las impresoras termicas rompe los trazos (ver
+# ProcesadorImagen.procesar).
+_CONFIANZA_LINEA_DUDOSA = 45
+_MEJORA_MINIMA_RELECTURA = 15
+_MAX_RELECTURAS = 8
+_TIMEOUT_RELECTURA_S = 5
+
+
+def _releer_linea(gris, linea):
+    """Devuelve (texto, confianza_media) de una segunda lectura de la linea, o
+    None si no se pudo. Nunca lanza: es una mejora opcional."""
+    try:
+        alto, ancho = gris.shape[:2]
+        margen = 14
+        arriba = max(0, min(p.arriba for p in linea.palabras) - margen)
+        abajo = min(alto, max(p.abajo for p in linea.palabras) + margen)
+        izquierda = max(0, linea.izquierda - margen)
+        # Las palabras dudosas suelen ser mas estrechas que el texto real.
+        derecha = min(ancho, linea.derecha + int(ancho * 0.15))
+        recorte = gris[arriba:abajo, izquierda:derecha]
+        if recorte.size == 0:
+            return None
+        _, binaria = cv2.threshold(recorte, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        binaria = cv2.copyMakeBorder(binaria, 30, 30, 30, 30, cv2.BORDER_CONSTANT, value=255)
+        datos = pytesseract.image_to_data(
+            Image.fromarray(binaria), lang="spa", config="--psm 7",
+            timeout=_TIMEOUT_RELECTURA_S, output_type=pytesseract.Output.DICT,
+        )
+        palabras = [
+            (t.strip(), float(c)) for t, c in zip(datos["text"], datos["conf"])
+            if t and t.strip() and float(c) >= 0
+        ]
+        if not palabras:
+            return None
+        return " ".join(t for t, _ in palabras), sum(c for _, c in palabras) / len(palabras)
+    except Exception:
+        return None
+
+
+def _texto_con_relectura(lineas, gris):
+    textos = [linea.texto for linea in lineas]
+    dudosas = [
+        i for i, linea in enumerate(lineas)
+        if linea.palabras and linea.confianza_media < _CONFIANZA_LINEA_DUDOSA
+    ][:_MAX_RELECTURAS]
+    for i in dudosas:
+        relectura = _releer_linea(gris, lineas[i])
+        if relectura and relectura[1] >= lineas[i].confianza_media + _MEJORA_MINIMA_RELECTURA:
+            textos[i] = relectura[0]
+    return "\n".join(textos)
 
 
 def extraer_texto(ruta_imagen):
@@ -56,7 +114,7 @@ def extraer_texto(ruta_imagen):
             output_type=pytesseract.Output.DICT,
         )
         lineas = reconstruir_lineas(datos)
-        return lineas_a_texto(lineas)
+        return _texto_con_relectura(lineas, imagen_procesada)
     except RuntimeError:
         raise RuntimeError(
             "La foto tardó demasiado en procesarse. Prueba con más luz, "

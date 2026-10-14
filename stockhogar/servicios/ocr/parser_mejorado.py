@@ -9,6 +9,8 @@ Características:
 - Detección de promociones
 """
 import re
+
+from rapidfuzz import fuzz
 import unicodedata
 from typing import List, Dict, Tuple
 from dataclasses import dataclass, asdict
@@ -113,6 +115,18 @@ class ParserMejorado:
             "n. socio", "nº socio", "num. socio",
         }
 
+        # Las palabras de control se buscan COMPLETAS, no como subcadena: con
+        # `palabra in linea` la "iva" del impuesto descartaba toda linea con
+        # "OLIVA" (el aceite de oliva, de los articulos mas comunes), y "caja",
+        # "hora", "club", "pago" o "cuenta" se llevaban por delante "CAJA
+        # HUEVOS", "CHORIZO CLUB"... Plural opcional ("descuentos", "puntos").
+        self._regex_palabras_ignorar = self._compilar_palabras(self.palabras_ignorar)
+        self._regex_palabras_promocion = self._compilar_palabras(self.palabras_promocion)
+        # "4 x 0,55", "6X0.42": multiplicador de cantidad delante de un precio
+        # (formato de Carrefour/Lidl: "YOGUR NATURAL   4 x 0,55   2,20"). Exige
+        # decimales detras para no confundirlo con la promocion "2x1".
+        self.regex_multiplicador = re.compile(r'(?<![\d,.])(\d{1,3})\s*[xX×]{1,2}\s*(?=\d+[.,]\d{2})')
+
         # Regex mejorados
         self.regex_cantidad = re.compile(
             r'(\d+[.,]?\d*)\s*([a-záéíóúñ\.]+)',
@@ -129,6 +143,13 @@ class ParserMejorado:
         self.regex_precio_unitario = re.compile(
             r'@\s*(\d+[.,]\d+)\s*(€|\/kg|\/l|\/ud)?',
             re.IGNORECASE
+        )
+
+        self.regex_cantidad_implicita = re.compile(
+            r'(?<![\d,.])(\d{1,2})\s+(\d+[.,]\d{2})\s+(\d+[.,]\d{2})(?!\d)'
+        )
+        self.regex_detalle_multiplicador = re.compile(
+            r'(\d{1,3})\s*[xX×]{1,2}\s*(\d+[.,]\d{2})\s*(?:€|eur)?', re.IGNORECASE
         )
 
         # Patrones típicos de cabecera (nombre de tienda, dirección, CIF, teléfono)
@@ -160,6 +181,15 @@ class ParserMejorado:
             re.IGNORECASE | re.UNICODE
         )
 
+    # Importe con ":" o ";" en lugar de la coma decimal ("2:45", "1;85"): la
+    # fuente de punto de las impresoras termicas hace que el OCR lea la coma
+    # como dos puntos. Se aplica SOLO a las lineas de la zona de productos (una
+    # hora como "18:32" esta en la cabecera, que ya queda fuera).
+    _regex_decimal_mal_leido = re.compile(r'(?<=\d)[:;](?=\d{2}(?!\d))')
+
+    def _normalizar_decimal(self, linea: str) -> str:
+        return self._regex_decimal_mal_leido.sub(',', linea)
+
     def parsear(self, texto: str) -> List[LineaTicketMejorada]:
         """Parsea ticket complejo y extrae líneas con contexto."""
         if not texto or not texto.strip():
@@ -185,6 +215,18 @@ class ParserMejorado:
                 continue
             if idx >= fin_productos:
                 break
+            linea = self._normalizar_decimal(linea)
+            detalle = self.regex_detalle_multiplicador.fullmatch(linea)
+            if detalle and productos:
+                # "4 x 0,55" en su propio renglon (Lidl): la cantidad y el
+                # precio unitario del articulo anterior. No tiene letras, asi
+                # que _es_linea_valida la descartaria.
+                anterior = productos[-1]
+                anterior.cantidad = float(detalle.group(1))
+                anterior.unidad = TipoUnidad.UNIDAD
+                anterior.cantidad_texto = f"{anterior.cantidad:g} ud"
+                anterior.precio_unitario = self._parsear_precio(detalle.group(2))
+                continue
             if self._es_linea_valida(linea):
                 # Pasar contexto (línea anterior/siguiente)
                 contexto_anterior = lineas_limpias[idx - 1] if idx > 0 else ""
@@ -210,9 +252,19 @@ class ParserMejorado:
                             anterior.cantidad_texto = producto.cantidad_texto
                             if producto.precio_unitario:
                                 anterior.precio_unitario = producto.precio_unitario
-                            if producto.precio_total:
-                                anterior.precio_total = producto.precio_total
-                    elif not self._es_nombre_sin_producto(producto.nombre):
+                                if producto.precio_total:
+                                    anterior.precio_total = producto.precio_total
+                            elif producto.precio_total:
+                                # Un solo precio en la linea de detalle: si el
+                                # renglon anterior ya traia el importe, este es
+                                # el unitario ("1,89 EUR/kg", "4 x 0,55"); pisar
+                                # el total con el unitario falseaba el precio.
+                                if anterior.precio_total:
+                                    anterior.precio_unitario = producto.precio_total
+                                else:
+                                    anterior.precio_total = producto.precio_total
+                    elif (not self._es_nombre_sin_producto(producto.nombre)
+                          and not self._nombre_es_basura(producto.nombre)):
                         productos.append(producto)
 
         # Filtrar duplicados y limpiar
@@ -366,7 +418,61 @@ class ParserMejorado:
         nombre = nombre_limpio.strip()
         if len(nombre) < 3:
             return True
-        return bool(self._regex_nombre_vacio.fullmatch(nombre))
+        if self._regex_nombre_vacio.fullmatch(nombre):
+            return True
+        # Residuos de una linea "0,850 kg x 1,89 EUR/kg" (que queda en "X Eur")
+        # o de un OCR torcido ("Eur/Kkg", ". Eur", "Eur )"): si todo lo que
+        # queda son divisas, unidades o el "x", no hay nombre de producto.
+        tokens = [t for t in self._regex_tokens.split(nombre.lower()) if t and not t.isdigit()]
+        return all(self._es_ruido_de_detalle(t) for t in tokens)
+
+    _RUIDO_DETALLE = ("eur", "euro", "euros", "usd", "kg", "g", "gr", "l", "lt", "ml", "ud", "uds", "x", "por")
+
+    @classmethod
+    def _es_ruido_de_detalle(cls, token: str) -> bool:
+        if token in cls._RUIDO_DETALLE:
+            return True
+        # Variantes de OCR de "eur"/"kg" ("kkg", "eu", "ekg"), solo en tokens cortos.
+        return len(token) <= 4 and max(fuzz.ratio(token, ref) for ref in ("eur", "kg", "euro")) >= 75
+
+    def _nombre_es_basura(self, nombre: str) -> bool:
+        """True si el "nombre" es ruido de OCR (sombras, bordes, grano) y no un
+        articulo: casi sin letras, hecho de fragmentos de 1-2 letras, o con
+        repeticiones imposibles en castellano ("Nnnnan", "Coocoooe")."""
+        letras = [c for c in nombre if c.isalpha()]
+        if len(letras) < 3:
+            return True
+        # Palabras separadas por espacios/puntuacion, pero "€ @ $ | !" y los
+        # digitos DENTRO de la palabra cuentan como parte de ella: son lo que
+        # el OCR pone en lugar de las letras ("L€CH€", "T0MAT€5"). Una palabra
+        # es creible si tiene >=3 caracteres, buena parte de letras y no
+        # repite una letra 3 veces seguidas.
+        tokens = [t for t in re.split(r"[^\w€@$|!]+", nombre.lower()) if t]
+
+        def parece_palabra(t):
+            return (
+                len(t) >= 3
+                and sum(c.isalpha() for c in t) >= 0.4 * len(t)
+                and not re.search(r"([^\W\d_])\1\1", t)
+            )
+
+        palabras = [t for t in tokens if parece_palabra(t)]
+        if not palabras:
+            return True
+        if sum(len(t) for t in palabras) < 0.5 * sum(len(t) for t in tokens):
+            return True
+        return False
+
+    @staticmethod
+    def _compilar_palabras(palabras) -> "re.Pattern":
+        """Regex que reconoce cualquiera de `palabras` como palabra completa
+        (o frase completa), con "s"/"es" final opcional."""
+        alternativas = "|".join(re.escape(p) for p in sorted(palabras, key=len, reverse=True))
+        letra = "a-záéíóúñü"
+        return re.compile(
+            rf"(?<![{letra}])(?:{alternativas})(?:es|s)?(?![{letra}])",
+            re.IGNORECASE | re.UNICODE,
+        )
 
     def _es_linea_valida(self, linea: str) -> bool:
         """Valida si la línea contiene un producto potencial."""
@@ -376,7 +482,7 @@ class ParserMejorado:
         linea_lower = linea.lower()
 
         # Ignorar líneas de control
-        if any(palabra in linea_lower for palabra in self.palabras_ignorar):
+        if self._regex_palabras_ignorar.search(linea_lower):
             return False
 
         # Debe tener al menos 3 letras (no necesariamente consecutivas)
@@ -409,7 +515,7 @@ class ParserMejorado:
         # 4. Detectar promoción (sobre la linea original: el marcador tipo
         # "2x1"/"3x2" se limpia del nombre en el paso anterior y dejaria de
         # detectarse si se buscara ya sobre el nombre limpio)
-        es_promo = any(p in linea.lower() for p in self.palabras_promocion)
+        es_promo = bool(self._regex_palabras_promocion.search(linea))
 
         # 5. Calcular confianza
         conf_nombre = self._calcular_confianza_nombre(nombre)
@@ -475,6 +581,25 @@ class ParserMejorado:
                     return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
             except ValueError:
                 pass
+
+        # "YOGUR NATURAL  4 x 0,55  2,20" o la linea de detalle "4 x 0,55":
+        # el multiplicador manda sobre el tamano de envase del nombre.
+        multiplicador = self.regex_multiplicador.search(linea)
+        if multiplicador:
+            cantidad = float(multiplicador.group(1))
+            if cantidad > 0:
+                return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
+
+        # "PAN DE MOLDE  2  1,85  3,70": Tesseract pierde a menudo la "x" suelta
+        # de "2 x 1,85". Si hay un entero seguido de dos importes y N x unitario
+        # cuadra con el total, la cantidad es N (no hay otra lectura posible).
+        implicita = self.regex_cantidad_implicita.search(linea)
+        if implicita:
+            n = float(implicita.group(1))
+            unitario = self._parsear_precio(implicita.group(2))
+            total = self._parsear_precio(implicita.group(3))
+            if n >= 2 and unitario > 0 and abs(n * unitario - total) <= 0.02 + 0.005 * n:
+                return n, TipoUnidad.UNIDAD, f"{n:g} ud"
 
         # Sin cantidad al principio: buscar número + unidad real en
         # cualquier parte de la línea (p.ej. "LECHE ENTERA 1L", "ARROZ SOS
@@ -553,6 +678,10 @@ class ParserMejorado:
         # los confunde con una cantidad+unidad (p.ej. "70 C").
         nombre = re.sub(self.regex_precio, '', nombre)
 
+        # Quitar el multiplicador "4 x" que queda tras quitar el precio
+        # (p.ej. "YOGUR NATURAL 4 x 0,55 2,20" -> "YOGUR NATURAL")
+        nombre = re.sub(r'(?<![\w])\d{1,3}\s*[xX×]{1,2}(?=\s|$)', ' ', nombre)
+
         # Quitar cantidad con unidad real
         nombre = re.sub(self.regex_cantidad_unidad, '', nombre)
 
@@ -574,6 +703,11 @@ class ParserMejorado:
         # que queda huérfana tras quitar el precio cuando este no tenía
         # dígitos que la regex de cantidad pudiera arrastrar consigo.
         nombre = re.sub(r'\s+[a-záéíóúñ]\s*$', '', nombre, flags=re.UNICODE | re.IGNORECASE)
+
+        # Quitar un importe mal leido que no casa con el formato de precio
+        # (p.ej. "2,405" en vez de "2,45"): un numero con decimales al final
+        # nunca es parte del nombre de un articulo.
+        nombre = re.sub(r'\s+\d+[.,]\d+\s*$', '', nombre)
 
         # Quitar códigos numéricos sueltos al final (referencias, códigos de barras)
         nombre = re.sub(r'\s+\d+\s*$', '', nombre)

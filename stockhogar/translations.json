@@ -812,7 +812,10 @@
     "ajustes_grupo_apariencia": "Apariencia e idioma",
     "ajustes_grupo_datos": "Historial y categorías",
     "ajustes_grupo_seguridad": "Seguridad y privacidad",
-    "ajustes_grupo_legal": "Legal"
+    "ajustes_grupo_legal": "Legal",
+    "codigo_manual_etiqueta": "¿Sin cámara? Escribe el código de barras",
+    "codigo_manual_boton": "Usar código",
+    "aviso_cantidad_peso_alto": "Cantidad dudosa: {cantidad} {unidad} es mucho para una compra, ¿falta una coma? Revísala antes de importar."
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1627,7 +1630,10 @@
     "ajustes_grupo_apariencia": "Aparencia e idioma",
     "ajustes_grupo_datos": "Historial e categorías",
     "ajustes_grupo_seguridad": "Seguridade e privacidade",
-    "ajustes_grupo_legal": "Legal"
+    "ajustes_grupo_legal": "Legal",
+    "codigo_manual_etiqueta": "¿Sen cámara? Escribe o código de barras",
+    "codigo_manual_boton": "Usar código",
+    "aviso_cantidad_peso_alto": "Cantidade dubidosa: {cantidad} {unidad} é moito para unha compra, ¿falta unha coma? Revísaa antes de importar."
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2442,7 +2448,10 @@
     "ajustes_grupo_apariencia": "Appearance and language",
     "ajustes_grupo_datos": "History and categories",
     "ajustes_grupo_seguridad": "Security and privacy",
-    "ajustes_grupo_legal": "Legal"
+    "ajustes_grupo_legal": "Legal",
+    "codigo_manual_etiqueta": "No camera? Type the barcode",
+    "codigo_manual_boton": "Use code",
+    "aviso_cantidad_peso_alto": "Doubtful quantity: {cantidad} {unidad} is a lot for one purchase, is a decimal point missing? Check it before importing."
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3257,7 +3266,10 @@
     "ajustes_grupo_apariencia": "Aparência e idioma",
     "ajustes_grupo_datos": "Histórico e categorias",
     "ajustes_grupo_seguridad": "Segurança e privacidade",
-    "ajustes_grupo_legal": "Legal"
+    "ajustes_grupo_legal": "Legal",
+    "codigo_manual_etiqueta": "Sem câmara? Escreva o código de barras",
+    "codigo_manual_boton": "Usar código",
+    "aviso_cantidad_peso_alto": "Quantidade duvidosa: {cantidad} {unidad} é muito para uma compra, falta uma vírgula? Verifique antes de importar."
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4072,7 +4084,10 @@
     "ajustes_grupo_apariencia": "Apparence et langue",
     "ajustes_grupo_datos": "Historique et catégories",
     "ajustes_grupo_seguridad": "Sécurité et confidentialité",
-    "ajustes_grupo_legal": "Mentions légales"
+    "ajustes_grupo_legal": "Mentions légales",
+    "codigo_manual_etiqueta": "Pas de caméra ? Saisissez le code-barres",
+    "codigo_manual_boton": "Utiliser le code",
+    "aviso_cantidad_peso_alto": "Quantité douteuse : {cantidad} {unidad} c'est beaucoup pour un achat, une virgule manque-t-elle ? Vérifiez avant d'importer."
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4887,7 +4902,10 @@
     "ajustes_grupo_apariencia": "Aspetto e lingua",
     "ajustes_grupo_datos": "Cronologia e categorie",
     "ajustes_grupo_seguridad": "Sicurezza e privacy",
-    "ajustes_grupo_legal": "Note legali"
+    "ajustes_grupo_legal": "Note legali",
+    "codigo_manual_etiqueta": "Niente fotocamera? Scrivi il codice a barre",
+    "codigo_manual_boton": "Usa codice",
+    "aviso_cantidad_peso_alto": "Quantità dubbia: {cantidad} {unidad} è molto per un acquisto, manca una virgola? Controllala prima di importare."
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5702,6 +5720,9 @@
     "ajustes_grupo_apariencia": "Darstellung und Sprache",
     "ajustes_grupo_datos": "Verlauf und Kategorien",
     "ajustes_grupo_seguridad": "Sicherheit und Datenschutz",
-    "ajustes_grupo_legal": "Rechtliches"
+    "ajustes_grupo_legal": "Rechtliches",
+    "codigo_manual_etiqueta": "Keine Kamera? Barcode eingeben",
+    "codigo_manual_boton": "Code verwenden",
+    "aviso_cantidad_peso_alto": "Zweifelhafte Menge: {cantidad} {unidad} ist viel für einen Einkauf, fehlt ein Komma? Bitte vor dem Import prüfen."
   }
 }

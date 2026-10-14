@@ -7,7 +7,8 @@ import { useTranslation } from '@/contexts/TranslationContext'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { suspenderPorEdicion, reanudarPorEdicion } from '@/lib/editSuspension'
-import { cantidadDudosa, textoCantidad, formatearNumero } from '@/lib/ticket'
+import { motivoDeDuda, textoCantidad, formatearNumero, esFalloDeRed, precioUnitarioDe } from '@/lib/ticket'
+import { prepararFotoParaSubida } from '@/lib/imagenSubida'
 
 // Shape real: ver stockhogar/servicios/ocr/procesador_tickets_v2.py:crear_respuesta_usuario
 interface ItemTicket {
@@ -19,6 +20,8 @@ interface ItemTicket {
   confianza_match: number
   confianza_cantidad: number
   precio_valido: boolean
+  precio_unitario?: number
+  precio_total?: number
   incluir?: boolean
 }
 
@@ -44,7 +47,7 @@ export default function EscanearTicketPage() {
     setAnalizando(true)
     suspenderPorEdicion()
     try {
-      const data: any = await tickets.analizar(file)
+      const data: any = await tickets.analizar(await prepararFotoParaSubida(file))
       const conIncluir = (data.items || []).map((it: ItemTicket) => ({ ...it, incluir: true }))
       setItems(conIncluir)
       setAdvertencias(data.advertencias || [])
@@ -52,8 +55,9 @@ export default function EscanearTicketPage() {
         setError(t('err_no_detecto_producto_imagen'))
       }
     } catch (err) {
-      const mensaje = err instanceof Error ? err.message : t('error_procesar')
-      setError(mensaje)
+      const crudo = err instanceof Error ? err.message : ''
+      // "Failed to fetch" o un 502 de proxy no son un mensaje para el usuario.
+      setError(!crudo || esFalloDeRed(crudo) ? t('error_procesar') : crudo)
       console.error('Error analizando ticket:', err)
     } finally {
       setAnalizando(false)
@@ -79,12 +83,12 @@ export default function EscanearTicketPage() {
           unidad: it.unidad,
           categoria: it.categoria,
           producto_id: it.producto_id,
+          precio_unitario: precioUnitarioDe(it, it.cantidad),
         }))
       )
       setResultado(data)
       setItems([])
       setEditando(null)
-      reanudarPorEdicion()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_importando_productos'))
     } finally {
@@ -181,7 +185,8 @@ export default function EscanearTicketPage() {
               categoría. */}
           <div className="space-y-2">
             {items.map((item, idx) => {
-              const dudosa = cantidadDudosa(item.cantidad, item.unidad)
+              const motivoDuda = motivoDeDuda(item.cantidad, item.unidad)
+              const dudosa = motivoDuda !== null
               const editandoEsta = editando === idx
               return (
                 <div
@@ -251,7 +256,11 @@ export default function EscanearTicketPage() {
                   {dudosa && (
                     <p className="mt-2 flex items-start gap-2 text-xs text-amber-800 dark:text-amber-200" role="note">
                       <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                      <span>{t('aviso_cantidad_dudosa').replace('{cantidad}', formatearNumero(Number(item.cantidad)))}</span>
+                      <span>
+                        {t(motivoDuda === 'peso_muy_alto' ? 'aviso_cantidad_peso_alto' : 'aviso_cantidad_dudosa')
+                          .replace('{cantidad}', formatearNumero(Number(item.cantidad)))
+                          .replace('{unidad}', item.unidad)}
+                      </span>
                     </p>
                   )}
 
@@ -309,7 +318,7 @@ export default function EscanearTicketPage() {
               que sticky lo tomaría como contenedor y flotaría sobre el contenido). */}
           <div className="fixed inset-x-0 bottom-[var(--mobile-toolbar-h)] z-[55] !mb-0 px-4 py-3 bg-card border-t border-border flex gap-2 lg:static lg:z-auto lg:p-0 lg:bg-transparent lg:border-0">
             <button
-              onClick={() => { setItems([]); setEditando(null); reanudarPorEdicion() }}
+              onClick={() => { setItems([]); setEditando(null) }}
               className="btn-secondary flex-1 min-h-[48px]"
             >
               {t('cancelar')}
