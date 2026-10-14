@@ -27,15 +27,16 @@ def test_cantidad_suelta_delante_del_nombre_no_rompe_palabras():
     assert productos[0].precio_total == 1.80
 
 
-def test_cantidad_con_unidad_real_se_extrae_y_limpia_bien():
+def test_el_tamano_de_envase_no_es_la_cantidad_y_se_limpia_del_nombre():
     parser = ParserMejorado()
     texto = "LECHE ENTERA 1L        1,20\n"
     productos = parser.parsear(texto)
 
     assert len(productos) == 1
     assert productos[0].nombre == "Leche Entera"
+    # "1L" es el envase: lo comprado es 1 unidad (la cantidad la indica el ticket).
     assert productos[0].cantidad == 1.0
-    assert productos[0].unidad == TipoUnidad.LITRO
+    assert productos[0].unidad == TipoUnidad.UNIDAD
     assert productos[0].precio_total == 1.20
 
 

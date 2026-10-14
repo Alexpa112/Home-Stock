@@ -114,11 +114,33 @@ def test_la_promocion_2x1_no_se_toma_por_multiplicador():
     assert pro[0].nombre == "Galletas Maria"
 
 
-def test_el_tamano_de_envase_sin_cantidad_sigue_siendo_1_litro():
-    """Decision del equipo (ver test_parser_mejorado_nombre_articulo): sin
-    cantidad delante, "LECHE ENTERA 1L" es 1 litro. No debe cambiar."""
-    leche = _por_nombre("LECHE ENTERA 1L   1,20\nTOTAL 1,20\n")["Leche Entera"]
-    assert leche.cantidad == 1 and leche.unidad == TipoUnidad.LITRO
+def test_el_tamano_de_envase_nunca_es_la_cantidad_comprada():
+    """La cantidad la indica siempre el ticket; "1L", "1,5L", "500G" o "1KG" en el
+    nombre son el envase. Sin cantidad impresa, es 1 unidad."""
+    for linea, nombre in [
+        ("LECHE ENTERA 1L   1,20", "Leche Entera"),
+        ("AGUA MINERAL 1,5L   0,42", "Agua Mineral"),
+        ("ARROZ REDONDO 1KG   1,35", "Arroz Redondo"),
+        ("SPAGHETTI 500G   1,20", "Spaghetti"),
+        ("COLA 2L   1,80", "Cola"),
+    ]:
+        item = next(iter(_por_nombre(linea + "\nTOTAL 9,99\n").values()))
+        assert item.cantidad == 1 and item.unidad == TipoUnidad.UNIDAD, (linea, item)
+        assert item.nombre == nombre, item.nombre
+
+
+def test_la_cantidad_impresa_manda_sobre_el_envase():
+    for linea, cant in [("3 LECHE ENTERA 1L   3,60", 3), ("LECHE ENTERA 1L   4 x 1,20   4,80", 4),
+                        ("LECHE ENTERA 1L  2 UN  2,40", 2), ("LECHE ENTERA 1L  2  1,20  2,40", 2)]:
+        item = next(iter(_por_nombre(linea + "\nTOTAL 9,99\n").values()))
+        assert item.cantidad == cant and item.unidad == TipoUnidad.UNIDAD, (linea, item)
+
+
+def test_el_peso_a_granel_sigue_siendo_peso():
+    item = next(iter(_por_nombre("TOMATE PERA 0,850 kg   1,61\nTOTAL 1,61\n").values()))
+    assert item.cantidad == 0.85 and item.unidad == TipoUnidad.KILOGRAMO
+    item = next(iter(_por_nombre("TOMATE PERA 1,2 kg x 1,89/kg   2,27\nTOTAL 2,27\n").values()))
+    assert item.cantidad == 1.2 and item.unidad == TipoUnidad.KILOGRAMO
 
 
 # --------------------------------------------------- ruido de OCR

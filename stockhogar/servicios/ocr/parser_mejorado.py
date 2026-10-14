@@ -646,22 +646,29 @@ class ParserMejorado:
             if n >= 2 and unitario > 0 and abs(n * unitario - total) <= 0.02 + 0.005 * n:
                 return n, TipoUnidad.UNIDAD, f"{n:g} ud"
 
-        # Sin cantidad al principio: buscar número + unidad real en
-        # cualquier parte de la línea (p.ej. "LECHE ENTERA 1L", "ARROZ SOS
-        # 1KG" -> el tamaño del envase es la única cantidad disponible).
+        # Un "1L", "1,5L", "500G" o "1KG" dentro del nombre es el TAMANO DEL ENVASE,
+        # no lo comprado: la cantidad comprada la indica siempre el ticket (columna
+        # de unidades, "N x", "N UN"...) y, si no consta, es 1 ud. Solo es una
+        # cantidad real un peso/volumen vendido a granel: el que trae tres
+        # decimales ("0,850 kg") o va con su precio por unidad ("/kg", "x 1,89").
         match = re.search(patron_numero_unidad, linea, re.UNICODE | re.IGNORECASE)
 
         if match:
             cantidad_str = match.group(1).replace(',', '.')
             unidad_str = match.group(2).lower().strip('.')
-
-            try:
-                cantidad = float(cantidad_str)
-                unidad = self.unidades_map.get(unidad_str, TipoUnidad.UNIDAD)
-                cantidad_texto = f"{cantidad} {unidad.value}"
-                return cantidad, unidad, cantidad_texto
-            except ValueError:
-                pass
+            a_granel = (
+                re.fullmatch(r'\d+\.\d{3}', cantidad_str) is not None
+                or re.search(r'/\s*(kg|g|l|ml)\b|(?:€|eur)\s*/', linea[match.end():], re.IGNORECASE)
+                or re.search(r'[xX×]\s*\d+[.,]\d{2}', linea[match.end():])
+            )
+            if a_granel:
+                try:
+                    cantidad = float(cantidad_str)
+                    unidad = self.unidades_map.get(unidad_str, TipoUnidad.UNIDAD)
+                    cantidad_texto = f"{cantidad} {unidad.value}"
+                    return cantidad, unidad, cantidad_texto
+                except ValueError:
+                    pass
 
         # Si no hay patrón explícito, asumir 1 unidad
         return 1.0, TipoUnidad.UNIDAD, "1 ud"

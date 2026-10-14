@@ -219,8 +219,9 @@ Cantidad y unidad:
 
 - La cantidad comprada suele ir al principio de la línea o en su propia
   columna: en "2 LECHE PASCUAL 1L" son 2 unidades, no 1 litro.
-- El tamaño del envase forma parte del nombre. Úsalo como cantidad solo si la
-  línea no indica ninguna otra.
+- El tamaño del envase (1L, 1,5L, 500 g, 1 kg) forma parte del nombre y NUNCA
+  es la cantidad comprada: la cantidad es la que imprime el ticket (columna de
+  unidades, "2 x", "3 UN"...). Si la línea no indica ninguna, es 1 ud.
 - A granel el peso suele venir en la línea siguiente al nombre: "TOMATE PERA
   KG" y "0,850 kg 1,89 EUR/kg 1,61" son un único artículo de 0,85 kg.
 - "2x1", "3x2" y similares marcan promoción, no cantidad.

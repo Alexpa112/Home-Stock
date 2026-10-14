@@ -172,12 +172,13 @@ class EscanerTesseractRealTests(unittest.TestCase):
                 hallados = [i for i in items if _norm(clave) in _norm(i["nombre_ticket"])]
                 self.assertEqual(len(hallados), 1, f"{nombre!r} no aparece una vez en {[i['nombre'] for i in items]}")
                 it = hallados[0]
-                # El tamano de envase en el nombre ("1L") puede leerse como litros
-                # (decision del equipo): solo se exige el valor.
+                # El tamano de envase del nombre ("1L") NO es la cantidad: la cantidad
+                # es la del ticket y su unidad es "ud".
                 if not estricto and unidad == "ud":
                     continue  # ver test_foto_inclinada_de_mano
                 if unidad == "ud" and cantidad == 1:
                     self.assertEqual(float(it["cantidad"]), 1.0)
+                    self.assertEqual(it["unidad"], "ud")
                 else:
                     self.assertAlmostEqual(float(it["cantidad"]), cantidad, places=2)
                     self.assertEqual(it["unidad"], unidad)
