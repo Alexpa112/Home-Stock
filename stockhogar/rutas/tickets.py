@@ -18,6 +18,7 @@ from ..servicios import cuota_ocr
 from ..servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ..servicios.ocr.catalogo import catalogo_del_hogar as _catalogo_del_hogar
 from ..servicios.ocr.claude_ocr import ClaudeOCR
+from ..servicios.ocr.cuadre_ticket import cuadrar_con_total, extraer_total_impreso
 from ..servicios.ocr.diccionario import identificar_articulo
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..servicios.ocr.validacion_importes import normalizar_importe
@@ -404,6 +405,11 @@ def analizar_ticket():
                 texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
                 proc = ProcesadorTicketsV2()
                 items = proc.procesar_completo(texto_ocr, db, hogar_id)
+                # El TOTAL impreso comprueba la lectura (y corrige lo que solo
+                # tiene una solucion): ver servicios/ocr/cuadre_ticket.py.
+                items, cuadre_ticket = cuadrar_con_total(items, texto_ocr)
+                if cuadre_ticket:
+                    totales_ticket = {"total": extraer_total_impreso(texto_ocr)}
                 logger.info(
                     "Ticket analizado con Tesseract: %d lineas OCR, %d items detectados",
                     len(texto_ocr.splitlines()), len(items),

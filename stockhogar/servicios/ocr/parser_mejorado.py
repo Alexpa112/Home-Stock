@@ -102,7 +102,7 @@ class ParserMejorado:
         self.palabras_ignorar = {
             "total", "subtotal", "importe", "pago", "cambio", "efectivo",
             "tarjeta", "visa", "mastercard", "ticket", "factura", "recibo",
-            "iva", "irpf", "impuesto", "fecha", "hora", "tienda", "caja",
+            "iva", "irpf", "impuesto", "fecha", "hora", "tienda",
             "operador", "atencion", "cliente", "gracias", "vuelvo", "cuenta",
             "www", "http", "email", "tlf", "telefono", "cif", "nif", "empresa", "domicilio",
             "devolucion", "cambios", "garantia", "descuento",
@@ -125,7 +125,7 @@ class ParserMejorado:
         # "4 x 0,55", "6X0.42": multiplicador de cantidad delante de un precio
         # (formato de Carrefour/Lidl: "YOGUR NATURAL   4 x 0,55   2,20"). Exige
         # decimales detras para no confundirlo con la promocion "2x1".
-        self.regex_multiplicador = re.compile(r'(?<![\d,.])(\d{1,3})\s*[xX×]{1,2}\s*(?=\d+[.,]\d{2})')
+        self.regex_multiplicador = re.compile(r'(?<![\d,.])(\d{1,3})\s*[-+%.]?\s*[xX×]{1,2}\s*(?=\d+[.,]\d{2})')
 
         # Regex mejorados
         self.regex_cantidad = re.compile(
@@ -203,7 +203,11 @@ class ParserMejorado:
     # hora como "18:32" esta en la cabecera, que ya queda fuera).
     _regex_decimal_mal_leido = re.compile(r'(?<=\d)[:;](?=\d{2}(?!\d))')
 
+    # "1, 853kg", "0, 885 kg": el OCR separa la coma del peso.
+    _regex_peso_con_espacio = re.compile(r'(?<=\d)([,.])\s+(?=\d{3}\s*(?:kg|g|l|ml)\b)', re.IGNORECASE)
+
     def _normalizar_decimal(self, linea: str) -> str:
+        linea = self._regex_peso_con_espacio.sub(r'\1', linea)
         return self._regex_decimal_mal_leido.sub(',', linea)
 
     def parsear(self, texto: str) -> List[LineaTicketMejorada]:
@@ -514,6 +518,11 @@ class ParserMejorado:
         if self._regex_palabras_ignorar.search(linea_lower):
             return False
 
+        # "CAJA 03  OP 12" es el puesto de cobro, pero "HUEVOS XL CAJA 6" o "CAJA
+        # CERVEZA 12,50" son articulos: solo se descarta si no lleva importe.
+        if re.search(r'\bcaja\b', linea_lower) and not self.regex_precio.search(linea):
+            return False
+
         # Debe tener al menos 3 letras (no necesariamente consecutivas)
         # Esto permite detectar "T0m@t€5" como válido (tiene t, m, t)
         if len([c for c in linea if c.isalpha()]) < 3:
@@ -537,6 +546,12 @@ class ParserMejorado:
 
         # 2. Extraer precios
         precio_unitario, precio_total = self._extraer_precios(linea, contexto_siguiente)
+
+        # 2b. Cuadrar cantidad e importes: cantidad x unitario = total. Si el OCR
+        # leyo mal el digito de la cantidad ("1" por "4"), el cociente lo delata.
+        cantidad, unidad, cantidad_texto, precio_unitario = self._conciliar_cantidad_e_importes(
+            linea, cantidad, unidad, cantidad_texto, precio_unitario, precio_total
+        )
 
         # 3. Limpiar nombre
         nombre = self._limpiar_nombre(linea, cantidad_texto, precio_total)
@@ -620,11 +635,28 @@ class ParserMejorado:
             except ValueError:
                 pass
 
+        # Peso a granel con tres decimales y unidad ("ATUN 3U 1,310 KG"): es lo
+        # comprado, aunque el nombre lleve un "3U" de envase.
+        peso_granel = re.search(r'(?<![\d,.])(\d{1,3}[.,]\d{3})\s*(kg|g|l|ml)\b', linea, re.IGNORECASE)
+        if peso_granel:
+            cantidad = float(peso_granel.group(1).replace(',', '.'))
+            unidad = self.unidades_map.get(peso_granel.group(2).lower(), TipoUnidad.UNIDAD)
+            if cantidad > 0:
+                return cantidad, unidad, f"{cantidad:g} {unidad.value}"
+
         # "DETERGENTE LIQ  2 UN  11,98": cantidad marcada con UN/UD tras el nombre.
         match_un = self.regex_cantidad_un.search(linea)
         if match_un:
             cantidad = float(match_un.group(1))
             if cantidad > 0:
+                return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
+
+        # "QUESO LONCHAS 4x 5,9% 23,76": el importe unitario salio mal leido pero el
+        # "4x" y el total se leen. Solo con un importe valido al final de la linea.
+        flexible = re.search(r'(?<![\d,.])(\d{1,2})\s*[-+%.]?\s*[xX×]{1,2}\.?\s*(?=\d+\s*[.,:;%]\s*\d?\D)', linea)
+        if flexible and re.search(r'\d[.,]\d{2}\s*(?:€|eur)?\s*[A-Za-z]?\s*$', linea, re.IGNORECASE):
+            cantidad = float(flexible.group(1))
+            if cantidad >= 2:
                 return cantidad, TipoUnidad.UNIDAD, f"{cantidad:g} ud"
 
         # "YOGUR NATURAL  4 x 0,55  2,20" o la linea de detalle "4 x 0,55":
@@ -672,6 +704,29 @@ class ParserMejorado:
 
         # Si no hay patrón explícito, asumir 1 unidad
         return 1.0, TipoUnidad.UNIDAD, "1 ud"
+
+    def _conciliar_cantidad_e_importes(self, linea, cantidad, unidad, cantidad_texto, p_unit, p_total):
+        """cantidad x unitario = total. Solo para unidades (un peso lleva precio
+        por kilo y no se cuadra asi). Devuelve (cantidad, unidad, texto, unitario)."""
+        if unidad != TipoUnidad.UNIDAD:
+            return cantidad, unidad, cantidad_texto, p_unit
+        precios = [self._parsear_precio(m[0]) for m in re.findall(self.regex_precio, linea)]
+        if len(precios) < 2:
+            return cantidad, unidad, cantidad_texto, p_unit
+        unitario, total = precios[-2], precios[-1]
+        if unitario <= 0 or total <= 0:
+            return cantidad, unidad, cantidad_texto, p_unit
+        k = round(total / unitario)
+        if 1 <= k <= 99 and abs(k * unitario - total) <= 0.02 + 0.005 * k:
+            if k != cantidad:
+                cantidad = float(k)
+                cantidad_texto = f"{k:g} ud"
+            return cantidad, unidad, cantidad_texto, unitario
+        # No cuadra: uno de los dos importes esta mal leido. Con cantidad conocida,
+        # el unitario es el que se deduce del total (el ultimo y mas fiable).
+        if cantidad >= 2:
+            return cantidad, unidad, cantidad_texto, round(total / cantidad, 2)
+        return cantidad, unidad, cantidad_texto, p_unit
 
     def _extraer_precios(self, linea: str, contexto_siguiente: str) -> Tuple[float, float]:
         """Extrae precio unitario y total."""
@@ -734,12 +789,18 @@ class ParserMejorado:
         # los confunde con una cantidad+unidad (p.ej. "70 C").
         nombre = re.sub(self.regex_precio, '', nombre)
 
+        # Multiplicador con el unitario ilegible al final ("LONCHAS 4x 5,9%", "BAÑO 4x2,")
+        nombre = re.sub(r'\s+\d{1,2}\s*[-+%.]?\s*[xX×]{1,2}\.?[\d,.%:;\s]*$', '', nombre)
+
         # Quitar el multiplicador "4 x" que queda tras quitar el precio
         # (p.ej. "YOGUR NATURAL 4 x 0,55 2,20" -> "YOGUR NATURAL")
         nombre = re.sub(r'(?<![\w])\d{1,3}\s*[xX×]{1,2}(?=\s|$)', ' ', nombre)
 
         # Quitar la cantidad marcada con UN/UD ("2 UN")
         nombre = re.sub(self.regex_cantidad_un, ' ', nombre)
+
+        # Restos de un multiplicador mal leido pegado a basura ("2+T4X", "4%x")
+        nombre = re.sub(r'(?<=\s)[\w+%.\-]*\d[\w+%.\-]*[xX×](?=\s|$)', ' ', nombre)
 
         # Quitar cantidad con unidad real
         nombre = re.sub(self.regex_cantidad_unidad, '', nombre)

@@ -370,9 +370,26 @@ class Diccionario:
                 i += 1
         return salida
 
+    def _unir_palabras_partidas(self, tokens: List[str]) -> List[str]:
+        """El OCR parte a veces una palabra en dos ("ACONDI CIONADOR"). Si ninguna
+        de las dos mitades es una palabra conocida y juntas si lo son, se unen."""
+        salida: List[str] = []
+        i = 0
+        while i < len(tokens):
+            t = tokens[i]
+            if i + 1 < len(tokens) and _raiz(t) not in self._vocabulario and _raiz(tokens[i + 1]) not in self._vocabulario:
+                junto = t + tokens[i + 1]
+                if _raiz(junto) in self._vocabulario:
+                    salida.append(junto)
+                    i += 2
+                    continue
+            salida.append(t)
+            i += 1
+        return salida
+
     def _lecturas(self, texto: str) -> List[List[str]]:
         """Posibles lecturas del texto como listas de palabras ya corregidas."""
-        crudos = [t for t in _tokens_crudos(texto) if not _CANTIDAD.match(t)]
+        crudos = self._unir_palabras_partidas([t for t in _tokens_crudos(texto) if not _CANTIDAD.match(t)])
         opciones: List[List[str]] = []
         for t in crudos:
             exp = ABREVIATURAS.get(t)

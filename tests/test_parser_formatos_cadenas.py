@@ -58,5 +58,62 @@ class FormatosDeCadenasTests(unittest.TestCase):
         self.assertEqual(it["Palmeritas"].cantidad, 2)
 
 
+class CuadreAritmeticoDeLineaTests(unittest.TestCase):
+    """cantidad x unitario = total: si el OCR leyo mal un digito, el cociente lo delata."""
+
+    CAB = "TIENDA X\n12/10/2026 10:00\n"
+
+    def test_cantidad_mal_leida_se_corrige_con_el_cociente(self):
+        it = _items(self.CAB + "CEPILLO DIENTES 1 4,44 17,76\nTOTAL 17,76")
+        self.assertEqual(it["Cepillo Dientes"].cantidad, 4)
+        self.assertEqual(it["Cepillo Dientes"].precio_unitario, 4.44)
+
+    def test_cantidad_pegada_a_basura_se_deduce_del_importe(self):
+        it = _items(self.CAB + "MANTEQUILLA CON SAL 25064 x 3,15 12,60\nTOTAL 12,60")
+        self.assertEqual(it["Mantequilla Con Sal"].cantidad, 4)
+
+    def test_sin_cantidad_impresa_pero_con_unitario_y_total(self):
+        it = _items(self.CAB + "PIENSO GATOS ESTERIL a 3,47 13,88\nTOTAL 13,88")
+        self.assertEqual(it["Pienso Gatos Esteril"].cantidad, 4)
+
+    def test_si_cuadra_no_se_toca(self):
+        it = _items(self.CAB + "PAN 2 1,85 3,70\nLECHE 1 1,20 1,20\nTOTAL 4,90")
+        self.assertEqual((it["Pan"].cantidad, it["Leche"].cantidad), (2, 1))
+
+    def test_un_peso_no_se_cuadra_como_unidades(self):
+        it = _items(self.CAB + "TOMATE 0,850 kg 1,89 1,61\nTOTAL 1,61")
+        self.assertAlmostEqual(it["Tomate"].cantidad, 0.85)
+        self.assertEqual(it["Tomate"].unidad, TipoUnidad.KILOGRAMO)
+
+    def test_peso_con_la_coma_separada(self):
+        it = _items(self.CAB + "CALABAZA TROZO 0, 885kg 4,31\nTOTAL 4,31")
+        self.assertAlmostEqual(next(iter(it.values())).cantidad, 0.885)
+
+    def test_peso_explicito_manda_sobre_un_3u_del_nombre(self):
+        it = _items(self.CAB + "ATUN CLARO ACEITE OLIVA 3U 1,310 KG\nTOTAL 9,00")
+        self.assertAlmostEqual(next(iter(it.values())).cantidad, 1.31)
+
+    def test_multiplicador_con_el_unitario_ilegible(self):
+        it = _items(self.CAB + "QUESO EDAM LONCHAS 4x 5,9% 23,76\nGEL BAÑO 4x2, 48 8,72\nTOTAL 32,48")
+        self.assertEqual(it["Queso Edam Lonchas"].cantidad, 4)
+        self.assertEqual(it["Gel Baño"].cantidad, 4)
+
+    def test_la_promocion_2x1_no_es_multiplicador(self):
+        it = _items(self.CAB + "PROMO GALLETAS 2x1 1,20\nTOTAL 1,20")
+        self.assertEqual(next(iter(it.values())).cantidad, 1)
+
+
+class ArticulosConPalabrasDeControlTests(unittest.TestCase):
+    CAB = "TIENDA X\n12/10/2026 10:00\n"
+
+    def test_caja_en_el_nombre_es_un_articulo(self):
+        it = _items(self.CAB + "3 HUEVOS XL CAJA 6   6,30\nPAN 1,00\nTOTAL 7,30")
+        self.assertEqual(len(it), 2)
+
+    def test_el_puesto_de_cobro_no_es_un_articulo(self):
+        it = _items(self.CAB + "CAJA 03 OP 12\nPAN 1,00\nTOTAL 1,00")
+        self.assertEqual(list(it), ["Pan"])
+
+
 if __name__ == "__main__":
     unittest.main()
