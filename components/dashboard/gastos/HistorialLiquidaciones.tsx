@@ -54,14 +54,14 @@ export function HistorialLiquidaciones({ liquidaciones, simboloMoneda, idioma, o
               <span className="font-semibold tabular-nums flex-shrink-0">{formatImporte(l.importe, simboloMoneda)}</span>
               {confirmandoId === l.id ? (
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => { onDeshacer(l.id); setConfirmandoId(null) }} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-lg">{t('si')}</button>
-                  <button onClick={() => setConfirmandoId(null)} className="px-2 h-8 text-xs font-semibold text-foreground bg-muted rounded-lg">{t('no')}</button>
+                  <button onClick={() => { onDeshacer(l.id); setConfirmandoId(null) }} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-lg">{t('si')}</button>
+                  <button onClick={() => setConfirmandoId(null)} className="px-3 h-11 text-xs font-semibold text-foreground bg-muted rounded-lg">{t('no')}</button>
                 </div>
               ) : (
                 <button
                   onClick={() => setConfirmandoId(l.id)}
                   aria-label={t('deshacer')}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-lg transition-colors flex-shrink-0"
+                  className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-lg transition-colors flex-shrink-0"
                 >
                   <Undo2 className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>

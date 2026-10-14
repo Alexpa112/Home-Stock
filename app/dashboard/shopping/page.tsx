@@ -6,7 +6,11 @@ import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { Modal } from '@/components/dashboard/Modal'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
+import { FilaDeslizable } from '@/components/dashboard/FilaDeslizable'
+import { BarraRapida, SugerenciaCatalogo } from '@/components/dashboard/BarraRapida'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
+import { useAccionAnadir } from '@/lib/accionAnadir'
 import { BarcodeScanner } from '@/components/shared/BarcodeScanner'
 import { articulosLista, categorias as categoriasApi, productos as productosApi } from '@/lib/api'
 import { buscarCatalogo, buscarPorCodigoBarras } from '@/lib/catalogo'
@@ -82,6 +86,8 @@ export default function ShoppingPage() {
   const [formUnidad, setFormUnidad] = useState<string | undefined>(undefined)
   const [formCodigoBarras, setFormCodigoBarras] = useState<string | undefined>(undefined)
   const [mostrarEscaner, setMostrarEscaner] = useState(false)
+  // Barra rápida (móvil): el botón flotante la abre en vez del formulario completo.
+  const [barraRapida, setBarraRapida] = useState(false)
   const [errorEscaner, setErrorEscaner] = useState('')
   const inputImportarRef = useRef<HTMLInputElement>(null)
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
@@ -162,6 +168,8 @@ export default function ShoppingPage() {
       setLoading(false)
     }
   }
+
+  useAccionAnadir(() => setBarraRapida(true))
 
   const handleExportarCsv = async () => {
     try {
@@ -278,6 +286,25 @@ export default function ShoppingPage() {
       setError(message)
     } finally {
       setQuickAddLoading(false)
+    }
+  }
+
+  // Alta desde la barra rápida: misma llamada que el formulario completo.
+  // Devuelve true si se añadió, para que la barra limpie el campo y siga abierta.
+  const handleAnadirRapido = async (nombre: string, sugerencia?: SugerenciaCatalogo): Promise<boolean> => {
+    try {
+      setError('')
+      const creado: any = await articulosLista.anadir(nombre, {
+        categoria: sugerencia?.categoria || undefined,
+        icono: sugerencia?.icono || undefined,
+        unidad: sugerencia?.unidad || undefined,
+      })
+      if (creado?.id) fusionarArticulo(creado)
+      return true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('err_anadir_articulo')
+      setError(message)
+      return false
     }
   }
 
@@ -401,6 +428,13 @@ export default function ShoppingPage() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressDisparado = useRef(false)
 
+  // Si el dedo empieza a deslizar, la pulsación larga (editar) no debe llegar a
+  // dispararse: ambos gestos comparten los mismos eventos táctiles de la fila.
+  const cancelarLongPress = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
+  }
+
   const crearLongPress = (item: ArticuloLista) => {
     const iniciar = () => {
       longPressDisparado.current = false
@@ -462,8 +496,14 @@ export default function ShoppingPage() {
   }
 
   const renderItemRow = (item: ArticuloLista, isCompleted: boolean = false) => (
-    <div
+    <FilaDeslizable
       key={item.id}
+      restaura={isCompleted}
+      onCompletar={() => handleToggleBought(item.id, !isCompleted)}
+      onMovimiento={cancelarLongPress}
+      bloqueado={() => longPressDisparado.current}
+    >
+    <div
       className={`card flex items-center justify-between gap-4 ${isCompleted ? 'opacity-60' : ''}`}
       {...crearLongPress(item)}
     >
@@ -501,7 +541,7 @@ export default function ShoppingPage() {
 
       <button
         onClick={() => abrirModalEdicion(item)}
-        className="w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
+        className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-xl transition-colors flex-shrink-0"
         aria-label={t('editar')}
       >
         <Pencil className="w-4 h-4 text-muted-foreground" />
@@ -511,13 +551,13 @@ export default function ShoppingPage() {
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => handleDeleteItem(item.id)}
-            className="px-2 h-10 text-xs font-semibold text-white bg-red-500 rounded-xl"
+            className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl"
           >
             {t('si')}
           </button>
           <button
             onClick={() => setConfirmandoId(null)}
-            className="px-2 h-10 text-xs font-semibold text-foreground bg-muted rounded-xl"
+            className="px-3 h-11 text-xs font-semibold text-foreground bg-muted rounded-xl"
           >
             {t('no')}
           </button>
@@ -525,13 +565,14 @@ export default function ShoppingPage() {
       ) : (
         <button
           onClick={() => handleDeleteItem(item.id)}
-          className="w-10 h-10 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
+          className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors flex-shrink-0"
           aria-label={t('eliminar')}
         >
           <Trash2 className="w-4 h-4 text-red-500" />
         </button>
       )}
     </div>
+    </FilaDeslizable>
   )
 
   // Tile "color por categoría": el icono ocupa un bloque de color propio de
@@ -643,33 +684,47 @@ export default function ShoppingPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">{t('lista_compra')}</h1>
-          <p className="text-muted-foreground mt-1">
-            {pendientes.length} {t('articulos_pendientes')}
+      <CabeceraPantalla
+        titulo={t('lista_compra')}
+        subtitulo={`${pendientes.length} ${t('articulos_pendientes')}`}
+        acciones={[
+          { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+          { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click(), grupo: t('menu_esta_pantalla') },
+          ...accionesIrA(t),
+        ]}
+      >
+        {/* En móvil el alta va en el botón flotante del layout. */}
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="hidden lg:flex btn-primary items-center gap-2 min-h-[44px]"
+        >
+          <Plus className="w-5 h-5" />
+          {t('añadir_articulo')}
+        </button>
+      </CabeceraPantalla>
+      <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
+
+      {/* Progreso: comprados sobre el total visible (los comprados son los recientes). */}
+      {items.length > 0 && !loading && (
+        <div className="space-y-1.5">
+          <div
+            role="progressbar"
+            aria-label={t('progreso_compra')}
+            aria-valuemin={0}
+            aria-valuemax={items.length}
+            aria-valuenow={completados.length}
+            className="h-2 rounded-full bg-muted overflow-hidden"
+          >
+            <div
+              className="h-full rounded-full bg-green-500 transition-[width] duration-300"
+              style={{ width: `${Math.round((completados.length / items.length) * 100)}%` }}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {t('progreso_compra').replace('{comprados}', String(completados.length)).replace('{total}', String(items.length))}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="btn-primary flex items-center gap-2 min-h-[44px]"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">{t('añadir_articulo')}</span>
-            <span className="sm:hidden">{t('añadir')}</span>
-          </button>
-          <MenuAcciones
-            label={t('mas_acciones')}
-            acciones={[
-              { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
-              { icono: <Upload className="w-4 h-4" />, etiqueta: t('importar_csv'), onClick: () => inputImportarRef.current?.click() },
-            ]}
-          />
-          <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
-        </div>
-      </div>
+      )}
 
       {/* Vista Controls */}
       {items.length > 0 && !loading && (
@@ -842,6 +897,19 @@ export default function ShoppingPage() {
           </form>
         </div>
         </Modal>
+      )}
+
+      {barraRapida && (
+        <BarraRapida
+          onAnadir={handleAnadirRapido}
+          onCerrar={() => setBarraRapida(false)}
+          onEscanear={() => { setBarraRapida(false); setShowForm(true); setMostrarEscaner(true) }}
+          onMasOpciones={(nombre) => {
+            setBarraRapida(false)
+            setFormData((prev) => ({ ...prev, nombre }))
+            setShowForm(true)
+          }}
+        />
       )}
 
       {mostrarEscaner && (
@@ -1053,6 +1121,8 @@ export default function ShoppingPage() {
           </div>
         </Modal>
       )}
+      {/* Hueco para que la barra rápida no tape la última fila. */}
+      {barraRapida && <div className="h-48 lg:hidden" aria-hidden="true" />}
     </div>
   )
 }

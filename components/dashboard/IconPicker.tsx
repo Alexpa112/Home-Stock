@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { IconRenderer } from './IconRenderer'
 import { SearchBar } from './SearchBar'
 import { useTranslation } from '@/contexts/TranslationContext'
@@ -113,8 +114,8 @@ export function IconPicker({ valorActual, onSeleccionar, onCerrar, iconos = ICON
       >
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-base">{t('elegir_icono')}</h3>
-          <button type="button" onClick={onCerrar} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted" aria-label={t('cancelar')}>
-            ✕
+          <button type="button" onClick={onCerrar} className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-muted" aria-label={t('cancelar')}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 

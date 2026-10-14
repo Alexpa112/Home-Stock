@@ -1,6 +1,7 @@
 """Rutas para escanear tickets de compra y volcarlos al stock."""
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -29,6 +30,10 @@ EXTENSIONES_PERMITIDAS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "h
 TAMANO_MAXIMO_MB = 10
 
 _UNIDADES_VALIDAS = ("ud", "kg", "g", "l", "ml")
+
+# Por encima de esto un "precio unitario" es un error de lectura o un dato
+# manipulado, no una compra domestica.
+PRECIO_UNITARIO_MAXIMO = 100_000
 
 _MIME_POR_EXTENSION = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
@@ -284,6 +289,11 @@ def analizar_ticket():
         if sufijo in (".heic", ".heif"):
             ruta_png_convertida = _convertir_heic_a_imagen(tmp.name)
             if not ruta_png_convertida:
+                # Sin el binario es un fallo del servidor (500); con el binario
+                # presente, el archivo es el que no se puede leer (400): no es
+                # un error del servidor y no debe contarse como tal.
+                if shutil.which("heif-convert"):
+                    return APIResponse.validacion("err_formato_no_permitido")
                 return APIResponse.error("err_procesando_ticket", 500)
             ruta_imagen = ruta_png_convertida
         elif es_pdf:
@@ -372,6 +382,8 @@ def analizar_ticket():
                 # pagina (ver _convertir_pdf_a_imagen).
                 ruta_png_convertida = _convertir_pdf_a_imagen(tmp.name)
                 if not ruta_png_convertida:
+                    if shutil.which("pdftoppm"):
+                        return APIResponse.validacion("err_formato_no_permitido")
                     return APIResponse.error("err_procesando_ticket", 500)
                 ruta_imagen = ruta_png_convertida
             try:
@@ -482,6 +494,10 @@ def confirmar_ticket():
             except (TypeError, ValueError):
                 # Antes esto llegaba crudo a registrar_precio, donde comparar
                 # una cadena con 0 lanzaba TypeError -> 500 provocable.
+                precio_unitario = None
+            # float("nan") / float("inf") (el json de Python los acepta) pasan
+            # el "> 0" de registrar_precio y acababan en historial_precios.
+            if precio_unitario is not None and not (0 < precio_unitario <= PRECIO_UNITARIO_MAXIMO):
                 precio_unitario = None
 
         producto_id = item.get("producto_id")

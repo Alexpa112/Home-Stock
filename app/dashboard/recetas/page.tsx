@@ -5,6 +5,8 @@ import { Plus, ChefHat, X, AlertCircle, ShoppingCart, Pencil, Trash2 } from 'luc
 import { Modal } from '@/components/dashboard/Modal'
 import { recetas as recetasApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { getCached, setCached } from '@/lib/dataCache'
 
 const CACHE_KEY_RECETAS = 'recetas:lista'
@@ -119,14 +121,21 @@ export default function RecetasPage() {
 
   return (
     <div className="max-w-lg mx-auto p-4 lg:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <ChefHat className="w-5 h-5" /> {t('nav_recetas')}
-        </h1>
-        <button onClick={abrirNuevo} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> {t('nueva_receta')}
+      <CabeceraPantalla
+        titulo={t('nav_recetas')}
+        icono={<ChefHat className="w-5 h-5 shrink-0" />}
+        acciones={accionesIrA(t, 'recetas')}
+      >
+        {/* Solo icono en móvil: con el chip y el menú no cabe el texto sin aplastar el título. */}
+        <button
+          onClick={abrirNuevo}
+          aria-label={t('nueva_receta')}
+          className="btn-primary flex items-center justify-center gap-2 min-h-[44px] min-w-[44px]"
+        >
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">{t('nueva_receta')}</span>
         </button>
-      </div>
+      </CabeceraPantalla>
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
@@ -211,7 +220,7 @@ export default function RecetasPage() {
                       type="button"
                       onClick={() => setIngredientes((prev) => prev.filter((_, i) => i !== idx))}
                       aria-label={t('eliminar')}
-                      className="w-9 h-9 shrink-0 flex items-center justify-center"
+                      className="w-11 h-11 shrink-0 flex items-center justify-center"
                     >
                       <X className="w-4 h-4 text-red-500" />
                     </button>

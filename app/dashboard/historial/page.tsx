@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { TrendingDown, BookOpen, Trash2, Pencil, LineChart } from 'lucide-react'
 import { consumo as consumoApi, historial as historialApi, articulosPersonalizados as articulosPersonalizadosApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { filtrarPorNombre } from '@/lib/texto'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { IconPicker } from '@/components/dashboard/IconPicker'
@@ -131,10 +133,11 @@ export default function HistorialPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">{t('historial')}</h1>
-        <p className="text-muted-foreground mt-1">{t('subtitulo_historial')}</p>
-      </div>
+      <CabeceraPantalla
+        titulo={t('historial')}
+        subtitulo={t('subtitulo_historial')}
+        acciones={accionesIrA(t, 'historial')}
+      />
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg text-sm">{error}</div>
@@ -150,7 +153,7 @@ export default function HistorialPage() {
               <button
                 key={r}
                 onClick={() => cambiarRango(r)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-h-[36px] ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                   dias === r
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -272,7 +275,7 @@ export default function HistorialPage() {
                     <button
                       type="button"
                       onClick={() => setMostrarIconPickerId(a.id)}
-                      className="w-8 h-8 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
+                      className="w-11 h-11 shrink-0 rounded-lg bg-card border border-border flex items-center justify-center"
                       aria-label={t('cambiar_icono')}
                     >
                       {iconoEdit ? (

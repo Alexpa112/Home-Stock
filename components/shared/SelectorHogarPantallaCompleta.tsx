@@ -229,7 +229,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
           {onCerrar ? (
             <button
               onClick={onCerrar}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted"
+              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-muted"
               aria-label={t('cancelar')}
             >
               <X className="w-5 h-5" />
@@ -420,7 +420,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                               <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                             </button>
                           </div>
-                          {copiado && <p className="text-xs text-green-600 dark:text-green-400 text-center">✓ {t('enlace_copiado_portapapeles')}</p>}
+                          {copiado && <p className="text-xs text-green-600 dark:text-green-400 text-center inline-flex w-full items-center justify-center gap-1"><Check className="w-3 h-3" aria-hidden="true" />{t('enlace_copiado_portapapeles')}</p>}
                         </div>
                       ) : (
                         <button
@@ -457,11 +457,11 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
                               </select>
                               {confirmandoRevocarId === m.id ? (
                                 <div className="flex gap-1">
-                                  <button onClick={() => quitarAcceso(m.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-lg">{t('quitar')}</button>
-                                  <button onClick={() => setConfirmandoRevocarId(null)} className="px-2 h-8 text-xs bg-muted rounded-lg">{t('no')}</button>
+                                  <button onClick={() => quitarAcceso(m.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-lg">{t('quitar')}</button>
+                                  <button onClick={() => setConfirmandoRevocarId(null)} className="px-3 h-11 text-xs bg-muted rounded-lg">{t('no')}</button>
                                 </div>
                               ) : (
-                                <button onClick={() => quitarAcceso(m.id)} className="w-9 h-9 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg" aria-label={t('aria_quitar_acceso')}>
+                                <button onClick={() => quitarAcceso(m.id)} className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-lg" aria-label={t('aria_quitar_acceso')}>
                                   <Trash2 className="w-4 h-4 text-red-500" />
                                 </button>
                               )}

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { Plus, AlertCircle, Receipt, HandCoins, Download, Repeat, Pause, Play, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
 import { HojaCompleta } from '@/components/dashboard/HojaCompleta'
-import { MenuAcciones } from '@/components/dashboard/MenuAcciones'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
+import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { BarraHorizontal } from '@/components/dashboard/BarraHorizontal'
 import { GraficoColumnas } from '@/components/dashboard/GraficoColumnas'
 import { SegmentedControl } from '@/components/dashboard/SegmentedControl'
@@ -643,21 +644,17 @@ export default function GastosPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold flex items-center gap-2">
-            <Receipt className="w-7 h-7" /> {t('nav_gastos')}
-          </h1>
-        </div>
-        <MenuAcciones
-          label={t('acciones_gastos')}
-          acciones={[
-            { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv },
-            { icono: <HandCoins className="w-4 h-4" />, etiqueta: t('registrar_pago'), onClick: abrirLiquidacionManual },
-            { icono: <Repeat className="w-4 h-4" />, etiqueta: t('gasto_recurrente'), onClick: () => setShowRecurrenteForm(true) },
-          ]}
-        />
-      </div>
+      <CabeceraPantalla
+        titulo={t('nav_gastos')}
+        icono={<Receipt className="w-6 h-6 lg:w-7 lg:h-7 shrink-0" />}
+        labelAcciones={t('acciones_gastos')}
+        acciones={[
+          { icono: <Download className="w-4 h-4" />, etiqueta: t('exportar_csv'), onClick: handleExportarCsv, grupo: t('menu_esta_pantalla') },
+          { icono: <HandCoins className="w-4 h-4" />, etiqueta: t('registrar_pago'), onClick: abrirLiquidacionManual, grupo: t('menu_esta_pantalla') },
+          { icono: <Repeat className="w-4 h-4" />, etiqueta: t('gasto_recurrente'), onClick: () => setShowRecurrenteForm(true), grupo: t('menu_esta_pantalla') },
+          ...accionesIrA(t),
+        ]}
+      />
 
       <SegmentedControl
         valor={vista}
@@ -694,20 +691,20 @@ export default function GastosPage() {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleTogglePausaRecurrente(r)}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
+                        className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-xl transition-colors"
                         aria-label={t(r.activo ? 'pausar' : 'reanudar')}
                       >
                         {r.activo ? <Pause className="w-4 h-4 text-muted-foreground" /> : <Play className="w-4 h-4 text-muted-foreground" />}
                       </button>
                       {confirmandoRecurrenteId === r.id ? (
                         <div className="flex items-center gap-1">
-                          <button onClick={() => handleEliminarRecurrente(r.id)} className="px-2 h-8 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
-                          <button onClick={() => setConfirmandoRecurrenteId(null)} className="px-2 h-8 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
+                          <button onClick={() => handleEliminarRecurrente(r.id)} className="px-3 h-11 text-xs font-semibold text-white bg-red-500 rounded-xl">{t('si')}</button>
+                          <button onClick={() => setConfirmandoRecurrenteId(null)} className="px-3 h-11 text-xs font-semibold text-foreground bg-muted rounded-xl">{t('no')}</button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleEliminarRecurrente(r.id)}
-                          className="w-8 h-8 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
+                          className="w-11 h-11 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
                           aria-label={t('eliminar')}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />

@@ -60,33 +60,52 @@ const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 // no se fija Content-Type (el navegador pone el boundary solo) ni se
 // serializa el body a JSON.
 export async function apiUpload<T = any>(endpoint: string, formData: FormData, timeoutMs = 120_000): Promise<T> {
-  const csrfToken = await obtenerCsrfToken()
   // AbortController con timeout: si el servidor corta la conexión sin cerrar
   // bien el socket (p.ej. worker de gunicorn matado a mitad de un OCR largo),
   // fetch se queda esperando indefinidamente y el spinner nunca termina.
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-  let response: Response
-  try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'X-CSRFToken': csrfToken },
-      body: formData,
-      signal: controller.signal,
-    })
-  } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('La operación ha tardado demasiado. Prueba con una foto más ligera o con más luz.')
+  // Un controlador por intento: el temporizador de uno no debe abortar el otro.
+  const enviar = async (csrfToken: string): Promise<Response> => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      return await fetch(endpoint, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData,
+        signal: controller.signal,
+      })
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('La operación ha tardado demasiado. Prueba con una foto más ligera o con más luz.')
+      }
+      throw err
+    } finally {
+      clearTimeout(timeoutId)
     }
-    throw err
-  } finally {
-    clearTimeout(timeoutId)
   }
+
+  let response = await enviar(await obtenerCsrfToken())
+
+  // Token CSRF caducado/inválido (pantalla abierta mucho rato antes de subir
+  // la foto): refrescar una vez y reintentar, igual que apiCall. Un FormData
+  // se puede reenviar tal cual.
+  if (response.status === 400) {
+    const cuerpo = await response.clone().json().catch(() => ({}))
+    if (typeof cuerpo.error === 'string' && cuerpo.error.toLowerCase().includes('csrf')) {
+      response = await enviar(await obtenerCsrfToken(true))
+    }
+  }
+
   const contentType = response.headers.get('content-type') || ''
   const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
   if (response.status === 503 && datos?.mantenimiento) {
     marcarMantenimiento(true)
+  }
+  // Sesión invalidada (S-19), igual que apiCall.
+  if (response.status === 401) {
+    clearAllCache()
+    resetearCsrfToken()
   }
   if (!response.ok) {
     throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
@@ -508,7 +527,7 @@ export const tickets = {
   },
 
   confirmar: (
-    items: Array<{ nombre: string; cantidad: number; unidad?: string; categoria?: string; producto_id?: number | null }>
+    items: Array<{ nombre: string; cantidad: number; unidad?: string; categoria?: string; producto_id?: number | null; precio_unitario?: number }>
   ) => apiCall('/api/tickets/confirmar', { method: 'POST', body: JSON.stringify({ items }) }),
 }
 

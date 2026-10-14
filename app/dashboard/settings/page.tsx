@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { auth, idiomas as idiomasApi } from '@/lib/api'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { usePushNotifications } from '@/lib/usePushNotifications'
 
 export default function SettingsPage() {
@@ -297,11 +298,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl lg:text-3xl font-bold">{t('ajustes')}</h1>
-        <p className="text-muted-foreground mt-1">{t('subtitulo_ajustes')}</p>
-      </div>
+      <CabeceraPantalla titulo={t('ajustes')} subtitulo={t('subtitulo_ajustes')} />
 
       {/* Error Message */}
       {error && (
@@ -323,6 +320,8 @@ export default function SettingsPage() {
       )}
 
       {/* Grupo: Cuenta */}
+      <section aria-labelledby="ajustes-grupo-cuenta">
+      <h2 id="ajustes-grupo-cuenta" className="px-1 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('ajustes_grupo_cuenta')}</h2>
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
         {/* Nombre a mostrar */}
         <div className="px-4 py-3">
@@ -640,8 +639,11 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      </section>
 
       {/* Grupo: Apariencia e idioma */}
+      <section aria-labelledby="ajustes-grupo-apariencia">
+      <h2 id="ajustes-grupo-apariencia" className="px-1 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('ajustes_grupo_apariencia')}</h2>
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
         {/* Modo oscuro */}
         <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
@@ -743,8 +745,11 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+      </section>
 
       {/* Historial y categorías de gasto — accesos directos que no están en el tab bar móvil */}
+      <section aria-labelledby="ajustes-grupo-datos">
+      <h2 id="ajustes-grupo-datos" className="px-1 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('ajustes_grupo_datos')}</h2>
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
         <Link
           href="/dashboard/historial"
@@ -763,20 +768,22 @@ export default function SettingsPage() {
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </Link>
       </div>
+      </section>
 
       {/* Actividad de la cuenta y sesiones (S-08, S-09) */}
+      <section aria-labelledby="ajustes-grupo-seguridad">
+      <h2 id="ajustes-grupo-seguridad" className="px-1 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('ajustes_grupo_seguridad')}</h2>
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
-        <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+        {/* Una sola fila-botón: antes repetía la misma etiqueta como texto y como
+            botón, y en móvil partía el texto en cuatro líneas. */}
+        <button
+          onClick={handleCerrarOtrasSesiones}
+          disabled={cerrandoOtrasSesiones}
+          className="w-full px-4 py-3 flex items-center gap-3 min-h-[44px] text-left hover:bg-muted transition-colors disabled:opacity-50"
+        >
           <ShieldCheck className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
-          <span className="flex-1 text-sm">{t('btn_cerrar_otras_sesiones')}</span>
-          <button
-            onClick={handleCerrarOtrasSesiones}
-            disabled={cerrandoOtrasSesiones}
-            className="text-sm font-medium text-accent hover:underline disabled:opacity-50 shrink-0"
-          >
-            {cerrandoOtrasSesiones ? t('procesando') : t('btn_cerrar_otras_sesiones')}
-          </button>
-        </div>
+          <span className="flex-1 text-sm">{cerrandoOtrasSesiones ? t('procesando') : t('btn_cerrar_otras_sesiones')}</span>
+        </button>
         {eventosSeguridad.length > 0 && (
           <div className="px-4 py-3">
             <p className="text-sm font-medium mb-2">{t('titulo_eventos_seguridad')}</p>
@@ -800,20 +807,20 @@ export default function SettingsPage() {
           </div>
         )}
         {/* Exportacion de datos personales (S-22, RGPD) */}
-        <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
+        <button
+          onClick={handleExportarMisDatos}
+          disabled={exportandoDatos}
+          className="w-full px-4 py-3 flex items-center gap-3 min-h-[44px] text-left hover:bg-muted transition-colors disabled:opacity-50"
+        >
           <History className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
-          <span className="flex-1 text-sm">{t('btn_exportar_mis_datos')}</span>
-          <button
-            onClick={handleExportarMisDatos}
-            disabled={exportandoDatos}
-            className="text-sm font-medium text-accent hover:underline disabled:opacity-50 shrink-0"
-          >
-            {exportandoDatos ? t('procesando') : t('btn_exportar_mis_datos')}
-          </button>
-        </div>
+          <span className="flex-1 text-sm">{exportandoDatos ? t('procesando') : t('btn_exportar_mis_datos')}</span>
+        </button>
       </div>
+      </section>
 
       {/* Legal */}
+      <section aria-labelledby="ajustes-grupo-legal">
+      <h2 id="ajustes-grupo-legal" className="px-1 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('ajustes_grupo_legal')}</h2>
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
         {[
           { href: '/legal/aviso-legal', label: t('enlace_aviso_legal') },
@@ -838,8 +845,11 @@ export default function SettingsPage() {
           </Link>
         ))}
       </div>
+      </section>
 
       {/* Grupo: Zona de riesgo */}
+      <section aria-labelledby="ajustes-grupo-zona">
+      <h2 id="ajustes-grupo-zona" className="px-1 mb-2 text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">{t('zona_riesgo')}</h2>
       <div className="rounded-2xl border border-red-200 dark:border-red-900 bg-card overflow-hidden divide-y divide-red-200 dark:divide-red-900">
         <div className="px-4 py-3">
           {confirmandoLogout ? (
@@ -905,6 +915,7 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      </section>
 
       {/* Info */}
       <div className="text-center py-6 text-sm text-muted-foreground border-t border-border">

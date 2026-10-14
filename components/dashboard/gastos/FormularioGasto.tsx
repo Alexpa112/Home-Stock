@@ -136,7 +136,7 @@ export function FormularioGasto({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">{t('categoria')}</span>
-          <Link href="/dashboard/gastos/categorias" className="text-sm text-accent hover:underline">
+          <Link href="/dashboard/gastos/categorias" className="text-sm text-accent hover:underline inline-flex items-center min-h-[44px]">
             {t('gestionar_categorias_gasto')}
           </Link>
         </div>
@@ -165,7 +165,7 @@ export function FormularioGasto({
           ))}
           <Link
             href="/dashboard/gastos/categorias"
-            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-dashed border-border text-muted-foreground"
+            className="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl border border-dashed border-border text-muted-foreground"
             aria-label={t('gestionar_categorias_gasto')}
           >
             <Plus className="w-4 h-4" />
