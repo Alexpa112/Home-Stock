@@ -252,7 +252,7 @@ def anadir_o_sumar_articulo(
     if not recuerdo:
         # Buscar/crear en articulos_personalizados, aislado por el propietario
         # de la lista (cada hogar tiene su propio catálogo personalizado, ver
-        # migración en db.py sobre usuario_propietario_id).
+        # migración en db/esquema/catalogo.py sobre usuario_propietario_id).
         propietario = db.execute(
             "SELECT usuario_propietario_id FROM hogares WHERE id = ?", (hogar_id,)
         ).fetchone()

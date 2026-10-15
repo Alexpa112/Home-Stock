@@ -1,5 +1,5 @@
 """Test de regresion de la migracion aditiva listas -> hogares (ver
-stockhogar/db.py, bloque al final de _init_db_impl, y
+stockhogar/db/esquema/hogares.py y
 docs/HOGAR_REESTRUCTURACION.md Punto 1).
 
 Simula una instalacion con datos "viejos" insertados directamente en las

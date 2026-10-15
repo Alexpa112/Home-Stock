@@ -58,7 +58,7 @@ class SuscripcionesPushTests(unittest.TestCase):
     def test_borrar_el_usuario_borra_sus_suscripciones(self):
         """La politica de privacidad declara que desactivar/eliminar la cuenta
         borra la suscripcion: depende de ON DELETE CASCADE, que a su vez depende
-        de PRAGMA foreign_keys (db.py). Si alguien lo apagara, quedarian
+        de PRAGMA foreign_keys (db/conexion.py). Si alguien lo apagara, quedarian
         endpoints huerfanos de cuentas ya borradas."""
         endpoint = f"https://fcm.googleapis.com/fake/{uuid.uuid4().hex}"
         self.client.post(

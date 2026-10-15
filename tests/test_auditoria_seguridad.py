@@ -243,8 +243,8 @@ class PersonalizadosPorHogarTests(Base):
             db.execute("INSERT INTO articulos_compra (hogar_id, nombre, unidad, categoria, fecha_creacion) VALUES (?, ?, 'ud', 'Otros', ?)",
                        (hid, nombre, ahora()))
             db.commit()
-            from stockhogar.db import _aislar_catalogos_por_hogar
-            _aislar_catalogos_por_hogar(db)
+            from stockhogar.db.migraciones import aislar_catalogos_por_hogar
+            aislar_catalogos_por_hogar(db)
             db.commit()
             filas = db.execute("SELECT hogar_id FROM historial_articulos WHERE nombre = ?", (nombre,)).fetchall()
             db.execute("DELETE FROM historial_articulos WHERE nombre = ?", (nombre,))

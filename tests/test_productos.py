@@ -151,7 +151,7 @@ class ProductosValidationTests(unittest.TestCase):
     def test_campos_nulos_al_crear_usan_valor_por_defecto_de_esquema(self):
         """Dejar cantidad/stock_minimo/dias_aviso en blanco (null) al crear no
         debe dar error: debe insertarse el mismo valor por defecto que fija
-        el esquema (stockhogar/db.py) para esas columnas."""
+        el esquema (stockhogar/db/esquema) para esas columnas."""
         resp = self.client.post(
             "/api/productos",
             json={

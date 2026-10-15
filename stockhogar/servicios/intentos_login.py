@@ -1,5 +1,5 @@
 """Límite de intentos fallidos de login, persistido en SQLite (tabla
-intentos_login, ver stockhogar/db.py).
+intentos_login, ver stockhogar/db/esquema/seguridad.py).
 
 Antes era un diccionario en memoria del proceso: con gunicorn --workers 2
 (procesos separados, ver Dockerfile.raspbian) cada worker tenia su propio

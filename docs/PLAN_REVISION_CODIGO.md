@@ -124,3 +124,11 @@ hallazgo se corrige con su test o se anota aquí.
   tabla; las dos rutas quedan en ~40 líneas cada una.
 - `lib/api.ts`: `leerRespuesta()` unifica la interpretación de respuestas (503/401/error) de apiCall, apiUpload y apiDownload.
 - 14 imports y variables sin usar quitados (pyflakes).
+
+### Fase 3 — Paquete `stockhogar/db/` (hecha)
+`db.py` (1.542 líneas, con una función `_init_db_impl` de 1.170) → paquete:
+`conexion.py` (get_db, ahora, utilidades), `esquema/` (7 módulos por tema: base, catalogo, hogares, gastos,
+recetas, seguridad, push; se ejecutan en el mismo orden que antes), `migraciones.py`, `iconos.py`,
+`inicializacion.py` (init_db con flock). La API pública (`from ..db import get_db, ahora`) no cambia.
+Verificación: esquema recreado en BD vacía y migración sobre una BD existente comparados con el código
+anterior → **idénticos** (56 tablas/índices, mismas filas sembradas). `tests/conftest.py` parchea ahora solo `config.DB_PATH`.

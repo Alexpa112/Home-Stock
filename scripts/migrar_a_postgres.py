@@ -31,7 +31,7 @@ Decisiones de tipos SQLite -> Postgres:
     - El esquema de columnas de cada tabla se toma directamente de
       `PRAGMA table_info` sobre el SQLite origen (no se reescribe a mano),
       para no duplicar la fuente de verdad del esquema que ya vive en
-      stockhogar/db.py::init_db(). El mapeo de tipo SQLite -> tipo Postgres
+      stockhogar/db/ (init_db). El mapeo de tipo SQLite -> tipo Postgres
       es deliberadamente simple (ver _tipo_postgres) porque SQLite no
       distingue tipos con la misma rigidez que Postgres; sirve para volcar
       datos, no pretende recrear constraints/FKs/UNIQUE (esos se recrean
@@ -41,9 +41,9 @@ Limitaciones conocidas (aceptadas para esta primera version del script):
     - No recrea FOREIGN KEY, UNIQUE ni CHECK constraints en destino, solo
       columnas y tipos basicos. Antes de dar la migracion por completa hay
       que aplicar sobre el Postgres destino el mismo esquema de constraints
-      que stockhogar/db.py::init_db() define para SQLite (traducido a
+      que stockhogar/db/ (init_db) define para SQLite (traducido a
       Postgres), o ejecutar init_db() contra Postgres una vez el Paso 3 de
-      la migracion (traduccion de sintaxis SQLite en db.py) este completo.
+      la migracion (traduccion de sintaxis SQLite en stockhogar/db) este completo.
     - Requiere que las tablas en destino aun no tengan datos (o acepta
       duplicar si se corre dos veces) - no es idempotente. Pensado para una
       unica ejecucion controlada durante la ventana de corte.
