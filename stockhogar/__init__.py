@@ -22,7 +22,7 @@ csrf = CSRFProtect()
 
 from .rutas import cuenta
 from .rutas.cuenta import oauth
-from .rutas.compra import articulos_compra
+from .rutas import compra
 from .rutas.inventario import categorias, consumo, historial, productos, recetas
 from .rutas import finanzas
 from .rutas.finanzas import categorias_gasto
@@ -167,7 +167,7 @@ def create_app():
     # hasta que se confirme que todos los clientes migraron (ver
     # docs/HOGAR_REESTRUCTURACION.md).
     app.register_blueprint(hogares.bp, name="hogares_alias_legado", url_prefix="/api/listas")
-    app.register_blueprint(articulos_compra.bp)
+    app.register_blueprint(compra.bp)
     app.register_blueprint(permisos.bp)
     app.register_blueprint(finanzas.bp)
     app.register_blueprint(tickets.bp)
