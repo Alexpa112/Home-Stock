@@ -8,6 +8,7 @@ from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
+from ..utils.csv_seguro import EscritorCsvSeguro, desproteger
 from ..utils import Validator, DataConverter, ValidationError
 from .categorias import normalizar_categoria
 from .historial import buscar_historial, recordar_articulo
@@ -94,7 +95,7 @@ def exportar_lista_csv():
     ).fetchall()
 
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = EscritorCsvSeguro(buffer)
     writer.writerow(CABECERAS_CSV_LISTA)
     for fila in filas:
         writer.writerow([
@@ -140,7 +141,7 @@ def importar_lista_csv():
     for i, fila in enumerate(lector):
         if i >= MAX_FILAS_IMPORTACION:
             break
-        nombre = (fila.get("nombre") or "").strip()
+        nombre = desproteger((fila.get("nombre") or "").strip())[:100]
         if not nombre:
             continue
         try:

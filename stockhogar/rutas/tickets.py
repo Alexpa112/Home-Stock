@@ -23,7 +23,7 @@ from ..servicios.ocr.diccionario import identificar_articulo
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..servicios.ocr.validacion_importes import normalizar_importe
 from ..utils import Validator, ValidationError
-from ..utils.imagenes import validar_y_recodificar
+from ..utils.imagenes import imagen_demasiado_grande, validar_y_recodificar
 from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso, registrar_precio
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
@@ -218,7 +218,9 @@ def _convertir_pdf_a_imagen(ruta_pdf):
     prefijo = ruta_pdf + "_pagina"
     try:
         resultado = subprocess.run(
-            ["pdftoppm", "-png", "-r", "300", "-singlefile", ruta_pdf, prefijo],
+            # -scale-to acota el lado largo: con "-r 300" un PDF diminuto con una pagina de
+            # 4500x4500 pt gastaba 1,4 GB y 18 s (bomba de descompresion).
+            ["pdftoppm", "-png", "-scale-to", "3000", "-singlefile", ruta_pdf, prefijo],
             capture_output=True, timeout=30
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -311,6 +313,8 @@ def analizar_ticket():
                     return APIResponse.validacion("err_formato_no_permitido")
                 return APIResponse.error("err_procesando_ticket", 500)
             ruta_imagen = ruta_png_convertida
+            if imagen_demasiado_grande(ruta_imagen):
+                return APIResponse.validacion("err_formato_no_permitido")
         elif es_pdf:
             # El PDF NO se rasteriza aqui: Claude lee el documento completo,
             # mientras que pdftoppm -singlefile solo saca la primera pagina y
@@ -484,6 +488,8 @@ def confirmar_ticket():
     items = datos.get("items") or []
     if not isinstance(items, list):
         raise ValidationError("items debe ser una lista")
+    if len(items) > 300:  # un ticket real no llega ni a 100 lineas
+        raise ValidationError("Demasiados artículos en un ticket")
 
     creados = 0
     actualizados = 0

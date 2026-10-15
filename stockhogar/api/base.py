@@ -48,6 +48,40 @@ def session_version_en_bd():
 
 
 
+def _hash_sid(sid: str) -> str:
+    import hashlib
+    return hashlib.sha256(sid.encode()).hexdigest()
+
+
+def _sid_revocado() -> bool:
+    """Cada sesion lleva un id aleatorio (se asigna en su primera peticion); el logout lo
+    apunta como revocado. Una cookie copiada antes de cerrar sesion deja de valer."""
+    import secrets
+    sid = session.get("sid")
+    if not sid:
+        session["sid"] = secrets.token_urlsafe(16)
+        return False
+    fila = get_db().execute("SELECT 1 FROM sesiones_revocadas WHERE sid_hash = ?", (_hash_sid(sid),)).fetchone()
+    return fila is not None
+
+
+def revocar_sesion_actual():
+    """Lo llama el logout: la cookie actual (y sus copias) dejan de ser validas."""
+    from datetime import datetime, timedelta
+    from ..config import DIAS_SESION
+    sid = session.get("sid")
+    if not sid:
+        return
+    db = get_db()
+    ahora_ = datetime.now()
+    db.execute("DELETE FROM sesiones_revocadas WHERE expira < ?", (ahora_.isoformat(),))
+    db.execute(
+        "INSERT OR IGNORE INTO sesiones_revocadas (sid_hash, expira) VALUES (?, ?)",
+        (_hash_sid(sid), (ahora_ + timedelta(days=DIAS_SESION + 1)).isoformat()),
+    )
+    db.commit()
+
+
 def sesion_revocada() -> bool:
     """True si la cookie trae una session_version que la BD ya no reconoce.
 
@@ -57,7 +91,15 @@ def sesion_revocada() -> bool:
     se deja pasar hasta que se renueve con un login nuevo, para no forzar un
     cierre de sesión masivo de cookies válidas ya emitidas.
     """
-    if "session_version" not in session or not session.get("usuario_id"):
+    if not session.get("usuario_id"):
+        return False
+    try:
+        if _sid_revocado():
+            return True
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("No se pudo comprobar la lista de sesiones cerradas", exc_info=True)
+    if "session_version" not in session:
         return False
     try:
         version_bd = session_version_en_bd()

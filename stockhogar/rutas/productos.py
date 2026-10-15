@@ -8,6 +8,7 @@ from flask import Blueprint, Response, current_app, g, request, session
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
+from ..utils.csv_seguro import EscritorCsvSeguro, desproteger
 from ..utils import Validator, DataConverter, ValidationError
 from ..servicios.stock import (
     hogar_actual_con_permiso,
@@ -47,7 +48,7 @@ def exportar_inventario_csv():
     ).fetchall()
 
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = EscritorCsvSeguro(buffer)
     writer.writerow(CABECERAS_CSV_INVENTARIO)
     for fila in filas:
         writer.writerow([
@@ -91,11 +92,11 @@ def importar_inventario_csv():
     for i, fila in enumerate(lector):
         if i >= MAX_FILAS_IMPORTACION:
             break
-        nombre = (fila.get("nombre") or "").strip()
+        nombre = desproteger((fila.get("nombre") or "").strip())[:100]
         if not nombre:
             continue
         categoria = normalizar_categoria(db, fila.get("categoria") or "Otros")
-        unidad = (fila.get("unidad") or "ud").strip() or "ud"
+        unidad = (fila.get("unidad") or "ud").strip()[:20] or "ud"
         try:
             cantidad = max(0, int(fila.get("cantidad") or 0))
             stock_minimo = max(0, int(fila.get("stock_minimo") or 1))

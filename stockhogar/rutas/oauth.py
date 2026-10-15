@@ -100,14 +100,24 @@ def oauth_google_callback():
             # Solo vincular a una cuenta existente por email si Google lo ha
             # verificado: si no, cualquiera podria hacerse pasar por el dueño
             # de ese email y entrar en su cuenta.
+            # Y la cuenta local solo cuenta si SU email esta verificado: si no, quien
+            # registro una cuenta con el email de otra persona (sin demostrar que es
+            # suyo) heredaba a esa persona cuando entraba con Google.
             usuario = db.execute(
-                "SELECT id FROM usuarios WHERE email = ?",
+                "SELECT id FROM usuarios WHERE LOWER(email) = LOWER(?) AND email_verificado = 1",
                 (email,)
             ).fetchone() if email_verificado else None
 
             if usuario:
                 usuario_id = usuario["id"]
             else:
+                if email_verificado:
+                    # Google demuestra que este email es de quien entra: se libera de
+                    # cualquier cuenta que lo reclamase sin verificarlo.
+                    db.execute(
+                        "UPDATE usuarios SET email = NULL WHERE LOWER(email) = LOWER(?) AND email_verificado = 0",
+                        (email,)
+                    )
                 # Crear nuevo usuario
                 nombre_usuario = email.split("@")[0]
                 # Asegurar nombre único

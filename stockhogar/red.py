@@ -73,4 +73,12 @@ def limite_por_ip(clave: str, max_por_ventana: int, ventana_segundos: int) -> bo
     usos = [t for t in _contadores.get(clave, []) if t > limite]
     usos.append(ahora)
     _contadores[clave] = usos
+    if len(_contadores) > 5000:
+        # Con IPs falsas (ver ip_cliente) el diccionario crecia sin limite: se purgan
+        # las claves cuyo ultimo uso ya salio de la ventana mas amplia razonable (1 h).
+        for k in [k for k, v in _contadores.items() if not v or v[-1] < ahora - 3600]:
+            del _contadores[k]
+        if len(_contadores) > 20000:  # ataque sostenido: se descarta lo mas antiguo
+            for k in sorted(_contadores, key=lambda k: _contadores[k][-1])[:10000]:
+                del _contadores[k]
     return len(usos) > max_por_ventana

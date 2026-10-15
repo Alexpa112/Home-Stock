@@ -134,6 +134,13 @@ def create_app():
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+        # Las respuestas de la API llevan datos personales: ni el navegador ni un proxy
+        # intermedio deben guardarlas (cuentas compartidas, equipos publicos).
+        if request.path.startswith("/api/") and not request.path.startswith("/api/idiomas/todos/"):
+            response.headers.setdefault("Cache-Control", "no-store")
         return response
 
     app.register_blueprint(paginas.bp)
@@ -214,9 +221,37 @@ def create_app():
         return None
 
     db.init_db()
+    _restringir_permisos_de_datos()
+    _cifrar_datos_existentes(app)
     _registrar_estado_escaner()
     _precalentar_diccionario()
     return app
+
+
+def _restringir_permisos_de_datos():
+    """data/ y los ficheros con datos o claves solo legibles por el usuario de la app."""
+    from .config import DATA_DIR, DB_PATH
+    try:
+        DATA_DIR.chmod(0o700)
+        for nombre in (DB_PATH.name, DB_PATH.name + "-wal", DB_PATH.name + "-shm", "secret.json", "vapid_private_key.pem"):
+            ruta = DATA_DIR / nombre
+            if ruta.exists():
+                ruta.chmod(0o600)
+    except OSError:
+        pass  # sistemas de ficheros sin permisos POSIX (montajes de Windows)
+
+
+def _cifrar_datos_existentes(app):
+    """Cifra en reposo lo que una version anterior guardo en claro (idempotente)."""
+    import logging
+    from . import cifrado
+    try:
+        with app.app_context():
+            n = cifrado.cifrar_existentes(db.get_db())
+        if n:
+            logging.getLogger(__name__).info("Cifrados en reposo %d registros que estaban en claro", n)
+    except Exception:  # no debe impedir el arranque; los datos en claro siguen leyendose
+        logging.getLogger(__name__).exception("No se pudo cifrar los datos existentes")
 
 
 def _precalentar_diccionario():

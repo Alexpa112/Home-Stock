@@ -111,7 +111,8 @@ class SuscripcionesPushTests(unittest.TestCase):
             db = get_db()
             filas = db.execute("SELECT * FROM push_subscriptions WHERE endpoint = ?", (endpoint,)).fetchall()
             self.assertEqual(len(filas), 1)
-            self.assertEqual(filas[0]["p256dh"], "nueva")
+            from stockhogar import cifrado
+            self.assertEqual(cifrado.descifrar_texto(filas[0]["p256dh"]), "nueva")
 
     def test_suscripcion_sin_claves_se_rechaza(self):
         resp = self.client.post("/api/push/suscribir", json={"endpoint": "https://x.example"})
@@ -147,7 +148,7 @@ class EnviarPushTests(unittest.TestCase):
             cur = db.execute(
                 "INSERT INTO push_subscriptions (usuario_id, endpoint, p256dh, auth, fecha_creacion) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (usuario_id, f"https://x.example/{uuid.uuid4().hex}", "p", "a", ahora()),
+                (usuario_id, f"https://fcm.googleapis.com/x/{uuid.uuid4().hex}", "p", "a", ahora()),
             )
             suscripcion_id = cur.lastrowid
             db.commit()
@@ -169,7 +170,7 @@ class EnviarPushTests(unittest.TestCase):
         mock_webpush.return_value = None
         with self.app.app_context():
             db = get_db()
-            suscripcion = {"id": 1, "endpoint": "https://x.example/y", "p256dh": "p", "auth": "a"}
+            suscripcion = {"id": 1, "endpoint": "https://fcm.googleapis.com/y", "p256dh": "p", "auth": "a"}
             self.assertTrue(enviar_push(db, suscripcion, "titulo", "cuerpo"))
 
 

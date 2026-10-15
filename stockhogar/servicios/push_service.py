@@ -32,11 +32,35 @@ except ImportError:
     def webpush(*args, **kwargs):  # Dummy para tests cuando pywebpush no está disponible
         raise WebPushException("pywebpush no disponible")
 
+from .. import cifrado
 from ..config import DATA_DIR, EMAIL_CONTACTO_LEGAL
 
 logger = logging.getLogger(__name__)
 
 _VAPID_KEY_PATH = DATA_DIR / "vapid_private_key.pem"
+
+
+# Servicios push reales de los navegadores. El endpoint lo manda el cliente y el
+# servidor le hace un POST: sin esta lista se podia apuntar a http://127.0.0.1:... o a
+# cualquier host interno (SSRF).
+_DOMINIOS_PUSH = (
+    "fcm.googleapis.com", "android.googleapis.com", "push.apple.com",
+    "notify.windows.com", "push.services.mozilla.com", "push.api.mozilla.com",
+)
+
+
+def endpoint_push_permitido(endpoint: str) -> bool:
+    from urllib.parse import urlparse
+    if not isinstance(endpoint, str) or len(endpoint) > 1000:
+        return False
+    try:
+        partes = urlparse(endpoint)
+        host = (partes.hostname or "").lower()
+    except ValueError:
+        return False
+    if partes.scheme != "https" or partes.port not in (None, 443) or partes.username or partes.password:
+        return False
+    return any(host == d or host.endswith("." + d) for d in _DOMINIOS_PUSH)
 
 
 def _crear_clave_vapid():
@@ -103,11 +127,14 @@ def enviar_push(db, suscripcion, titulo, cuerpo, url=None) -> bool:
     if not _WEBPUSH_DISPONIBLE or not _vapid:
         logger.warning("Push no disponible, descartando push a %s", suscripcion["id"])
         return False
+    if not endpoint_push_permitido(suscripcion["endpoint"]):
+        logger.warning("Suscripcion push %s con endpoint no permitido: descartada", suscripcion["id"])
+        return False
     try:
         webpush(
             subscription_info={
                 "endpoint": suscripcion["endpoint"],
-                "keys": {"p256dh": suscripcion["p256dh"], "auth": suscripcion["auth"]},
+                "keys": {"p256dh": cifrado.descifrar_texto(suscripcion["p256dh"]), "auth": cifrado.descifrar_texto(suscripcion["auth"])},
             },
             data=json.dumps({"titulo": titulo, "cuerpo": cuerpo, "url": url or "/dashboard"}),
             vapid_private_key=_vapid,

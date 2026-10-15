@@ -105,7 +105,9 @@ export default function PrivacidadPage() {
       <h2>Seguridad</h2>
       <p>
         Las contraseñas se almacenan cifradas (nunca en texto plano), la conexión se realiza por
-        HTTPS y ofrecemos verificación en dos pasos por correo electrónico de forma opcional.
+        HTTPS y ofrecemos verificación en dos pasos por correo electrónico de forma opcional. Las
+        fotos de recibos y las claves de las notificaciones push se guardan cifradas en la base de
+        datos, y al cerrar sesión la sesión queda invalidada en el servidor.
       </p>
 
       <h2>Menores de edad</h2>

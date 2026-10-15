@@ -56,7 +56,10 @@ def validar_instalacion():
         validaciones["tesseract"] = True
         validaciones["pytesseract"] = True
     except Exception as e:
-        validaciones["error_tesseract"] = str(e)
+        # El texto de la excepcion puede traer rutas del servidor: se queda en el log.
+        import logging
+        logging.getLogger(__name__).warning("Tesseract no disponible: %s", e)
+        validaciones["error_tesseract"] = "Tesseract no disponible o no instalado"
 
     try:
         import cv2

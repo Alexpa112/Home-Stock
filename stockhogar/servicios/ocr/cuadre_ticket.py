@@ -26,6 +26,7 @@ _RE_IMPORTE_FINAL = re.compile(r"(\d{1,3}(?:\.\d{3})+,\d{2}|\d{1,6}[.,]\d{2})\s*
 _TOLERANCIA = 0.02
 # Solo se quita una linea que PARECE de cierre ("Sub Totai", "Iva", "Efectivo"): un
 # articulo cualquiera con ese importe es mas probable que sea un importe mal leido en otro.
+# Tambien una "linea" con cifras en el nombre ("Tda0421 Caja 03 12/10/26"): un ticket, no un articulo.
 _RE_PARECE_LINEA_DE_CIERRE = re.compile(
     r"sub|tot|iva|impuest|pago|cambio|efectivo|tarjeta|entreg|base|cuota|suma|visa", re.IGNORECASE
 )
@@ -73,7 +74,7 @@ def _quitar_lineas_que_no_son_articulos(items: List[Dict], total: float) -> List
         if abs(importes[k] - exceso) <= _TOLERANCIA
         and item.get("origen_nombre") not in ("catalogo", "hogar")
         and not item.get("producto_id")
-        and _RE_PARECE_LINEA_DE_CIERRE.search(item.get("nombre") or "")
+        and (_RE_PARECE_LINEA_DE_CIERRE.search(item.get("nombre") or "") or re.search(r"\d", item.get("nombre") or ""))
     ]
     if len(candidatos) != 1:
         return items

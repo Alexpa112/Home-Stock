@@ -628,9 +628,15 @@ def _init_db_impl():
             db.execute("DROP INDEX IF EXISTS idx_historial_espacio")
             quitar_columna_si_existe(db, "historial_articulos", "espacio_id")
 
-        # UNIQUE(nombre) global: ya no hay espacios entre los que distinguir.
+        # hogar_id = 0: catalogo estandar (sembrado, nadie lo modifica). hogar_id > 0:
+        # lo que aprendio ese hogar; solo lo ven y lo cambian sus miembros. Antes todo
+        # era global y un hogar podia leer los articulos de otro o cambiar el icono de
+        # "Leche entera" para todos.
+        asegurar_columna(db, "historial_articulos", "hogar_id", "INTEGER NOT NULL DEFAULT 0")
+        db.execute("DROP INDEX IF EXISTS idx_historial_nombre")
         db.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre ON historial_articulos(nombre COLLATE NOCASE)"
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre_hogar "
+            "ON historial_articulos(nombre COLLATE NOCASE, hogar_id)"
         )
         db.execute(
             "CREATE INDEX IF NOT EXISTS idx_historial_codigo_barras ON historial_articulos(codigo_barras) "
@@ -950,7 +956,7 @@ def _init_db_impl():
             "INSERT INTO historial_articulos "
             "(nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
             "VALUES (?, ?, ?, ?, ?, 1, ?) "
-            "ON CONFLICT(nombre) DO NOTHING",
+            "ON CONFLICT(nombre, hogar_id) DO NOTHING",
             [(n, c, i, u, s, ahora()) for (n, c, i, u, s) in CATALOGO_DEFECTO],
         )
 
@@ -1280,6 +1286,17 @@ def _init_db_impl():
         )
         db.execute(
             "CREATE INDEX IF NOT EXISTS idx_intentos_login_clave ON intentos_login(clave, fecha_intento)"
+        )
+
+        # Sesiones cerradas con "cerrar sesion": la cookie es autocontenida, asi que sin
+        # esta lista una cookie copiada antes del logout seguia valiendo hasta caducar.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sesiones_revocadas (
+                sid_hash TEXT PRIMARY KEY,
+                expira TEXT NOT NULL
+            )
+            """
         )
 
         # Intentos y reenvios de codigos 2FA (A-5): contador independiente por

@@ -40,6 +40,7 @@ export default function SettingsPage() {
   const [editandoNombre, setEditandoNombre] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [passwordParaNombre, setPasswordParaNombre] = useState('')
+  const [passwordEliminar, setPasswordEliminar] = useState('')
   const [editandoEmail, setEditandoEmail] = useState(false)
   const [emailNuevo, setEmailNuevo] = useState('')
   const [passwordParaEmail, setPasswordParaEmail] = useState('')
@@ -93,7 +94,13 @@ export default function SettingsPage() {
     setCargandoDobleFactor(true)
     setError('')
     try {
-      await auth.cambiarDobleFactor(activo)
+      // Desactivar el 2FA exige la contrasena actual (reautenticacion).
+      const password = activo ? undefined : (window.prompt(t('placeholder_tu_password_actual')) ?? '')
+      if (!activo && !password) {
+        setCargandoDobleFactor(false)
+        return
+      }
+      await auth.cambiarDobleFactor(activo, password)
       setDobleFactorActivo(activo)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_doble_factor_requiere_email'))
@@ -314,7 +321,7 @@ export default function SettingsPage() {
     setCargandoEliminar(true)
     setError('')
     try {
-      await auth.eliminarCuenta(user.id)
+      await auth.eliminarCuenta(user.id, passwordEliminar)
       window.location.href = '/'
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_eliminar_cuenta'))
@@ -965,6 +972,14 @@ export default function SettingsPage() {
               <p className="text-sm text-center text-red-700 dark:text-red-300 font-medium">
                 {t('confirmar_eliminar_cuenta_pregunta')}
               </p>
+              <input
+                type="password"
+                value={passwordEliminar}
+                onChange={(e) => setPasswordEliminar(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_tu_password_actual')}
+                autoComplete="current-password"
+              />
               <div className="flex gap-2">
                 <button
                   onClick={handleEliminarCuenta}

@@ -13,6 +13,8 @@ from flask_wtf.csrf import generate_csrf
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ..api.base import revocar_sesion_actual
+from .. import cifrado
 from ..config import APP_URL, LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
 from ..db import ahora, get_db
 from ..red import ip_cliente, limite_por_ip
@@ -177,6 +179,10 @@ def registrar():
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
     password = datos.get("password") or ""
 
+    # Sin limite se podian crear cuentas a miles (cada una cuesta un hash scrypt).
+    if limite_por_ip(f"registro:{ip_cliente()}", 10, 60 * 60):
+        return APIResponse.error("err_demasiados_intentos_login", 429)
+
     if len(password) < LONGITUD_PASSWORD_MINIMA:
         return APIResponse.validacion("err_password_min_8")
 
@@ -190,20 +196,23 @@ def registrar():
         "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
     ).fetchone()
     if existente:
-        usuario = existente
-    else:
-        try:
-            db.execute(
-                "INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion, terminos_version_aceptada, terminos_fecha_aceptacion) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (nombre_usuario, generate_password_hash(password), ahora(), VERSION_TERMINOS, ahora()),
-            )
-            db.commit()
-            usuario = db.execute(
-                "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
-            ).fetchone()
-        except Exception:
-            raise ValidationError("No se pudo completar el registro")
+        # NUNCA abrir sesion sobre una cuenta existente: antes se devolvia "creado"
+        # con la sesion de la cuenta ajena sin comprobar la contrasena (toma de cuenta).
+        # El login ya es opaco ante usuario inexistente; aqui avisar del nombre en uso
+        # es lo normal en cualquier registro.
+        return APIResponse.error("err_usuario_duplicado", 409)
+    try:
+        db.execute(
+            "INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion, terminos_version_aceptada, terminos_fecha_aceptacion) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (nombre_usuario, generate_password_hash(password), ahora(), VERSION_TERMINOS, ahora()),
+        )
+        db.commit()
+        usuario = db.execute(
+            "SELECT id, session_version FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?)", (nombre_usuario,)
+        ).fetchone()
+    except Exception:
+        raise ValidationError("No se pudo completar el registro")
 
     auditoria.registrar(db, "registro", usuario_id=usuario["id"], ip=ip_cliente())
     db.commit()
@@ -211,7 +220,7 @@ def registrar():
     session.permanent = True
     session["usuario"] = nombre_usuario
     session["usuario_id"] = usuario["id"]
-    session["session_version"] = 0
+    session["session_version"] = usuario["session_version"] or 0
 
     return APIResponse.success({"creado": True, "usuario": nombre_usuario, "csrf_token": generate_csrf()}, 201)
 
@@ -383,6 +392,22 @@ def reenviar_codigo_dos_pasos():
     return APIResponse.success({"reenviado": True})
 
 
+def _falta_reautenticar(db, usuario_id, datos):
+    """Respuesta de error si la accion sensible no trae la contrasena actual correcta.
+
+    Desactivar el 2FA o borrar la cuenta con solo la cookie permitia a quien tuviera
+    una sesion abierta (movil prestado, cookie robada) dejar la cuenta sin proteccion
+    o destruirla. Las cuentas creadas por Google no tienen contrasena: su prueba de
+    identidad es el propio proveedor, asi que no se les exige."""
+    fila = db.execute("SELECT password_hash FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    if fila and fila["password_hash"]:
+        if limite_por_ip(f"reauth:{usuario_id}", 10, 60 * 60):
+            return APIResponse.error("err_demasiados_intentos_login", 429)
+        if not _password_valida(fila["password_hash"], datos.get("password_actual") or ""):
+            return APIResponse.error("err_password_actual_incorrecta", 400)
+    return None
+
+
 @bp.route("/api/auth/doble-factor", methods=["POST"])
 @requerir_sesion
 @manejo_errores
@@ -396,6 +421,10 @@ def cambiar_doble_factor():
         fila = db.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
         if not fila or not fila["email"]:
             return APIResponse.error("err_doble_factor_requiere_email", 400)
+    else:
+        error_reauth = _falta_reautenticar(db, usuario_id, datos)
+        if error_reauth:
+            return error_reauth
 
     db.execute("UPDATE usuarios SET doble_factor_activo = ? WHERE id = ?", (int(activar), usuario_id))
     if not activar:
@@ -435,6 +464,7 @@ def aceptar_terminos():
 @requerir_sesion
 @manejo_errores
 def logout():
+    revocar_sesion_actual()
     session.clear()
     return APIResponse.success()
 
@@ -794,7 +824,7 @@ def exportar_mis_datos():
         zf.writestr("movimientos_stock.json", json.dumps(movimientos_stock, default=str, ensure_ascii=False, indent=2))
         for recibo in recibos:
             extension = (recibo["imagen_recibo_mime"] or "").split("/")[-1] or "jpg"
-            zf.writestr(f"recibos/gasto_{recibo['id']}.{extension}", recibo["imagen_recibo"])
+            zf.writestr(f"recibos/gasto_{recibo['id']}.{extension}", cifrado.descifrar_bytes(recibo["imagen_recibo"]) or b"")
 
     buffer.seek(0)
     return Response(
@@ -997,6 +1027,9 @@ def borrar_usuario(usuario_id):
         return APIResponse.no_permitido()
 
     db = get_db()
+    error_reauth = _falta_reautenticar(db, usuario_id, cuerpo_json())
+    if error_reauth:
+        return error_reauth
     total = db.execute("SELECT COUNT(*) AS n FROM usuarios").fetchone()["n"]
     if total <= 1:
         return APIResponse.error("err_ultimo_usuario", 400)

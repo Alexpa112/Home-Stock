@@ -382,16 +382,17 @@ class MatcherInteligente:
     def obtener_historico_compras(self, db, nombre: str, limite: int = 10) -> List[Dict]:
         """Obtiene histórico de compras para este producto."""
 
+        from ...rutas.historial import hogar_id_del_catalogo
         # Buscar en historial_articulos (aprendizaje de nombre/icono/categoria/cantidad)
         historico = db.execute(
             """
             SELECT nombre, cantidad_defecto, unidad, categoria, icono
             FROM historial_articulos
-            WHERE nombre LIKE ?
+            WHERE nombre LIKE ? AND hogar_id IN (0, ?)
             ORDER BY fecha_actualizacion DESC
             LIMIT ?
             """,
-            (f"%{nombre}%", limite)
+            (f"%{nombre}%", hogar_id_del_catalogo(db), limite)
         ).fetchall()
 
         return [dict(row) for row in historico] if historico else []

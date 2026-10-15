@@ -10,11 +10,13 @@ from pathlib import Path
 from flask import Blueprint, Response, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from .. import cifrado
 from ..config import LIMITE_RECIBOS_DIARIO_POR_USUARIO
 from ..db import ahora, get_db
 from ..servicios.push_service import enviar_push_a_usuario
 from ..servicios.stock import hogar_actual_con_permiso
 from ..translator import traducir
+from ..utils.csv_seguro import EscritorCsvSeguro
 from ..utils import Validator, ValidationError
 from ..utils.imagenes import validar_y_recodificar
 from .categorias_gasto import normalizar_categoria_gasto
@@ -511,7 +513,7 @@ def exportar_gastos_csv():
     participantes_por_gasto = _participantes_del_hogar(db, hogar_id)
 
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = EscritorCsvSeguro(buffer)
     writer.writerow([
         traducir("fecha"), traducir("descripcion"), traducir("categoria"),
         traducir("importe_total"), traducir("pagador"), traducir("participante"),
@@ -699,7 +701,7 @@ def subir_recibo(gasto_id):
 
     db.execute(
         "UPDATE gastos SET imagen_recibo = ?, imagen_recibo_mime = ? WHERE id = ?",
-        (imagen_validada, mime_type, gasto_id),
+        (cifrado.cifrar_bytes(imagen_validada), mime_type, gasto_id),
     )
     db.execute(
         "INSERT INTO uso_recibos_diario (usuario_id, fecha, contador) VALUES (?, ?, 1) "
@@ -722,7 +724,10 @@ def obtener_recibo(gasto_id):
     if not gasto["imagen_recibo"]:
         return APIResponse.no_encontrado("recurso_recibo")
 
-    return Response(gasto["imagen_recibo"], mimetype=gasto["imagen_recibo_mime"] or "application/octet-stream")
+    imagen = cifrado.descifrar_bytes(gasto["imagen_recibo"])
+    if imagen is None:
+        return APIResponse.no_encontrado("recurso_recibo")
+    return Response(imagen, mimetype=gasto["imagen_recibo_mime"] or "application/octet-stream")
 
 
 @bp.route("/<int:gasto_id>/recibo", methods=["DELETE"])
@@ -783,7 +788,9 @@ def _generar_gastos_recurrentes_pendientes(db, hogar_id, usuario_id_actual):
         # Genera todas las ocurrencias pendientes hasta hoy (por si nadie abrio
         # la app durante varios periodos), parando en cuanto la siguiente
         # ocurrencia calculada supere fecha_fin.
-        while activo and proxima_fecha <= hoy:
+        generados = 0
+        while activo and proxima_fecha <= hoy and generados < 400:  # tope por llamada
+            generados += 1
             cur = db.execute(
                 """INSERT INTO gastos
                    (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, categoria, creado_por_usuario_id, fecha_creacion)
@@ -881,11 +888,14 @@ def crear_gasto_recurrente():
         raise ValidationError("El gasto debe tener al menos un participante")
 
     try:
-        datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
         if fecha_fin:
             datetime.strptime(fecha_fin, "%Y-%m-%d")
     except ValueError as e:
         raise ValidationError("Las fechas deben tener el formato AAAA-MM-DD") from e
+    # Sin cota, fecha_inicio=1000-01-01 semanal generaba 55.000 gastos de golpe.
+    if inicio < datetime.now() - timedelta(days=366):
+        raise ValidationError("La fecha de inicio no puede ser anterior a un año")
     if fecha_fin and fecha_inicio > fecha_fin:
         raise ValidationError("La fecha de fin debe ser posterior a la fecha de inicio")
 
