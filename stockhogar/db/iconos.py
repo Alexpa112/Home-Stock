@@ -55,7 +55,7 @@ MAPEO_EMOJI_A_ICONO_LUCIDE = {
     "🪤": "target", "🎨": "palette", "🖌️": "paintbrush", "🧵": "scissors",
     "🪡": "scissors", "🧷": "pin", "📏": "ruler", "🪟": "app-window",
     "🖼️": "image", "🎀": "gift", "🔑": "key", "🧲": "magnet",
-    "🪒": "spray-can", "🕸️": "waves-ladder", "🧨": "flame",
+    "🕸️": "waves-ladder", "🧨": "flame",
     "🍽️": "utensils", "☂️": "umbrella", "🔪": "utensils-crossed", "🥽": "glasses",
     "🥥": "nut",
 }

@@ -1,8 +1,6 @@
 """Testing exhaustivo de OCR con casos reales y edge cases."""
 import sys
 import os
-import base64
-from io import BytesIO
 
 # Agregar proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

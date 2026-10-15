@@ -1,6 +1,6 @@
 # Plan de revisión y reorganización del código
 
-Estado: en ejecución (ver "Registro de ejecución" al final).
+Estado: fases 1-8 y primera pasada automática de la fase 9 hechas; la revisión manual línea a línea sigue en la sección 6.
 Rollback: rama `backup/dev2-produccion-pre-reorganizacion-promo-20261015` (= `produccion` antes de
 empezar, `db607776`). Para volver: `git reset --hard origin/backup/dev2-produccion-pre-reorganizacion-promo-20261015`
 en la rama que haga falta. Cada fase es un commit propio y se puede revertir sola con `git revert`.
@@ -166,3 +166,27 @@ y `BgPattern`, `handlePagarSugerencia` (código muerto). **Pendiente** (ver secc
 - `tests/`: 118 ficheros planos → 7 carpetas por área. La suite pasa de ~275 s a ~160 s (un test de traducción
   esperaba a Argos sin red durante 2 minutos; ahora usa un traductor determinista).
 - Documentación de estructura: `docs/ESTRUCTURA.md`.
+
+### Fase 9 — Primera pasada automática de la revisión (hecha)
+- **Contrato frontend↔backend** (`tests/plataforma/test_contrato_api_frontend.py`): las 108 llamadas distintas del
+  frontend existen en el backend con su método. Sale como test permanente.
+- **Rutas e imports**: `test_mapa_de_rutas` fija las 122 rutas; `test_imports_relativos` detecta imports rotos tras mover
+  ficheros (halló un `from .diccionario import ...` dentro de una función que dejaba de funcionar en silencio al mover el parser).
+- **Código muerto/limpio**: ruff/pyflakes/vulture/knip. Quitados imports sin usar (≈30), dos claves duplicadas, un parámetro sin
+  uso, `StatsCard.tsx`, `components.json` (y su `COPY` en `Dockerfile.frontend`, que habría roto el build de la imagen del frontend).
+- **Duplicación exacta (jscpd)**: de 0,80 % (16 clones, 234 líneas) a 0,36 % (8 clones, 103 líneas).
+- **Verificaciones de equivalencia**: esquema SQL idéntico en BD vacía y en BD existente; lector idéntico (sintético 216 casos y
+  100 recibos reales); build del frontend desde un contexto limpio con solo los ficheros que copia el Dockerfile.
+
+## 6. Pendiente (revisión manual línea a línea)
+Se hace por módulos con la checklist de la sección 4; cada módulo sale con tests o con nota aquí.
+
+| Prioridad | Módulo | Qué mirar |
+|---|---|---|
+| 1 | `rutas/cuenta/perfil.py::actualizar_perfil` (100 líneas) | partir en validar / aplicar; ya mezcla usuario, nombre y email con reautenticación |
+| 1 | `rutas/escaner/tickets.py` (556) | `analizar_ticket` es una función de ~200 líneas (archivo, cuota, motores, respuesta): extraer pasos |
+| 2 | Páginas > 1.000 líneas (`gastos`, `shopping`, `dashboard`, `settings`) | extraer componentes y hooks por sección; dejar cada página < 400 líneas |
+| 2 | `servicios/ocr/claude_ocr.py` (726) | separar prompt/esquema, normalización y cliente (hoy tests tocan sus internos) |
+| 3 | `config.py` (968) | agrupar constantes por tema (paquete `config/`) |
+| 3 | Endpoints sin uso en el frontend actual | `/api/formularios/crear-lista`, `/api/auth/teclado-virtual`, `/api/productos/traducir`, `/api/idiomas/traducir`, `/api/usuarios`, alias `/api/listas/*` (PWA antigua): decidir retirar o documentar |
+| 3 | 86 avisos de eslint (58 `any`, hooks) | tipar las respuestas de `lib/api.ts` |

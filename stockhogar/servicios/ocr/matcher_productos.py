@@ -1,5 +1,5 @@
 """Matching entre productos del ticket y catálogo local."""
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, Optional
 from rapidfuzz import fuzz
 from rapidfuzz import process as fuzzy_process
 

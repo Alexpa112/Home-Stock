@@ -8,7 +8,6 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from stockhogar.servicios.ocr import ProcesadorImagen, ExtractorTexto, ParseadorTicket, MatcherProductos
-from stockhogar.servicios.ocr.parseador_ticket import LineaTicket
 
 
 class ColoresTerminal:

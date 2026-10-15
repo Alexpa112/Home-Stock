@@ -185,7 +185,7 @@ class ParserMejorado(VocabularioParser, PatronesParser, SeccionesParser, Clasifi
         # 2b. Cuadrar cantidad e importes: cantidad x unitario = total. Si el OCR
         # leyo mal el digito de la cantidad ("1" por "4"), el cociente lo delata.
         cantidad, unidad, cantidad_texto, precio_unitario = self._conciliar_cantidad_e_importes(
-            linea, cantidad, unidad, cantidad_texto, precio_unitario, precio_total
+            linea, cantidad, unidad, cantidad_texto, precio_unitario
         )
 
         # 3. Limpiar nombre

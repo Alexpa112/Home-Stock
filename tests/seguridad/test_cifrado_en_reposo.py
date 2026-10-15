@@ -1,6 +1,5 @@
 """Cifrado en reposo de recibos y claves push, y cabeceras de seguridad."""
 import io
-import json
 import unittest
 import uuid
 

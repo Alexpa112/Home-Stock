@@ -81,7 +81,7 @@ class PatronesParser:
             "teléfono", "fax", "www", "http", ".com", ".es",
             "supermercado", "tienda", "mercado", "shop", "comercio", "empresa",
             "domicilio", "dirección", "dir", "provincia", "piso", "planta",
-            "plaza", "paseo", "ronda", "camino", "carretera", "ctra", "polígono", "pol.", "travesía",
+            "plaza", "paseo", "ronda", "camino", "carretera", "ctra", "pol.", "travesía",
         }
 
         # Cantidad "suelta" al principio de la línea (p.ej. "2 COCA COLA 1,80"):

@@ -13,7 +13,6 @@ import subprocess
 import unittest
 import unicodedata
 import uuid
-from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 from werkzeug.security import generate_password_hash

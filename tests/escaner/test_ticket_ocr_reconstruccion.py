@@ -7,7 +7,6 @@ grande entre medias (p.ej. nombre del artículo ... precio alineado a la
 derecha) podían llegar a ParserMejorado en líneas de texto separadas si
 Tesseract decidía cortar ahí, sin ninguna forma de corregirlo aguas abajo.
 """
-import io
 import sys
 import os
 from unittest.mock import patch

@@ -10,11 +10,9 @@ antepasado mas cercano. Se descartan nombres genericos o demasiado largos.
 Los articulos curados a mano (datos_articulos_*.py) tienen prioridad: este
 fichero solo rellena lo que ellos no cubren.
 """
-import json
 import re
 import sys
 import unicodedata
-from collections import deque
 from pathlib import Path
 
 # antepasado (nombre en ingles de OFF) -> categoria de la app. Gana el MAS CERCANO.

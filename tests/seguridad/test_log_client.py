@@ -2,7 +2,6 @@
 de linea (para no permitir fabricar entradas de log falsas), y limitar la
 tasa de peticiones por IP.
 """
-import logging
 import unittest
 
 from stockhogar import create_app

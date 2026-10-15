@@ -13,7 +13,6 @@ Cuatro frentes que no cubria ningun test:
    cuenta, porque la sesion es de 365 dias.
 4. Exportacion RGPD: solo debe contener datos de quien la pide.
 """
-import json
 import unittest
 import uuid
 

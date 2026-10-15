@@ -17,7 +17,7 @@ simplemente no ha vuelto a tocar ese producto).
 """
 import sqlite3
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

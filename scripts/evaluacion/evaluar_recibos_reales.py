@@ -13,7 +13,6 @@ import sys, re, json, glob, os, time, statistics
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from rapidfuzz import fuzz
 from stockhogar.integraciones import ticket_ocr
-from stockhogar.servicios.ocr.parser import ParserMejorado
 from stockhogar.servicios.ocr.cuadre_ticket import extraer_total_impreso
 
 D = os.environ.get("RECIBOS_DIR", "/tmp/recibos/").rstrip("/") + "/"

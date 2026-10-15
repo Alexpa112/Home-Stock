@@ -15,7 +15,6 @@ ficheros para que renombrar el parametro en un lado rompa la suite.
 Se comprueba tambien la proteccion contra redirecciones abiertas: `next` debe
 ser una ruta relativa, no una URL a otro dominio.
 """
-import re
 import unittest
 from pathlib import Path
 

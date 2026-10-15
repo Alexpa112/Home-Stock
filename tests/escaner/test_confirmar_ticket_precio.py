@@ -4,7 +4,6 @@ La pantalla de ticket no enviaba el precio al confirmar, asi que el historial de
 precios (P-04) nunca se alimentaba desde tickets. Y el backend dejaba pasar
 NaN/Infinity (el json de Python los acepta) hasta historial_precios.
 """
-import json
 import unittest
 import uuid
 

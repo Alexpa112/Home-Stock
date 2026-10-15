@@ -134,7 +134,7 @@ class CantidadesParser:
         # Si no hay patrón explícito, asumir 1 unidad
         return 1.0, TipoUnidad.UNIDAD, "1 ud"
 
-    def _conciliar_cantidad_e_importes(self, linea, cantidad, unidad, cantidad_texto, p_unit, p_total):
+    def _conciliar_cantidad_e_importes(self, linea, cantidad, unidad, cantidad_texto, p_unit):
         """cantidad x unitario = total. Solo para unidades (un peso lleva precio
         por kilo y no se cuadra asi). Devuelve (cantidad, unidad, texto, unitario)."""
         if unidad != TipoUnidad.UNIDAD:

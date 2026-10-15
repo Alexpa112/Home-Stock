@@ -16,7 +16,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 ESCALA = 4
 # Espacio de diseño (donde estan pensadas todas las coordenadas de las

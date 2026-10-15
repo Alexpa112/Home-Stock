@@ -6,7 +6,6 @@ antes del primer producto. Ahora el titulo, el chip de hogar y el menu van en
 `CabeceraPantalla`, y el subtitulo y el boton "Anadir" solo en escritorio.
 """
 import json
-import re
 import unittest
 from pathlib import Path
 

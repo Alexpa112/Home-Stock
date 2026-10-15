@@ -5,7 +5,6 @@ usuario sin relacion con el hogar, uno con nivel "ver", uno con nivel
 import unittest
 import uuid
 
-import pytest
 from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app

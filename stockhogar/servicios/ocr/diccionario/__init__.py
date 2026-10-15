@@ -51,7 +51,7 @@ MODIFICADORES = {
     "granel", "pieza", "piezas", "kg", "lavado", "lavada", "pelado", "pelada", "troceado", "troceada",
     "fileteado", "fileteada", "envasado", "envasada", "natural_", "eco", "ecologico", "ecologica",
     "bio", "nacional", "importacion", "primera", "extra_", "categoria", "calibre", "temporada",
-    "bandeja", "malla", "granel", "cesta", "clase", "gr", "ud", "uds", "x",
+    "bandeja", "malla", "cesta", "clase", "gr", "ud", "uds", "x",
     "filete", "filetes", "rodaja", "rodajas", "loncha", "lonchas", "trozo", "trozos", "taco", "tacos",
     "tira", "tiras", "tarro", "lata", "latas", "brik", "botella", "botellin",
 }
