@@ -210,3 +210,43 @@ class OauthTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PersonalizadosPorHogarTests(Base):
+    def test_un_hogar_no_ve_los_personalizados_de_otro_hogar_del_mismo_dueno(self):
+        c, uid, h1, _ = self.usuario()
+        with self.app.app_context():
+            db = get_db()
+            h2 = db.execute(
+                "INSERT INTO hogares (nombre,usuario_propietario_id,privada,fecha_creacion,fecha_actualizacion) VALUES (?,?,1,?,?)",
+                ("H2", uid, ahora(), ahora())).lastrowid
+            db.commit()
+        self.hogares.append(h2)
+        nombre = "PrivadoXYZ" + uuid.uuid4().hex[:5]
+        r = c.post("/api/articulos", json={"nombre": nombre, "icono": "pill", "categoria": "Otros"})
+        self.assertIn(r.status_code, (200, 201), r.get_data(as_text=True))
+        ver = lambda: [x["nombre"] for x in c.get("/api/articulos/personalizados").get_json()]
+        self.assertIn(nombre, ver())
+        with c.session_transaction() as s:
+            s["hogar_actual_id"] = h2
+        self.assertNotIn(nombre, ver())
+        cat = [x["nombre"] for x in c.get("/api/historial/catalogo?q=PrivadoXYZ").get_json()]
+        self.assertNotIn(nombre, cat)
+
+    def test_migracion_del_catalogo_aprendido_global(self):
+        c, uid, hid, _ = self.usuario()
+        nombre = "Aprendido" + uuid.uuid4().hex[:6]
+        with self.app.app_context():
+            db = get_db()
+            db.execute("INSERT INTO historial_articulos (nombre, icono, categoria, unidad, fecha_actualizacion, hogar_id) "
+                       "VALUES (?, 'x', 'Otros', 'ud', ?, 0)", (nombre, ahora()))
+            db.execute("INSERT INTO articulos_compra (hogar_id, nombre, unidad, categoria, fecha_creacion) VALUES (?, ?, 'ud', 'Otros', ?)",
+                       (hid, nombre, ahora()))
+            db.commit()
+            from stockhogar.db import _aislar_catalogos_por_hogar
+            _aislar_catalogos_por_hogar(db)
+            db.commit()
+            filas = db.execute("SELECT hogar_id FROM historial_articulos WHERE nombre = ?", (nombre,)).fetchall()
+            db.execute("DELETE FROM historial_articulos WHERE nombre = ?", (nombre,))
+            db.commit()
+        self.assertEqual([f["hogar_id"] for f in filas], [hid])

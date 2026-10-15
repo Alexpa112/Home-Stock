@@ -18,7 +18,7 @@ import time
 
 from flask import request
 
-from .config import PROXIES_CONFIABLES
+from .config import PROXIES_CONFIABLES, USAR_COOKIE_SEGURA
 
 _REDES_CONFIABLES = []
 for _rango in PROXIES_CONFIABLES:
@@ -48,7 +48,11 @@ def ip_cliente() -> str:
     directa = request.remote_addr or "desconocida"
 
     cabecera = request.headers.get("CF-Connecting-IP")
-    if cabecera and _viene_de_proxy_confiable(directa):
+    # Solo se hace caso a la cabecera si la app esta detras de un tunel/proxy HTTPS
+    # (APP_URL https). En una instalacion de red local el puerto del frontend es
+    # alcanzable directamente y cualquiera podia falsear su IP para esquivar los
+    # limites de tasa.
+    if cabecera and USAR_COOKIE_SEGURA and _viene_de_proxy_confiable(directa):
         # Se valida que sea una IP de verdad, no solo que venga rellena: el
         # valor acaba siendo clave del contador de tasa y columna en
         # intentos_login, y una cadena arbitraria (o muy larga) del cliente no

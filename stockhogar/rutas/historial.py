@@ -158,9 +158,9 @@ def buscar_catalogo():
                 "WHERE ap.usuario_propietario_id IN ("
                 "    SELECT usuario_propietario_id FROM hogares WHERE id = ? "
                 "    UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
-                "AND LOWER(ap.nombre) LIKE LOWER(?) "
+                "AND LOWER(ap.nombre) LIKE LOWER(?) AND (ap.hogar_id IS NULL OR ap.hogar_id = ?) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
-                (hogar_id, hogar_id, like),
+                (hogar_id, hogar_id, like, hogar_id),
             ).fetchall()
         else:
             personalizados = db.execute(
@@ -168,8 +168,9 @@ def buscar_catalogo():
                 "WHERE ap.usuario_propietario_id IN ("
                 "    SELECT usuario_propietario_id FROM hogares WHERE id = ? "
                 "    UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
+                "AND (ap.hogar_id IS NULL OR ap.hogar_id = ?) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
-                (hogar_id, hogar_id),
+                (hogar_id, hogar_id, hogar_id),
             ).fetchall()
 
     resultado = (

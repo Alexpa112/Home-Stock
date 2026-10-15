@@ -233,9 +233,9 @@ def anadir_o_sumar_articulo(
             # Crear nuevo artículo personalizado
             cur = db.execute(
                 """INSERT INTO articulos_personalizados
-                   (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id)
+                   (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id, hogar_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id, hogar_id)
             )
             articulo_personalizado_id = cur.fetchone()["id"]
 
@@ -412,9 +412,9 @@ def actualizar_articulo(item_id):
             else:
                 cur = db.execute(
                     """INSERT INTO articulos_personalizados
-                       (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                    (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id),
+                       (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id, hogar_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                    (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id, fila["hogar_id"]),
                 )
                 articulo_personalizado_id = cur.fetchone()["id"]
 
@@ -482,11 +482,14 @@ def _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, n
     ninguna lista (p.ej. tras eliminarlo de la lista) y aun así seguir
     perteneciendo legítimamente al hogar."""
     articulo = db.execute(
-        "SELECT usuario_propietario_id FROM articulos_personalizados WHERE id = ?",
+        "SELECT usuario_propietario_id, hogar_id FROM articulos_personalizados WHERE id = ?",
         (articulo_id,)
     ).fetchone()
     if not articulo:
         return False
+    if articulo["hogar_id"]:
+        # Creado en un hogar concreto: solo sus miembros (no los de otros hogares del dueño).
+        return bool(_usuario_tiene_permiso(db, articulo["hogar_id"], usuario_id, nivel_requerido=nivel_requerido))
     hogares_ids = db.execute(
         "SELECT id FROM hogares WHERE usuario_propietario_id = ?",
         (articulo["usuario_propietario_id"],)
@@ -517,8 +520,8 @@ def listar_articulos_personalizados():
 
     filas = db.execute(
         "SELECT id, nombre, icono, categoria, unidad, dias_aviso FROM articulos_personalizados "
-        "WHERE usuario_propietario_id = ? ORDER BY LOWER(nombre)",
-        (propietario["usuario_propietario_id"],),
+        "WHERE usuario_propietario_id = ? AND (hogar_id IS NULL OR hogar_id = ?) ORDER BY LOWER(nombre)",
+        (propietario["usuario_propietario_id"], hogar_id),
     ).fetchall()
     return APIResponse.success([dict(fila) for fila in filas])
 

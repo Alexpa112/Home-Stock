@@ -267,7 +267,8 @@ export const auth = {
 
   enviarVerificacionEmail: () => apiCall('/api/auth/enviar-verificacion-email', { method: 'POST' }),
 
-  verificarEmail: (token: string) => apiCall(`/api/auth/verificar-email/${token}`),
+  verificarEmail: (token: string) =>
+    apiCall('/api/auth/verificar-email', { method: 'POST', body: JSON.stringify({ token }) }),
 
   solicitarResetPassword: (usuarioOEmail: string) =>
     apiCall('/api/auth/solicitar-reset-password', {

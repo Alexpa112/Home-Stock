@@ -854,9 +854,12 @@ def enviar_verificacion_email():
     return APIResponse.success({"mensaje": "verificacion_email_enviada"})
 
 
-@bp.route("/api/auth/verificar-email/<token>", methods=["GET"])
+@bp.route("/api/auth/verificar-email", methods=["POST"])
 @manejo_errores
-def verificar_email(token):
+def verificar_email():
+    # POST con el token en el cuerpo (antes GET con el token en la URL): asi no queda
+    # escrito en el log de acceso de gunicorn ni en historiales de proxies.
+    token = str(cuerpo_json().get("token") or "")[:200]
     db = get_db()
     fila = db.execute(
         "SELECT id, usuario_id, expira, usado FROM tokens_verificacion WHERE token_hash = ? AND tipo = 'verificar_email'",

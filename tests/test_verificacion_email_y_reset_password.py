@@ -67,7 +67,7 @@ class VerificacionEmailTests(unittest.TestCase):
 
     def test_verificar_email_con_token_valido_marca_email_verificado(self):
         token = self._crear_token("verificar_email")
-        resp = self.client.get(f"/api/auth/verificar-email/{token}")
+        resp = self.client.post("/api/auth/verificar-email", json={"token": token})
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         with self.app.app_context():
             db = get_db()
@@ -76,7 +76,7 @@ class VerificacionEmailTests(unittest.TestCase):
 
     def test_verificar_email_con_token_caducado_se_rechaza(self):
         token = self._crear_token("verificar_email", expira_en_segundos=-10)
-        resp = self.client.get(f"/api/auth/verificar-email/{token}")
+        resp = self.client.post("/api/auth/verificar-email", json={"token": token})
         self.assertEqual(resp.status_code, 400)
         with self.app.app_context():
             db = get_db()
@@ -85,11 +85,11 @@ class VerificacionEmailTests(unittest.TestCase):
 
     def test_verificar_email_con_token_ya_usado_se_rechaza(self):
         token = self._crear_token("verificar_email", usado=1)
-        resp = self.client.get(f"/api/auth/verificar-email/{token}")
+        resp = self.client.post("/api/auth/verificar-email", json={"token": token})
         self.assertEqual(resp.status_code, 400)
 
     def test_verificar_email_con_token_invalido_se_rechaza(self):
-        resp = self.client.get("/api/auth/verificar-email/token-que-no-existe")
+        resp = self.client.post("/api/auth/verificar-email", json={"token": "token-que-no-existe"})
         self.assertEqual(resp.status_code, 400)
 
 
