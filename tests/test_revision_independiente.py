@@ -73,3 +73,29 @@ class OcrRapidTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PendientesTests(unittest.TestCase):
+    def test_pesadas_repetidas_se_suman(self):
+        r = _parsear("PLATANO 0,850 kg 1,89 EUR/kg 1,61\nPLATANO 0,500 kg 1,89 EUR/kg 0,95\nPAN 1,00")
+        platano = [x for x in r if x[0].lower().startswith("platano")][0]
+        self.assertAlmostEqual(platano[1], 1.35)
+        self.assertAlmostEqual(platano[2], 2.56)
+
+    def test_peso_cero_es_una_unidad(self):
+        self.assertEqual(_parsear("PAN 0,000 kg 1,50\nLECHE 1,00")[0][1], 1.0)
+
+    def test_cuadre_no_borra_un_articulo_normal(self):
+        from stockhogar.servicios.ocr.cuadre_ticket import cuadrar_con_total
+
+        def it(n, t):
+            return {"nombre": n, "cantidad": 1, "precio_total": t, "origen_nombre": "ticket"}
+        items = [it("Cola", 8.5), it("Xyz Queso", 5.0), it("Pan", 2.0)]
+        out, _ = cuadrar_con_total(items, "TOTAL 10,50")
+        self.assertEqual(len(out), 3)
+
+    def test_ticket_gigante_se_acota(self):
+        import time
+        t = time.time()
+        _parsear("\n".join("ARTICULO%d 1,00" % i for i in range(3000)))
+        self.assertLess(time.time() - t, 20)

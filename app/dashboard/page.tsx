@@ -15,6 +15,7 @@ import { productos as productosApi, categorias as categoriasApi, articulosLista 
 import { buscarCatalogo } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { useHogar } from '@/contexts/HogarContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
@@ -90,6 +91,7 @@ function fusionarProductos(previos: Producto[], recibidos: Producto[], preservar
 export default function StockPage() {
   const { preferences } = useListPreferences()
   const { t } = useTranslation()
+  const { puedeEditar } = useHogar()
   const [items, setItems] = useState<Producto[]>(() => getCached<Producto[]>(CACHE_KEY_PRODUCTOS) || [])
   const [categorias, setCategorias] = useState<Categoria[]>(() => getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
   const [loading, setLoading] = useState(() => getCached<Producto[]>(CACHE_KEY_PRODUCTOS) === undefined)
@@ -613,13 +615,15 @@ export default function StockPage() {
         ]}
       >
         {/* En móvil el alta va en el botón flotante del layout. */}
-        <button
-          onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
-          className="hidden lg:flex btn-primary items-center gap-2 min-h-[44px]"
-        >
-          <Plus className="w-5 h-5" />
-          {t('añadir_producto')}
-        </button>
+        {puedeEditar && (
+          <button
+            onClick={() => (showForm ? setShowForm(false) : abrirNuevo())}
+            className="hidden lg:flex btn-primary items-center gap-2 min-h-[44px]"
+          >
+            <Plus className="w-5 h-5" />
+            {t('añadir_producto')}
+          </button>
+        )}
       </CabeceraPantalla>
       <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
 
@@ -1012,13 +1016,15 @@ export default function StockPage() {
       ) : items.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">{t('no_hay_productos_inventario')}</p>
-          <button
-            onClick={abrirNuevo}
-            className="btn-primary inline-flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            {t('añadir_primer_producto')}
-          </button>
+          {puedeEditar && (
+            <button
+              onClick={abrirNuevo}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              {t('añadir_primer_producto')}
+            </button>
+          )}
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 space-y-2">

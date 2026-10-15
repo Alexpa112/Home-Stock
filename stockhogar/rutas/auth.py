@@ -238,7 +238,7 @@ def login():
         intentos_login.registrar_fallo(ip, nombre_usuario)
         auditoria.registrar(db, "login", usuario_id=fila["id"] if fila else None, ip=ip, resultado="fallo", usuario_intentado=nombre_usuario)
         db.commit()
-        return APIResponse.no_autorizado()
+        return APIResponse.error("err_credenciales_incorrectas", 401)
 
     intentos_login.limpiar_exito(ip, nombre_usuario)
     auditoria.registrar(db, "login", usuario_id=fila["id"], ip=ip, resultado="ok")

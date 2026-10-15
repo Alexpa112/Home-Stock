@@ -24,6 +24,11 @@ _RE_NO_ES_EL_TOTAL = re.compile(
 )
 _RE_IMPORTE_FINAL = re.compile(r"(\d{1,3}(?:\.\d{3})+,\d{2}|\d{1,6}[.,]\d{2})\s*(?:€|eur)?\s*[A-Za-z]?\s*$", re.IGNORECASE)
 _TOLERANCIA = 0.02
+# Solo se quita una linea que PARECE de cierre ("Sub Totai", "Iva", "Efectivo"): un
+# articulo cualquiera con ese importe es mas probable que sea un importe mal leido en otro.
+_RE_PARECE_LINEA_DE_CIERRE = re.compile(
+    r"sub|tot|iva|impuest|pago|cambio|efectivo|tarjeta|entreg|base|cuota|suma|visa", re.IGNORECASE
+)
 
 
 def extraer_total_impreso(texto: str) -> Optional[float]:
@@ -68,6 +73,7 @@ def _quitar_lineas_que_no_son_articulos(items: List[Dict], total: float) -> List
         if abs(importes[k] - exceso) <= _TOLERANCIA
         and item.get("origen_nombre") not in ("catalogo", "hogar")
         and not item.get("producto_id")
+        and _RE_PARECE_LINEA_DE_CIERRE.search(item.get("nombre") or "")
     ]
     if len(candidatos) != 1:
         return items

@@ -40,6 +40,10 @@ export default function SettingsPage() {
   const [editandoNombre, setEditandoNombre] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [passwordParaNombre, setPasswordParaNombre] = useState('')
+  const [editandoEmail, setEditandoEmail] = useState(false)
+  const [emailNuevo, setEmailNuevo] = useState('')
+  const [passwordParaEmail, setPasswordParaEmail] = useState('')
+  const [cargandoEmail, setCargandoEmail] = useState(false)
   const [cargandoNombre, setCargandoNombre] = useState(false)
 
   // Estado para editar nombre a mostrar (independiente del usuario de login)
@@ -235,6 +239,27 @@ export default function SettingsPage() {
     }
   }
 
+  const handleActualizarEmail = async () => {
+    if (!emailNuevo.trim()) return
+    setCargandoEmail(true)
+    setError('')
+    setExito('')
+    try {
+      await auth.actualizarPerfil({ email: emailNuevo.trim(), password_actual: passwordParaEmail })
+      setUser({ ...user, email: emailNuevo.trim().toLowerCase() })
+      setEmailVerificado(false)
+      setEditandoEmail(false)
+      setEmailNuevo('')
+      setPasswordParaEmail('')
+      setExito(t('email_actualizado'))
+      setTimeout(() => setExito(''), 4000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar_email'))
+    } finally {
+      setCargandoEmail(false)
+    }
+  }
+
   const handleActualizarNombreMostrar = async () => {
     setCargandoNombreMostrar(true)
     setError('')
@@ -425,13 +450,55 @@ export default function SettingsPage() {
         </div>
 
         {/* Email */}
-        {user.email && (
-          <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
-            <Mail className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
-            <span className="flex-1 text-sm">{t('correo_electronico')}</span>
-            <span className="text-sm text-muted-foreground truncate max-w-[50%]">{user.email}</span>
-          </div>
-        )}
+        <div className="px-4 py-3">
+          {editandoEmail ? (
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">{t('correo_electronico')}</label>
+              <input
+                type="email"
+                value={emailNuevo}
+                onChange={(e) => setEmailNuevo(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_nuevo_email')}
+                autoComplete="email"
+              />
+              <input
+                type="password"
+                value={passwordParaEmail}
+                onChange={(e) => setPasswordParaEmail(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_tu_password_actual')}
+                autoComplete="current-password"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleActualizarEmail}
+                  disabled={cargandoEmail}
+                  className="flex-1 px-3 py-2 bg-accent text-accent-foreground rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
+                >
+                  {cargandoEmail ? t('guardando') : t('guardar')}
+                </button>
+                <button
+                  onClick={() => { setEditandoEmail(false); setEmailNuevo(''); setPasswordParaEmail('') }}
+                  disabled={cargandoEmail}
+                  className="flex-1 px-3 py-2 bg-muted rounded-lg font-medium transition-colors min-h-[44px]"
+                >
+                  {t('cancelar')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setEmailNuevo(user.email || ''); setEditandoEmail(true) }}
+              className="w-full flex items-center gap-3 min-h-[44px] text-left"
+            >
+              <Mail className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+              <span className="flex-1 text-sm">{user.email ? t('correo_electronico') : t('anadir_email')}</span>
+              {user.email && <span className="text-sm text-muted-foreground truncate max-w-[50%]">{user.email}</span>}
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            </button>
+          )}
+        </div>
 
         {/* Aviso de email sin verificar (S-07) */}
         {user.email && !emailVerificado && (

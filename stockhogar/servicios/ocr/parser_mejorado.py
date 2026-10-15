@@ -255,6 +255,7 @@ class ParserMejorado:
         # Una linea de ticket no pasa de unos 100 caracteres: recortar evita que un
         # texto basura enorme dispare las expresiones regulares.
         lineas_limpias = [p for l in lineas_raw if l.strip() for p in self._separar_descuento_en_linea(l.strip()[:200])]
+        lineas_limpias = lineas_limpias[:600]  # ningun ticket real llega a tantas lineas
 
         # Detectar estructura (tabla vs lista)
         es_tabla = self._detectar_tabla(lineas_limpias)
@@ -872,6 +873,8 @@ class ParserMejorado:
             if a_granel:
                 try:
                     cantidad = float(cantidad_str)
+                    if cantidad <= 0:
+                        return 1.0, TipoUnidad.UNIDAD, "1 ud"
                     unidad = self.unidades_map.get(unidad_str, TipoUnidad.UNIDAD)
                     cantidad_texto = f"{cantidad} {unidad.value}"
                     return cantidad, unidad, cantidad_texto
@@ -1107,10 +1110,11 @@ class ParserMejorado:
             if previo is None:
                 por_nombre[clave] = prod
                 resultado.append(prod)
-            elif previo.unidad == prod.unidad and previo.unidad == TipoUnidad.UNIDAD and (prod.precio_total or 0) > 0:
-                # La misma linea dos veces en el ticket ("PAN" y otra vez "PAN"): se compraron
-                # las dos, no es un duplicado del OCR. Se suman cantidad e importe.
-                previo.cantidad += prod.cantidad
-                previo.cantidad_texto = f"{previo.cantidad:g} ud"
+            elif previo.unidad == prod.unidad and (prod.precio_total or 0) > 0:
+                # La misma linea dos veces en el ticket ("PAN" y otra vez "PAN", o dos
+                # pesadas de platano): se compraron las dos, no es un duplicado del OCR.
+                # Se suman cantidad e importe.
+                previo.cantidad = round(previo.cantidad + prod.cantidad, 3)
+                previo.cantidad_texto = f"{previo.cantidad:g} {previo.unidad.value}"
                 previo.precio_total = round((previo.precio_total or 0) + prod.precio_total, 2)
         return resultado

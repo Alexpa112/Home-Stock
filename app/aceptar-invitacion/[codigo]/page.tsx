@@ -21,7 +21,7 @@ export default function AceptarInvitacionPage() {
     const aceptar = async () => {
       try {
         const datos: any = await permisos.aceptarInvitacion(params.codigo)
-        setMensaje(datos.mensaje || t('invitacion_aceptada_titulo'))
+        setMensaje(t('invitacion_aceptada_titulo'))
         setEstado('ok')
         setTimeout(() => { window.location.href = '/dashboard' }, 1500)
       } catch (err) {

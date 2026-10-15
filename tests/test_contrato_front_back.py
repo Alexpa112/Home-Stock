@@ -97,3 +97,31 @@ class ContratoTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CategoriasPermisoTests(ContratoTests):
+    def test_sin_permiso_de_edicion_no_crea_categoria(self):
+        with self.app.app_context():
+            db = get_db()
+            otro = db.execute("INSERT INTO usuarios (nombre_usuario,password_hash,fecha_creacion) VALUES (?,?,?)",
+                              ("ctr_v" + uuid.uuid4().hex[:5], generate_password_hash("password123"), ahora())).lastrowid
+            db.execute("INSERT INTO permisos_hogar (hogar_id,usuario_id,nivel,fecha_otorgado) VALUES (?,?,?,?)",
+                       (self.hid, otro, "ver", ahora()))
+            db.commit()
+        try:
+            c = self.app.test_client()
+            with c.session_transaction() as s:
+                s["usuario"] = "x"
+                s["usuario_id"] = otro
+                s["hogar_actual_id"] = self.hid
+            r = c.post("/api/categorias", json={"nombre": "Cat" + uuid.uuid4().hex[:5]})
+            self.assertEqual(r.status_code, 403)
+            nombre = "Cat" + uuid.uuid4().hex[:5]
+            r = self.c.post("/api/categorias", json={"nombre": nombre})
+            self.assertEqual(r.status_code, 201)
+            self.c.delete("/api/categorias/%d" % r.get_json().get("id", 0))
+        finally:
+            with self.app.app_context():
+                db = get_db()
+                db.execute("DELETE FROM usuarios WHERE id=?", (otro,))
+                db.commit()

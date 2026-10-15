@@ -93,7 +93,7 @@ class DataConverter:
             "sub_descripcion": DataConverter.safe_field(row, "sub_descripcion"),
             "dias_aviso": DataConverter.safe_field(row, "dias_aviso", 30),
             "articulo_personalizado_id": DataConverter.safe_field(row, "articulo_personalizado_id"),
-            "completado": bool(DataConverter.safe_field(row, "completado", 0)),
+            "completado": not bool(DataConverter.safe_field(row, "activo", 1)),
             "origen": DataConverter.safe_field(row, "origen", "manual"),
             "fecha_creacion": DataConverter.safe_field(row, "fecha_creacion"),
             "fecha_completado": DataConverter.safe_field(row, "fecha_completado"),

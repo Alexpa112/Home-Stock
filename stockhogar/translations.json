@@ -821,7 +821,12 @@
     "ajustes_grupo_legal": "Legal",
     "codigo_manual_etiqueta": "¿Sin cámara? Escribe el código de barras",
     "codigo_manual_boton": "Usar código",
-    "aviso_cantidad_peso_alto": "Cantidad dudosa: {cantidad} {unidad} es mucho para una compra, ¿falta una coma? Revísala antes de importar."
+    "aviso_cantidad_peso_alto": "Cantidad dudosa: {cantidad} {unidad} es mucho para una compra, ¿falta una coma? Revísala antes de importar.",
+    "anadir_email": "Añadir correo electrónico",
+    "email_actualizado": "Correo actualizado. Te hemos enviado un enlace para verificarlo.",
+    "err_actualizar_email": "No se pudo actualizar el correo",
+    "placeholder_nuevo_email": "nuevo@example.com",
+    "err_credenciales_incorrectas": "Usuario o contraseña incorrectos"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1645,7 +1650,12 @@
     "ajustes_grupo_legal": "Legal",
     "codigo_manual_etiqueta": "¿Sen cámara? Escribe o código de barras",
     "codigo_manual_boton": "Usar código",
-    "aviso_cantidad_peso_alto": "Cantidade dubidosa: {cantidad} {unidad} é moito para unha compra, ¿falta unha coma? Revísaa antes de importar."
+    "aviso_cantidad_peso_alto": "Cantidade dubidosa: {cantidad} {unidad} é moito para unha compra, ¿falta unha coma? Revísaa antes de importar.",
+    "anadir_email": "Engadir correo electrónico",
+    "email_actualizado": "Correo actualizado. Enviámosche unha ligazón para verificalo.",
+    "err_actualizar_email": "Non se puido actualizar o correo",
+    "placeholder_nuevo_email": "novo@example.com",
+    "err_credenciales_incorrectas": "Usuario ou contrasinal incorrectos"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2469,7 +2479,12 @@
     "ajustes_grupo_legal": "Legal",
     "codigo_manual_etiqueta": "No camera? Type the barcode",
     "codigo_manual_boton": "Use code",
-    "aviso_cantidad_peso_alto": "Doubtful quantity: {cantidad} {unidad} is a lot for one purchase, is a decimal point missing? Check it before importing."
+    "aviso_cantidad_peso_alto": "Doubtful quantity: {cantidad} {unidad} is a lot for one purchase, is a decimal point missing? Check it before importing.",
+    "anadir_email": "Add email address",
+    "email_actualizado": "Email updated. We sent you a link to verify it.",
+    "err_actualizar_email": "Could not update the email",
+    "placeholder_nuevo_email": "new@example.com",
+    "err_credenciales_incorrectas": "Incorrect username or password"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3293,7 +3308,12 @@
     "ajustes_grupo_legal": "Legal",
     "codigo_manual_etiqueta": "Sem câmara? Escreva o código de barras",
     "codigo_manual_boton": "Usar código",
-    "aviso_cantidad_peso_alto": "Quantidade duvidosa: {cantidad} {unidad} é muito para uma compra, falta uma vírgula? Verifique antes de importar."
+    "aviso_cantidad_peso_alto": "Quantidade duvidosa: {cantidad} {unidad} é muito para uma compra, falta uma vírgula? Verifique antes de importar.",
+    "anadir_email": "Adicionar e-mail",
+    "email_actualizado": "E-mail atualizado. Enviámos-lhe uma ligação para o verificar.",
+    "err_actualizar_email": "Não foi possível atualizar o e-mail",
+    "placeholder_nuevo_email": "novo@example.com",
+    "err_credenciales_incorrectas": "Utilizador ou palavra-passe incorretos"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4117,7 +4137,12 @@
     "ajustes_grupo_legal": "Mentions légales",
     "codigo_manual_etiqueta": "Pas de caméra ? Saisissez le code-barres",
     "codigo_manual_boton": "Utiliser le code",
-    "aviso_cantidad_peso_alto": "Quantité douteuse : {cantidad} {unidad} c'est beaucoup pour un achat, une virgule manque-t-elle ? Vérifiez avant d'importer."
+    "aviso_cantidad_peso_alto": "Quantité douteuse : {cantidad} {unidad} c'est beaucoup pour un achat, une virgule manque-t-elle ? Vérifiez avant d'importer.",
+    "anadir_email": "Ajouter une adresse e-mail",
+    "email_actualizado": "E-mail mis à jour. Nous vous avons envoyé un lien de vérification.",
+    "err_actualizar_email": "Impossible de mettre à jour l'e-mail",
+    "placeholder_nuevo_email": "nouveau@example.com",
+    "err_credenciales_incorrectas": "Nom d'utilisateur ou mot de passe incorrect"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4941,7 +4966,12 @@
     "ajustes_grupo_legal": "Note legali",
     "codigo_manual_etiqueta": "Niente fotocamera? Scrivi il codice a barre",
     "codigo_manual_boton": "Usa codice",
-    "aviso_cantidad_peso_alto": "Quantità dubbia: {cantidad} {unidad} è molto per un acquisto, manca una virgola? Controllala prima di importare."
+    "aviso_cantidad_peso_alto": "Quantità dubbia: {cantidad} {unidad} è molto per un acquisto, manca una virgola? Controllala prima di importare.",
+    "anadir_email": "Aggiungi indirizzo e-mail",
+    "email_actualizado": "E-mail aggiornata. Ti abbiamo inviato un link per verificarla.",
+    "err_actualizar_email": "Impossibile aggiornare l'e-mail",
+    "placeholder_nuevo_email": "nuovo@example.com",
+    "err_credenciales_incorrectas": "Nome utente o password errati"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5765,6 +5795,11 @@
     "ajustes_grupo_legal": "Rechtliches",
     "codigo_manual_etiqueta": "Keine Kamera? Barcode eingeben",
     "codigo_manual_boton": "Code verwenden",
-    "aviso_cantidad_peso_alto": "Zweifelhafte Menge: {cantidad} {unidad} ist viel für einen Einkauf, fehlt ein Komma? Bitte vor dem Import prüfen."
+    "aviso_cantidad_peso_alto": "Zweifelhafte Menge: {cantidad} {unidad} ist viel für einen Einkauf, fehlt ein Komma? Bitte vor dem Import prüfen.",
+    "anadir_email": "E-Mail-Adresse hinzufügen",
+    "email_actualizado": "E-Mail aktualisiert. Wir haben dir einen Bestätigungslink geschickt.",
+    "err_actualizar_email": "E-Mail konnte nicht aktualisiert werden",
+    "placeholder_nuevo_email": "neu@example.com",
+    "err_credenciales_incorrectas": "Benutzername oder Passwort falsch"
   }
 }

@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { hogarActivoId, loading, propios, compartidos, avisoTemaHogar, cerrarAvisoTemaHogar } = useHogar()
+  const { hogarActivoId, loading, propios, compartidos, avisoTemaHogar, cerrarAvisoTemaHogar, puedeEditar } = useHogar()
   const { t } = useTranslation()
   const [mostrarSelectorHogar, setMostrarSelectorHogar] = useState(false)
   const hogarActivo = [...propios, ...compartidos].find((h) => h.id === hogarActivoId)
@@ -246,7 +246,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* ── Botón flotante "añadir" (móvil): Stock y Compra. Gastos tiene el suyo. ── */}
-        {(pathname === '/dashboard' || pathname === '/dashboard/shopping') && (
+        {puedeEditar && (pathname === '/dashboard' || pathname === '/dashboard/shopping') && (
           <button
             type="button"
             onClick={dispararAnadir}

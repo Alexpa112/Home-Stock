@@ -56,6 +56,12 @@ export default function TerminosPage() {
         introduces (productos, listas, fotos de tickets) sigue siendo tuyo; nos autorizas a
         tratarlo únicamente para prestarte el servicio.
       </p>
+      <p>
+        El diccionario con el que se reconocen los artículos de los tickets incluye datos de{' '}
+        <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer">Open Food Facts</a>,
+        disponibles bajo la licencia abierta{' '}
+        <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer">ODbL 1.0</a>.
+      </p>
 
       <h2>8. Limitación de responsabilidad</h2>
       <p>

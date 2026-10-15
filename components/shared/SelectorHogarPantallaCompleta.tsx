@@ -12,7 +12,11 @@ import { IconRenderer } from '@/components/dashboard/IconRenderer'
 // Claves de lib/dataCache.ts que dependen del hogar activo: hay que limpiarlas
 // antes de recargar para no pintar un instante los datos del hogar anterior
 // (esas claves no van separadas por hogar, ver el comentario de clearCache).
-const CACHE_KEYS_POR_HOGAR = ['stock:productos', 'stock:categorias', 'shopping:articulos']
+const CACHE_KEYS_POR_HOGAR = [
+  'stock:productos', 'stock:categorias', 'shopping:articulos',
+  'gastos:lista', 'gastos:saldo', 'gastos:sugerencias', 'gastos:liquidaciones', 'gastos:recurrentes', 'gastos:categorias',
+  'recetas:lista',
+]
 
 interface Props {
   // Si se pasa, aparece una X para cerrar sin cambiar de hogar (uso: cambiar

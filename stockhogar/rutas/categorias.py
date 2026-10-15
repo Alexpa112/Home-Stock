@@ -1,5 +1,5 @@
 """Rutas para gestionar categorías de productos (editables desde la app)."""
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import CATEGORIA_DEFECTO
@@ -29,6 +29,9 @@ def listar_categorias():
 @requerir_sesion
 @manejo_errores
 def crear_categoria():
+    from ..servicios.stock import hogar_actual_con_permiso  # import local: evita el ciclo con servicios.stock
+    if not hogar_actual_con_permiso(get_db(), session, nivel_requerido="editar"):
+        return APIResponse.no_permitido()
     datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 50)
     icono = Validator.string_opcional(datos.get("icono"), "h-folder", 30)
@@ -51,7 +54,10 @@ def crear_categoria():
 @requerir_sesion
 @manejo_errores
 def borrar_categoria(categoria_id):
+    from ..servicios.stock import hogar_actual_con_permiso
     db = get_db()
+    if not hogar_actual_con_permiso(db, session, nivel_requerido="editar"):
+        return APIResponse.no_permitido()
     fila = db.execute("SELECT * FROM categorias WHERE id = ?", (categoria_id,)).fetchone()
     if not fila:
         return APIResponse.no_encontrado("recurso_categoria")

@@ -5,6 +5,7 @@ import { Plus, ChefHat, X, AlertCircle, ShoppingCart, Pencil, Trash2 } from 'luc
 import { Modal } from '@/components/dashboard/Modal'
 import { recetas as recetasApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { useHogar } from '@/contexts/HogarContext'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { getCached, setCached } from '@/lib/dataCache'
@@ -29,6 +30,7 @@ const INGREDIENTE_VACIO = (): Ingrediente => ({ nombre: '', cantidad: 1, unidad:
 
 export default function RecetasPage() {
   const { t } = useTranslation()
+  const { puedeEditar } = useHogar()
   const [recetas, setRecetas] = useState<Receta[]>(() => getCached<Receta[]>(CACHE_KEY_RECETAS) || [])
   const [loading, setLoading] = useState(recetas.length === 0)
   const [error, setError] = useState('')
@@ -127,14 +129,16 @@ export default function RecetasPage() {
         acciones={accionesIrA(t, 'recetas')}
       >
         {/* Solo icono en móvil: con el chip y el menú no cabe el texto sin aplastar el título. */}
-        <button
-          onClick={abrirNuevo}
-          aria-label={t('nueva_receta')}
-          className="btn-primary flex items-center justify-center gap-2 min-h-[44px] min-w-[44px]"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">{t('nueva_receta')}</span>
-        </button>
+        {puedeEditar && (
+          <button
+            onClick={abrirNuevo}
+            aria-label={t('nueva_receta')}
+            className="btn-primary flex items-center justify-center gap-2 min-h-[44px] min-w-[44px]"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('nueva_receta')}</span>
+          </button>
+        )}
       </CabeceraPantalla>
 
       {error && (
