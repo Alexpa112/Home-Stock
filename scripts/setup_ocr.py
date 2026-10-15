@@ -157,6 +157,29 @@ def instalar_libheif():
     return exitoso
 
 
+def verificar_motor_neuronal():
+    """Motor neuronal de lectura (RapidOCR). OPCIONAL: sin el, el escaner lee con
+    Tesseract (bastante peor). No existe para armv7l (Raspberry Pi de 32 bits)."""
+    print(f"\n{BOLD}Verificando el motor neuronal de OCR (opcional)...{RESET}")
+    import platform
+    if platform.machine().lower() in ("armv7l", "armv6l"):
+        print(f"{WARNING}[--]{RESET} No disponible en {platform.machine()} (no hay onnxruntime): se usara solo Tesseract")
+        return None
+    try:
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # raiz del repo
+        from stockhogar.integraciones import ocr_rapid
+        if ocr_rapid.disponible():
+            print(f"{OK}{CHECK}{RESET} rapidocr-onnxruntime (lector neuronal local)")
+            return True
+    except Exception:
+        pass
+    print(f"{WARNING}[!!]{RESET} Lector neuronal NO instalado: el escaner leera con Tesseract (peor).")
+    print("     Instalar:  pip install -r requirements.txt && pip install --no-deps rapidocr-onnxruntime==1.4.4")
+    print("     (--no-deps: arrastra opencv-python y chocaria con opencv-python-headless)")
+    return False
+
+
 def mostrar_instrucciones_manuales(nombre, windows, mac, linux):
     print(f"\n{WARNING}Instalación manual de {nombre}:{RESET}")
     if SI_WINDOWS:
@@ -187,6 +210,7 @@ def main():
 
     deps_ok = verificar_python_deps()
     todos_deps_ok = all(deps_ok.values())
+    neuronal_ok = verificar_motor_neuronal()
 
     print(f"\n{BOLD}{'='*60}")
     print(f"RESUMEN{RESET}")
@@ -195,6 +219,9 @@ def main():
     print(f"Poppler (PDF):                  {f'{OK}{CHECK}{RESET}' if poppler_ok else f'{WARNING}[!!] FALTA (sin esto, PDF no funciona){RESET}'}")
     print(f"libheif (HEIC/HEIF, fotos iOS): {f'{OK}{CHECK}{RESET}' if heif_ok else f'{WARNING}[!!] FALTA (sin esto, HEIC no funciona){RESET}'}")
     print(f"Dependencias Python:            {f'{OK}{CHECK} Todas OK{RESET}' if todos_deps_ok else f'{ERROR}{CROSS} Faltan algunas{RESET}'}")
+    print(f"Lector neuronal (RapidOCR):     "
+          + (f'{OK}{CHECK}{RESET}' if neuronal_ok else (f'{WARNING}[--] no aplica (32 bits){RESET}' if neuronal_ok is None
+                                                          else f'{WARNING}[!!] FALTA (se usara Tesseract){RESET}')))
 
     if not todos_deps_ok:
         print(f"\n{ERROR}Falta instalar (pip):{RESET}")

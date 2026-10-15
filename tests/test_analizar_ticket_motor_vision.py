@@ -156,7 +156,8 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         extraer.assert_called_once()
         nombres = [item["nombre"] for item in resp.get_json()["items"]]
-        self.assertIn("Leche Entera", nombres)
+        # El diccionario devuelve el nombre del catalogo ("Leche entera"), no el del ticket.
+        self.assertIn("Leche entera", nombres)
 
     def test_con_articulos_reconocidos_no_se_gasta_tesseract(self):
         _ClaudeFalso.respuesta = {
@@ -186,3 +187,42 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CuadreConElTotalImpresoTests(AnalizarTicketMotorVisionTests):
+    """El pipeline local comprueba la lectura con el TOTAL del pie del ticket."""
+
+    # Hereda solo el montaje (usuario, hogar, foto): los tests de la clase base no se repiten.
+    for _nombre in [n for n in dir(AnalizarTicketMotorVisionTests) if n.startswith("test_")]:
+        locals()[_nombre] = None
+    del _nombre
+
+    def _analizar_texto(self, texto):
+        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value=texto):
+                return self._analizar()
+
+    def test_ticket_que_cuadra_trae_el_cuadre_y_ningun_aviso(self):
+        resp = self._analizar_texto("TIENDA X\n12/10/2026\nPAN 2 1,85 3,70\nLECHE 1 1,20 1,20\nTOTAL 4,90\n")
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        d = resp.get_json()
+        self.assertTrue(d["cuadre"]["cuadra"])
+        self.assertEqual(d["totales"]["total"], 4.9)
+        self.assertNotIn("descuadre", [a["tipo"] for a in d.get("advertencias", [])])
+
+    def test_ticket_que_no_cuadra_avisa(self):
+        resp = self._analizar_texto("TIENDA X\n12/10/2026\nPAN 1,00\nLECHE 1,20\nTOTAL 9,90\n")
+        d = resp.get_json()
+        self.assertFalse(d["cuadre"]["cuadra"])
+        self.assertIn("descuadre", [a["tipo"] for a in d["advertencias"]])
+
+    def test_la_unica_linea_sin_importe_se_rellena_con_el_total(self):
+        texto = "TIENDA X\n12/10/2026\nPAN 2 1,85 3,70\nLECHE ENTERA\nTOTAL 4,90\n"
+        d = self._analizar_texto(texto).get_json()
+        leche = next(i for i in d["items"] if "eche" in i["nombre"])
+        self.assertEqual(leche["precio_total"], 1.2)
+        self.assertEqual(leche["corregido_por_total"], "importe")
+
+    def test_sin_total_no_hay_cuadre(self):
+        d = self._analizar_texto("TIENDA X\n12/10/2026\nPAN 1,00\nLECHE 1,20\n").get_json()
+        self.assertNotIn("cuadre", d)

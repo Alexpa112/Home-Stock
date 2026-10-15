@@ -24,6 +24,7 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt && \
+    pip install --no-deps rapidocr-onnxruntime==1.4.4 && \
     rm -rf /usr/local/lib/python*/ensurepip/_bundled
 
 COPY . .

@@ -16,6 +16,7 @@ import { articulosLista, categorias as categoriasApi, productos as productosApi 
 import { buscarCatalogo, buscarPorCodigoBarras } from '@/lib/catalogo'
 import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { useHogar } from '@/contexts/HogarContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
@@ -41,7 +42,7 @@ function fusionarConservando(previos: ArticuloLista[], recibidos: ArticuloLista[
 
 interface ArticuloLista {
   id: number
-  lista_id: number
+  hogar_id: number
   nombre: string
   cantidad: number
   unidad: string
@@ -69,6 +70,7 @@ interface ArticuloCatalogo {
 export default function ShoppingPage() {
   const { preferences, updatePreferences } = useListPreferences()
   const { t } = useTranslation()
+  const { puedeEditar } = useHogar()
   const cachedArticulos = getCached<{ pendientes: ArticuloLista[]; completados: ArticuloLista[] }>(CACHE_KEY_ARTICULOS)
   const [pendientes, setPendientes] = useState<ArticuloLista[]>(cachedArticulos?.pendientes || [])
   const [completados, setCompletados] = useState<ArticuloLista[]>(cachedArticulos?.completados || [])
@@ -694,13 +696,15 @@ export default function ShoppingPage() {
         ]}
       >
         {/* En móvil el alta va en el botón flotante del layout. */}
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="hidden lg:flex btn-primary items-center gap-2 min-h-[44px]"
-        >
-          <Plus className="w-5 h-5" />
-          {t('añadir_articulo')}
-        </button>
+        {puedeEditar && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="hidden lg:flex btn-primary items-center gap-2 min-h-[44px]"
+          >
+            <Plus className="w-5 h-5" />
+            {t('añadir_articulo')}
+          </button>
+        )}
       </CabeceraPantalla>
       <input ref={inputImportarRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
 
@@ -944,13 +948,13 @@ export default function ShoppingPage() {
       ) : items.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">{t('lista_vacia')}</p>
-          <button
+          {puedeEditar && <button
             onClick={() => setShowForm(true)}
             className="btn-primary inline-flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
             {t('crear_primera_compra')}
-          </button>
+          </button>}
         </div>
       ) : preferences.vista_lista_compra === 'recuadros' ? (
         renderVistaRecuadros()

@@ -2,8 +2,9 @@
 from flask import Blueprint, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from .. import cifrado
 from ..db import ahora, get_db
-from ..servicios.push_service import clave_publica_vapid
+from ..servicios.push_service import clave_publica_vapid, endpoint_push_permitido
 
 bp = Blueprint("push", __name__, url_prefix="/api/push")
 
@@ -30,6 +31,8 @@ def suscribir():
 
     if not endpoint or not p256dh or not auth:
         return APIResponse.validacion("err_suscripcion_push_invalida")
+    if not endpoint_push_permitido(endpoint) or len(p256dh) > 200 or len(auth) > 100:
+        return APIResponse.validacion("err_suscripcion_push_invalida")
 
     db = get_db()
     db.execute(
@@ -37,7 +40,7 @@ def suscribir():
         "VALUES (?, ?, ?, ?, ?) "
         "ON CONFLICT(endpoint) DO UPDATE SET usuario_id = excluded.usuario_id, "
         "p256dh = excluded.p256dh, auth = excluded.auth",
-        (usuario_id, endpoint, p256dh, auth, ahora()),
+        (usuario_id, endpoint, cifrado.cifrar_texto(p256dh), cifrado.cifrar_texto(auth), ahora()),
     )
     db.commit()
     return APIResponse.success({"suscrito": True})

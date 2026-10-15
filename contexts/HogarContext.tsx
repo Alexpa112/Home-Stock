@@ -34,6 +34,9 @@ interface HogarContextType {
   actualizarHogar: (id: number, datos: Record<string, unknown>) => Promise<void>
   avisoTemaHogar: string | null
   cerrarAvisoTemaHogar: () => void
+  /** Propietario o miembro con permiso de edicion (los de solo 'ver' no pueden crear ni editar). */
+  puedeEditar: boolean
+  esPropietario: boolean
 }
 
 const HogarContext = createContext<HogarContextType | undefined>(undefined)
@@ -150,6 +153,10 @@ export function HogarProvider({ children }: { children: ReactNode }) {
   // El value va memoizado y las acciones con useCallback: al ser un objeto
   // literal nuevo en cada render, TODO consumidor de useHogar() se repintaba
   // en cada render del provider aunque no hubiera cambiado nada de lo que lee.
+  const hogarActivo = [...propios, ...compartidos].find((h) => h.id === hogarActivoId)
+  const esPropietario = !hogarActivo || hogarActivo.mi_rol === 'propietario'
+  const puedeEditar = esPropietario || hogarActivo?.mi_rol === 'editar'
+
   const valor = useMemo(
     () => ({
       propios,
@@ -163,8 +170,10 @@ export function HogarProvider({ children }: { children: ReactNode }) {
       actualizarHogar,
       avisoTemaHogar,
       cerrarAvisoTemaHogar,
+      puedeEditar,
+      esPropietario,
     }),
-    [propios, compartidos, hogarActivoId, loading, error, seleccionar, crear,
+    [puedeEditar, esPropietario, propios, compartidos, hogarActivoId, loading, error, seleccionar, crear,
      cargar, actualizarHogar, avisoTemaHogar, cerrarAvisoTemaHogar]
   )
 

@@ -24,9 +24,10 @@ def _ip_vista_por_la_app(app, entorno, cabeceras=None):
         return ip_cliente()
 
 
-def test_se_confia_en_la_cabecera_si_el_salto_es_el_proxy_interno():
+def test_se_confia_en_la_cabecera_si_el_salto_es_el_proxy_interno(monkeypatch):
     # Caso real de produccion: Cloudflare -> Next -> Flask, asi que a Flask le
-    # llega desde una IP privada de la red de Docker.
+    # llega desde una IP privada de la red de Docker (despliegue con APP_URL https).
+    monkeypatch.setattr("stockhogar.red.USAR_COOKIE_SEGURA", True)
     app = create_app()
     ip = _ip_vista_por_la_app(
         app,
@@ -34,6 +35,14 @@ def test_se_confia_en_la_cabecera_si_el_salto_es_el_proxy_interno():
         {"CF-Connecting-IP": IP_REAL_DEL_VISITANTE},
     )
     assert ip == IP_REAL_DEL_VISITANTE
+
+
+def test_en_red_local_sin_https_se_ignora_la_cabecera(monkeypatch):
+    # El puerto del frontend es alcanzable directamente: la cabecera la escribe el cliente.
+    monkeypatch.setattr("stockhogar.red.USAR_COOKIE_SEGURA", False)
+    app = create_app()
+    ip = _ip_vista_por_la_app(app, {"REMOTE_ADDR": "172.18.0.5"}, {"CF-Connecting-IP": IP_INVENTADA})
+    assert ip == "172.18.0.5"
 
 
 def test_se_ignora_la_cabecera_si_la_peticion_llega_de_una_ip_publica():

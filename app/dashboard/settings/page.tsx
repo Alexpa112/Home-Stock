@@ -39,6 +39,12 @@ export default function SettingsPage() {
   // Estado para editar usuario (login)
   const [editandoNombre, setEditandoNombre] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
+  const [passwordParaNombre, setPasswordParaNombre] = useState('')
+  const [passwordEliminar, setPasswordEliminar] = useState('')
+  const [editandoEmail, setEditandoEmail] = useState(false)
+  const [emailNuevo, setEmailNuevo] = useState('')
+  const [passwordParaEmail, setPasswordParaEmail] = useState('')
+  const [cargandoEmail, setCargandoEmail] = useState(false)
   const [cargandoNombre, setCargandoNombre] = useState(false)
 
   // Estado para editar nombre a mostrar (independiente del usuario de login)
@@ -88,7 +94,13 @@ export default function SettingsPage() {
     setCargandoDobleFactor(true)
     setError('')
     try {
-      await auth.cambiarDobleFactor(activo)
+      // Desactivar el 2FA exige la contrasena actual (reautenticacion).
+      const password = activo ? undefined : (window.prompt(t('placeholder_tu_password_actual')) ?? '')
+      if (!activo && !password) {
+        setCargandoDobleFactor(false)
+        return
+      }
+      await auth.cambiarDobleFactor(activo, password)
       setDobleFactorActivo(activo)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_doble_factor_requiere_email'))
@@ -112,7 +124,7 @@ export default function SettingsPage() {
         setOcrLocal(!!data.ocr_local)
 
         auth.validarInstalacionOcr()
-          .then((diag: any) => setMotorNubeDisponible(Boolean(diag?.claude_api_key && diag?.claude_paquete)))
+          .then((diag: any) => setMotorNubeDisponible(Boolean(diag?.validaciones?.claude_api_key && diag?.validaciones?.claude_paquete)))
           .catch(() => setMotorNubeDisponible(true))  // ante la duda, no alarmar
 
         const pref = data.tema_preferido || 'auto'
@@ -221,15 +233,37 @@ export default function SettingsPage() {
     setError('')
     setExito('')
     try {
-      await auth.actualizarPerfil({ usuario: nuevoNombre })
+      await auth.actualizarPerfil({ usuario: nuevoNombre, password_actual: passwordParaNombre })
       setUser({ ...user, usuario: nuevoNombre })
       setEditandoNombre(false)
+      setPasswordParaNombre('')
       setExito(t('nombre_usuario_actualizado'))
       setTimeout(() => setExito(''), 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_actualizar_nombre'))
     } finally {
       setCargandoNombre(false)
+    }
+  }
+
+  const handleActualizarEmail = async () => {
+    if (!emailNuevo.trim()) return
+    setCargandoEmail(true)
+    setError('')
+    setExito('')
+    try {
+      await auth.actualizarPerfil({ email: emailNuevo.trim(), password_actual: passwordParaEmail })
+      setUser({ ...user, email: emailNuevo.trim().toLowerCase() })
+      setEmailVerificado(false)
+      setEditandoEmail(false)
+      setEmailNuevo('')
+      setPasswordParaEmail('')
+      setExito(t('email_actualizado'))
+      setTimeout(() => setExito(''), 4000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('err_actualizar_email'))
+    } finally {
+      setCargandoEmail(false)
     }
   }
 
@@ -287,7 +321,7 @@ export default function SettingsPage() {
     setCargandoEliminar(true)
     setError('')
     try {
-      await auth.eliminarCuenta(user.id)
+      await auth.eliminarCuenta(user.id, passwordEliminar)
       window.location.href = '/'
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_eliminar_cuenta'))
@@ -380,6 +414,14 @@ export default function SettingsPage() {
                 className="input-field"
                 placeholder={t('placeholder_nuevo_nombre_usuario')}
               />
+              <input
+                type="password"
+                value={passwordParaNombre}
+                onChange={(e) => setPasswordParaNombre(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_tu_password_actual')}
+                autoComplete="current-password"
+              />
               <div className="flex gap-2">
                 <button
                   onClick={handleActualizarNombre}
@@ -392,6 +434,7 @@ export default function SettingsPage() {
                   onClick={() => {
                     setEditandoNombre(false)
                     setNuevoNombre(user.usuario || '')
+                    setPasswordParaNombre('')
                   }}
                   disabled={cargandoNombre}
                   className="flex-1 px-3 py-2 bg-muted rounded-lg font-medium transition-colors min-h-[44px]"
@@ -414,13 +457,55 @@ export default function SettingsPage() {
         </div>
 
         {/* Email */}
-        {user.email && (
-          <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
-            <Mail className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
-            <span className="flex-1 text-sm">{t('correo_electronico')}</span>
-            <span className="text-sm text-muted-foreground truncate max-w-[50%]">{user.email}</span>
-          </div>
-        )}
+        <div className="px-4 py-3">
+          {editandoEmail ? (
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">{t('correo_electronico')}</label>
+              <input
+                type="email"
+                value={emailNuevo}
+                onChange={(e) => setEmailNuevo(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_nuevo_email')}
+                autoComplete="email"
+              />
+              <input
+                type="password"
+                value={passwordParaEmail}
+                onChange={(e) => setPasswordParaEmail(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_tu_password_actual')}
+                autoComplete="current-password"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleActualizarEmail}
+                  disabled={cargandoEmail}
+                  className="flex-1 px-3 py-2 bg-accent text-accent-foreground rounded-lg font-medium transition-colors disabled:opacity-50 min-h-[44px]"
+                >
+                  {cargandoEmail ? t('guardando') : t('guardar')}
+                </button>
+                <button
+                  onClick={() => { setEditandoEmail(false); setEmailNuevo(''); setPasswordParaEmail('') }}
+                  disabled={cargandoEmail}
+                  className="flex-1 px-3 py-2 bg-muted rounded-lg font-medium transition-colors min-h-[44px]"
+                >
+                  {t('cancelar')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setEmailNuevo(user.email || ''); setEditandoEmail(true) }}
+              className="w-full flex items-center gap-3 min-h-[44px] text-left"
+            >
+              <Mail className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
+              <span className="flex-1 text-sm">{user.email ? t('correo_electronico') : t('anadir_email')}</span>
+              {user.email && <span className="text-sm text-muted-foreground truncate max-w-[50%]">{user.email}</span>}
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            </button>
+          )}
+        </div>
 
         {/* Aviso de email sin verificar (S-07) */}
         {user.email && !emailVerificado && (
@@ -887,6 +972,14 @@ export default function SettingsPage() {
               <p className="text-sm text-center text-red-700 dark:text-red-300 font-medium">
                 {t('confirmar_eliminar_cuenta_pregunta')}
               </p>
+              <input
+                type="password"
+                value={passwordEliminar}
+                onChange={(e) => setPasswordEliminar(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_tu_password_actual')}
+                autoComplete="current-password"
+              />
               <div className="flex gap-2">
                 <button
                   onClick={handleEliminarCuenta}

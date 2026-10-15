@@ -12,7 +12,10 @@ clave antigua siguen siendo validas mientras esa clave este en la lista
 solo la clave activa firma cookies NUEVAS.
 """
 import json
+import os
 import secrets
+
+from cryptography.fernet import Fernet
 
 from .config import CLAVES_PATH
 
@@ -30,16 +33,34 @@ def _migrar_formato_antiguo(claves):
 
 def _cargar_claves():
     if CLAVES_PATH.exists():
-        claves = json.loads(CLAVES_PATH.read_text(encoding="utf-8"))
-        return _migrar_formato_antiguo(claves)
+        claves = _migrar_formato_antiguo(json.loads(CLAVES_PATH.read_text(encoding="utf-8")))
+        # Instalaciones anteriores al cifrado en reposo: se crea su clave sin tocar la de sesion.
+        if "cifrado_clave" not in claves:
+            claves["cifrado_clave"] = Fernet.generate_key().decode()
+            claves["cifrado_claves_previas"] = []
+            _guardar(claves)
+        return claves
 
-    claves = {"flask_secret_key": secrets.token_hex(32), "claves_verificacion_previas": []}
+    claves = {
+        "flask_secret_key": secrets.token_hex(32),
+        "claves_verificacion_previas": [],
+        "cifrado_clave": Fernet.generate_key().decode(),
+        "cifrado_claves_previas": [],
+    }
     _guardar(claves)
     return claves
 
 
 def _guardar(claves):
-    CLAVES_PATH.write_text(json.dumps(claves), encoding="utf-8")
+    """Escritura atomica con permisos 0600 desde el primer byte (con write_text +
+    chmod el fichero existia unos instantes legible por otros usuarios)."""
+    temporal = CLAVES_PATH.with_name(CLAVES_PATH.name + ".tmp")
+    fd = os.open(temporal, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(claves, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temporal, CLAVES_PATH)
     try:
         CLAVES_PATH.chmod(0o600)
     except OSError:
@@ -64,6 +85,7 @@ def rotar_clave():
 
     nuevas_previas = [_claves["flask_secret_key"]] + _claves["claves_verificacion_previas"]
     _claves = {
+        **_claves,  # conserva las claves de cifrado en reposo
         "flask_secret_key": secrets.token_hex(32),
         "claves_verificacion_previas": nuevas_previas[:MAX_CLAVES_VERIFICACION],
     }
@@ -74,5 +96,23 @@ def rotar_clave():
 
 
 _claves = _cargar_claves()
-FLASK_SECRET_KEY = _claves["flask_secret_key"]
+# Las variables de entorno mandan sobre el fichero: permiten guardar los secretos
+# fuera del disco de datos (gestor de secretos, Docker secrets).
+FLASK_SECRET_KEY = os.getenv("DREAME_SECRET_KEY") or _claves["flask_secret_key"]
 CLAVES_VERIFICACION_PREVIAS = _claves["claves_verificacion_previas"]
+CLAVE_CIFRADO = os.getenv("DREAME_CIFRADO_KEY") or _claves["cifrado_clave"]
+CLAVES_CIFRADO_PREVIAS = _claves.get("cifrado_claves_previas", [])
+
+
+def rotar_clave_cifrado():
+    """Nueva clave de cifrado en reposo; la actual pasa a la lista de descifrado.
+    Despues hay que llamar a cifrado.recifrar_existentes() para que los datos
+    ya guardados pasen a la clave nueva."""
+    global _claves, CLAVE_CIFRADO, CLAVES_CIFRADO_PREVIAS
+    previas = [_claves["cifrado_clave"]] + _claves.get("cifrado_claves_previas", [])
+    _claves["cifrado_clave"] = Fernet.generate_key().decode()
+    _claves["cifrado_claves_previas"] = previas[:MAX_CLAVES_VERIFICACION]
+    _guardar(_claves)
+    CLAVE_CIFRADO = _claves["cifrado_clave"]
+    CLAVES_CIFRADO_PREVIAS = _claves["cifrado_claves_previas"]
+    return CLAVE_CIFRADO

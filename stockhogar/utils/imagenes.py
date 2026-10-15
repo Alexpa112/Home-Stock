@@ -21,10 +21,50 @@ from PIL.Image import DecompressionBombError
 
 logger = logging.getLogger(__name__)
 
+# Una foto de movil son 12-50 Mpx. Por encima es una bomba de descompresion: un PNG de
+# 500 KB puede declarar 13000x13000 (169 Mpx) y gastar >1 GB al decodificarlo.
+MAX_PIXELES = 50_000_000
+Image.MAX_IMAGE_PIXELS = MAX_PIXELES
+
+
+def imagen_demasiado_grande(origen) -> bool:
+    """True si la imagen (bytes o ruta) declara mas de MAX_PIXELES. Solo lee la
+    cabecera: no decodifica los pixeles."""
+    try:
+        with Image.open(io.BytesIO(origen) if isinstance(origen, (bytes, bytearray)) else origen) as im:
+            ancho, alto = im.size
+        return ancho * alto > MAX_PIXELES
+    except DecompressionBombError:
+        return True
+    except Exception:  # formato desconocido: lo decide quien la procese
+        return False
+
 _FORMATOS_PILLOW_POR_EXTENSION = {
     "jpg": "JPEG", "jpeg": "JPEG", "png": "PNG",
     "gif": "GIF", "webp": "WEBP", "bmp": "BMP",
 }
+
+
+def validar_formato(imagen_bytes: bytes, extension: str):
+    """Solo comprueba que es una imagen valida del formato que dice su extension y que no es
+    una bomba de pixeles. Devuelve None si es valida o la clave del error.
+
+    Para lo que NO se guarda (la foto del ticket se descarta tras el OCR) basta esto: no hace
+    falta decodificar y volver a codificar los pixeles como en validar_y_recodificar, que en una
+    foto de 10 Mpx cuesta cientos de milisegundos por nada."""
+    formato_esperado = _FORMATOS_PILLOW_POR_EXTENSION.get(extension)
+    if formato_esperado is None:
+        return None
+    if imagen_demasiado_grande(imagen_bytes):
+        return "err_formato_no_permitido"
+    try:
+        with Image.open(io.BytesIO(imagen_bytes)) as imagen:
+            if imagen.format != formato_esperado:
+                return "err_formato_no_permitido"
+            imagen.verify()
+    except (UnidentifiedImageError, OSError, ValueError, DecompressionBombError):
+        return "err_formato_no_permitido"
+    return None
 
 
 def validar_y_recodificar(imagen_bytes: bytes, extension: str):
@@ -39,6 +79,10 @@ def validar_y_recodificar(imagen_bytes: bytes, extension: str):
         # Extension no cubierta por esta validacion (p.ej. heic/heif): se
         # deja pasar sin recodificar, la llama quien sepa tratarla.
         return imagen_bytes, None
+
+    if imagen_demasiado_grande(imagen_bytes):
+        logger.warning("Imagen rechazada: demasiados pixeles")
+        return None, "err_formato_no_permitido"
 
     try:
         imagen = Image.open(io.BytesIO(imagen_bytes))

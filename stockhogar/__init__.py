@@ -134,6 +134,13 @@ def create_app():
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+        # Las respuestas de la API llevan datos personales: ni el navegador ni un proxy
+        # intermedio deben guardarlas (cuentas compartidas, equipos publicos).
+        if request.path.startswith("/api/") and not request.path.startswith("/api/idiomas/todos/"):
+            response.headers.setdefault("Cache-Control", "no-store")
         return response
 
     app.register_blueprint(paginas.bp)
@@ -214,8 +221,96 @@ def create_app():
         return None
 
     db.init_db()
+    _restringir_permisos_de_datos()
+    _cifrar_datos_existentes(app)
     _registrar_estado_escaner()
+    _precalentar_diccionario()
+    _precalentar_motor_ocr()
     return app
+
+
+def _restringir_permisos_de_datos():
+    """data/ y los ficheros con datos o claves solo legibles por el usuario de la app."""
+    from .config import DATA_DIR, DB_PATH
+    try:
+        DATA_DIR.chmod(0o700)
+        for nombre in (DB_PATH.name, DB_PATH.name + "-wal", DB_PATH.name + "-shm", "secret.json", "vapid_private_key.pem"):
+            ruta = DATA_DIR / nombre
+            if ruta.exists():
+                ruta.chmod(0o600)
+    except OSError:
+        pass  # sistemas de ficheros sin permisos POSIX (montajes de Windows)
+
+
+def _cifrar_datos_existentes(app):
+    """Cifra en reposo lo que una version anterior guardo en claro (idempotente)."""
+    import logging
+    from . import cifrado
+    try:
+        with app.app_context():
+            n = cifrado.cifrar_existentes(db.get_db())
+        if n:
+            logging.getLogger(__name__).info("Cifrados en reposo %d registros que estaban en claro", n)
+    except Exception:  # no debe impedir el arranque; los datos en claro siguen leyendose
+        logging.getLogger(__name__).exception("No se pudo cifrar los datos existentes")
+
+
+def _precalentar_diccionario():
+    """Construye el diccionario de articulos del escaner en segundo plano.
+
+    Cuesta ~1 s en un PC y varios en una Raspberry Pi; sin esto lo pagaria el
+    primer ticket que se escanee tras arrancar. Si falla, el escaner sigue
+    funcionando sin el (ver identificar_articulo).
+    """
+    import threading
+
+    def _cargar():
+        try:
+            from .servicios.ocr.diccionario import obtener
+            obtener()
+        except Exception:  # pragma: no cover - el escaner degrada solo
+            logging.getLogger(__name__).exception("No se pudo precalentar el diccionario de articulos")
+
+    threading.Thread(target=_cargar, name="diccionario-articulos", daemon=True).start()
+
+
+_motor_ocr_precalentado = False
+
+
+def _precalentar_motor_ocr():
+    """Carga el motor neuronal y hace una lectura de prueba en segundo plano.
+
+    El primer ticket tras arrancar pagaba ~1,5 s extra (carga de los modelos y calentamiento de
+    ONNX). Solo se hace si hay memoria de sobra (>= 3 GB): el motor ocupa ~250 MB por proceso y
+    en una Raspberry Pi pequeña es mejor cargarlo cuando de verdad se escanea.
+    DREAME_OCR_PRECALENTAR=0 lo desactiva."""
+    global _motor_ocr_precalentado
+    import os
+    import threading
+    if _motor_ocr_precalentado or os.environ.get("DREAME_OCR_PRECALENTAR", "1") == "0":
+        return
+    try:
+        memoria = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    except (ValueError, OSError, AttributeError):
+        return
+    if memoria < 3 * 1024 ** 3:
+        return
+    _motor_ocr_precalentado = True
+
+    def _cargar():
+        try:
+            import numpy as np
+            from .integraciones import ocr_rapid
+            if ocr_rapid.disponible():
+                import cv2
+                hoja = np.full((200, 600, 3), 255, np.uint8)
+                cv2.putText(hoja, "LECHE 1,20", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (0, 0, 0), 3)
+                cv2.putText(hoja, "TOTAL 1,20", (20, 140), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (0, 0, 0), 3)
+                ocr_rapid.leer_lineas(hoja)  # texto de verdad: calienta tambien el reconocedor
+        except Exception:  # el escaner carga el motor bajo demanda si esto falla
+            logging.getLogger(__name__).warning("No se pudo precalentar el motor de OCR", exc_info=True)
+
+    threading.Thread(target=_cargar, name="motor-ocr", daemon=True).start()
 
 
 def _registrar_estado_escaner():

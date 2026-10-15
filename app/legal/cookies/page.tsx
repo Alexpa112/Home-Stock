@@ -16,7 +16,7 @@ export default function CookiesPage() {
       <ul>
         <li><strong>Nombre:</strong> session</li>
         <li><strong>Finalidad:</strong> mantenerte identificado mientras usas la aplicación, para que no tengas que iniciar sesión en cada visita.</li>
-        <li><strong>Duración:</strong> hasta 365 días, o hasta que cierres sesión manualmente.</li>
+        <li><strong>Duración:</strong> hasta 30 días desde tu último uso (se renueva cada vez que usas la aplicación), o hasta que cierres sesión manualmente.</li>
         <li><strong>Tipo:</strong> técnica y propia, imprescindible para el funcionamiento de la aplicación.</li>
       </ul>
 

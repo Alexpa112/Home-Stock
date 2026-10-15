@@ -8,6 +8,7 @@ from flask import Blueprint, Response, current_app, g, request, session
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
+from ..utils.csv_seguro import EscritorCsvSeguro, desproteger
 from ..utils import Validator, DataConverter, ValidationError
 from ..servicios.stock import (
     hogar_actual_con_permiso,
@@ -47,7 +48,7 @@ def exportar_inventario_csv():
     ).fetchall()
 
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = EscritorCsvSeguro(buffer)
     writer.writerow(CABECERAS_CSV_INVENTARIO)
     for fila in filas:
         writer.writerow([
@@ -91,11 +92,11 @@ def importar_inventario_csv():
     for i, fila in enumerate(lector):
         if i >= MAX_FILAS_IMPORTACION:
             break
-        nombre = (fila.get("nombre") or "").strip()
+        nombre = desproteger((fila.get("nombre") or "").strip())[:100]
         if not nombre:
             continue
         categoria = normalizar_categoria(db, fila.get("categoria") or "Otros")
-        unidad = (fila.get("unidad") or "ud").strip() or "ud"
+        unidad = (fila.get("unidad") or "ud").strip()[:20] or "ud"
         try:
             cantidad = max(0, int(fila.get("cantidad") or 0))
             stock_minimo = max(0, int(fila.get("stock_minimo") or 1))
@@ -158,8 +159,8 @@ def crear_producto():
     datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 80)
     categoria = Validator.string_opcional(datos.get("categoria"), "Otros", 50)
-    cantidad = Validator.entero_no_negativo(Validator.con_defecto(datos, "cantidad", 0), "cantidad")
-    stock_minimo = Validator.entero_no_negativo(Validator.con_defecto(datos, "stock_minimo", 1), "stock mínimo")
+    cantidad = Validator.cantidad_stock(Validator.con_defecto(datos, "cantidad", 0), "cantidad")
+    stock_minimo = Validator.cantidad_stock(Validator.con_defecto(datos, "stock_minimo", 1), "stock mínimo")
     dias_aviso = Validator.entero_minimo(Validator.con_defecto(datos, "dias_aviso", DIAS_AVISO_DEFECTO), "días de aviso", 0, 365)
     unidad = Validator.string_opcional(datos.get("unidad"), "ud", 20)
     icono = Validator.string_opcional(datos.get("icono"), None, 30)
@@ -374,10 +375,10 @@ def actualizar_producto(producto_id):
         categoria = datos.get("categoria") or actual["categoria"]
         if categoria != normalizar_categoria(db, categoria):
             categoria = actual["categoria"]
-        cantidad = Validator.entero_no_negativo(
+        cantidad = Validator.cantidad_stock(
             Validator.con_defecto(datos, "cantidad", actual["cantidad"]), "cantidad"
         )
-        stock_minimo = Validator.entero_no_negativo(
+        stock_minimo = Validator.cantidad_stock(
             Validator.con_defecto(datos, "stock_minimo", actual["stock_minimo"]), "stock mínimo"
         )
         dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", actual["dias_aviso"]))

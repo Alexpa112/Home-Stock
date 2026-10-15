@@ -21,7 +21,7 @@ function IconRendererBase({ name, className = 'w-4 h-4' }: IconRendererProps) {
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join('')
-    const HeroIcon = (HeroIcons as any)[heroNamePascal]
+    const HeroIcon = (HeroIcons as any)[`${heroNamePascal}Icon`] || (HeroIcons as any)[heroNamePascal]
     if (HeroIcon) {
       return <HeroIcon className={className} />
     }

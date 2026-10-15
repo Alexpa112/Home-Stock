@@ -10,6 +10,19 @@ requests>=2.28.0
 python-dotenv>=1.0.0
 rapidfuzz>=3.0,<4
 opencv-python-headless>=4.9,<=4.12.0.88
+# Lector neuronal de tickets (stockhogar/integraciones/ocr_rapid.py): sobre 100
+# recibos reales lee el 96% de los importes frente al 90% de Tesseract. Los
+# modelos ONNX van DENTRO del paquete rapidocr-onnxruntime. Ese paquete NO se
+# lista aqui: declara opencv-python (con interfaz grafica) y chocaria con
+# opencv-python-headless; se instala con --no-deps en los Dockerfile y en el CI
+# (pip install --no-deps rapidocr-onnxruntime==1.4.4). Aqui van SOLO sus
+# dependencias. En armv7l no hay wheels de onnxruntime: el escaner usa Tesseract.
+onnxruntime>=1.17,<2; platform_machine != "armv7l"
+pyclipper>=1.3,<2; platform_machine != "armv7l"
+Shapely>=2.0,<3; platform_machine != "armv7l"
+PyYAML>=6.0; platform_machine != "armv7l"
+six>=1.16; platform_machine != "armv7l"
+tqdm>=4.60; platform_machine != "armv7l"
 # El tope <23 venia de la revision de dependencias vulnerables (6da71071) y se
 # habia quedado fijo, con lo que habria bloqueado un parche de seguridad de
 # gunicorn. Se sube a la 26, probada con los flags reales del CMD de los
@@ -19,6 +32,7 @@ opencv-python-headless>=4.9,<=4.12.0.88
 # arranque del contenedor con "unrecognized arguments".
 gunicorn>=26.0,<27
 argostranslate>=1.9,<2; platform_machine != "armv7l"
+stanza>=1.12.2; platform_machine != "armv7l"  # dependencia de argostranslate: 1.10.x tiene un aviso de seguridad (PYSEC-2026-3075)
 cryptography>=50.0,<51
 # Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db_backend.py).
 # -binary evita compilar contra libpq en la Raspberry Pi.

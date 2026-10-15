@@ -326,6 +326,49 @@ def init_db():
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
+def _aislar_catalogos_por_hogar(db):
+    """Pasa a POR HOGAR lo que antes era compartido entre todos (idempotente).
+
+    - articulos_personalizados.hogar_id: el hogar donde se creo. Si solo lo usa un hogar se
+      deduce de sus articulos de compra; si se usa en varios (o en ninguno) queda NULL y
+      sigue visible para los hogares de su propietario, como hasta ahora.
+    - historial_articulos aprendido (no del catalogo de serie) en hogar_id = 0: se copia a
+      cada hogar que tiene un producto o un articulo de compra con ese nombre y se borra
+      de lo global, donde cualquiera lo veia.
+    """
+    asegurar_columna(db, "articulos_personalizados", "hogar_id", "INTEGER")
+    db.execute(
+        "UPDATE articulos_personalizados SET hogar_id = ("
+        "  SELECT MIN(ac.hogar_id) FROM articulos_compra ac WHERE ac.articulo_personalizado_id = articulos_personalizados.id) "
+        "WHERE hogar_id IS NULL AND ("
+        "  SELECT COUNT(DISTINCT ac.hogar_id) FROM articulos_compra ac "
+        "  WHERE ac.articulo_personalizado_id = articulos_personalizados.id) = 1"
+    )
+
+    de_serie = {n.lower() for (n, *_resto) in CATALOGO_DEFECTO}
+    aprendidos = [
+        f for f in db.execute("SELECT * FROM historial_articulos WHERE hogar_id = 0").fetchall()
+        if f["nombre"].lower() not in de_serie
+    ]
+    for fila in aprendidos:
+        hogares = {
+            h["hogar_id"] for h in db.execute(
+                "SELECT sh.hogar_id FROM stock_hogar sh, productos p WHERE sh.producto_id = p.id AND LOWER(p.nombre) = LOWER(?) "
+                "UNION SELECT hogar_id FROM articulos_compra WHERE LOWER(nombre) = LOWER(?)",
+                (fila["nombre"], fila["nombre"]),
+            ).fetchall()
+        }
+        for hogar in hogares:
+            db.execute(
+                "INSERT INTO historial_articulos (nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, "
+                "dias_aviso, codigo_barras, fecha_actualizacion, hogar_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(nombre, hogar_id) DO NOTHING",
+                (fila["nombre"], fila["icono"], fila["categoria"], fila["unidad"], fila["sub_descripcion"],
+                 fila["cantidad_defecto"], fila["dias_aviso"], fila["codigo_barras"], fila["fecha_actualizacion"], hogar),
+            )
+        db.execute("DELETE FROM historial_articulos WHERE id = ?", (fila["id"],))
+
+
 def _init_db_impl():
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
@@ -628,9 +671,15 @@ def _init_db_impl():
             db.execute("DROP INDEX IF EXISTS idx_historial_espacio")
             quitar_columna_si_existe(db, "historial_articulos", "espacio_id")
 
-        # UNIQUE(nombre) global: ya no hay espacios entre los que distinguir.
+        # hogar_id = 0: catalogo estandar (sembrado, nadie lo modifica). hogar_id > 0:
+        # lo que aprendio ese hogar; solo lo ven y lo cambian sus miembros. Antes todo
+        # era global y un hogar podia leer los articulos de otro o cambiar el icono de
+        # "Leche entera" para todos.
+        asegurar_columna(db, "historial_articulos", "hogar_id", "INTEGER NOT NULL DEFAULT 0")
+        db.execute("DROP INDEX IF EXISTS idx_historial_nombre")
         db.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre ON historial_articulos(nombre COLLATE NOCASE)"
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_nombre_hogar "
+            "ON historial_articulos(nombre COLLATE NOCASE, hogar_id)"
         )
         db.execute(
             "CREATE INDEX IF NOT EXISTS idx_historial_codigo_barras ON historial_articulos(codigo_barras) "
@@ -950,7 +999,7 @@ def _init_db_impl():
             "INSERT INTO historial_articulos "
             "(nombre, categoria, icono, unidad, sub_descripcion, cantidad_defecto, fecha_actualizacion) "
             "VALUES (?, ?, ?, ?, ?, 1, ?) "
-            "ON CONFLICT(nombre) DO NOTHING",
+            "ON CONFLICT(nombre, hogar_id) DO NOTHING",
             [(n, c, i, u, s, ahora()) for (n, c, i, u, s) in CATALOGO_DEFECTO],
         )
 
@@ -1282,6 +1331,17 @@ def _init_db_impl():
             "CREATE INDEX IF NOT EXISTS idx_intentos_login_clave ON intentos_login(clave, fecha_intento)"
         )
 
+        # Sesiones cerradas con "cerrar sesion": la cookie es autocontenida, asi que sin
+        # esta lista una cookie copiada antes del logout seguia valiendo hasta caducar.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sesiones_revocadas (
+                sid_hash TEXT PRIMARY KEY,
+                expira TEXT NOT NULL
+            )
+            """
+        )
+
         # Intentos y reenvios de codigos 2FA (A-5): contador independiente por
         # usuario con maximo 10 intentos y 3 reenvios por hora. Diferente de
         # intentos_login: este registra el tipo (verificar/reenvio) para poder
@@ -1476,6 +1536,7 @@ def _init_db_impl():
         # articulos_personalizados, más arriba).
         db.execute("DROP TABLE IF EXISTS espacios")
 
+        _aislar_catalogos_por_hogar(db)
         db.commit()
     finally:
         db.close()

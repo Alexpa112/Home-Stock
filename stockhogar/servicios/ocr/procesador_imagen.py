@@ -1,4 +1,6 @@
 """Procesamiento y preprocesamiento de imágenes de tickets."""
+import os
+
 import cv2
 import numpy as np
 from PIL import Image, ImageOps
@@ -17,11 +19,12 @@ class ProcesadorImagen:
     def __init__(self):
         self.width_optimo = 2000  # Ancho óptimo para OCR
 
-    def procesar(self, imagen_bytes):
+    def procesar(self, imagen_bytes, suavizado=0):
         """Procesa imagen bytes y devuelve imagen mejorada.
 
         Args:
             imagen_bytes: Bytes de la imagen (PNG, JPG)
+            suavizado: sigma de un desenfoque gaussiano previo al contraste (0 = ninguno)
 
         Returns:
             np.ndarray: Imagen procesada en escala de grises
@@ -71,6 +74,18 @@ class ProcesadorImagen:
         # la Pi a 2000px de ancho, muy por encima del objetivo de <20s
         # total; medianBlur da una mejora casi tan buena en <1s.
         gray = cv2.medianBlur(gray, 5)
+        # Suavizado extra opcional (segunda pasada): una impresora termica o de matriz
+        # imprime cada trazo como una hilera de puntos y Tesseract lee los puntos
+        # sueltos. Un desenfoque fino los funde en trazos continuos; en una
+        # impresion nitida resta precision, por eso solo se usa si la primera
+        # lectura salio con baja confianza (ver ticket_ocr.extraer_texto).
+        if suavizado:
+            gray = cv2.GaussianBlur(gray, (0, 0), suavizado)
+
+        # Quitar sombras y degradados de luz: una sombra sobre un lado del ticket
+        # (la mano, el movil) deja ese lado casi negro y Tesseract pierde justo la
+        # columna de importes. Se divide por el fondo estimado.
+        gray = self._aplanar_iluminacion(gray)
 
         # Mejorar contraste (CLAHE)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -84,6 +99,52 @@ class ProcesadorImagen:
         # reconocido. El gris con CLAHE, sin binarizar, es lo que Tesseract
         # procesa realmente rápido y bien en este tipo de tickets.
         return gray
+
+    def procesar_para_motor_neuronal(self, imagen_bytes, lado_maximo=None):
+        """Imagen lista para un OCR neuronal (RapidOCR): recortada al papel,
+        derecha, sin sombras, en gris de 3 canales y con el lado largo acotado.
+
+        A diferencia de `procesar` (pensada para Tesseract) NO aplica mediana ni
+        CLAHE ni reescalado a 2000 px de ancho: el detector neuronal trabaja mejor
+        con la imagen casi cruda (en 250 recibos reales, la imagen cruda lee el 97 %
+        de los importes y la tratada para Tesseract el 96 %)."""
+        lado_maximo = lado_maximo or int(os.environ.get("DREAME_OCR_LADO", "1600"))
+        img = self._decodificar_respetando_exif(imagen_bytes)
+        if img is None:
+            img = cv2.imdecode(np.frombuffer(imagen_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("No se pudo decodificar la imagen")
+        img = self._detectar_y_recortar_ticket(img)
+        img = self._corregir_orientacion(img)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        alto, ancho = gray.shape[:2]
+        mayor = max(alto, ancho)
+        if mayor > lado_maximo:
+            escala = lado_maximo / mayor
+            gray = cv2.resize(gray, (int(ancho * escala), int(alto * escala)), interpolation=cv2.INTER_AREA)
+        gray = self._corregir_inclinacion_fina(gray)
+        gray = self._aplanar_iluminacion(gray)
+        return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+    @staticmethod
+    def _aplanar_iluminacion(gray):
+        """gray / fondo * 255. El fondo se estima quitando los trazos oscuros del
+        texto (dilatacion: el maximo local es el papel) y suavizando mucho."""
+        if os.environ.get("DREAME_SIN_APLANAR"):  # solo para comparar en pruebas
+            return gray
+        papel = cv2.dilate(gray, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
+        # El fondo es suave por definicion: se estima en una copia reducida a 1/4 (el desenfoque
+        # con sigma de decenas de pixeles sobre la imagen completa costaba ~0,25 s) y se vuelve
+        # a su tamano.
+        alto, ancho = gray.shape[:2]
+        sigma = max(15, ancho // 60)
+        if min(alto, ancho) >= 400:
+            pequeno = cv2.resize(papel, (ancho // 4, alto // 4), interpolation=cv2.INTER_AREA)
+            pequeno = cv2.GaussianBlur(pequeno, (0, 0), sigmaX=sigma / 4)
+            fondo = cv2.resize(pequeno, (ancho, alto), interpolation=cv2.INTER_LINEAR)
+        else:
+            fondo = cv2.GaussianBlur(papel, (0, 0), sigmaX=sigma)
+        return cv2.divide(gray, fondo, scale=255)
 
     @staticmethod
     def _decodificar_respetando_exif(imagen_bytes):

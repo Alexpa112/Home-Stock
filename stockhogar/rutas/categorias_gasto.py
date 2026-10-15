@@ -1,9 +1,9 @@
 """Rutas para gestionar categorías de gasto (editables desde la app),
 catálogo independiente del de categorías de producto (ver rutas/categorias.py)."""
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..config import CATEGORIA_GASTO_DEFECTO
+from ..config import CATEGORIA_GASTO_DEFECTO, CATEGORIAS_GASTO_DEFECTO
 from ..db import get_db
 from ..translator import traducir
 from ..utils import Validator, DataConverter
@@ -34,6 +34,9 @@ def listar_categorias_gasto():
 @requerir_sesion
 @manejo_errores
 def crear_categoria_gasto():
+    from ..servicios.stock import hogar_actual_con_permiso  # import local: evita el ciclo con servicios.stock
+    if not hogar_actual_con_permiso(get_db(), session, nivel_requerido="editar"):
+        return APIResponse.no_permitido()
     datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 50)
     icono = Validator.string_opcional(datos.get("icono"), "h-folder", 30)
@@ -56,11 +59,15 @@ def crear_categoria_gasto():
 @requerir_sesion
 @manejo_errores
 def borrar_categoria_gasto(categoria_id):
+    from ..servicios.stock import hogar_actual_con_permiso
     db = get_db()
+    if not hogar_actual_con_permiso(db, session, nivel_requerido="editar"):
+        return APIResponse.no_permitido()
     fila = db.execute("SELECT * FROM categorias_gasto WHERE id = ?", (categoria_id,)).fetchone()
     if not fila:
         return APIResponse.no_encontrado("recurso_categoria")
-    if fila["nombre"] == CATEGORIA_GASTO_DEFECTO:
+    # Las categorias de serie son de todos los hogares: nadie las borra.
+    if fila["nombre"] == CATEGORIA_GASTO_DEFECTO or fila["nombre"] in {n for n, _ in CATEGORIAS_GASTO_DEFECTO}:
         mensaje = traducir("err_no_borrar_categoria_defecto").replace("{nombre}", CATEGORIA_GASTO_DEFECTO)
         return jsonify({"error": mensaje}), 400
 

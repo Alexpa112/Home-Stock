@@ -138,7 +138,7 @@ const FORM_VACIO = (
 
 export default function GastosPage() {
   const { t, idioma } = useTranslation()
-  const { hogarActivoId, propios, compartidos, refrescar: refrescarHogares } = useHogar()
+  const { hogarActivoId, propios, compartidos, refrescar: refrescarHogares, puedeEditar, esPropietario } = useHogar()
   const { user } = useAuth()
   const usuarioId = user?.usuario_id ?? null
 
@@ -362,9 +362,14 @@ export default function GastosPage() {
     if (ids.length === 0) return siguiente
 
     if (siguiente.modoReparto === 'igual') {
-      const porCabeza = Math.round((importeTotal / ids.length) * 100) / 100
+      // Reparto en céntimos: el resto se lo lleva el último para que la suma cuadre
+      const totalCent = Math.round(importeTotal * 100)
+      const baseCent = Math.floor(totalCent / ids.length)
       const importesPorMiembro: Record<number, string> = {}
-      ids.forEach((id) => { importesPorMiembro[id] = porCabeza.toFixed(2) })
+      ids.forEach((id, i) => {
+        const cent = i === ids.length - 1 ? totalCent - baseCent * (ids.length - 1) : baseCent
+        importesPorMiembro[id] = (cent / 100).toFixed(2)
+      })
       return { ...siguiente, importesPorMiembro }
     }
 
@@ -837,7 +842,7 @@ export default function GastosPage() {
           <div className="card space-y-2">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium">{t('presupuesto_mensual')}</h2>
-              {!editandoPresupuesto && (
+              {!editandoPresupuesto && esPropietario && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1152,13 +1157,13 @@ export default function GastosPage() {
         </Modal>
       )}
 
-      <button
+      {puedeEditar && <button
         onClick={abrirModalNuevo}
         aria-label={t('nuevo_gasto')}
         className="fixed z-40 right-5 bottom-[calc(var(--mobile-toolbar-h)+1.25rem)] lg:bottom-6 w-14 h-14 rounded-2xl bg-accent text-accent-foreground shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
       >
         <Plus className="w-6 h-6" />
-      </button>
+      </button>}
     </div>
   )
 }

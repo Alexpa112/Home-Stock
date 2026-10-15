@@ -8,7 +8,7 @@ Sistema completo de internacionalización (i18n) implementado:
 
 ```
 ✅ babel.cfg                      - Configuración de Babel
-✅ stockhogar/i18n.py            - Detección de idioma del sistema
+✅ stockhogar/i18n.py            - (eliminado: código muerto)
 ✅ stockhogar/translator.py      - Motor de traducción JSON
 ✅ stockhogar/translations.json  - Diccionario de 7 idiomas
 ✅ stockhogar/rutas/idiomas.py   - Endpoints API para cambio de idioma

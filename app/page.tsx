@@ -52,7 +52,8 @@ function HomeContent() {
   // M-12: validar que 'next' sea una ruta relativa del origen, no un redirect
   // a otro dominio. Acepta rutas que empiezan con / y no contienen :/
   const _validar_ruta_relativa = (ruta: string): boolean => {
-    return ruta.startsWith('/') && !ruta.includes('://')
+    // "//evil.com" y "/\\evil.com" empiezan por "/" pero el navegador los trata como otro host.
+    return ruta.startsWith('/') && !ruta.startsWith('//') && !ruta.includes('\\') && !ruta.includes('://')
   }
 
   const nextParam = searchParams.get('next') || '/dashboard'

@@ -35,9 +35,10 @@ LOG_FILE_PATH = LOGS_DIR / "stockhogar.log"
 
 DIAS_AVISO_DEFECTO = 30
 
-# Duracion de la sesion iniciada: al ser un dispositivo domestico compartido,
-# el login es persistente para no tener que volver a autenticarse cada vez.
-DIAS_SESION = 365
+# Duracion de la sesion iniciada. Es deslizante (cada peticion renueva la cookie),
+# asi que quien usa la app a diario no vuelve a identificarse nunca, pero una cookie
+# robada o un dispositivo olvidado caducan a los 30 dias de inactividad.
+DIAS_SESION = 30
 
 # La cookie de sesion solo se marca "Secure" (exigir HTTPS) si APP_URL usa https.
 # En local (http://localhost) se deja sin marcar para poder seguir probando sin TLS.

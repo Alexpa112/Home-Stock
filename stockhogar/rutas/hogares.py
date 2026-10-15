@@ -317,13 +317,16 @@ def version_hogar_actual():
                (SELECT COUNT(*) FROM stock_hogar WHERE hogar_id = ?) AS n_stock,
                (SELECT MAX(fecha_actualizacion) FROM stock_hogar WHERE hogar_id = ?) AS max_stock,
                (SELECT COUNT(*) FROM articulos_compra WHERE hogar_id = ?) AS n_articulos,
-               (SELECT MAX(fecha_actualizacion) FROM articulos_compra WHERE hogar_id = ?) AS max_articulos
+               (SELECT MAX(fecha_actualizacion) FROM articulos_compra WHERE hogar_id = ?) AS max_articulos,
+               (SELECT COUNT(*) || '/' || COALESCE(MAX(id), 0) FROM gastos WHERE hogar_id = ?) AS v_gastos,
+               (SELECT COUNT(*) || '/' || COALESCE(MAX(id), 0) FROM liquidaciones WHERE hogar_id = ?) AS v_liq
         """,
-        (hogar_id, hogar_id, hogar_id, hogar_id),
+        (hogar_id, hogar_id, hogar_id, hogar_id, hogar_id, hogar_id),
     ).fetchone()
 
     version = "|".join(str(v) for v in (
         fila["n_stock"], fila["max_stock"], fila["n_articulos"], fila["max_articulos"],
+        fila["v_gastos"], fila["v_liq"],
     ))
     return APIResponse.success({"hogar_id": hogar_id, "version": version})
 

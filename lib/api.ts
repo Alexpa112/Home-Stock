@@ -239,8 +239,8 @@ export const auth = {
 
   reenviarCodigo: () => apiCall('/api/auth/reenviar-codigo', { method: 'POST' }),
 
-  cambiarDobleFactor: async (activo: boolean) => {
-    const result = await apiCall('/api/auth/doble-factor', { method: 'POST', body: JSON.stringify({ activo }) })
+  cambiarDobleFactor: async (activo: boolean, passwordActual?: string) => {
+    const result = await apiCall('/api/auth/doble-factor', { method: 'POST', body: JSON.stringify({ activo, password_actual: passwordActual }) })
     resetearCsrfToken()
     return result
   },
@@ -259,7 +259,7 @@ export const auth = {
     return resultado
   },
 
-  actualizarPerfil: (datos: { usuario?: string; nombre?: string; password?: string }) =>
+  actualizarPerfil: (datos: { usuario?: string; nombre?: string; password?: string; email?: string; password_actual?: string }) =>
     apiCall('/api/auth/perfil', { method: 'PUT', body: JSON.stringify(datos) }),
 
   cambiarTema: (tema: 'light' | 'dark' | 'auto') =>
@@ -267,7 +267,8 @@ export const auth = {
 
   enviarVerificacionEmail: () => apiCall('/api/auth/enviar-verificacion-email', { method: 'POST' }),
 
-  verificarEmail: (token: string) => apiCall(`/api/auth/verificar-email/${token}`),
+  verificarEmail: (token: string) =>
+    apiCall('/api/auth/verificar-email', { method: 'POST', body: JSON.stringify({ token }) }),
 
   solicitarResetPassword: (usuarioOEmail: string) =>
     apiCall('/api/auth/solicitar-reset-password', {
@@ -303,8 +304,8 @@ export const auth = {
   actualizarPreferenciasListas: (datos: { vista_lista_compra?: 'lista' | 'recuadros'; agrupar_categorias?: 'on' | 'off' }) =>
     apiCall('/api/auth/preferencias-listas', { method: 'POST', body: JSON.stringify(datos) }),
 
-  eliminarCuenta: (usuarioId: number) =>
-    apiCall(`/api/usuarios/${usuarioId}`, { method: 'DELETE' }),
+  eliminarCuenta: (usuarioId: number, passwordActual?: string) =>
+    apiCall(`/api/usuarios/${usuarioId}`, { method: 'DELETE', body: JSON.stringify({ password_actual: passwordActual }) }),
 }
 
 // ===== Hogares (stockhogar/rutas/hogares.py) =====

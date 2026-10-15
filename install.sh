@@ -312,7 +312,9 @@ fi
 ARCH="$(uname -m)"
 case "$ARCH" in
     x86_64|aarch64) log_success "Arquitectura: $ARCH (soportada)" ;;
-    armv7l|armv6l)  log_success "Arquitectura: $ARCH (soportada, build lento)" ;;
+    armv7l|armv6l)  log_success "Arquitectura: $ARCH (soportada, build lento)"
+                    log_warning "En $ARCH no hay onnxruntime: el escáner de tickets usará solo Tesseract" \
+                                "(lee peor que el motor neuronal). Con un sistema de 64 bits (aarch64) se activa el motor neuronal." ;;
     *) log_warning "Arquitectura no probada: $ARCH; puede que no existan imágenes base compatibles" ;;
 esac
 
@@ -467,6 +469,8 @@ step_start "Verificar estructura del proyecto"
 
 MISSING=0
 for FILE in "Dockerfile.raspbian" "docker-compose.yml" "requirements.txt" "stockhogar/__init__.py" \
+            "stockhogar/integraciones/ocr_rapid.py" "stockhogar/servicios/ocr/diccionario/__init__.py" \
+            "stockhogar/servicios/ocr/diccionario/datos_off.py" "stockhogar/servicios/ocr/cuadre_ticket.py" \
             "public/manifest.json" "public/icon.png" \
             "Dockerfile.frontend" "package.json" "next.config.mjs"; do
     if [[ ! -f "$FILE" ]]; then
@@ -604,6 +608,10 @@ REQUIRED_VARS=(
     STOCKHOGAR_PORT
     STOCKHOGAR_FRONTEND_PORT
     FLASK_ENV
+    # Escáner de tickets: motor de nube opcional (sin clave se usa el lector local)
+    # y límite de memoria del backend (el lector neuronal necesita ~450 MB de pico).
+    ANTHROPIC_API_KEY
+    STOCKHOGAR_MEM_LIMIT
 )
 DEFAULT_VALUE() {
     case "$1" in
@@ -614,6 +622,14 @@ DEFAULT_VALUE() {
         STOCKHOGAR_PORT) echo "5000" ;;
         STOCKHOGAR_FRONTEND_PORT) echo "3000" ;;
         FLASK_ENV) echo "production" ;;
+        # armv7l no tiene el motor neuronal, y con menos de ~1,5 GB de RAM no cabe
+        # el límite de 1 GB sin ahogar al resto: se queda en 768m como antes.
+        STOCKHOGAR_MEM_LIMIT)
+            if [[ "$ARCH" == armv7l || "$ARCH" == armv6l ]] || [[ -n "${MEMORY_MB:-}" && "$MEMORY_MB" -lt 1500 ]]; then
+                echo "768m"
+            else
+                echo "1024m"
+            fi ;;
         *) echo "" ;;
     esac
 }
@@ -716,6 +732,11 @@ if [[ "$BUILD_MODE" -eq 0 ]]; then
     log_info "--no-build: se omite también el intento de pull"
 elif [[ "$REINSTALL_MODE" -eq 1 ]]; then
     log_info "--reinstall pide reconstruir todo sin caché explícitamente: se omite el pull"
+elif [[ "$ARCH" != "armv7l" && "$ARCH" != "armv6l" ]]; then
+    # docker-publish.yml solo publica linux/arm/v7, que NO lleva el lector neuronal
+    # de tickets (no hay onnxruntime para 32 bits): en x86_64/aarch64 se compila en
+    # local para que la imagen lo incluya, aunque el pull funcionaría.
+    log_info "Las imágenes precompiladas son de 32 bits (armv7l) y no llevan el lector neuronal de tickets: se compila en local en $ARCH"
 else
     log_info "Intentando descargar imágenes precompiladas antes de compilar localmente..."
     if BUILDX_NO_DEFAULT_ATTESTATIONS=1 "${COMPOSE[@]}" pull >> "$LOG_FILE" 2>&1; then
@@ -883,6 +904,28 @@ else
     rollback
     exit 1
 fi
+
+# Motores de lectura del escáner de tickets (informativo: no provoca rollback,
+# el escáner funciona con cualquiera de los dos). Se comprueba DENTRO del
+# contenedor, que es donde corre: un fallo del pip install del lector neuronal
+# no rompe el arranque, solo hace que se lea con Tesseract (peor).
+OCR_INFO="$(docker exec stockhogar-app python -c "
+from stockhogar.integraciones import ocr_rapid
+from stockhogar.servicios.ocr.diccionario import obtener
+import shutil
+print('neuronal' if ocr_rapid.disponible() else 'sin-neuronal', 'tesseract' if shutil.which('tesseract') else 'sin-tesseract', len(obtener().entradas))
+" 2>>"$LOG_FILE" || true)"
+case "$OCR_INFO" in
+    "neuronal tesseract "*) log_success "Escáner de tickets: lector neuronal + Tesseract de respaldo + diccionario (${OCR_INFO##* } artículos)" ;;
+    "sin-neuronal tesseract "*)
+        if [[ "$ARCH" == armv7l || "$ARCH" == armv6l ]]; then
+            log_info "Escáner de tickets: solo Tesseract (esperado en $ARCH)"
+        else
+            log_warning "El lector neuronal de tickets NO está disponible en el contenedor: se leerá con Tesseract (peor)."
+            log_warning "Revisa el build (pip install rapidocr-onnxruntime) en $LOG_FILE y reconstruye con ./install.sh --reinstall"
+        fi ;;
+    *) log_warning "No se pudo comprobar el escáner de tickets dentro del contenedor (${OCR_INFO:-sin respuesta}). Revisa: docker logs stockhogar-app" ;;
+esac
 
 # El frontend tarda más en arrancar y su fallo no justifica un rollback del
 # backend: se avisa y se deja al usuario decidir.

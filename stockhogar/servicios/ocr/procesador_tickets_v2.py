@@ -11,6 +11,7 @@ Flujo:
 from typing import List, Dict, Optional
 from .parser_mejorado import ParserMejorado, LineaTicketMejorada, TipoUnidad
 from .matcher_inteligente import MatcherInteligente
+from .diccionario import identificar_articulo
 
 
 class ProcesadorTicketsV2:
@@ -35,7 +36,25 @@ class ProcesadorTicketsV2:
             item = self._procesar_linea(linea, db, hogar_id)
             resultado.append(item)
 
-        return resultado
+        return self._quitar_lineas_sin_importe(resultado)
+
+    # Con 3 o mas articulos con importe, una linea SIN importe y que no se reconoce como
+    # un articulo es casi siempre cabecera, direccion o continuacion de un nombre.
+    _MIN_ARTICULOS_CON_IMPORTE = 3
+
+    def _quitar_lineas_sin_importe(self, items: List[Dict]) -> List[Dict]:
+        con_importe = [i for i in items if (i.get("precio_total") or 0) > 0]
+        if len(con_importe) < self._MIN_ARTICULOS_CON_IMPORTE:
+            return items
+        conservar = []
+        for item in items:
+            sin_importe = not (item.get("precio_total") or 0) > 0
+            reconocido = bool(item.get("producto_id")) or item.get("origen_nombre") in ("catalogo", "catalogo_parcial", "categoria")
+            con_cantidad = item.get("cantidad") not in (None, 1, 1.0) or item.get("unidad") not in (None, "ud")
+            if sin_importe and not reconocido and not con_cantidad:
+                continue
+            conservar.append(item)
+        return conservar
 
     def _procesar_linea(
         self,
@@ -54,8 +73,26 @@ class ProcesadorTicketsV2:
             hogar_id=hogar_id,
         )
 
-        # 2. Deducir categoría si no hay match
-        categoria = match["categoria"] if match else self.matcher.deducir_categoria(linea.nombre)
+        # 2. Sin match en el hogar: identificar con el diccionario de articulos
+        # (nombre limpio, categoria, unidad, icono). El stock del hogar manda
+        # siempre: si el usuario ya tiene el producto se respeta su nombre.
+        ident = None if match else identificar_articulo(linea.nombre)
+        nombre = linea.nombre
+        categoria = match["categoria"] if match else None
+        icono = match["icono"] if match else None
+        unidad_sugerida = None
+        origen_nombre = "hogar" if match else "ticket"
+        if ident is not None:
+            categoria = ident.categoria
+            icono = ident.icono
+            unidad_sugerida = ident.unidad
+            origen_nombre = ident.fuente
+            if ident.fuente == "catalogo":
+                nombre = ident.nombre
+            elif ident.nombre_limpio:
+                nombre = ident.nombre_limpio
+        if not categoria and not match:
+            categoria = self.matcher.deducir_categoria(linea.nombre)
 
         # 3. Sugerir cantidad estándar
         cantidad_sugerida = self.matcher.sugerir_cantidad_estandar(linea.nombre, db)
@@ -75,7 +112,10 @@ class ProcesadorTicketsV2:
             )
 
         return {
-            "nombre": linea.nombre,
+            "nombre": nombre,
+            "nombre_ticket": linea.nombre,
+            "origen_nombre": origen_nombre,
+            "unidad_sugerida": unidad_sugerida,
             "cantidad": linea.cantidad,
             "cantidad_sugerida": cantidad_sugerida,
             "unidad": linea.unidad.value,
@@ -88,7 +128,7 @@ class ProcesadorTicketsV2:
             # Datos de matching
             "producto_id": match["id"] if match else None,
             "categoria": categoria,
-            "icono": match["icono"] if match else None,
+            "icono": icono,
             "confianza_match": match["confianza"] if match else 0,
             "alternativas": match.get("alternativas", []) if match else [],
             # Validación de precios
@@ -186,6 +226,7 @@ def crear_respuesta_usuario(items: List[Dict], db, hogar_id=None) -> Dict:
     if len(sin_match) > len(items) * 0.3:  # Más del 30% sin match
         resultado["advertencias"].append({
             "tipo": "muchos_sin_match",
+            "n": len(sin_match),
             "mensaje": f"{len(sin_match)} productos no encontrados en catálogo. Revisa manualmente."
         })
 

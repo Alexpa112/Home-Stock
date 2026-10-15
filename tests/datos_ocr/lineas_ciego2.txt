@@ -1,0 +1,89 @@
+# Segundo conjunto ciego: escrito despues de ampliar el diccionario con OFF y la ronda 2. No se ajusta con el.
+# NINGUNA = articulo que el diccionario NO debe identificar (no inventar).
+PECHUGAS PAVO LONCHEADAS|Carnes y Embutidos
+CINTA LOMO ADOBADA|Carnes y Embutidos
+PICADILLO CHORIZO|Carnes y Embutidos
+POLLO ENTERO ASADO|Carnes y Embutidos
+LECHE ENTERA SIN LACTOSA 1,5L|Lácteos y Huevos
+YOGUR NATURAL AZUCARADO PACK 8|Lácteos y Huevos
+QUESO EDAM LONCHAS|Lácteos y Huevos
+HUEVOS XL CAJA 6|Lácteos y Huevos
+MANTEQUILLA CON SAL 250G|Lácteos y Huevos
+LECHUGA ICEBERG|Frutas y Verduras
+CEBOLLETA ATADO|Frutas y Verduras
+ESPARRAGOS TRIGUEROS|Frutas y Verduras
+CHAMPIÑONES BLANCOS BANDEJA|Frutas y Verduras
+ALBARICOQUE|Frutas y Verduras
+UVA NEGRA SIN SEMILLAS|Frutas y Verduras
+PAPAYA|Frutas y Verduras
+REMOLACHA COCIDA|Frutas y Verduras
+CHALOTA|Frutas y Verduras
+PAN DE PUEBLO|Panadería y Bollería
+PAN CHAPATA|Panadería y Bollería
+CROISSANTS 6U|Panadería y Bollería
+PALMERITAS|Panadería y Bollería
+BOLLO LECHE|Panadería y Bollería
+MERLUZA FILETES|Pescados y Mariscos
+BACALAO LOMOS|Pescados y Mariscos
+ALMEJAS|Pescados y Mariscos
+CANGREJO|Pescados y Mariscos
+SEPIA LIMPIA|Pescados y Mariscos
+BONITO ACEITE OLIVA|Pescados y Mariscos
+ACEITE OLIVA INTENSO 2L|Despensa
+VINAGRE JEREZ|Despensa
+TOMATE FRITO BRIK 3X350|Despensa
+PIMIENTOS PIQUILLO|Despensa
+ATUN ESCABECHE|Pescados y Mariscos
+CALDO CARNE|Despensa
+SAL YODADA|Despensa
+GARBANZOS 1KG|Despensa
+MERMELADA MELOCOTON|Despensa
+MIEL MILFLORES|Despensa
+FIDEOS N2|Cereales y Pasta
+PASTA TRICOLOR|Cereales y Pasta
+SEMOLA|Cereales y Pasta
+PASTA INTEGRAL ESPIRALES|Cereales y Pasta
+CHOCOLATE CON LECHE|Snacks y Dulces
+POLVORONES|Snacks y Dulces
+MAZAPAN|Snacks y Dulces
+REGALIZ|Snacks y Dulces
+NUECES PELADAS|Snacks y Dulces
+AGUA MINERAL NATURAL 8X1,5|Bebidas
+REFRESCO COLA SIN CAFEINA|Bebidas
+CERVEZA RUBIA 24X25CL|Bebidas
+VINO TINTO CRIANZA|Bebidas
+SIDRA NATURAL|Bebidas
+ZUMO MULTIFRUTAS|Bebidas
+TE NEGRO|Bebidas
+BEBIDA DE AVENA 1L|Alternativas Vegetales
+TOFU AHUMADO|Alternativas Vegetales
+LAVAVAJILLAS CONCENTRADO|Limpieza
+ABRILLANTADOR|Limpieza
+LIMPIADOR VITRO|Limpieza
+FREGAPLATOS|Limpieza
+GUANTES COCINA|Limpieza
+QUITAGRASAS|Limpieza
+SERVILLETAS PAPEL 100U|Limpieza
+GEL BAÑO AVENA|Higiene
+CHAMPÚ NIÑOS|Higiene
+CREMA AFEITAR|Higiene
+ESPONJA BAÑO|Higiene
+TAMPONES|Higiene
+PROTECTORES DIARIOS|Higiene
+PAÑALES T5|Bebé
+PURE FRUTAS BEBE|Bebé
+PIENSO GATOS ESTERILIZADOS|Mascotas
+FILETES MERLUZA REBOZADOS|Congelados
+HELADO TARRINA|Congelados
+PIZZA MARGARITA|Congelados
+NUGGETS POLLO|Congelados
+SPAGETTI|Cereales y Pasta
+QUE5O MANCHEG0|Lácteos y Huevos
+L€CH€ €NT€RA|Lácteos y Huevos
+PL4TAN0|Frutas y Verduras
+AC€ITE OLIVA|Despensa
+D€T€RG€NT€ R0PA|Limpieza
+JAMON SERRANO RESERVA|Carnes y Embutidos
+PAPAS ARRUGADAS|Frutas y Verduras
+CAFE EXPRESO|Bebidas
+XLQWZ ZZKJ|NINGUNA

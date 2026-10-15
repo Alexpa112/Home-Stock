@@ -26,6 +26,8 @@ jobs:
       # Dockerfile.raspbian). Sin el binario esos tests se saltan en silencio.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils fonts-dejavu-core
       - run: pip install -r requirements.txt -r requirements-dev.txt
+      # Lector neuronal de tickets, sin sus dependencias (ver requirements.txt)
+      - run: pip install --no-deps rapidocr-onnxruntime==1.4.4
       # argostranslate arrastra transitivamente torch/ctranslate2/onnxruntime
       # junto con la OpenMP propia de opencv-python-headless. Los tests
       # siempre pasan, pero el proceso revienta al cerrar Python (SIGABRT o

@@ -8,6 +8,7 @@ from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
+from ..utils.csv_seguro import EscritorCsvSeguro, desproteger
 from ..utils import Validator, DataConverter, ValidationError
 from .categorias import normalizar_categoria
 from .historial import buscar_historial, recordar_articulo
@@ -94,7 +95,7 @@ def exportar_lista_csv():
     ).fetchall()
 
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = EscritorCsvSeguro(buffer)
     writer.writerow(CABECERAS_CSV_LISTA)
     for fila in filas:
         writer.writerow([
@@ -140,7 +141,7 @@ def importar_lista_csv():
     for i, fila in enumerate(lector):
         if i >= MAX_FILAS_IMPORTACION:
             break
-        nombre = (fila.get("nombre") or "").strip()
+        nombre = desproteger((fila.get("nombre") or "").strip())[:100]
         if not nombre:
             continue
         try:
@@ -155,6 +156,50 @@ def importar_lista_csv():
         anadidos += 1
 
     return APIResponse.success({"anadidos": anadidos})
+
+
+def _traducir_en_segundo_plano(articulo_id, nombre, sub_descripcion, traducir_nombre, traducir_descripcion):
+    """Traduce el nombre/descripcion de un articulo personalizado y guarda el resultado, en un
+    hilo con su PROPIA conexion. Traducir es lento (inferencia neuronal o descarga de modelos)
+    y hacerlo dentro de la peticion, con la transaccion de escritura abierta, mantenia la BD
+    bloqueada: varios usuarios anadiendo articulos a la vez recibian 'database is locked' (500)."""
+    import sqlite3
+    import threading
+
+    def trabajo():
+        try:
+            from stockhogar.config import DB_PATH
+            from stockhogar.servicios.traductor_auto import TraductorAutomatico
+            textos = []
+            if traducir_nombre and nombre:
+                textos.append(("nombre", nombre))
+            if traducir_descripcion and sub_descripcion:
+                textos.append(("descripcion", sub_descripcion))
+            traducidos = [(tipo, texto, TraductorAutomatico.traducir_a_todos_idiomas(texto)) for tipo, texto in textos]
+            conexion = sqlite3.connect(DB_PATH, timeout=30)
+            try:
+                conexion.execute("PRAGMA busy_timeout = 30000")
+                for tipo, original, por_idioma in traducidos:
+                    for idioma, texto in (por_idioma or {}).items():
+                        if idioma == "es" or not texto:
+                            continue
+                        conexion.execute(
+                            "DELETE FROM traducciones_productos WHERE articulo_personalizado_id = ? AND tipo = ? AND idioma = ?",
+                            (articulo_id, tipo, idioma),
+                        )
+                        conexion.execute(
+                            "INSERT INTO traducciones_productos "
+                            "(articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            (articulo_id, tipo, idioma, original, texto, ahora()),
+                        )
+                conexion.commit()
+            finally:
+                conexion.close()
+        except Exception:
+            logger.exception("Error traduciendo articulo %s", articulo_id)
+
+    threading.Thread(target=trabajo, daemon=True).start()
 
 
 def anadir_o_sumar_articulo(
@@ -212,6 +257,7 @@ def anadir_o_sumar_articulo(
     # ===== LÓGICA NUEVA: Artículos Personalizados =====
     # Si el artículo NO está en historial estándar → crearlo en articulos_personalizados
     articulo_personalizado_id = None
+    traducir_pendiente = None
     if not recuerdo:
         # Buscar/crear en articulos_personalizados, aislado por el propietario
         # de la lista (cada hogar tiene su propio catálogo personalizado, ver
@@ -232,42 +278,13 @@ def anadir_o_sumar_articulo(
             # Crear nuevo artículo personalizado
             cur = db.execute(
                 """INSERT INTO articulos_personalizados
-                   (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id)
+                   (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id, hogar_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id, hogar_id)
             )
             articulo_personalizado_id = cur.fetchone()["id"]
 
-            # Traducir automáticamente el artículo personalizado
-            try:
-                from stockhogar.servicios.traductor_auto import TraductorAutomatico
-                traducciones = {
-                    'nombre': TraductorAutomatico.traducir_a_todos_idiomas(nombre),
-                    'descripcion': TraductorAutomatico.traducir_a_todos_idiomas(sub_descripcion) if sub_descripcion else {}
-                }
-                # Almacenar traducciones
-                for tipo in ['nombre', 'descripcion']:
-                    if not traducciones[tipo]:
-                        continue
-                    for idioma, texto in traducciones[tipo].items():
-                        if idioma != 'es' and texto:  # No guardar original
-                            original = nombre if tipo == 'nombre' else sub_descripcion
-                            try:
-                                db.execute(
-                                    """DELETE FROM traducciones_productos
-                                       WHERE articulo_personalizado_id = ? AND tipo = ? AND idioma = ?""",
-                                    (articulo_personalizado_id, tipo, idioma)
-                                )
-                                db.execute(
-                                    """INSERT INTO traducciones_productos
-                                       (articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                                       VALUES (?, ?, ?, ?, ?, ?)""",
-                                    (articulo_personalizado_id, tipo, idioma, original, texto, ahora())
-                                )
-                            except Exception as e:
-                                logger.error(f"Error almacenando traducción: {e}")
-            except Exception as e:
-                logger.error(f"Error traduciendo artículo: {e}")
+            traducir_pendiente = (articulo_personalizado_id, nombre, sub_descripcion, True, bool(sub_descripcion))
 
     # Crear artículo en lista. El id se lee INMEDIATAMENTE con RETURNING (no
     # con .lastrowid, que no existe en Postgres): un cursor con RETURNING
@@ -283,13 +300,15 @@ def anadir_o_sumar_articulo(
 
     # Recordar para historial si tiene icono (o si se acaba de escanear un
     # código de barras nuevo: así el catálogo lo reconoce la próxima vez).
-    if icono and (recuerdo or codigo_barras):
+    if (icono or codigo_barras) and (recuerdo or codigo_barras):
         recordar_articulo(
-            db, nombre, icono, categoria, unidad, sub_descripcion, dias_aviso=dias_aviso,
+            db, nombre, icono or "h-archive-box", categoria, unidad, sub_descripcion, dias_aviso=dias_aviso,
             codigo_barras=codigo_barras,
         )
 
     db.commit()
+    if traducir_pendiente:
+        _traducir_en_segundo_plano(*traducir_pendiente)  # DESPUES del commit: sin tener la BD bloqueada
     fila = db.execute("SELECT * FROM articulos_compra WHERE id = ?", (nuevo_id,)).fetchone()
     return DataConverter.articulo_lista_to_dict(fila)
 
@@ -411,9 +430,9 @@ def actualizar_articulo(item_id):
             else:
                 cur = db.execute(
                     """INSERT INTO articulos_personalizados
-                       (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                    (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id),
+                       (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, fecha_creacion, fecha_actualizacion, usuario_propietario_id, hogar_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                    (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), ahora(), propietario_id, fila["hogar_id"]),
                 )
                 articulo_personalizado_id = cur.fetchone()["id"]
 
@@ -481,11 +500,14 @@ def _usuario_puede_acceder_articulo_personalizado(db, articulo_id, usuario_id, n
     ninguna lista (p.ej. tras eliminarlo de la lista) y aun así seguir
     perteneciendo legítimamente al hogar."""
     articulo = db.execute(
-        "SELECT usuario_propietario_id FROM articulos_personalizados WHERE id = ?",
+        "SELECT usuario_propietario_id, hogar_id FROM articulos_personalizados WHERE id = ?",
         (articulo_id,)
     ).fetchone()
     if not articulo:
         return False
+    if articulo["hogar_id"]:
+        # Creado en un hogar concreto: solo sus miembros (no los de otros hogares del dueño).
+        return bool(_usuario_tiene_permiso(db, articulo["hogar_id"], usuario_id, nivel_requerido=nivel_requerido))
     hogares_ids = db.execute(
         "SELECT id FROM hogares WHERE usuario_propietario_id = ?",
         (articulo["usuario_propietario_id"],)
@@ -516,8 +538,8 @@ def listar_articulos_personalizados():
 
     filas = db.execute(
         "SELECT id, nombre, icono, categoria, unidad, dias_aviso FROM articulos_personalizados "
-        "WHERE usuario_propietario_id = ? ORDER BY LOWER(nombre)",
-        (propietario["usuario_propietario_id"],),
+        "WHERE usuario_propietario_id = ? AND (hogar_id IS NULL OR hogar_id = ?) ORDER BY LOWER(nombre)",
+        (propietario["usuario_propietario_id"], hogar_id),
     ).fetchall()
     return APIResponse.success([dict(fila) for fila in filas])
 
@@ -609,48 +631,15 @@ def actualizar_articulo_personalizado(articulo_id):
         (nombre, categoria, icono, unidad, sub_descripcion, dias_aviso, ahora(), articulo_id)
     )
 
-    # Si cambió el nombre o descripción, actualizar traducciones
-    if nombre != articulo["nombre"] or sub_descripcion != articulo["sub_descripcion"]:
-        try:
-            from stockhogar.servicios.traductor_auto import TraductorAutomatico
-
-            # Actualizar traducciones del nombre
-            if nombre != articulo["nombre"]:
-                traducciones = TraductorAutomatico.traducir_a_todos_idiomas(nombre)
-                for idioma, texto in traducciones.items():
-                    if idioma != "es" and texto:
-                        db.execute(
-                            """DELETE FROM traducciones_productos
-                               WHERE articulo_personalizado_id = ? AND tipo = ? AND idioma = ?""",
-                            (articulo_id, "nombre", idioma)
-                        )
-                        db.execute(
-                            """INSERT INTO traducciones_productos
-                               (articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                               VALUES (?, ?, ?, ?, ?, ?)""",
-                            (articulo_id, "nombre", idioma, nombre, texto, ahora())
-                        )
-
-            # Actualizar traducciones de la descripción
-            if sub_descripcion and sub_descripcion != articulo["sub_descripcion"]:
-                traducciones = TraductorAutomatico.traducir_a_todos_idiomas(sub_descripcion)
-                for idioma, texto in traducciones.items():
-                    if idioma != "es" and texto:
-                        db.execute(
-                            """DELETE FROM traducciones_productos
-                               WHERE articulo_personalizado_id = ? AND tipo = ? AND idioma = ?""",
-                            (articulo_id, "descripcion", idioma)
-                        )
-                        db.execute(
-                            """INSERT INTO traducciones_productos
-                               (articulo_personalizado_id, tipo, idioma, texto_original, texto_traducido, fecha_creacion)
-                               VALUES (?, ?, ?, ?, ?, ?)""",
-                            (articulo_id, "descripcion", idioma, sub_descripcion, texto, ahora())
-                        )
-        except Exception as e:
-            logger.error(f"Error al traducir cambios: {e}")
+    # Si cambio el nombre o la descripcion se actualizan las traducciones, pero DESPUES del
+    # commit y en segundo plano: traducir (red/CPU, segundos) con la escritura abierta
+    # bloqueaba la BD a todos los demas usuarios.
+    cambio_nombre = nombre != articulo["nombre"]
+    cambio_desc = bool(sub_descripcion) and sub_descripcion != articulo["sub_descripcion"]
 
     db.commit()
+    if cambio_nombre or cambio_desc:
+        _traducir_en_segundo_plano(articulo_id, nombre, sub_descripcion, cambio_nombre, cambio_desc)
     fila = db.execute(
         "SELECT * FROM articulos_personalizados WHERE id = ?",
         (articulo_id,)

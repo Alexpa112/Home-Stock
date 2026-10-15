@@ -56,7 +56,10 @@ def validar_instalacion():
         validaciones["tesseract"] = True
         validaciones["pytesseract"] = True
     except Exception as e:
-        validaciones["error_tesseract"] = str(e)
+        # El texto de la excepcion puede traer rutas del servidor: se queda en el log.
+        import logging
+        logging.getLogger(__name__).warning("Tesseract no disponible: %s", e)
+        validaciones["error_tesseract"] = "Tesseract no disponible o no instalado"
 
     try:
         import cv2
@@ -69,6 +72,18 @@ def validar_instalacion():
         validaciones["rapidfuzz"] = True
     except ImportError:
         validaciones["error_rapidfuzz"] = "rapidfuzz no está instalado"
+
+    # Informativos (no entran en "ok": el escaner funciona sin el motor neuronal, con Tesseract)
+    try:
+        from ..integraciones import ocr_rapid
+        validaciones["motor_neuronal"] = ocr_rapid.disponible()
+    except Exception:
+        validaciones["motor_neuronal"] = False
+    try:
+        from ..servicios.ocr.diccionario import obtener
+        validaciones["diccionario_articulos"] = len(obtener().entradas)
+    except Exception:
+        validaciones["diccionario_articulos"] = 0
 
     todas_ok = all(
         v is True

@@ -12,7 +12,11 @@ import { IconRenderer } from '@/components/dashboard/IconRenderer'
 // Claves de lib/dataCache.ts que dependen del hogar activo: hay que limpiarlas
 // antes de recargar para no pintar un instante los datos del hogar anterior
 // (esas claves no van separadas por hogar, ver el comentario de clearCache).
-const CACHE_KEYS_POR_HOGAR = ['stock:productos', 'stock:categorias', 'shopping:articulos']
+const CACHE_KEYS_POR_HOGAR = [
+  'stock:productos', 'stock:categorias', 'shopping:articulos',
+  'gastos:lista', 'gastos:saldo', 'gastos:sugerencias', 'gastos:liquidaciones', 'gastos:recurrentes', 'gastos:categorias',
+  'recetas:lista',
+]
 
 interface Props {
   // Si se pasa, aparece una X para cerrar sin cambiar de hogar (uso: cambiar
@@ -29,6 +33,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
   const [creando, setCreando] = useState(false)
   const [nombreNuevo, setNombreNuevo] = useState('')
   const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [nombreEditado, setNombreEditado] = useState('')
   const [colorEditado, setColorEditado] = useState('')
@@ -190,9 +195,11 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     if (!compartiendoId) return
     try {
       setError('')
-      await permisos.compartir(compartiendoId, { usuario: nombreUsuario, nivel: nivelNuevo })
+      setAviso('')
+      const resp: any = await permisos.compartir(compartiendoId, { usuario: nombreUsuario, nivel: nivelNuevo })
       await abrirCompartir(compartiendoId)
       setBusqueda('')
+      if (resp?.mensaje) setAviso(t(resp.mensaje))
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_compartir'))
     }
@@ -239,6 +246,9 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
           )}
         </div>
 
+        {aviso && (
+          <div className="p-3 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-200 text-sm rounded-lg">{aviso}</div>
+        )}
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 text-sm rounded-lg">{error}</div>
         )}

@@ -14,15 +14,25 @@ from ..db import ahora, get_db
 bp = Blueprint("historial", __name__, url_prefix="/api/historial")
 
 
+def hogar_id_del_catalogo(db):
+    """Hogar activo de la peticion (0 si no hay): el catalogo aprendido es POR HOGAR."""
+    from ..servicios.stock import hogar_actual_con_permiso
+    try:
+        return hogar_actual_con_permiso(db, session) or 0
+    except RuntimeError:  # fuera de una peticion
+        return 0
+
+
 def buscar_historial(db, nombre):
-    """Busca un artículo en el catálogo (compartido por todas las hogares)."""
+    """Busca un artículo en el catálogo estándar o en lo aprendido por el hogar activo
+    (lo del hogar manda sobre lo estándar)."""
     nombre = (nombre or "").strip()
     if not nombre:
         return None
     fila = db.execute(
         "SELECT icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso FROM historial_articulos "
-        "WHERE LOWER(nombre) = LOWER(?)",
-        (nombre,),
+        "WHERE LOWER(nombre) = LOWER(?) AND hogar_id IN (0, ?) ORDER BY hogar_id DESC LIMIT 1",
+        (nombre, hogar_id_del_catalogo(db)),
     ).fetchone()
     return dict(fila) if fila else None
 
@@ -34,8 +44,8 @@ def buscar_historial_por_codigo(db, codigo_barras):
         return None
     fila = db.execute(
         "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso "
-        "FROM historial_articulos WHERE codigo_barras = ?",
-        (codigo_barras,),
+        "FROM historial_articulos WHERE codigo_barras = ? AND hogar_id IN (0, ?) ORDER BY hogar_id DESC LIMIT 1",
+        (codigo_barras, hogar_id_del_catalogo(db)),
     ).fetchone()
     return dict(fila) if fila else None
 
@@ -44,15 +54,18 @@ def recordar_articulo(
     db, nombre, icono, categoria=None, unidad=None, sub_descripcion=None, cantidad_defecto=None, dias_aviso=None,
     codigo_barras=None,
 ):
-    """Aprende/actualiza un artículo en el catálogo compartido."""
-    nombre = (nombre or "").strip()
+    """Aprende/actualiza un artículo en el catálogo del hogar activo (nunca en el estándar)."""
+    nombre = (nombre or "").strip()[:100]
     if not nombre or not icono:
+        return
+    hogar_id = hogar_id_del_catalogo(db)
+    if not hogar_id:
         return
     db.execute(
         "INSERT INTO historial_articulos "
-        "(nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras, fecha_actualizacion) "
-        "VALUES (?, ?, ?, COALESCE(?, 'ud'), ?, COALESCE(?, 1), COALESCE(?, 30), ?, ?) "
-        "ON CONFLICT(nombre) DO UPDATE SET icono = excluded.icono, "
+        "(nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras, fecha_actualizacion, hogar_id) "
+        "VALUES (?, ?, ?, COALESCE(?, 'ud'), ?, COALESCE(?, 1), COALESCE(?, 30), ?, ?, ?) "
+        "ON CONFLICT(nombre, hogar_id) DO UPDATE SET icono = excluded.icono, "
         "categoria = COALESCE(?, historial_articulos.categoria), "
         "unidad = COALESCE(?, historial_articulos.unidad), "
         "sub_descripcion = COALESCE(?, historial_articulos.sub_descripcion), "
@@ -61,7 +74,7 @@ def recordar_articulo(
         "codigo_barras = COALESCE(?, historial_articulos.codigo_barras), "
         "fecha_actualizacion = excluded.fecha_actualizacion",
         (
-            nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras, ahora(),
+            nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras, ahora(), hogar_id,
             categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, codigo_barras,
         ),
     )
@@ -73,10 +86,19 @@ def recordar_articulo(
 def listar_historial():
     db = get_db()
     filas = db.execute(
-        "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso "
-        "FROM historial_articulos ORDER BY LOWER(nombre)",
+        "SELECT nombre, icono, categoria, unidad, sub_descripcion, cantidad_defecto, dias_aviso, hogar_id "
+        "FROM historial_articulos WHERE hogar_id IN (0, ?) ORDER BY LOWER(nombre), hogar_id DESC",
+        (hogar_id_del_catalogo(db),),
     ).fetchall()
-    return APIResponse.success([dict(fila) for fila in filas])
+    vistos, resultado = set(), []
+    for fila in filas:  # lo del hogar (hogar_id mayor) va primero y tapa al estandar
+        clave = fila["nombre"].lower()
+        if clave not in vistos:
+            vistos.add(clave)
+            d = dict(fila)
+            d.pop("hogar_id")
+            resultado.append(d)
+    return APIResponse.success(resultado)
 
 
 @bp.route("/codigo/<codigo_barras>", methods=["GET"])
@@ -106,13 +128,14 @@ def buscar_catalogo():
     if query:
         estandar = db.execute(
             "SELECT nombre, icono, categoria, unidad FROM historial_articulos "
-            "WHERE LOWER(nombre) LIKE LOWER(?) ORDER BY LOWER(nombre) LIMIT 30",
-            (like,),
+            "WHERE LOWER(nombre) LIKE LOWER(?) AND hogar_id IN (0, ?) ORDER BY LOWER(nombre) LIMIT 30",
+            (like, hogar_id_del_catalogo(db)),
         ).fetchall()
     else:
         estandar = db.execute(
             "SELECT nombre, icono, categoria, unidad FROM historial_articulos "
-            "ORDER BY LOWER(nombre) LIMIT 30",
+            "WHERE hogar_id IN (0, ?) ORDER BY LOWER(nombre) LIMIT 30",
+            (hogar_id_del_catalogo(db),),
         ).fetchall()
 
     from ..servicios.stock import hogar_actual_con_permiso
@@ -135,9 +158,9 @@ def buscar_catalogo():
                 "WHERE ap.usuario_propietario_id IN ("
                 "    SELECT usuario_propietario_id FROM hogares WHERE id = ? "
                 "    UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
-                "AND LOWER(ap.nombre) LIKE LOWER(?) "
+                "AND LOWER(ap.nombre) LIKE LOWER(?) AND (ap.hogar_id IS NULL OR ap.hogar_id = ?) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
-                (hogar_id, hogar_id, like),
+                (hogar_id, hogar_id, like, hogar_id),
             ).fetchall()
         else:
             personalizados = db.execute(
@@ -145,8 +168,9 @@ def buscar_catalogo():
                 "WHERE ap.usuario_propietario_id IN ("
                 "    SELECT usuario_propietario_id FROM hogares WHERE id = ? "
                 "    UNION SELECT usuario_id FROM permisos_hogar WHERE hogar_id = ?) "
+                "AND (ap.hogar_id IS NULL OR ap.hogar_id = ?) "
                 "ORDER BY LOWER(ap.nombre) LIMIT 30",
-                (hogar_id, hogar_id),
+                (hogar_id, hogar_id, hogar_id),
             ).fetchall()
 
     resultado = (
