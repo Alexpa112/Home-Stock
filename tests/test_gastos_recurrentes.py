@@ -1,6 +1,6 @@
 """Tests de gastos recurrentes: plantillas que se materializan como gastos
 normales al listar (generacion perezosa, sin tarea programada aparte).
-Ver stockhogar/rutas/finanzas/gastos.py: _generar_gastos_recurrentes_pendientes."""
+Ver stockhogar/rutas/finanzas/recurrentes.py: generar_gastos_recurrentes_pendientes."""
 import unittest
 import uuid
 from datetime import datetime, timedelta

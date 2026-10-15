@@ -14,7 +14,7 @@ Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
 
     - `.lastrowid` (tras INSERT, estilo sqlite3.Cursor): TRADUCIDO. Los 14
       sitios (db.py, rutas/compra/articulos_compra.py, rutas/inventario/categorias.py,
-      rutas/finanzas/categorias_gasto.py, rutas/finanzas/gastos.py, rutas/hogar/hogares.py,
+      rutas/finanzas/categorias_gasto.py, rutas/finanzas/, rutas/hogar/hogares.py,
       rutas/cuenta/oauth.py, servicios/stock.py) usan ahora `INSERT ... RETURNING
       id` + `cursor.fetchone()["id"]`, sintaxis identica valida en SQLite
       3.35+ y en Postgres. OJO al leerlo: el fetchone() debe hacerse
@@ -45,7 +45,7 @@ Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
       pasar por asegurar_columna). Bajo valor/alto esfuerzo para el
       alcance actual.
     - `strftime(...)` / `julianday(...)`: no aplica - la unica aparicion
-      encontrada (rutas/finanzas/gastos.py) es `datetime.strftime` de Python, no la
+      encontrada (rutas/finanzas/) es `datetime.strftime` de Python, no la
       funcion SQL de SQLite.
     - `AUTOINCREMENT` (SQLite): no requiere traduccion en el codigo de la
       app; lo resuelve scripts/migrar_a_postgres.py al recrear el esquema

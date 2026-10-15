@@ -76,7 +76,7 @@ def aplicar(db):
     asegurar_columna(db, "gastos", "imagen_recibo_mime", "TEXT")
 
     # Gastos recurrentes: plantillas que se materializan como gastos
-    # normales (generacion perezosa al listar, ver rutas/finanzas/gastos.py) en
+    # normales (generacion perezosa al listar, ver rutas/finanzas/registro_gastos.py) en
     # vez de depender de una tarea programada aparte.
     db.execute(
         """

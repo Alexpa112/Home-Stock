@@ -24,7 +24,8 @@ from .rutas import cuenta
 from .rutas.cuenta import oauth
 from .rutas.compra import articulos_compra
 from .rutas.inventario import categorias, consumo, historial, productos, recetas
-from .rutas.finanzas import categorias_gasto, gastos
+from .rutas import finanzas
+from .rutas.finanzas import categorias_gasto
 from .rutas.hogar import hogares, permisos
 from .rutas.sistema import paginas, idiomas, formularios, version, legal, push
 from .rutas.escaner import tickets, ocr_tickets
@@ -168,7 +169,7 @@ def create_app():
     app.register_blueprint(hogares.bp, name="hogares_alias_legado", url_prefix="/api/listas")
     app.register_blueprint(articulos_compra.bp)
     app.register_blueprint(permisos.bp)
-    app.register_blueprint(gastos.bp)
+    app.register_blueprint(finanzas.bp)
     app.register_blueprint(tickets.bp)
     app.register_blueprint(ocr_tickets.bp)
     app.register_blueprint(consumo.bp)

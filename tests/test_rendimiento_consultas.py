@@ -123,10 +123,13 @@ class ConsultasDeGastosTests(unittest.TestCase):
 
         modulo_db.get_db = get_db_espiado
         # Los modulos de rutas importaron get_db por nombre, hay que sustituirlo ahi.
-        import stockhogar.rutas.finanzas.gastos as rutas_gastos
-        import stockhogar.servicios.stock as servicio_stock
+        import sys
+        import stockhogar.rutas.finanzas  # noqa: F401  (carga todos los modulos de gastos)
+        import stockhogar.servicios.stock  # noqa: F401
         originales = []
-        for modulo in (rutas_gastos, servicio_stock):
+        modulos = [m for n, m in list(sys.modules.items())
+                   if m is not None and n.startswith(("stockhogar.rutas.", "stockhogar.servicios."))]
+        for modulo in modulos:
             if hasattr(modulo, "get_db"):
                 originales.append((modulo, modulo.get_db))
                 modulo.get_db = get_db_espiado

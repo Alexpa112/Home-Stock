@@ -93,13 +93,13 @@ class PresupuestoMensualTests(unittest.TestCase):
         self.assertEqual(datos["gasto_mes"], 40)
         self.assertEqual(datos["porcentaje"], 40.0)
 
-    @patch("stockhogar.rutas.finanzas.gastos.enviar_push_a_usuario")
+    @patch("stockhogar.rutas.finanzas.comunes.enviar_push_a_usuario")
     def test_avisa_push_al_superar_presupuesto(self, mock_push):
         self.client.patch(f"/api/hogares/{self.hogar_id}", json={"presupuesto_mensual": 50})
         self._crear_gasto(60)
         self.assertTrue(mock_push.called)
 
-    @patch("stockhogar.rutas.finanzas.gastos.enviar_push_a_usuario")
+    @patch("stockhogar.rutas.finanzas.comunes.enviar_push_a_usuario")
     def test_no_avisa_dos_veces_el_mismo_mes(self, mock_push):
         self.client.patch(f"/api/hogares/{self.hogar_id}", json={"presupuesto_mensual": 50})
         self._crear_gasto(60)
