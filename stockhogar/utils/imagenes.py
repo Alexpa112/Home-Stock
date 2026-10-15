@@ -45,6 +45,28 @@ _FORMATOS_PILLOW_POR_EXTENSION = {
 }
 
 
+def validar_formato(imagen_bytes: bytes, extension: str):
+    """Solo comprueba que es una imagen valida del formato que dice su extension y que no es
+    una bomba de pixeles. Devuelve None si es valida o la clave del error.
+
+    Para lo que NO se guarda (la foto del ticket se descarta tras el OCR) basta esto: no hace
+    falta decodificar y volver a codificar los pixeles como en validar_y_recodificar, que en una
+    foto de 10 Mpx cuesta cientos de milisegundos por nada."""
+    formato_esperado = _FORMATOS_PILLOW_POR_EXTENSION.get(extension)
+    if formato_esperado is None:
+        return None
+    if imagen_demasiado_grande(imagen_bytes):
+        return "err_formato_no_permitido"
+    try:
+        with Image.open(io.BytesIO(imagen_bytes)) as imagen:
+            if imagen.format != formato_esperado:
+                return "err_formato_no_permitido"
+            imagen.verify()
+    except (UnidentifiedImageError, OSError, ValueError, DecompressionBombError):
+        return "err_formato_no_permitido"
+    return None
+
+
 def validar_y_recodificar(imagen_bytes: bytes, extension: str):
     """Comprueba que `imagen_bytes` es de verdad una imagen del formato que
     dice su extension, y devuelve una copia recodificada (sin metadatos).

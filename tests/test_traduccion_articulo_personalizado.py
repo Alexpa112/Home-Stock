@@ -77,7 +77,7 @@ class TraduccionArticuloPersonalizadoTest(unittest.TestCase):
 
             # La traduccion se hace en segundo plano (no bloquea la BD a los demas usuarios).
             import time
-            for _ in range(60):
+            for _ in range(240):
                 traducciones = db.execute(
                     "SELECT idioma, texto_original, texto_traducido FROM traducciones_productos "
                     "WHERE articulo_personalizado_id = ? AND tipo = 'nombre'",

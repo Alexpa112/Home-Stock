@@ -31,6 +31,9 @@ def _entero_de_entorno(nombre, defecto):
 
 
 _HILOS = _entero_de_entorno("DREAME_OCR_HILOS", 2)
+# El clasificador de angulo (gira cada linea 180 grados si esta del reves) cuesta tiempo en cada
+# linea; la foto ya se endereza antes (orientacion EXIF y deteccion del papel).
+_USAR_CLASIFICADOR = os.environ.get("DREAME_OCR_CLS", "0") == "1"
 # Lecturas simultaneas: gunicorn atiende varias peticiones a la vez y cada lectura usa
 # ~200 MB y varios hilos. Las demas esperan su turno (el limite de peticiones por
 # usuario ya acota la cola) en vez de agotar la memoria de una Raspberry Pi.
@@ -113,7 +116,7 @@ def leer_lineas(imagen_bgr):
     misma fila que el nombre, y `reconstruir_lineas` los junta por coordenadas."""
     motor = _obtener_motor()
     with _turno:
-        resultado, _ = motor(imagen_bgr, return_word_box=True)
+        resultado, _ = motor(imagen_bgr, use_cls=_USAR_CLASIFICADOR, return_word_box=True)
     if not resultado:
         return []
     datos = {"text": [], "conf": [], "left": [], "top": [], "width": [], "height": []}

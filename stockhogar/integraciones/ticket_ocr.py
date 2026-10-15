@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import statistics
+from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 import pytesseract
@@ -43,6 +44,11 @@ RE_CANTIDAD_FINAL = re.compile(r"^(.+?)\s+(\d+)\s*(ud|uds|u|unid)\.?$", re.IGNOR
 _CONFIANZA_LINEA_DUDOSA = 45
 _MEJORA_MINIMA_RELECTURA = 15
 _MAX_RELECTURAS = 12
+# Las relecturas de linea son procesos Tesseract independientes: se lanzan en paralelo
+# (antes una detras de otra, ~0,3 s cada una y 2 por linea).
+_HILOS_RELECTURA = max(1, min(4, os.cpu_count() or 1))
+# Cada Tesseract usa OpenMP; con varios a la vez y todos con 4 hilos se estorban.
+os.environ.setdefault("OMP_THREAD_LIMIT", "1")
 _TIMEOUT_RELECTURA_S = 5
 
 
@@ -110,20 +116,20 @@ def _recuperar_lineas_perdidas(lineas, gris):
     if not paso or not lineas:
         return []
     ancho = gris.shape[1]
-    nuevas = []
+    huecos = []
     for a, b in zip(lineas, lineas[1:]):
         hueco = b.y_centro - a.y_centro
         if hueco <= paso * _FACTOR_HUECO or hueco > paso * 4:
             continue
         faltan = max(1, round(hueco / paso) - 1)
-        for k in range(1, faltan + 1):
-            y = a.y_centro + hueco * k / (faltan + 1)
-            lectura = _leer_recorte(gris, int(y - paso * 0.6), int(y + paso * 0.6), 0, ancho)
-            if lectura and lectura[1] >= 30 and len(lectura[0]) >= 3:
-                nuevas.append((y, lectura[0]))
-        if len(nuevas) >= _MAX_LINEAS_RECUPERADAS:
+        huecos += [a.y_centro + hueco * k / (faltan + 1) for k in range(1, faltan + 1)]
+        if len(huecos) >= _MAX_LINEAS_RECUPERADAS:
             break
-    return nuevas
+    if not huecos:
+        return []
+    with ThreadPoolExecutor(max_workers=_HILOS_RELECTURA) as pool:
+        lecturas = list(pool.map(lambda y: _leer_recorte(gris, int(y - paso * 0.6), int(y + paso * 0.6), 0, ancho), huecos))
+    return [(y, l[0]) for y, l in zip(huecos, lecturas) if l and l[1] >= 30 and len(l[0]) >= 3]
 
 
 def _lineas_truncadas(lineas):
@@ -186,13 +192,19 @@ def _texto_con_relectura(lineas, gris):
         if linea.palabras and linea.confianza_media < _CONFIANZA_LINEA_DUDOSA
     ]
     candidatas = list(dict.fromkeys(dudosas + _lineas_truncadas(lineas)))[:_MAX_RELECTURAS]
-    for i in candidatas:
+    margen = 14
+
+    def _releer(i):
         linea = lineas[i]
-        margen = 14
-        lectura = _leer_recorte(
+        return _leer_recorte(
             gris, min(p.arriba for p in linea.palabras) - margen,
             max(p.abajo for p in linea.palabras) + margen, linea.izquierda - margen, ancho,
         )
+
+    with ThreadPoolExecutor(max_workers=_HILOS_RELECTURA) as pool:
+        lecturas = list(pool.map(_releer, candidatas))
+    for i, lectura in zip(candidatas, lecturas):
+        linea = lineas[i]
         if lectura and (
             _puntuar_lectura(*lectura) >= _puntuar_lectura(linea.texto, linea.confianza_media) + _MEJORA_MINIMA_RELECTURA
         ):

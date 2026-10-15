@@ -100,7 +100,7 @@ class ProcesadorImagen:
         # procesa realmente rápido y bien en este tipo de tickets.
         return gray
 
-    def procesar_para_motor_neuronal(self, imagen_bytes, lado_maximo=2000):
+    def procesar_para_motor_neuronal(self, imagen_bytes, lado_maximo=None):
         """Imagen lista para un OCR neuronal (RapidOCR): recortada al papel,
         derecha, sin sombras, en gris de 3 canales y con el lado largo acotado.
 
@@ -108,6 +108,7 @@ class ProcesadorImagen:
         CLAHE ni reescalado a 2000 px de ancho: el detector neuronal trabaja mejor
         con la imagen casi cruda (en 250 recibos reales, la imagen cruda lee el 97 %
         de los importes y la tratada para Tesseract el 96 %)."""
+        lado_maximo = lado_maximo or int(os.environ.get("DREAME_OCR_LADO", "1600"))
         img = self._decodificar_respetando_exif(imagen_bytes)
         if img is None:
             img = cv2.imdecode(np.frombuffer(imagen_bytes, np.uint8), cv2.IMREAD_COLOR)
@@ -132,7 +133,17 @@ class ProcesadorImagen:
         if os.environ.get("DREAME_SIN_APLANAR"):  # solo para comparar en pruebas
             return gray
         papel = cv2.dilate(gray, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
-        fondo = cv2.GaussianBlur(papel, (0, 0), sigmaX=max(15, gray.shape[1] // 60))
+        # El fondo es suave por definicion: se estima en una copia reducida a 1/4 (el desenfoque
+        # con sigma de decenas de pixeles sobre la imagen completa costaba ~0,25 s) y se vuelve
+        # a su tamano.
+        alto, ancho = gray.shape[:2]
+        sigma = max(15, ancho // 60)
+        if min(alto, ancho) >= 400:
+            pequeno = cv2.resize(papel, (ancho // 4, alto // 4), interpolation=cv2.INTER_AREA)
+            pequeno = cv2.GaussianBlur(pequeno, (0, 0), sigmaX=sigma / 4)
+            fondo = cv2.resize(pequeno, (ancho, alto), interpolation=cv2.INTER_LINEAR)
+        else:
+            fondo = cv2.GaussianBlur(papel, (0, 0), sigmaX=sigma)
         return cv2.divide(gray, fondo, scale=255)
 
     @staticmethod

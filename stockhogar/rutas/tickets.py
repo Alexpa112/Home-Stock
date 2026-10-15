@@ -23,7 +23,7 @@ from ..servicios.ocr.diccionario import identificar_articulo
 from ..servicios.ocr.matcher_inteligente import MatcherInteligente
 from ..servicios.ocr.validacion_importes import normalizar_importe
 from ..utils import Validator, ValidationError
-from ..utils.imagenes import imagen_demasiado_grande, validar_y_recodificar
+from ..utils.imagenes import imagen_demasiado_grande, validar_formato
 from ..servicios.stock import crear_producto_nuevo, sumar_stock, hogar_actual_con_permiso, registrar_precio
 
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
@@ -338,7 +338,7 @@ def analizar_ticket():
             # imagen es efimera, se descarta tras el OCR, y recodificarla
             # podria degradar la calidad que necesita el OCR.
             with open(tmp.name, "rb") as f:
-                _, error_validacion = validar_y_recodificar(f.read(), sufijo.lstrip("."))
+                error_validacion = validar_formato(f.read(), sufijo.lstrip("."))
             if error_validacion:
                 return APIResponse.validacion(error_validacion)
 
