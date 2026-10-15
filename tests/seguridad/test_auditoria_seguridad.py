@@ -250,3 +250,15 @@ class PersonalizadosPorHogarTests(Base):
             db.execute("DELETE FROM historial_articulos WHERE nombre = ?", (nombre,))
             db.commit()
         self.assertEqual([f["hogar_id"] for f in filas], [hid])
+
+
+class PerfilAtomicoTests(Base):
+    def test_un_cambio_invalido_no_deja_la_sesion_a_medias(self):
+        c, uid, _, nombre = self.usuario()
+        r = c.put("/api/auth/perfil", json={"usuario": "otro_" + uuid.uuid4().hex[:6], "email": "no-es-un-email",
+                                             "password_actual": PASSWORD})
+        self.assertEqual(r.status_code, 400)
+        # ni la BD ni la cookie cambiaron el nombre de usuario
+        self.assertEqual(c.get("/api/auth/estado").get_json().get("usuario"), nombre)
+        with self.app.app_context():
+            self.assertEqual(get_db().execute("SELECT nombre_usuario FROM usuarios WHERE id=?", (uid,)).fetchone()[0], nombre)

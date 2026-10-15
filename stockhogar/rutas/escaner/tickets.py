@@ -257,209 +257,224 @@ def _convertir_heic_a_imagen(ruta_heic):
     return ruta_png
 
 
-@bp.route("/analizar", methods=["POST"])
-@requerir_sesion
-@manejo_errores
-def analizar_ticket():
-    archivo = request.files.get("foto")
+class _Rechazo(Exception):
+    """Corta el analisis con una respuesta ya construida (validacion, permiso, formato...)."""
+
+    def __init__(self, respuesta):
+        super().__init__("rechazo")
+        self.respuesta = respuesta
+
+
+def _comprobar_peticion(archivo, db, usuario_id):
+    """Validaciones previas a gastar nada: fichero, permiso de hogar, cuotas y tamano.
+    Devuelve el hogar_id o lanza _Rechazo."""
     if archivo is None or archivo.filename == "":
-        return APIResponse.validacion("err_sin_imagen")
-
+        raise _Rechazo(APIResponse.validacion("err_sin_imagen"))
     if not _extension_permitida(archivo.filename):
-        return APIResponse.validacion("err_formato_no_permitido")
-
-    db = get_db()
-    usuario_id = session.get("usuario_id")
+        raise _Rechazo(APIResponse.validacion("err_formato_no_permitido"))
 
     # A-1: hasta ahora esta ruta no comprobaba NINGUN permiso de hogar, y leia
     # el catalogo `productos` entero de la instalacion. Se exige 'ver' y el
     # hogar resultante es el que filtra el catalogo mas abajo.
     hogar_id = hogar_actual_con_permiso(db, session, nivel_requerido="ver")
     if hogar_id is None:
-        return APIResponse.no_permitido()
+        raise _Rechazo(APIResponse.no_permitido())
 
     # A-6: la cuota diaria protegia /api/ocr/procesar-ticket, que nadie
     # llamaba, mientras esta ruta -- la que usa el frontend -- no tenia
     # ninguna. Se comprueba antes de gastar nada.
     if cuota_ocr.uso_hoy(db, usuario_id) >= LIMITE_OCR_DIARIO:
-        return APIResponse.error("err_limite_ocr_diario", 429)
+        raise _Rechazo(APIResponse.error("err_limite_ocr_diario", 429))
     if limite_por_ip(f"analizar_ticket:{ip_cliente()}", 30, 60 * 60):
-        return APIResponse.error("err_demasiadas_peticiones", 429)
+        raise _Rechazo(APIResponse.error("err_demasiadas_peticiones", 429))
 
     archivo.seek(0, os.SEEK_END)
     tamano_bytes = archivo.tell()
     archivo.seek(0)
     if tamano_bytes > TAMANO_MAXIMO_MB * 1024 * 1024:
-        return APIResponse.validacion(
+        raise _Rechazo(APIResponse.validacion(
             traducir("err_archivo_muy_grande").replace("{mb}", str(TAMANO_MAXIMO_MB))
-        )
+        ))
+    return hogar_id
 
-    sufijo = Path(archivo.filename).suffix.lower() or ".jpg"
-    tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
-    tmp.close()
-    ruta_png_convertida = None
+
+def _validar_y_preparar_imagen(ruta, sufijo, a_borrar):
+    """Comprueba que el fichero es de verdad lo que dice su extension y devuelve la ruta de la
+    imagen a leer (la convertida si era HEIC). Las rutas temporales que cree se anaden a `a_borrar`."""
+    if sufijo in (".heic", ".heif"):
+        convertida = _convertir_heic_a_imagen(ruta)
+        if not convertida:
+            # Sin el binario es un fallo del servidor (500); con el binario
+            # presente, el archivo es el que no se puede leer (400): no es
+            # un error del servidor y no debe contarse como tal.
+            if shutil.which("heif-convert"):
+                raise _Rechazo(APIResponse.validacion("err_formato_no_permitido"))
+            raise _Rechazo(APIResponse.error("err_procesando_ticket", 500))
+        a_borrar.append(convertida)
+        if imagen_demasiado_grande(convertida):
+            raise _Rechazo(APIResponse.validacion("err_formato_no_permitido"))
+        return convertida
+
+    if sufijo == ".pdf":
+        # El PDF NO se rasteriza aqui: Claude lee el documento completo,
+        # mientras que pdftoppm -singlefile solo saca la primera pagina y
+        # una factura de varias hojas perdia todos los articulos de la
+        # segunda en adelante. La conversion se hace mas abajo, y solo si
+        # hay que recurrir a Tesseract. Validacion de contenido real (S-16):
+        # sin convertir hay que comprobar la firma a mano.
+        with open(ruta, "rb") as f:
+            if not f.read(5).startswith(b"%PDF-"):
+                raise _Rechazo(APIResponse.validacion("err_formato_no_permitido"))
+        return ruta
+
+    # Validacion de contenido real (S-16). No se recodifica (a diferencia de los recibos de gastos,
+    # que se guardan a largo plazo): esta imagen es efimera, se descarta tras el OCR, y
+    # recodificarla podria degradar la calidad que necesita el OCR.
+    with open(ruta, "rb") as f:
+        error_validacion = validar_formato(f.read(), sufijo.lstrip("."))
+    if error_validacion:
+        raise _Rechazo(APIResponse.validacion(error_validacion))
+    return ruta
+
+
+def _leer_con_claude(ruta_imagen, es_pdf, productos_catalogo, db, hogar_id):
+    """Claude Vision. Devuelve (items, totales, cuadre, llamo_a_la_nube); items es None si no
+    esta disponible o falla, y quien llama recurre entonces al OCR local."""
+    logger = logging.getLogger(__name__)
+    claude = ClaudeOCR()
+    if not claude.disponible():
+        logger.warning("Claude OCR no disponible, usando Tesseract")
+        return None, None, None, False
+    llamo = False
     try:
+        with open(ruta_imagen, "rb") as f:
+            imagen_bytes = f.read()
+        llamo = True
+        respuesta_ia = claude.procesar(
+            imagen_bytes, productos_catalogo, mime="application/pdf" if es_pdf else None,
+        )
+        if respuesta_ia is None:
+            return None, None, None, llamo
+        items = _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id)
+        logger.info("Ticket analizado con Claude Vision: %d items detectados", len(items))
+        return items, respuesta_ia.get("totales"), respuesta_ia.get("cuadre"), llamo
+    except Exception as e:
+        logger.error("Error con Claude Vision, usando Tesseract: %s", str(e))
+        return None, None, None, llamo
+
+
+def _leer_con_ocr_local(ruta_imagen, ruta_original, es_pdf, db, hogar_id, a_borrar):
+    """RapidOCR/Tesseract + parser + dictionary + cuadre con el TOTAL impreso. Devuelve
+    (items, totales, cuadre)."""
+    logger = logging.getLogger(__name__)
+    if es_pdf and ruta_imagen == ruta_original:
+        # El OCR local necesita una imagen: se rasteriza la primera pagina (ver _convertir_pdf_a_imagen).
+        convertida = _convertir_pdf_a_imagen(ruta_original)
+        if not convertida:
+            if shutil.which("pdftoppm"):
+                raise _Rechazo(APIResponse.validacion("err_formato_no_permitido"))
+            raise _Rechazo(APIResponse.error("err_procesando_ticket", 500))
+        a_borrar.append(convertida)
+        ruta_imagen = convertida
+    try:
+        texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
+        items = ProcesadorTicketsV2().procesar_completo(texto_ocr, db, hogar_id)
+        # El TOTAL impreso comprueba la lectura (y corrige lo que solo
+        # tiene una solucion): ver servicios/ocr/cuadre_ticket.py.
+        items, cuadre = cuadrar_con_total(items, texto_ocr)
+        totales = {"total": extraer_total_impreso(texto_ocr)} if cuadre else None
+        logger.info(
+            "Ticket analizado con Tesseract: %d lineas OCR, %d items detectados",
+            len(texto_ocr.splitlines()), len(items),
+        )
+        return items, totales, cuadre
+    except Exception as e:
+        logger.error("Error con Tesseract: %s", str(e))
+        return [], None, None
+
+
+def _construir_respuesta(items, totales, cuadre, db, hogar_id):
+    """Respuesta para la interfaz: articulos con sugerencias + totales y aviso de descuadre."""
+    respuesta = crear_respuesta_usuario(items, db, hogar_id)
+    # Totales del pie del ticket y su comprobacion aritmetica. Con Claude vienen del modelo; con el
+    # lector local, del TOTAL impreso; si no hay, el frontend simplemente no los muestra.
+    if totales:
+        respuesta["totales"] = totales
+    if cuadre:
+        respuesta["cuadre"] = cuadre
+        if cuadre.get("comprobado") and not cuadre.get("cuadra"):
+            respuesta.setdefault("advertencias", []).append({
+                "tipo": "descuadre",
+                "suma": cuadre.get("suma_articulos"),
+                "total": cuadre.get("total_ticket"),
+                "mensaje": (
+                    "La suma de los artículos no coincide con el total del "
+                    "ticket: revisa que no falte ninguno."
+                ),
+            })
+    return respuesta
+
+
+@bp.route("/analizar", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def analizar_ticket():
+    db = get_db()
+    usuario_id = session.get("usuario_id")
+    archivo = request.files.get("foto")
+    a_borrar = []
+    try:
+        hogar_id = _comprobar_peticion(archivo, db, usuario_id)
+
+        sufijo = Path(archivo.filename).suffix.lower() or ".jpg"
+        tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
+        tmp.close()
+        a_borrar.append(tmp.name)
         archivo.save(tmp.name)
 
-        ruta_imagen = tmp.name
         es_pdf = sufijo == ".pdf"
-        if sufijo in (".heic", ".heif"):
-            ruta_png_convertida = _convertir_heic_a_imagen(tmp.name)
-            if not ruta_png_convertida:
-                # Sin el binario es un fallo del servidor (500); con el binario
-                # presente, el archivo es el que no se puede leer (400): no es
-                # un error del servidor y no debe contarse como tal.
-                if shutil.which("heif-convert"):
-                    return APIResponse.validacion("err_formato_no_permitido")
-                return APIResponse.error("err_procesando_ticket", 500)
-            ruta_imagen = ruta_png_convertida
-            if imagen_demasiado_grande(ruta_imagen):
-                return APIResponse.validacion("err_formato_no_permitido")
-        elif es_pdf:
-            # El PDF NO se rasteriza aqui: Claude lee el documento completo,
-            # mientras que pdftoppm -singlefile solo saca la primera pagina y
-            # una factura de varias hojas perdia todos los articulos de la
-            # segunda en adelante. La conversion se hace mas abajo, y solo si
-            # hay que recurrir a Tesseract.
-            # Validacion de contenido real (S-16): antes la daba por buena la
-            # propia conversion (si no era un PDF de verdad, fallaba); sin
-            # convertir hay que comprobar la firma a mano.
-            with open(tmp.name, "rb") as f:
-                if not f.read(5).startswith(b"%PDF-"):
-                    return APIResponse.validacion("err_formato_no_permitido")
-        else:
-            # Validacion de contenido real (S-16): el .heic/.heif de arriba ya
-            # se "valida" al intentar convertirlo (si no es de verdad ese
-            # formato, la conversion falla) y el .pdf comprueba su firma; para
-            # el resto de extensiones no habia ninguna comprobacion mas alla
-            # del nombre
-            # del fichero. No se recodifica aqui (a diferencia de los
-            # recibos de gastos.py, que se guardan a largo plazo): esta
-            # imagen es efimera, se descarta tras el OCR, y recodificarla
-            # podria degradar la calidad que necesita el OCR.
-            with open(tmp.name, "rb") as f:
-                error_validacion = validar_formato(f.read(), sufijo.lstrip("."))
-            if error_validacion:
-                return APIResponse.validacion(error_validacion)
+        ruta_imagen = _validar_y_preparar_imagen(tmp.name, sufijo, a_borrar)
 
         prefiere_ocr_local = bool(
             db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
         )
 
-        # El catalogo SOLO del hogar activo (A-1). Antes esta consulta no
-        # llevaba `hogar_id` y era la unica del backend que leia `productos`
-        # sin unir con `stock_hogar` (todo el resto lo hace, ver productos.py y
-        # la exportacion RGPD de auth.py). Consecuencias que cerraba:
-        #  - _normalizar_producto_id validaba el id devuelto por el modelo
-        #    contra el catalogo global, asi que un id de OTRO hogar pasaba la
-        #    validacion y su nombre volvia al cliente en la respuesta.
-        #  - se enviaban a Anthropic los nombres de producto de todos los
-        #    hogares de la instalacion, cosa que la politica de privacidad no
-        #    declaraba.
+        # El catalogo SOLO del hogar activo (A-1): sin filtrar por hogar, el id devuelto por el
+        # modelo se validaba contra el catalogo global y se enviaban a Anthropic nombres de
+        # producto de todos los hogares, cosa que la politica de privacidad no declaraba.
         productos_catalogo = _catalogo_del_hogar(db, hogar_id)
 
-        # Motor principal: Claude Vision API (la mejor visión disponible)
-        items = None
-        logger = logging.getLogger(__name__)
+        # Motor principal: Claude Vision (la mejor vision disponible), salvo opt-out del usuario.
+        items = totales = cuadre = None
         uso_motor_nube = False
-        totales_ticket = None
-        cuadre_ticket = None
-
         if not prefiere_ocr_local:
-            claude = ClaudeOCR()
-            if claude.disponible():
-                try:
-                    with open(ruta_imagen, "rb") as f:
-                        imagen_bytes = f.read()
-                    uso_motor_nube = True
-                    respuesta_ia = claude.procesar(
-                        imagen_bytes,
-                        productos_catalogo,
-                        mime="application/pdf" if es_pdf else None,
-                    )
-                    if respuesta_ia is not None:
-                        items = _items_desde_ia(respuesta_ia, productos_catalogo, db, hogar_id)
-                        totales_ticket = respuesta_ia.get("totales")
-                        cuadre_ticket = respuesta_ia.get("cuadre")
-                        logger.info(
-                            "Ticket analizado con Claude Vision: %d items detectados",
-                            len(items),
-                        )
-                except Exception as e:
-                    logger.error("Error con Claude Vision, usando Tesseract: %s", str(e))
-                    items = None
-            else:
-                logger.warning("Claude OCR no disponible, usando Tesseract")
+            items, totales, cuadre, uso_motor_nube = _leer_con_claude(
+                ruta_imagen, es_pdf, productos_catalogo, db, hogar_id
+            )
 
-        # Fallback a Tesseract si Claude no funcionó (items is None), si está
-        # deshabilitado, o si no reconoció ningún artículo (items == []): un
-        # segundo intento solo puede añadir candidatos, y el usuario los revisa
-        # antes de confirmar el ticket.
+        # Fallback al lector local si Claude no funciono (items is None), esta deshabilitado, o no
+        # reconocio ningun articulo (items == []): un segundo intento solo puede anadir candidatos,
+        # y el usuario los revisa antes de confirmar el ticket.
         if not items:
-            if es_pdf and ruta_png_convertida is None:
-                # Tesseract si necesita una imagen: se rasteriza la primera
-                # pagina (ver _convertir_pdf_a_imagen).
-                ruta_png_convertida = _convertir_pdf_a_imagen(tmp.name)
-                if not ruta_png_convertida:
-                    if shutil.which("pdftoppm"):
-                        return APIResponse.validacion("err_formato_no_permitido")
-                    return APIResponse.error("err_procesando_ticket", 500)
-                ruta_imagen = ruta_png_convertida
-            try:
-                texto_ocr = ticket_ocr.extraer_texto(ruta_imagen)
-                proc = ProcesadorTicketsV2()
-                items = proc.procesar_completo(texto_ocr, db, hogar_id)
-                # El TOTAL impreso comprueba la lectura (y corrige lo que solo
-                # tiene una solucion): ver servicios/ocr/cuadre_ticket.py.
-                items, cuadre_ticket = cuadrar_con_total(items, texto_ocr)
-                if cuadre_ticket:
-                    totales_ticket = {"total": extraer_total_impreso(texto_ocr)}
-                logger.info(
-                    "Ticket analizado con Tesseract: %d lineas OCR, %d items detectados",
-                    len(texto_ocr.splitlines()), len(items),
-                )
-            except Exception as e:
-                logger.error("Error con Tesseract: %s", str(e))
-                items = []
+            items, totales, cuadre = _leer_con_ocr_local(ruta_imagen, tmp.name, es_pdf, db, hogar_id, a_borrar)
 
         # La cuota se consume solo si se llego a llamar al motor de nube: el
-        # pipeline local (Tesseract) es gratuito y no tiene por que gastarla.
+        # pipeline local es gratuito y no tiene por que gastarla.
         if uso_motor_nube:
             cuota_ocr.incrementar(db, usuario_id)
 
-        # Formatear respuesta para UI con sugerencias
-        respuesta = crear_respuesta_usuario(items, db, hogar_id)
-
-        # Totales del pie del ticket y su comprobación aritmética. Solo los da
-        # el motor de vision; con Tesseract van a None y el frontend
-        # simplemente no los muestra.
-        if totales_ticket:
-            respuesta["totales"] = totales_ticket
-        if cuadre_ticket:
-            respuesta["cuadre"] = cuadre_ticket
-            if cuadre_ticket.get("comprobado") and not cuadre_ticket.get("cuadra"):
-                respuesta.setdefault("advertencias", []).append({
-                    "tipo": "descuadre",
-                    "suma": cuadre_ticket.get("suma_articulos"),
-                    "total": cuadre_ticket.get("total_ticket"),
-                    "mensaje": (
-                        "La suma de los artículos no coincide con el total del "
-                        "ticket: revisa que no falte ninguno."
-                    ),
-                })
-
+        respuesta = _construir_respuesta(items, totales, cuadre, db, hogar_id)
+    except _Rechazo as r:
+        return r.respuesta
     except Exception:
-        # No se devuelve str(e) al cliente: puede filtrar rutas de fichero
-        # temporales o detalles internos de librerías (ver @manejo_errores,
-        # que para el resto de endpoints ya evita esto con un mensaje
-        # generico). Aqui se hacia una excepcion para dar una pista sobre
-        # Tesseract, pero el detalle real solo debe ir al log del servidor.
+        # No se devuelve str(e) al cliente: puede filtrar rutas de fichero temporales o detalles
+        # internos de librerias; el detalle real solo va al log del servidor.
         logging.getLogger(__name__).exception("Error analizando ticket")
         return APIResponse.error("err_interno_generico", 500)
     finally:
-        os.unlink(tmp.name)
-        if ruta_png_convertida and os.path.exists(ruta_png_convertida):
-            os.unlink(ruta_png_convertida)
+        for ruta in a_borrar:
+            if os.path.exists(ruta):
+                os.unlink(ruta)
 
     return APIResponse.success(respuesta)
 

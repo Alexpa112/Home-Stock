@@ -7,6 +7,29 @@ from ...config import VERSION_TERMINOS
 from ...db import ahora, get_db
 
 
+def _validar_cambios_perfil(db, usuario_id, usuario, nombre_usuario_nuevo, nombre, email_nuevo):
+    """Respuesta de error si algun cambio pedido no es valido (sin escribir nada), o None."""
+    if nombre_usuario_nuevo:
+        if len(nombre_usuario_nuevo) > 80:
+            return APIResponse.validacion("err_nombre_max_80")
+        if db.execute(
+            "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?) AND id != ?",
+            (nombre_usuario_nuevo, usuario_id),
+        ).fetchone():
+            return APIResponse.error("err_usuario_duplicado", 400)
+    if nombre and len(nombre) > 80:
+        return APIResponse.validacion("err_nombre_max_80")
+    if email_nuevo:
+        if not email_valido(email_nuevo):
+            return APIResponse.validacion("err_email_invalido")
+        if db.execute(
+            "SELECT id FROM usuarios WHERE LOWER(email) = LOWER(?) AND id != ?", (email_nuevo, usuario_id),
+        ).fetchone():
+            # Respuesta generica: confirmar que un email ya esta registrado seria un oraculo de enumeracion (S-10).
+            return APIResponse.error("err_email_no_disponible", 400)
+    return None
+
+
 @bp.route("/api/auth/perfil", methods=["PUT"])
 @requerir_sesion
 @manejo_errores
@@ -49,59 +72,29 @@ def actualizar_perfil():
     if not usuario:
         return APIResponse.no_autorizado()
 
-    # Actualizar usuario (login) si se proporciona
+    # Primero se validan TODOS los cambios y despues se aplican: antes se iba escribiendo campo a
+    # campo, y un fallo en el ultimo (email invalido) dejaba la sesion con el usuario ya cambiado
+    # mientras la BD hacia rollback.
+    error = _validar_cambios_perfil(db, usuario_id, usuario, nombre_usuario_nuevo, nombre, email_nuevo)
+    if error:
+        return error
+
     if nombre_usuario_nuevo:
-        if len(nombre_usuario_nuevo) > 80:
-            return APIResponse.validacion("err_nombre_max_80")
-        duplicado = db.execute(
-            "SELECT id FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(?) AND id != ?",
-            (nombre_usuario_nuevo, usuario_id)
-        ).fetchone()
-        if duplicado:
-            return APIResponse.error("err_usuario_duplicado", 400)
-        db.execute(
-            "UPDATE usuarios SET nombre_usuario = ? WHERE id = ?",
-            (nombre_usuario_nuevo, usuario_id)
-        )
-        session["usuario"] = nombre_usuario_nuevo
-
-    # Actualizar nombre a mostrar si se proporciona (independiente del usuario de login)
+        db.execute("UPDATE usuarios SET nombre_usuario = ? WHERE id = ?", (nombre_usuario_nuevo, usuario_id))
     if nombre:
-        if len(nombre) > 80:
-            return APIResponse.validacion("err_nombre_max_80")
-        db.execute(
-            "UPDATE usuarios SET nombre = ? WHERE id = ?",
-            (nombre, usuario_id)
-        )
+        db.execute("UPDATE usuarios SET nombre = ? WHERE id = ?", (nombre, usuario_id))
 
-    # Fijar o cambiar el email (A-3b). Sin esto, quien se registraba con
-    # usuario+contraseña no podia tener email NUNCA -- no existia ningun
-    # UPDATE de esa columna en todo el proyecto salvo email_verificado=1 --, y
-    # por tanto no podia recuperar la contraseña ni activar la verificacion en
-    # dos pasos. Eso convertia cualquier robo de sesion en perdida definitiva
-    # de la cuenta. El email entra SIN verificar y se envia el enlace: hasta
-    # que no se confirme no sirve para recuperar la contraseña (el reset exige
-    # email_verificado, ver solicitar_reset_password).
-    email_cambiado = False
-    if email_nuevo:
-        if not email_valido(email_nuevo):
-            return APIResponse.validacion("err_email_invalido")
-        duplicado = db.execute(
-            "SELECT id FROM usuarios WHERE LOWER(email) = LOWER(?) AND id != ?",
-            (email_nuevo, usuario_id),
-        ).fetchone()
-        if duplicado:
-            # Respuesta generica: confirmar que un email ya esta registrado
-            # seria un oraculo de enumeracion (S-10).
-            return APIResponse.error("err_email_no_disponible", 400)
-        if (usuario["email"] or "").lower() != email_nuevo:
-            db.execute(
-                "UPDATE usuarios SET email = ?, email_verificado = 0 WHERE id = ?",
-                (email_nuevo, usuario_id),
-            )
-            email_cambiado = True
+    # Fijar o cambiar el email (A-3b). Sin esto, quien se registraba con usuario+contraseña no podia
+    # tener email NUNCA, y por tanto no podia recuperar la contraseña ni activar la verificacion en
+    # dos pasos. El email entra SIN verificar y se envia el enlace: hasta que no se confirme no sirve
+    # para recuperar la contraseña (el reset exige email_verificado, ver solicitar_reset_password).
+    email_cambiado = bool(email_nuevo) and (usuario["email"] or "").lower() != email_nuevo
+    if email_cambiado:
+        db.execute("UPDATE usuarios SET email = ?, email_verificado = 0 WHERE id = ?", (email_nuevo, usuario_id))
 
     db.commit()
+    if nombre_usuario_nuevo:
+        session["usuario"] = nombre_usuario_nuevo
 
     if email_cambiado:
         enviar_token_verificacion_email(db, usuario_id, usuario["nombre_usuario"], email_nuevo)

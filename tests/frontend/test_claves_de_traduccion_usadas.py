@@ -65,5 +65,5 @@ class AvisosDelTicketTests(unittest.TestCase):
 
     def test_el_descuadre_lleva_la_suma_y_el_total_para_el_texto(self):
         fuente = (RAIZ / "stockhogar" / "rutas" / "escaner" / "tickets.py").read_text(encoding="utf-8")
-        self.assertIn('"suma": cuadre_ticket.get("suma_articulos")', fuente)
-        self.assertIn('"total": cuadre_ticket.get("total_ticket")', fuente)
+        self.assertIn('"suma": cuadre.get("suma_articulos")', fuente)
+        self.assertIn('"total": cuadre.get("total_ticket")', fuente)

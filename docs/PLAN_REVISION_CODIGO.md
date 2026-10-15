@@ -183,8 +183,8 @@ Se hace por módulos con la checklist de la sección 4; cada módulo sale con te
 
 | Prioridad | Módulo | Qué mirar |
 |---|---|---|
-| 1 | `rutas/cuenta/perfil.py::actualizar_perfil` (100 líneas) | partir en validar / aplicar; ya mezcla usuario, nombre y email con reautenticación |
-| 1 | `rutas/escaner/tickets.py` (556) | `analizar_ticket` es una función de ~200 líneas (archivo, cuota, motores, respuesta): extraer pasos |
+| ✔ hecho | `rutas/cuenta/perfil.py::actualizar_perfil` | validar todo antes de escribir (antes un email inválido dejaba la cookie con el usuario nuevo y la BD sin él) |
+| ✔ hecho | `rutas/escaner/tickets.py::analizar_ticket` | de ~200 líneas a 45 + 6 funciones (`_comprobar_peticion`, `_validar_y_preparar_imagen`, `_leer_con_claude`, `_leer_con_ocr_local`, `_construir_respuesta`) con `_Rechazo` para las salidas tempranas |
 | 2 | Páginas > 1.000 líneas (`gastos`, `shopping`, `dashboard`, `settings`) | extraer componentes y hooks por sección; dejar cada página < 400 líneas |
 | 2 | `servicios/ocr/claude_ocr.py` (726) | separar prompt/esquema, normalización y cliente (hoy tests tocan sus internos) |
 | 3 | `config.py` (968) | agrupar constantes por tema (paquete `config/`) |
