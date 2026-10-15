@@ -436,6 +436,8 @@ def analizar_ticket():
             if cuadre_ticket.get("comprobado") and not cuadre_ticket.get("cuadra"):
                 respuesta.setdefault("advertencias", []).append({
                     "tipo": "descuadre",
+                    "suma": cuadre_ticket.get("suma_articulos"),
+                    "total": cuadre_ticket.get("total_ticket"),
                     "mensaje": (
                         "La suma de los artículos no coincide con el total del "
                         "ticket: revisa que no falte ninguno."

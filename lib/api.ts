@@ -259,7 +259,7 @@ export const auth = {
     return resultado
   },
 
-  actualizarPerfil: (datos: { usuario?: string; nombre?: string; password?: string }) =>
+  actualizarPerfil: (datos: { usuario?: string; nombre?: string; password?: string; email?: string; password_actual?: string }) =>
     apiCall('/api/auth/perfil', { method: 'PUT', body: JSON.stringify(datos) }),
 
   cambiarTema: (tema: 'light' | 'dark' | 'auto') =>

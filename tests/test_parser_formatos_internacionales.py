@@ -104,3 +104,46 @@ class FilaConDosPreciosUnitariosTests(unittest.TestCase):
         it = _items("MYDIN\nRECEIPT\nPARTNER E/LOPE 4.5INX9.5IN W4292 EA .S\n3555023304662 2 * 2.60 5.20\n"
                     "PLASTIC BAG EA .S\n2300000017984 1 * 0.20 0.20\nTOTAL 5.40")
         self.assertEqual([(i.cantidad, i.precio_total) for i in it], [(2, 5.2), (1, 0.2)])
+
+
+class OfertaNoEsDescuentoTests(unittest.TestCase):
+    def test_un_articulo_cuyo_nombre_empieza_por_oferta_no_se_pierde(self):
+        it = {i.nombre: i for i in _items("TIENDA X\n12/10/2026\nPAN 0,90\nOFERTA LECHE DESNATADA 1,20\nCOLA 1,50\nTOTAL 3,60\n")}
+        self.assertIn("Oferta Leche Desnatada", it)
+        self.assertEqual(it["Pan"].precio_total, 0.9)           # el "descuento" no le resto nada
+
+    def test_dto_sin_signo_y_sin_nombre_si_es_descuento(self):
+        it = _items("TIENDA X\n12/10/2026\nPAN 2,00\nDTO. 0,50\nCOLA 1,50\nTOTAL 3,00\n")
+        self.assertEqual([(i.nombre, i.precio_total) for i in it], [("Pan", 1.5), ("Cola", 1.5)])
+
+
+class DetalleConDosImportesTests(unittest.TestCase):
+    def test_x_con_unitario_y_total_tras_el_articulo_es_su_detalle(self):
+        it = _items("Lidl Supermercados S.A.U.\nCIF A-60195278\n12.10.2026 19:10\nPan de molde 3,70 A\n2 x 1,85 3,70\n"
+                    "Yogur 2,20 A\n4 x 0,55 2,20\nTotal 5,90\n")
+        self.assertEqual([(i.nombre, i.cantidad, i.precio_total) for i in it], [("Pan De Molde", 2, 3.7), ("Yogur", 4, 2.2)])
+
+    def test_el_detalle_no_se_pega_al_siguiente_articulo_sin_importe(self):
+        it = _items("TIENDA X\n12/10/2026\nPAN 3,70\n2 x 1,85 3,70\nBEBIDA SOJA\nCOLA 1,50\nLECHE 1,10\nTOTAL 6,30\n")
+        soja = next(i for i in it if i.nombre.startswith("Bebida"))
+        self.assertEqual((soja.cantidad, soja.precio_total), (1, 0))
+
+
+class ArticulosDelCatalogoNoSePierdenTests(unittest.TestCase):
+    """Ningun articulo real del catalogo debe confundirse con una linea de control."""
+
+    def test_todos_los_articulos_del_catalogo_sobreviven_al_parser(self):
+        from stockhogar.servicios.ocr.diccionario import obtener
+        perdidos = []
+        for e in obtener().entradas:
+            t = f"TIENDA X\n12/10/2026\nPAN 0,90\n{e.nombre.upper()} 1,20\nCOLA 1,50\nTOTAL 3,60\n"
+            nombres = [i.nombre for i in _items(t)]
+            if len(nombres) != 3:
+                perdidos.append((e.nombre, nombres))
+        self.assertEqual(perdidos, [])
+
+    def test_palabras_que_parecen_de_cierre(self):
+        for nombre in ("TARTA DE QUESO", "ESPECIAS", "RECAMBIO FREGONA", "SALES DE BAÑO", "SANDWICH CLUB", "PINZAS DE TENDER", "TE"):
+            with self.subTest(nombre=nombre):
+                it = _items(f"TIENDA X\n12/10/2026\nPAN 0,90\n{nombre} 1,20\nCOLA 1,50\nTOTAL 3,60\n")
+                self.assertEqual(len(it), 3, [i.nombre for i in it])

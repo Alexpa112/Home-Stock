@@ -11,34 +11,9 @@ Bebidas de cáñamo | Leches de cáñamo | ud
 Bebidas de origen vegetal |  | ud
 Bebidas vegetales | Leches vegetales ; Leche vegetal ; Bebida vegetal ; Begudes vegetals ; Begudes no làctiques ; Llet vegetal ; Leite vexetal | ud
 Carnes vegetales | Sucedáneos de carne ; Substitutius de carn | ud
-Chicoria instantánea con agua |  | ud
-Comida no láctea fermentada |  | ud
-Falafel |  | ud
 Hamburguesas vegetales | Hamburgueses vegetals | ud
-Jugo de arándano |  | ud
 Leches de coco |  | ud
-Limonadas | Limonada ; Llimonada ; Limoada | ud
 Natas vegetales |  | ud
-Néctares de albaricoque | Zumos de albaricoque | ud
-Néctares de arándanos |  | ud
-Néctares de frutas | Néctares ; Nèctars de fruita ; Nèctars | ud
-Néctares de frutas refrigerados |  | ud
-Néctares de granada |  | ud
-Néctares de guayaba |  | ud
-Néctares de mandarina | Néctares de clementina | ud
-Néctares de mango |  | ud
-Néctares de manzana |  | ud
-Néctares de maracuyá |  | ud
-Néctares de melocotón | Néctares de durazno | ud
-Néctares de melón |  | ud
-Néctares de naranja |  | ud
-Néctares de papaya |  | ud
-Néctares de pera |  | ud
-Néctares de piña | néctar de piña | ud
-Néctares de plátano |  | ud
-Néctares de pomelo |  | ud
-Néctares de uva |  | ud
-Néctares multifruta | Néctares multifrutas | ud
 Patés vegetales | Patés vegetals | ud
 Patés vegetales de aceitunas |  | ud
 Postres de arroz |  | ud
@@ -46,53 +21,12 @@ Postres de soja |  | ud
 Postres vegetales |  | ud
 Quesos vegetales | Queso vegano | ud
 Salchichas vegetales |  | ud
-Smoothies |  | ud
-Smoothies de fruta | Batidos de fruta | ud
-Sodas de limón |  | ud
-Sodas de manzana |  | ud
-Sodas de naranja |  | ud
 Sustitutos de la leche | Sucedáneo lácteo ; Substitutius de la llet ; Substitut de la llet | ud
 Sustitutos de la ricotta |  | ud
 Sustitutos del mascarpone |  | ud
 Yogures de soja | Yogures de soya ; Iogurt de soja | ud
 Yogures de soja naturales | Yogures de soja natural | ud
 Yogures vegetales |  | ud
-Zumo de granada fresco |  | ud
-Zumo de limón | Suc de llimona | ud
-Zumo de pomelo casero |  | ud
-Zumos de arándanos | Zumos de arándano | ud
-Zumos de arándanos exprimidos |  | ud
-Zumos de ciruela |  | ud
-Zumos de ciruela exprimidos |  | ud
-Zumos de fresa |  | ud
-Zumos de frutas | Zumo de frutas ; Jugos de frutas ; Sucs de fruita | ud
-Zumos de granada |  | ud
-Zumos de granada exprimidos |  | ud
-Zumos de mandarina |  | ud
-Zumos de mandarina exprimidos | Zumos de clementina exprimidos | ud
-Zumos de melocotón |  | ud
-Zumos de naranja | zumos de naranjas ; zumo de naranja ; Jugo de naranja ; Sucs de taronja ; Suc de taronja ; Zume de laranxa ; Laranja-zuku | ud
-Zumos de naranja exprimidos |  | ud
-Zumos de pera | Zumos de peras | ud
-Zumos de pera exprimidos |  | ud
-Zumos de piña | Suc de pinya | ud
-Zumos de piña exprimidos |  | ud
-Zumos de pomelo | zumos de toronja | ud
-Zumos de pomelo exprimido |  | ud
-Zumos de tomate |  | ud
-Zumos de tomate puro |  | ud
-Zumos de uva | Zumos de uvas | ud
-Zumos de uva blanca |  | ud
-Zumos de uva exprimidos |  | ud
-Zumos de uva roja |  | ud
-Zumos de zanahoria |  | ud
-Zumos exprimidos no refrigerados | Zumos exprimidos ; Zumos exprimidos ambiente ; Sucs expremuts ; sucs espremuts no refrigerats | ud
-Zumos exprimidos refrigerados |  | ud
-Zumos multifruta | Zumos multifrutas ; Suc multifruites | ud
-Zumos multifruta exprimidos | Zumos multifruta exprimidos ambiente | ud
-Zumos multifruta exprimidos refrigerados | Zumos multifruta exprimido refrigerados | ud
-Zumos procedentes de concentrado | Suc de fruita concentrat | ud
-Zumos y néctares | Sucs i nèctars | ud
 == Bebidas
 Absenta |  | ud
 Advocaat |  | ud
@@ -255,6 +189,7 @@ Licor de hierbas | Licor d'herbes | ud
 Licor de manzana | Licor de poma | ud
 Licor español |  | ud
 Licores | Licor ; Licors | ud
+Limonadas | Limonada ; Llimonada ; Limoada | ud
 Llantén | Llantén menor | ud
 Macetas de estevia |  | ud
 Malva | Malva común | ud
@@ -264,6 +199,26 @@ Manzanilla de Mahón | Abrótano hembra | ud
 Manzanilla dulce | Manzanilla de Castilla ; Manzanilla alemana | ud
 Melisa | Toronjil | ud
 Milenrama |  | ud
+Néctares de albaricoque | Zumos de albaricoque | ud
+Néctares de arándanos |  | ud
+Néctares de frutas | Néctares ; Nèctars de fruita ; Nèctars | ud
+Néctares de frutas refrigerados |  | ud
+Néctares de granada |  | ud
+Néctares de guayaba |  | ud
+Néctares de mandarina | Néctares de clementina | ud
+Néctares de mango |  | ud
+Néctares de manzana |  | ud
+Néctares de maracuyá |  | ud
+Néctares de melocotón | Néctares de durazno | ud
+Néctares de melón |  | ud
+Néctares de naranja |  | ud
+Néctares de papaya |  | ud
+Néctares de pera |  | ud
+Néctares de piña | néctar de piña | ud
+Néctares de plátano |  | ud
+Néctares de pomelo |  | ud
+Néctares de uva |  | ud
+Néctares multifruta | Néctares multifrutas | ud
 Ortiga blanca |  | ud
 Ortiga verde | Ortiga mayor | ud
 Pacharán |  | ud
@@ -294,6 +249,9 @@ Siropes de melocotón |  | ud
 Siropes de menta |  | ud
 Siropes de mojito |  | ud
 Sodas | Gaseosas ; Refrescs carbonatats ; Gasosa ; Gaseosa | ud
+Sodas de limón |  | ud
+Sodas de manzana |  | ud
+Sodas de naranja |  | ud
 Sodas light |  | ud
 Tequilas |  | ud
 Tila |  | ud
@@ -372,9 +330,45 @@ Whisky belga |  | ud
 Whisky corso |  | ud
 Whisky francés |  | ud
 Zarzaparrilla |  | ud
+Zumo de granada fresco |  | ud
+Zumo de limón | Suc de llimona | ud
+Zumo de pomelo casero |  | ud
+Zumos de arándanos | Zumos de arándano | ud
+Zumos de arándanos exprimidos |  | ud
+Zumos de ciruela |  | ud
+Zumos de ciruela exprimidos |  | ud
+Zumos de fresa |  | ud
+Zumos de frutas | Zumo de frutas ; Jugos de frutas ; Sucs de fruita | ud
+Zumos de granada |  | ud
+Zumos de granada exprimidos |  | ud
+Zumos de mandarina |  | ud
+Zumos de mandarina exprimidos | Zumos de clementina exprimidos | ud
 Zumos de manzana | Jugo de manzana ; Sucs de poma ; Suc de poma | ud
 Zumos de manzana exprimidos |  | ud
 Zumos de manzana refrigerados |  | ud
+Zumos de melocotón |  | ud
+Zumos de naranja | zumos de naranjas ; zumo de naranja ; Jugo de naranja ; Sucs de taronja ; Suc de taronja ; Zume de laranxa ; Laranja-zuku | ud
+Zumos de naranja exprimidos |  | ud
+Zumos de pera | Zumos de peras | ud
+Zumos de pera exprimidos |  | ud
+Zumos de piña | Suc de pinya | ud
+Zumos de piña exprimidos |  | ud
+Zumos de pomelo | zumos de toronja | ud
+Zumos de pomelo exprimido |  | ud
+Zumos de tomate |  | ud
+Zumos de tomate puro |  | ud
+Zumos de uva | Zumos de uvas | ud
+Zumos de uva blanca |  | ud
+Zumos de uva exprimidos |  | ud
+Zumos de uva roja |  | ud
+Zumos de zanahoria |  | ud
+Zumos exprimidos no refrigerados | Zumos exprimidos ; Zumos exprimidos ambiente ; Sucs expremuts ; sucs espremuts no refrigerats | ud
+Zumos exprimidos refrigerados |  | ud
+Zumos multifruta | Zumos multifrutas ; Suc multifruites | ud
+Zumos multifruta exprimidos | Zumos multifruta exprimidos ambiente | ud
+Zumos multifruta exprimidos refrigerados | Zumos multifruta exprimido refrigerados | ud
+Zumos procedentes de concentrado | Suc de fruita concentrat | ud
+Zumos y néctares | Sucs i nèctars | ud
 == Bebé
 Alimentación infantil | Alimentació per a nadons | ud
 Cereales y leche |  | ud
@@ -461,13 +455,6 @@ Sobrasada de Mallorca | sobrasada | ud
 Speck |  | ud
 Tocino ahumado | Bacó fumat | ud
 == Cereales y Pasta
-Aceites de amaranto |  | ud
-Aceites de arroz |  | ud
-Aceites de camelina |  | ud
-Aceites de cereales |  | ud
-Aceites de lino | Aceites de linaza | ud
-Aceites de maíz |  | ud
-Aceites de sésamo |  | ud
 Almidones de cereales | Almidón de cereales | ud
 Almidón de arroz |  | ud
 Almidón de maíz |  | ud
@@ -505,7 +492,6 @@ Arroces vaporizados | Arroces sancochados ; Arroces parboiled | ud
 Arroz Jazmín semi-integral | Arroces Jazmín semi-integrales | ud
 Arroz de Valencia | Arròs de València | ud
 Arroz inflado | Arroz puztu | ud
-Arroz precocido congelado | Arroz congelado | ud
 Arroz salvaje | Arroz silvestre ; Zizania | ud
 Avena inflada | Avena hinchada | ud
 Avena sativa |  | ud
@@ -541,10 +527,8 @@ Cereales con caramelo |  | ud
 Cereales con chocolate |  | ud
 Cereales con frutas |  | ud
 Cereales con miel |  | ud
-Cereales congelados |  | ud
 Cereales de chocolate |  | ud
 Cereales desayuno | Cereals per esmorzar | ud
-Cereales en conserva |  | ud
 Cereales en grano | Grans de cereal | ud
 Cereales inflados |  | ud
 Cereales rellenos |  | ud
@@ -637,12 +621,7 @@ Mantecas de cereales |  | ud
 Masa de hojaldre | Pasta de hojaldre | ud
 Masa de tarta |  | ud
 Maíz |  | ud
-Maíz congelado |  | ud
 Maíz dulce |  | ud
-Maíz dulce en conserva |  | ud
-Maíz en conserva |  | ud
-Maíz en grano congelado | Granos de maíz congelados | ud
-Maíz en mazorca congelado | Mazorcas de maíz congeladas | ud
 Mijo |  | ud
 Mijo común |  | ud
 Mijo fonio |  | ud
@@ -740,29 +719,76 @@ Triticale |  | ud
 Vermicelli de arroz | Fideos finos de arroz ; Fideus de riu | ud
 Ñoquis |  | ud
 == Congelados
+Acelgas congeladas |  | ud
+Acelgas en hojas congeladas | Acelgas congeladas en hojas | ud
+Acelgas troceadas congeladas | Acelgas congeladas troceadas | ud
+Aguacates congelados |  | ud
+Ajos tiernos congelados | Brotes de ajo congelados | ud
 Ajos troceados congelados | Ajos congelados troceados | ud
+Albahaca congelada |  | ud
+Alcachofas baby congeladas |  | ud
+Alcachofas congeladas |  | ud
+Alcachofas troceadas congeladas |  | ud
+Alubias congeladas | Judías congeladas ; Frijoles congelados ; Porotos congelados | ud
 Arancini |  | ud
 Aros de cebolla empanados |  | ud
 Arroces con vegetales congelados |  | ud
+Arroz precocido congelado | Arroz congelado | ud
+Arándanos congelados |  | ud
+Berenjenas congeladas |  | ud
 Bocadillos congelados |  | ud
 Boletos comestibles congelados | Boletus comestible congelado ; Setas de calabaza congeladas ; Boletus edulis congelados ; Setas Boletus edulis congeladas ; Boletus edulis congeladas | ud
 Boletos comestibles enteros congelados | Boletus comestible entero congelado ; Boletus edulis enteros congelados ; Boletus edulis enteros congeladas | ud
 Boletos comestibles troceados congelados | Boletus comestible troceado congelado ; Boletus edulis troceados congelados ; Boletus edulis troceados congeladas | ud
+Brócolis congelados | Brócoli en floretes congelado ; Brócoli congelado | ud
+Calabacines congelados |  | ud
+Calabacines en dados congelados |  | ud
+Calabacines en rodajas congelados |  | ud
 Calabazas congeladas |  | ud
+Cangrejo cocido congelado |  | ud
 Cardos congelados |  | ud
 Cardos troceados congelados |  | ud
 Carnes congeladas |  | ud
+Castañas congeladas |  | ud
 Cebollas troceadas congeladas | Cebollas congeladas troceadas | ud
+Cebollino congelado |  | ud
+Cereales congelados |  | ud
 Champiñones congelados | Champiñones de París congelados ; Champiñones comunes congelados ; Champiñones blancos congelados ; Agaricus bisporus congelados | ud
 Champiñones enteros congelados |  | ud
 Champiñones laminados congelados |  | ud
+Coles de Bruselas congeladas |  | ud
+Coliflores en floretes congeladas | Coliflores congeladas | ud
 Comidas preparadas congeladas | Plats preparats congelats ; menjars preparats congelats ; plats preparats congelats ; sopars congelats | ud
 Congelados | Aliments congelats | ud
 Conos de helado | Cons de gelat | ud
+Corazones de alcachofas congelados |  | ud
 Cordones azules vegetarianos |  | ud
+Cítricos congelados |  | ud
 Empanados | Productes arrebossats | ud
+Eneldo congelado |  | ud
+Ensaladillas congeladas |  | ud
+Espinacas congeladas |  | ud
+Espinacas en hojas congeladas | Espinacas congeladas en hojas | ud
+Espinacas troceadas congeladas | Espinacas congeladas troceadas | ud
+Espárragos blancos congelados |  | ud
+Espárragos congelados |  | ud
+Espárragos verdes congelados |  | ud
+Espárragos verdes enteros congelados |  | ud
+Espárragos verdes troceados congelados |  | ud
 Falafel congelado |  | ud
+Frambuesas congeladas |  | ud
+Fresas congeladas |  | ud
+Frutas congeladas |  | ud
+Frutas del bosque congeladas | Frutos rojos congelados | ud
+Frutas tropicales congeladas |  | ud
+Frutos de cáscara congelados | Frutos secos congelados | ud
+Garbanzos congelados |  | ud
+Garrofones congelados | Garrofón congelado ; Habones congelados ; Judías de Lima congeladas ; Habas de Lima congeladas | ud
+Granadas congeladas |  | ud
 Granizados |  | ud
+Grosellas congeladas |  | ud
+Guisantes verdes congelados | Guisantes congelados | ud
+Habas congeladas | Habas frescas congeladas ; Habitas frescas congeladas ; Habas inmaduras congeladas ; Habitas inmaduras congeladas | ud
 Helado | helados ; gelat ; gelats ; Xeado ; Izozki | ud
 Helado de mochi |  | ud
 Helado de pistacho |  | ud
@@ -773,21 +799,42 @@ Helados con leche vegetal | Helados con bebida vegetal ; Helados vegetales | ud
 Helados de hielo | Helados de agua ; Polos de hielo ; Polos de agua ; Paletas de hielo ; Paletas de agua | ud
 Helados de palo | Polos de helado ; Paletas de helado ; Paletas heladas | ud
 Helados y sorbetes | Sorbets i gelats | ud
+Hierbabuena congelada |  | ud
 Horchatas de chufa congeladas |  | ud
+Judías verdes congeladas |  | ud
+Judías verdes enteras congeladas | Judías verdes congeladas enteras | ud
+Judías verdes planas congeladas |  | ud
+Judías verdes redondas congeladas |  | ud
+Judías verdes troceadas congeladas | Judías verdes congeladas troceadas | ud
 Lasaña congelada |  | ud
+Leguminosas congeladas | Legumbres congeladas | ud
+Lombardas congeladas | Lombarda congelada ; Col lombarda congelada | ud
 Marisco congelado |  | ud
+Maíz congelado |  | ud
+Maíz en grano congelado | Granos de maíz congelados | ud
+Maíz en mazorca congelado | Mazorcas de maíz congeladas | ud
+Menta congelada |  | ud
+Moras congeladas |  | ud
 Nugget de pollo |  | ud
 Nuggets vegetarianos |  | ud
 Palitos de mozzarella |  | ud
+Pan congelado |  | ud
 Papas fritas congeladas |  | ud
 Patatas congeladas |  | ud
 Patatas fritas congeladas |  | ud
 Patatas panadera congeladas |  | ud
+Perejil congelado |  | ud
 Pescado congelado |  | ud
 Pescado empanado |  | ud
+Pimientos amarillos congelados |  | ud
+Pimientos congelados |  | ud
+Pimientos rojos congelados |  | ud
+Pimientos verdes congelados |  | ud
 Pizza y tartas congeladas | Pastissos i pizzes congelades | ud
 Pizzas - tartas y quiches | Pizzes i quiches | ud
 Pizzas congeladas |  | ud
+Piñas congeladas |  | ud
+Plantas aromáticas congeladas |  | ud
 Pollo Kiev | Pollastre Kíiv | ud
 Pollo empanado |  | ud
 Polos con leche vegetal |  | ud
@@ -798,6 +845,8 @@ Rebozuelos congelados | Chantarelas congeladas ; Setas rebozuelo congeladas | ud
 Romanesco congelado | Romanescu congelado | ud
 Setas congeladas | Hongos congelados | ud
 Setas de ostra congeladas | Setas ostra congeladas ; Champiñones ostra congelados ; Gírgolas congelados ; Pleurotus ostreatus congelados | ud
+Sopas congeladas |  | ud
+Sopas de verduras congeladas | Sopas de hortalizas congeladas | ud
 Sorbete de piña |  | ud
 Sorbetes |  | ud
 Sorbetes de arándano |  | ud
@@ -827,6 +876,9 @@ Varitas de pescado |  | ud
 Vegetales congelados | Aliments vegetals congelats | ud
 Verduras y hortalizas congeladas | Hortalizas congeladas ; Verduras congeladas ; Verdures congelades | ud
 Yogures helados | Yogures congelados | ud
+Zanahorias baby congeladas |  | ud
+Zanahorias congeladas |  | ud
+Zanahorias troceadas congeladas | Zanahorias en rodajas congeladas | ud
 == Despensa
 Acar | Achara | ud
 Aceite Campo de Calatrava |  | ud
@@ -855,31 +907,47 @@ Aceite de la Rioja |  | ud
 Aceite del Bajo Aragón |  | ud
 Aceites aromatizados |  | ud
 Aceites de aguacate |  | ud
+Aceites de almendras |  | ud
 Aceites de amapola |  | ud
+Aceites de amaranto |  | ud
 Aceites de arenque |  | ud
 Aceites de argán |  | ud
+Aceites de arroz |  | ud
+Aceites de avellanas |  | ud
 Aceites de borraja |  | ud
 Aceites de cacahuete | Aceites de maní | ud
 Aceites de camelia |  | ud
+Aceites de camelina |  | ud
 Aceites de canola |  | ud
+Aceites de cereales |  | ud
 Aceites de coco |  | ud
 Aceites de colza |  | ud
 Aceites de cártamo |  | ud
 Aceites de cáñamo |  | ud
+Aceites de frutos secos |  | ud
 Aceites de girasol | Aceite de girasol ; Oli de gira-sol | ud
 Aceites de girasol refinados |  | ud
 Aceites de leguminosas |  | ud
+Aceites de lino | Aceites de linaza | ud
+Aceites de macadamia |  | ud
+Aceites de maíz |  | ud
 Aceites de mostaza |  | ud
+Aceites de nueces |  | ud
+Aceites de nuez pecana |  | ud
 Aceites de oliva | Olis d'oliva | ud
 Aceites de oliva españoles |  | ud
 Aceites de oliva refinados |  | ud
 Aceites de oliva virgen | Aceites de oliva vírgenes ; Olis d’oliva verge | ud
 Aceites de palma |  | ud
+Aceites de pistacho |  | ud
+Aceites de piñones |  | ud
 Aceites de salmón |  | ud
 Aceites de semillas sandía | Aceites de sandía | ud
 Aceites de soja |  | ud
+Aceites de sésamo |  | ud
 Aceites vegetales | Aceites de origen vegetal ; Olis vegetals | ud
 Aceites y grasas | Grasas ; Aceites ; Greixos | ud
+Acelgas en conserva |  | ud
 Acesulfano potásico | Acesulfamo-k | ud
 Ajo morado | All morat | ud
 Ajo negro |  | ud
@@ -889,6 +957,7 @@ Ajos encurtidos |  | ud
 Ajos secos en polvo | Ajo seco molido | ud
 Ajvar |  | ud
 Albaricoques deshidratados | Orejones de albaricoque ; Albaricoques desecados | ud
+Alcachofas en conserva |  | ud
 Alcaparras encurtidas | Alcaparras en vinagre | ud
 Algas deshidratadas | Algas secas | ud
 Algas dulse deshidratadas |  | ud
@@ -915,7 +984,6 @@ Alubias blancas de riñón | Judías blancas de riñón | ud
 Alubias blancas redondas | Judías blancas redondas | ud
 Alubias canela | Judías canela | ud
 Alubias cocidas en conserva | Alubias en conserva ; Judías en conserva | ud
-Alubias congeladas | Judías congeladas ; Frijoles congelados ; Porotos congelados | ud
 Alubias negras | Judías negras | ud
 Alubias pintas | Judías pintas | ud
 Alubias rojas | Judías rojas ; Alubias rojas de riñón ; Judías rojas de riñón | ud
@@ -992,6 +1060,7 @@ Cebolla caramelizada | Cebolla confitada | ud
 Cebolla seca molida | Cebollas secas en polvo ; cebolla en polvo | ud
 Cebollas | Cebolla ; ceba ; tipula | ud
 Cebollas encurtidas | Cebollitas encurtidas | ud
+Cereales en conserva |  | ud
 Champiñones cuarteados en conserva |  | ud
 Champiñones en conserva | Champiñones comunes en conserva ; Champiñones blancos en conserva ; Agaricus bisporus en conserva | ud
 Champiñones enteros en conserva |  | ud
@@ -1075,6 +1144,9 @@ Ensaladas preparadas | Amanides preparades | ud
 Espaguetis a la carbonara |  | ud
 Especias | Espècies | ud
 Espinacas en conserva |  | ud
+Espárragos blancos en conserva | Espàrrecs blancs en conserva | ud
+Espárragos en conserva | Espàrrecs en conserva | ud
+Espárragos verdes en conserva |  | ud
 Extracto de vainilla | esencia de vainilla ; extracte de vainilla | ud
 Extractos de levadura untables |  | ud
 Fajitas |  | ud
@@ -1086,6 +1158,7 @@ Frijoles tépari | Frijol tépari | ud
 Fructosa |  | ud
 Frutas deshidratadas | Frutas desecadas ; Frutas secas ; Fruita deshidratada | ud
 Frutas en conserva | Conservas de frutas ; Fruita en conserva | ud
+Frutos secos en conserva |  | ud
 Gandules | Guandules ; Guandús | ud
 Gandules verdes en conserva |  | ud
 Garbanzo Castellano |  | ud
@@ -1093,11 +1166,9 @@ Garbanzo Lechoso | Garbanzo Lechoso Andaluz | ud
 Garbanzo Pedrosillano |  | ud
 Garbanzos | Cigrons | ud
 Garbanzos cocidos en conserva | Garbanzos en conserva | ud
-Garbanzos congelados |  | ud
 Garbanzos de Escacena |  | ud
 Garbanzos de Fuentesaúco |  | ud
 Garrofones | Garrofón ; Habones ; Judías de Lima ; Habas de Lima ; garrofó ; fesol de la peladilla ; mongeta de Lima ; limako babarruna | ud
-Garrofones congelados | Garrofón congelado ; Habones congelados ; Judías de Lima congeladas ; Habas de Lima congeladas | ud
 Gazpachos |  | ud
 Germinados de alfalfa frescos | Brotes de alfalfa frescos | ud
 Germinados de judía mungo |  | ud
@@ -1114,8 +1185,9 @@ Grasas animales | Grasas de origen animal ; Greixos animals | ud
 Grasas vegetales | Grasas de origen vegetal ; Greixos vegetals | ud
 Guindillas encurtidas |  | ud
 Guisantes | Chícharos ; Arvejas | ud
-Guisantes verdes congelados | Guisantes congelados | ud
+Guisantes en conserva |  | ud
 Guisos |  | ud
+Habas en conserva | Habitas en conserva | ud
 Habas espada |  | ud
 Hamburguesas | Hamburgueses | ud
 Hamburguesas de pescado | Hamburguesas del mar ; Hamburguesas de bacalao ; Hamburgueses de peix ; Hamburgueses del mar ; Hamburgueses de bacallà | ud
@@ -1155,11 +1227,8 @@ Judiones cocidos en conserva |  | ud
 Judías carilla |  | ud
 Judías de Egipto | Porotos de Egipto | ud
 Judías mungo | Soja verde ; mongeta mung | ud
-Judías verdes congeladas |  | ud
-Judías verdes enteras congeladas | Judías verdes congeladas enteras | ud
-Judías verdes planas congeladas |  | ud
-Judías verdes redondas congeladas |  | ud
-Judías verdes troceadas congeladas | Judías verdes congeladas troceadas | ud
+Judías verdes en conserva |  | ud
+Judías verdes enlatadas |  | ud
 Kétchups | Krtchups ; Quètxup | ud
 La pasta de leche |  | ud
 Lactitol |  | ud
@@ -1175,7 +1244,6 @@ Laurel seco molido |  | ud
 Leches de leguminosas | Bebidas de leguminosas ; Begudes de llegums | ud
 Legumbres secas | Llegums secs | ud
 Leguminosas | Legumbres ; Llegums | ud
-Leguminosas congeladas | Legumbres congeladas | ud
 Leguminosas en conserva | Legumbres en conserva ; Llegums en conserva | ud
 Leguminosas encurtidas | Legumbres encurtidas | ud
 Leguminosas frescas | Legumbres frescas | ud
@@ -1224,6 +1292,8 @@ Mayonesas de Dijon |  | ud
 Mayonesas ligeras | Mayonesas light | ud
 Mayonesas sin huevo |  | ud
 Mayonesas vegetales |  | ud
+Maíz dulce en conserva |  | ud
+Maíz en conserva |  | ud
 Mejillones en escabeche | Mejillon en escabeche | ud
 Mejillones enlatados |  | ud
 Melazas de caña | Melazas ; Melaza ; Miel de caña ; Melaza de caña | ud
@@ -1351,7 +1421,9 @@ Pimienta rosa en grano |  | ud
 Pimienta verde |  | ud
 Pimienta verde en grano |  | ud
 Pimientas de Jamaica | Pebrer de Jamaica ; Pebre de Jamaica | ud
+Pimientos en conserva |  | ud
 Pimientos encurtidos |  | ud
+Pimientos rojos en conserva |  | ud
 Pizza boloñesa |  | ud
 Pizza de cuatro quesos |  | ud
 Pizza de pollo |  | ud
@@ -1481,12 +1553,10 @@ Sopa de pescado |  | ud
 Sopas | Sopes | ud
 Sopas De Calabacín |  | ud
 Sopas con crema | Sopes cremoses | ud
-Sopas congeladas |  | ud
 Sopas de fideos instantáneas |  | ud
 Sopas de miso |  | ud
 Sopas de tomate |  | ud
 Sopas de verduras | Sopas de hortalizas ; Sopes vegetals | ud
-Sopas de verduras congeladas | Sopas de hortalizas congeladas | ud
 Sopas de verduras deshidratadas | Sopas de hortalizas deshidratadas | ud
 Sopas de verduras enlatadas | Sopas de hortalizas enlatadas | ud
 Sopas de verduras refrigeradas | Sopas de hortalizas refrigeradas | ud
@@ -1527,6 +1597,7 @@ Tofu | Tofus | ud
 Tomate natural rallado |  | ud
 Tomate natural triturado |  | ud
 Tomate seco molido | Tomates en polvo | ud
+Tomates en conserva |  | ud
 Tomates secos | Tomates deshidratados ; Tomates desecados | ud
 Tomates secos al natural | Tomates deshidratados al natural | ud
 Tomates secos en aceite |  | ud
@@ -1565,44 +1636,32 @@ Wraps de pollo |  | ud
 Wraps de pollo frito |  | ud
 Wraps vegetarianos |  | ud
 Xilitol |  | ud
+Zanahorias en conserva |  | ud
 Zanahorias encurtidas |  | ud
 == Frutas y Verduras
 Acelgas | Acelga ; bleda ; Zerba | ud
-Acelgas congeladas |  | ud
-Acelgas en conserva |  | ud
-Acelgas en hojas congeladas | Acelgas congeladas en hojas | ud
 Acelgas frescas |  | ud
-Acelgas troceadas congeladas | Acelgas congeladas troceadas | ud
 Aguacates | Alvocat ; Aguacate ; Ahuakate | ud
 Aguacates Hass |  | ud
-Aguacates congelados |  | ud
 Ajedrea |  | ud
 Ajedrea de jardín |  | ud
 Ajedrea de montaña |  | ud
 Ajos tiernos | Brotes de ajo | ud
-Ajos tiernos congelados | Brotes de ajo congelados | ud
 Albahaca | Alhábega | ud
-Albahaca congelada |  | ud
 Albahaca fresca |  | ud
 Albahaca genovesa |  | ud
 Albahaca seca molida |  | ud
 Albaricoques |  | ud
 Alcachofas | Escarxofa ; carxofa | ud
-Alcachofas baby congeladas |  | ud
-Alcachofas congeladas |  | ud
-Alcachofas en conserva |  | ud
-Alcachofas troceadas congeladas |  | ud
 Arándanos |  | ud
 Arándanos agrios |  | ud
 Arándanos azules |  | ud
 Arándanos comunes |  | ud
-Arándanos congelados |  | ud
 Arándanos negros |  | ud
 Arándanos rojos |  | ud
 Avellana de Reus |  | ud
 Batatas | Boniatos | ud
 Berenjenas |  | ud
-Berenjenas congeladas |  | ud
 Berros | Berros de agua ; Mastuerzos de agua | ud
 Berros hortelanos | morritort | ud
 Bok choy | Pak choi | ud
@@ -1610,12 +1669,8 @@ Boletos comestibles | Boletus comestible ; Setas de calabaza ; Boletus edulis | 
 Boletos comestibles deshidratados | Boletus edulis deshidratados ; Setas de calabaza deshidratadas ; Boletus comestible deshidratados | ud
 Brócoli fresco |  | ud
 Brócolis | Brócoli ; Floretes de brócoli ; bròcoli ; Brokoli | ud
-Brócolis congelados | Brócoli en floretes congelado ; Brócoli congelado | ud
 Bulbos de hinojo |  | ud
 Calabacines | Zucchini | ud
-Calabacines congelados |  | ud
-Calabacines en dados congelados |  | ud
-Calabacines en rodajas congelados |  | ud
 Calabacín fresco |  | ud
 Canónigos | Ardi-mihi | ud
 Caquis | Kakis | ud
@@ -1624,7 +1679,6 @@ Cardos | card ; cardo | ud
 Cebollas frescas |  | ud
 Cebolletas tiernas | Cebolla de primavera | ud
 Cebollino | cebollinos ; cibulet ; ceboliño ; tipulin | ud
-Cebollino congelado |  | ud
 Cebollino fresco |  | ud
 Cebollino liofilizado |  | ud
 Cebollino seco molido |  | ud
@@ -1640,17 +1694,13 @@ Ciruelas | Pruna ; Aran | ud
 Coco rallado |  | ud
 Cocos |  | ud
 Coles de Bruselas |  | ud
-Coles de Bruselas congeladas |  | ud
 Coles de Bruselas frescas |  | ud
 Coliflor fresca |  | ud
 Coliflores | Coliflor | ud
-Coliflores en floretes congeladas | Coliflores congeladas | ud
 Corazones de alcachofas | Cors d'escarxofa ; Cors de carxofa | ud
-Corazones de alcachofas congelados |  | ud
 Cremas de champiñones |  | ud
 Cremas de setas |  | ud
 Cítricos | Cítric ; Cítrico ; Zitriko | ud
-Cítricos congelados |  | ud
 Diente de león | xicoia ; dent de lleó ; mexacán común ; Txikoria-belarra | ud
 Dragón | Estragon ; estragó ; estragón ; binagrera | ud
 Dátiles | dátil ; dàtil ; Dátil ; Datil | ud
@@ -1659,65 +1709,41 @@ Dátiles sin hueso | Dátiles deshuesados | ud
 Endibias | Endivias | ud
 Endrinas |  | ud
 Eneldo |  | ud
-Eneldo congelado |  | ud
 Eneldo fresco |  | ud
 Eneldo seco molido |  | ud
 Ensaladas vegetales |  | ud
-Ensaladillas congeladas |  | ud
 Escarolas | endívia ; endivia ; Osterzuri | ud
 Espinacas |  | ud
-Espinacas congeladas |  | ud
-Espinacas en hojas congeladas | Espinacas congeladas en hojas | ud
 Espinacas frescas |  | ud
-Espinacas troceadas congeladas | Espinacas congeladas troceadas | ud
 Espárragos | Espàrrecs | ud
 Espárragos blancos |  | ud
-Espárragos blancos congelados |  | ud
-Espárragos blancos en conserva | Espàrrecs blancs en conserva | ud
-Espárragos congelados |  | ud
-Espárragos en conserva | Espàrrecs en conserva | ud
 Espárragos frescos |  | ud
 Espárragos morados |  | ud
 Espárragos verdes |  | ud
-Espárragos verdes congelados |  | ud
-Espárragos verdes en conserva |  | ud
-Espárragos verdes enteros congelados |  | ud
-Espárragos verdes troceados congelados |  | ud
 Estragón fresco |  | ud
 Estragón seco molido |  | ud
 Frambuesas |  | ud
-Frambuesas congeladas |  | ud
 Frambuesas frescas |  | ud
 Fresas |  | ud
-Fresas congeladas |  | ud
 Fresas frescas |  | ud
 Fresones |  | ud
 Frutas | Fruita fresca | ud
-Frutas congeladas |  | ud
 Frutas del bosque | Bayas | ud
-Frutas del bosque congeladas | Frutos rojos congelados | ud
 Frutas francesas |  | ud
 Frutas frescas |  | ud
 Frutas tropicales | Fruita tropical ; Fruites exòtiques | ud
-Frutas tropicales congeladas |  | ud
 Frutos del saúco negro | Frutos del saúco común ; Saúco negro ; Saúco común | ud
 Gandules verdes frescos |  | ud
 Granadas |  | ud
-Granadas congeladas |  | ud
 Grosella negra | Riber negre | ud
 Grosellas |  | ud
-Grosellas congeladas |  | ud
 Guayabas |  | ud
-Guisantes en conserva |  | ud
 Guisantes verdes |  | ud
 Habas | Habitas | ud
-Habas congeladas | Habas frescas congeladas ; Habitas frescas congeladas ; Habas inmaduras congeladas ; Habitas inmaduras congeladas | ud
-Habas en conserva | Habitas en conserva | ud
 Hierba luisa | Cedrón ; Verbena de Indias | ud
 Hierba luisa fresca |  | ud
 Hierba luisa seca molida |  | ud
 Hierbabuena | menta verde ; menta verda ; hortelá verde ; mendabeltz | ud
-Hierbabuena congelada |  | ud
 Hierbabuena fresca |  | ud
 Hierbabuena seca molida |  | ud
 Higos |  | ud
@@ -1729,8 +1755,6 @@ Hojas de fenogreco frescas |  | ud
 Hojas de perifollo | Hojas de cerefolio ; Hojas de perifolio | ud
 Hortalizas | Vegetales ; Verduras | ud
 Judías verdes |  | ud
-Judías verdes en conserva |  | ud
-Judías verdes enlatadas |  | ud
 Judías verdes frescas |  | ud
 Judías verdes planas |  | ud
 Judías verdes redondas |  | ud
@@ -1748,7 +1772,6 @@ Limones | Limón ; Llimona ; Limoi | ud
 Limones frescos |  | ud
 Lombarda fresca |  | ud
 Lombardas | Lombarda ; Col lombarda | ud
-Lombardas congeladas | Lombarda congelada ; Col lombarda congelada | ud
 Macetas de albahaca | Albahaca en maceta | ud
 Macetas de cebollino | Cebollino en maceta | ud
 Macetas de hierbabuena | Hierbabuena en maceta | ud
@@ -1783,13 +1806,11 @@ Melones amarillos canarios | Melones amarillos españoles | ud
 Melones y sandías |  | ud
 Membrillos |  | ud
 Menta |  | ud
-Menta congelada |  | ud
 Menta fresca |  | ud
 Menta piperita | menta pebrera ; menta común ; mendafin | ud
 Menta poleo | Poleo | ud
 Menta seca molida |  | ud
 Moras |  | ud
-Moras congeladas |  | ud
 Morchella | Morillas | ud
 Naba | nabo ; nap ; Nabo ; Arbi | ud
 Naranjas | Taronja | ud
@@ -1808,24 +1829,15 @@ Pepinos frescos |  | ud
 Peras | Pera ; Udare | ud
 Peras frescas |  | ud
 Perejil |  | ud
-Perejil congelado |  | ud
 Perejil fresco |  | ud
 Perejil liofilizado |  | ud
 Perejil seco molido |  | ud
 Pimientos |  | ud
 Pimientos amarillos |  | ud
-Pimientos amarillos congelados |  | ud
-Pimientos congelados |  | ud
 Pimientos del piquillo | Pebrot del piquillo ; Pikillo piper | ud
-Pimientos en conserva |  | ud
 Pimientos rojos |  | ud
-Pimientos rojos congelados |  | ud
-Pimientos rojos en conserva |  | ud
 Pimientos verdes |  | ud
-Pimientos verdes congelados |  | ud
 Piñas | Ananás ; Pinya ; Anana | ud
-Piñas congeladas |  | ud
-Plantas aromáticas congeladas |  | ud
 Platerinas |  | ud
 Plátano de Canarias |  | ud
 Plátanos | Bananas | ud
@@ -1870,7 +1882,6 @@ Setas surtidas deshidratadas |  | ud
 Sungold | Sungold a polpa gialla | ud
 Tomates |  | ud
 Tomates cherry |  | ud
-Tomates en conserva |  | ud
 Tomates frescos |  | ud
 Tomates pelados |  | ud
 Tomillo |  | ud
@@ -1901,12 +1912,8 @@ Verduras francesas |  | ud
 Verduras y hortalizas frescas | Verduras frescas ; Hortalizas frescas ; Vegetals frescos | ud
 Yemas de esparragos |  | ud
 Zanahorias |  | ud
-Zanahorias baby congeladas |  | ud
-Zanahorias congeladas |  | ud
-Zanahorias en conserva |  | ud
 Zanahorias frescas |  | ud
 Zanahorias ralladas |  | ud
-Zanahorias troceadas congeladas | Zanahorias en rodajas congeladas | ud
 == Lácteos y Huevos
 Bebidas de leche fermentada | Begudes de llet fermentada | ud
 Brie |  | ud
@@ -2084,7 +2091,6 @@ Cruasán relleno de chocolate |  | ud
 Masa De Pizza | Masa De Pizzas | ud
 Muffins ingleses | Muffin inglés | ud
 Palitos de pan artesanales | Bastonets de pa artesans | ud
-Pan congelado |  | ud
 Pan de nueces |  | ud
 Pan inglés sin corteza |  | ud
 Pan rallado | farina de galeta ; Pan relado ; Ogi birrindu | ud
@@ -2146,7 +2152,6 @@ Camarones | Camarón ; Gambes | ud
 Camarones del Pacífico |  | ud
 Cangrejo |  | ud
 Cangrejo araña |  | ud
-Cangrejo cocido congelado |  | ud
 Carragenatos | Carragenanos | ud
 Crustáceos | Crustacis | ud
 Filetes De Caballa |  | ud
@@ -2183,14 +2188,6 @@ Truchas |  | ud
 Truchas ahumadas |  | ud
 Vieira |  | ud
 == Snacks y Dulces
-Aceites de almendras |  | ud
-Aceites de avellanas |  | ud
-Aceites de frutos secos |  | ud
-Aceites de macadamia |  | ud
-Aceites de nueces |  | ud
-Aceites de nuez pecana |  | ud
-Aceites de pistacho |  | ud
-Aceites de piñones |  | ud
 Albaricoques en almíbar |  | ud
 Alfajores | Alfajor | ud
 Alfajores españoles |  | ud
@@ -2251,7 +2248,6 @@ Caramelos |  | ud
 Caramelos de goma | Caramels gelificats | ud
 Castañas |  | ud
 Castañas confitadas | Castañas glaseadas ; Marrón glacé ; Marrons glacés | ud
-Castañas congeladas |  | ud
 Castañas en almíbar |  | ud
 Castañas sin cáscara |  | ud
 Cerezas en almíbar |  | ud
@@ -2317,9 +2313,7 @@ Frutas de Aragón |  | ud
 Frutas en almíbar |  | ud
 Frutas recubiertas de chocolate |  | ud
 Frutos de cáscara | Frutos secos ; Fruits secs | ud
-Frutos de cáscara congelados | Frutos secos congelados | ud
 Frutos de cáscara tostados | Frutos secos tostados | ud
-Frutos secos en conserva |  | ud
 Frutos secos sin cáscara | Fuita seca pelada | ud
 Galletas | galleta ; Galetes ; galeta ; Galleta ; Gaileta | ud
 Galletas con nueces |  | ud

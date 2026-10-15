@@ -65,6 +65,11 @@ check "Flask instalado" "$COMPOSE exec -T stockhogar python3 -c 'import flask' 2
 check "OpenCV instalado" "$COMPOSE exec -T stockhogar python3 -c 'import cv2' 2>&1"
 check "Pytesseract instalado" "$COMPOSE exec -T stockhogar python3 -c 'import pytesseract' 2>&1"
 check "Rapidfuzz instalado" "$COMPOSE exec -T stockhogar python3 -c 'import rapidfuzz' 2>&1"
+# Lector neuronal de tickets: no existe en armv7l (32 bits), donde el escaner usa Tesseract.
+if [[ "$(uname -m)" != "armv7l" && "$(uname -m)" != "armv6l" ]]; then
+    check "Lector neuronal de tickets (RapidOCR)" "$COMPOSE exec -T stockhogar python3 -c 'from stockhogar.integraciones import ocr_rapid; assert ocr_rapid.disponible()' 2>&1"
+fi
+check "Diccionario de articulos del escaner" "$COMPOSE exec -T stockhogar python3 -c 'from stockhogar.servicios.ocr.diccionario import obtener; assert len(obtener().entradas) > 3000' 2>&1"
 
 echo ""
 echo -e "${BLUE}Verificaciones de Sistema en Contenedor:${NC}"

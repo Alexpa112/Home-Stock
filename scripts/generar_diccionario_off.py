@@ -99,6 +99,30 @@ def categoria_de(clave, nodos, mapa):
     return None
 
 
+_RE_VEGETAL = re.compile(
+    r"leche|bebida|soja|avena|almendra|arroz|coco|vegetal|vegano|vegana|tofu|seit[aá]n|tempeh|sustituto|"
+    r"vegetariano|vegetariana|alternativa", re.IGNORECASE)
+_RE_ZUMO = re.compile(r"zumo|n[eé]ctar|soda|refresco|limonada|batido|granizado|horchata|gaseosa", re.IGNORECASE)
+
+
+def corregir_categoria(nombre, cat):
+    """La categoria sale del antepasado mas cercano en la taxonomia, que a veces es
+    demasiado amplio: "Plant-based beverages" incluye zumos y nectares, y "congelado" en
+    el nombre manda sobre el antepasado. Devuelve la categoria final o None (descartar)."""
+    n = sin_tildes(nombre.lower())
+    if "congelad" in n or "ultracongelad" in n:
+        return "Congelados"
+    if cat == "Alternativas Vegetales":
+        if _RE_ZUMO.search(n):
+            return "Bebidas"
+        return cat if _RE_VEGETAL.search(n) else None
+    if re.match(r"(aceite|aceites)\b", n):
+        return "Despensa"
+    if "en conserva" in n or "enlatad" in n:
+        return "Despensa"
+    return cat
+
+
 def valido(nombre):
     if re.search(r"[\d%/()&:;|=<>]", nombre):
         return False
@@ -127,6 +151,9 @@ def main(ruta, salida):
             continue
         nombre = nombres_es[0]
         nombre = nombre[0].upper() + nombre[1:]
+        cat = corregir_categoria(nombre, cat)
+        if cat is None:
+            continue
         k = sin_tildes(nombre.lower())
         if k in vistos:
             continue

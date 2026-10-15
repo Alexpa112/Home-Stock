@@ -253,7 +253,15 @@ def login():
     session["usuario"] = fila["nombre_usuario"]
     session["usuario_id"] = fila["id"]
     session["session_version"] = fila["session_version"]
+    _restaurar_idioma(fila["idioma_preferido"])
     return APIResponse.success({"usuario": fila["nombre_usuario"], "csrf_token": generate_csrf()})
+
+
+def _restaurar_idioma(idioma):
+    """Al iniciar sesión recupera el idioma guardado en el perfil."""
+    from ..translator import IDIOMAS_DISPONIBLES
+    if idioma in IDIOMAS_DISPONIBLES:
+        session["idioma"] = idioma
 
 
 def _generar_y_enviar_codigo(db, usuario_id, email):
@@ -335,13 +343,14 @@ def verificar_codigo_dos_pasos():
     db.execute("DELETE FROM codigos_dos_factor WHERE usuario_id = ?", (usuario_id,))
     db.execute("DELETE FROM intentos_2fa WHERE usuario_id = ? AND tipo = 'verificar'", (usuario_id,))
     db.commit()
-    usuario = db.execute("SELECT nombre_usuario, session_version FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    usuario = db.execute("SELECT nombre_usuario, session_version, idioma_preferido FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
 
     session.pop("pendiente_2fa_usuario_id", None)
     session.permanent = True
     session["usuario"] = usuario["nombre_usuario"]
     session["usuario_id"] = usuario_id
     session["session_version"] = usuario["session_version"]
+    _restaurar_idioma(usuario["idioma_preferido"])
     return APIResponse.success({"usuario": usuario["nombre_usuario"], "csrf_token": generate_csrf()})
 
 

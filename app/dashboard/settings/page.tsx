@@ -39,6 +39,7 @@ export default function SettingsPage() {
   // Estado para editar usuario (login)
   const [editandoNombre, setEditandoNombre] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
+  const [passwordParaNombre, setPasswordParaNombre] = useState('')
   const [cargandoNombre, setCargandoNombre] = useState(false)
 
   // Estado para editar nombre a mostrar (independiente del usuario de login)
@@ -112,7 +113,7 @@ export default function SettingsPage() {
         setOcrLocal(!!data.ocr_local)
 
         auth.validarInstalacionOcr()
-          .then((diag: any) => setMotorNubeDisponible(Boolean(diag?.claude_api_key && diag?.claude_paquete)))
+          .then((diag: any) => setMotorNubeDisponible(Boolean(diag?.validaciones?.claude_api_key && diag?.validaciones?.claude_paquete)))
           .catch(() => setMotorNubeDisponible(true))  // ante la duda, no alarmar
 
         const pref = data.tema_preferido || 'auto'
@@ -221,9 +222,10 @@ export default function SettingsPage() {
     setError('')
     setExito('')
     try {
-      await auth.actualizarPerfil({ usuario: nuevoNombre })
+      await auth.actualizarPerfil({ usuario: nuevoNombre, password_actual: passwordParaNombre })
       setUser({ ...user, usuario: nuevoNombre })
       setEditandoNombre(false)
+      setPasswordParaNombre('')
       setExito(t('nombre_usuario_actualizado'))
       setTimeout(() => setExito(''), 3000)
     } catch (err) {
@@ -380,6 +382,14 @@ export default function SettingsPage() {
                 className="input-field"
                 placeholder={t('placeholder_nuevo_nombre_usuario')}
               />
+              <input
+                type="password"
+                value={passwordParaNombre}
+                onChange={(e) => setPasswordParaNombre(e.target.value)}
+                className="input-field"
+                placeholder={t('placeholder_tu_password_actual')}
+                autoComplete="current-password"
+              />
               <div className="flex gap-2">
                 <button
                   onClick={handleActualizarNombre}
@@ -392,6 +402,7 @@ export default function SettingsPage() {
                   onClick={() => {
                     setEditandoNombre(false)
                     setNuevoNombre(user.usuario || '')
+                    setPasswordParaNombre('')
                   }}
                   disabled={cargandoNombre}
                   className="flex-1 px-3 py-2 bg-muted rounded-lg font-medium transition-colors min-h-[44px]"

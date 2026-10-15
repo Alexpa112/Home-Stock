@@ -112,13 +112,13 @@ class ParserMejorado:
             "fidelidad", "fidelizacion", "monedero", "socio", "socia",
             "ha ganado", "ganado", "acumulado", "acumulados", "saldo",
             "recompensa", "recompensas", "vale descuento", "cheque descuento",
-            "ahorro acumulado", "club", "supercompra", "mi club", "carrefour pass",
+            "ahorro acumulado", "supercompra", "mi club", "club carrefour", "tarjeta club", "carrefour pass",
             "n. socio", "nº socio", "num. socio",
             # Otros idiomas (la app se usa en en/pt/fr/it/de/ca/gl): cierre de compra,
             # impuestos, cabeceras de columna y cortesia. Palabra COMPLETA.
             "cash", "change", "tax", "gst", "vat", "sst", "rounding", "amount", "qty", "price",
-            "invoice", "receipt", "cashier", "terminal", "tender", "tendered", "balance", "received",
-            "thank", "thanks", "refundable", "returnable", "salesperson", "summary", "sales",
+            "invoice", "receipt", "cashier", "terminal", "balance", "received",
+            "thank", "thanks", "refundable", "returnable", "salesperson", "summary",
             "especes", "monnaie", "rendu", "tva", "merci", "caisse", "caissier", "somme",
             "troco", "numerario", "multibanco", "obrigado", "contribuinte", "pagamento", "entregue",
             "summe", "mwst", "ruckgeld", "rueckgeld", "danke", "kasse", "gegeben", "steuer", "betrag",
@@ -166,7 +166,7 @@ class ParserMejorado:
         # "DETERGENTE LIQ  2 UN  11,98" (Alcampo, Eroski, Consum): la cantidad va
         # tras el nombre, marcada con UN/UD/UDS, y delante del importe.
         self.regex_cantidad_un = re.compile(
-            r'(?<![\d,.])(\d{1,3})\s*(?:un|uds?|unid(?:ades)?)\b\.?(?=\s+\d+[.,]\d{2}|\s*$)',
+            r'(?<![\d,.])(\d{1,3})\s*(?:un|uds?|u|unid(?:ades)?)\b\.?(?=\s+\d+[.,]\d{2}|\s*$)',
             re.IGNORECASE
         )
         # "1,088 kg x 14,50/kg" en su propio renglon (Aldi, Dia): peso y precio por kilo
@@ -190,7 +190,7 @@ class ParserMejorado:
 
         # Patrones típicos de cabecera (nombre de tienda, dirección, CIF, teléfono)
         self._regex_importe_final = re.compile(
-            r'\d[.,]\d{2}\s*(?:€|eur|rm)?\s*[A-Za-z]{0,2}\s*$', re.IGNORECASE
+            r'\d[.,]\d{2}\s*(?:€|eur|rm)?\s*[A-Za-z]{0,2}\s*(?:\*|\d{1,2}\s*%)?\s*$', re.IGNORECASE
         )
         self.regex_cif_nif = re.compile(r'\b[A-Z]\d{7,8}[A-Z0-9]?\b')
         self.regex_telefono = re.compile(r'\b\d{9}\b')
@@ -237,13 +237,24 @@ class ParserMejorado:
         linea = re.sub(r'(?<![\d.,])(\d{1,5}[.,]\d)\s(\d)(?![\d.,])', r'\1\2', linea)
         return self._regex_decimal_mal_leido.sub(',', linea)
 
+    _regex_articulo_con_descuento = re.compile(
+        r'^(?P<art>.*?\d[.,]\d{2})\s+(?P<desc>(?:desc\.?|dto\.?|descuento)\s*[-−–]\s*\d{1,4}[.,]\d{2}.*)$', re.IGNORECASE
+    )
+
+    def _separar_descuento_en_linea(self, linea: str) -> List[str]:
+        """"LECHE 0,89 Desc. -0,10" -> el articulo y, aparte, su descuento."""
+        m = self._regex_articulo_con_descuento.match(linea)
+        return [m.group('art'), m.group('desc')] if m else [linea]
+
     def parsear(self, texto: str) -> List[LineaTicketMejorada]:
         """Parsea ticket complejo y extrae líneas con contexto."""
         if not texto or not texto.strip():
             return []
 
         lineas_raw = texto.split('\n')
-        lineas_limpias = [l.strip() for l in lineas_raw if l.strip()]
+        # Una linea de ticket no pasa de unos 100 caracteres: recortar evita que un
+        # texto basura enorme dispare las expresiones regulares.
+        lineas_limpias = [p for l in lineas_raw if l.strip() for p in self._separar_descuento_en_linea(l.strip()[:200])]
 
         # Detectar estructura (tabla vs lista)
         es_tabla = self._detectar_tabla(lineas_limpias)
@@ -303,6 +314,13 @@ class ParserMejorado:
                     cantidad = float(round(total / unitario)) if unitario else 1.0
                 if (cantidad >= 1 and unitario > 0 and total > 0
                         and abs(cantidad * unitario - total) <= 0.02 + 0.005 * cantidad):
+                    if productos and productos[-1].precio_total and abs(productos[-1].precio_total - total) <= 0.02:
+                        # "2 x 1,85 3,70" tras "PAN 3,70": es el detalle del articulo anterior
+                        anterior = productos[-1]
+                        anterior.cantidad, anterior.unidad = cantidad, TipoUnidad.UNIDAD
+                        anterior.cantidad_texto = f"{cantidad:g} ud"
+                        anterior.precio_unitario = unitario
+                        continue
                     # El nombre esta en las lineas de encima: el ultimo articulo sin importe
                     # (las lineas intermedias son codigos: se quedan sin importe y se descartan).
                     destino = self._elegir_nombre_para_fila(productos[-3:])
@@ -425,15 +443,25 @@ class ParserMejorado:
         r'^\W*(?:desc\.?|dto\.?|descuento|promo|promoci[oó]n|oferta|cup[oó]n|ahorro|lidl\s+plus)\b', re.IGNORECASE
     )
 
+    _regex_palabras_de_descuento = re.compile(
+        r'\b(?:desc|dto|descuento|promo|promoci[oó]n|oferta|cup[oó]n|ahorro|lidl|plus|total|compra|x)\b\.?', re.IGNORECASE
+    )
+
     def _importe_de_descuento(self, linea: str) -> float:
-        """Importe (positivo) si la linea es un descuento, o 0."""
+        """Importe (positivo) si la linea es un descuento, o 0.
+
+        Con signo menos al final ("Desc. -0,30", "PROMO LIDL PLUS -0,50") lo es siempre.
+        Sin signo ("DTO. 0,30") solo si, quitadas las palabras de descuento y los numeros, no
+        queda ningun nombre: "OFERTA LECHE DESNATADA 1,20" es un ARTICULO (el nombre lo
+        delata), no un descuento."""
         linea = self._normalizar_decimal(linea)
         m = self._regex_descuento_negativo.search(linea)
         if m:
             return self._parsear_precio(m.group(1))
         if self._regex_palabra_descuento.match(linea):
             precios = self.regex_precio.findall(linea)
-            if precios:
+            resto = self._regex_palabras_de_descuento.sub(' ', linea)
+            if precios and not re.search(r'[A-Za-záéíóúñ]{3,}', resto):
                 return self._parsear_precio(precios[-1][0])
         return 0
 
@@ -441,7 +469,9 @@ class ParserMejorado:
     def _es_codigo(nombre: str) -> bool:
         """"EZ10HD05 -", "WA45 2A": una referencia, no el nombre de un articulo."""
         piezas = [p for p in re.split(r'[\s\-/]+', nombre) if p]
-        return len(piezas) <= 2 and any(c.isdigit() for c in nombre)
+        # sin ninguna palabra de 3+ letras seguidas: "Pan 5" o "Vitamina C 1000" son articulos
+        return (len(piezas) <= 2 and any(c.isdigit() for c in nombre)
+                and not re.search(r'[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}', nombre))
 
     def _elegir_nombre_para_fila(self, candidatos):
         """De las ultimas lineas SIN importe, la que es el nombre del articulo: no un
@@ -508,11 +538,14 @@ class ParserMejorado:
                         # El nombre va ENCIMA de la fila numerica (hasta dos lineas: nombre y
                         # codigo); si lo que hay encima es la cabecera de columnas, va debajo.
                         inicio = idx
-                        for atras in (1, 2):
+                        for atras in (1, 2, 3):
                             k = idx - atras
                             if k < 0:
                                 break
                             previa = lineas[k]
+                            if self.regex_detalle_peso.fullmatch(self._normalizar_decimal(previa).strip()):
+                                inicio = k  # "1,088 kg x 14,50/kg": el nombre va aun mas arriba
+                                continue
                             es_nombre = (len(re.findall(r'[a-záéíóúñ]{3,}', previa, re.IGNORECASE)) >= 1
                                          and self._es_linea_valida(previa))
                             if ((es_nombre or self._es_codigo(previa))
@@ -589,7 +622,7 @@ class ParserMejorado:
         peso/precio de la linea anterior, no es un articulo en si misma."""
         nombre = nombre_limpio.strip()
         if len(nombre) < 3:
-            return True
+            return not self._es_palabra_de_producto(nombre.lower())  # "Te" es un articulo
         if self._regex_nombre_vacio.fullmatch(nombre):
             return True
         # Residuos de una linea "0,850 kg x 1,89 EUR/kg" (que queda en "X Eur")
@@ -613,7 +646,8 @@ class ParserMejorado:
         repeticiones imposibles en castellano ("Nnnnan", "Coocoooe")."""
         letras = [c for c in nombre if c.isalpha()]
         if len(letras) < 3:
-            return True
+            # un articulo real de dos letras ("Té") no es ruido
+            return not (len(letras) == 2 and self._es_palabra_de_producto("".join(letras).lower()))
         # Palabras separadas por espacios/puntuacion, pero "€ @ $ | !" y los
         # digitos DENTRO de la palabra cuentan como parte de ella: son lo que
         # el OCR pone en lugar de las letras ("L€CH€", "T0MAT€5"). Una palabra
@@ -665,7 +699,10 @@ class ParserMejorado:
         # Debe tener al menos 3 letras (no necesariamente consecutivas)
         # Esto permite detectar "T0m@t€5" como válido (tiene t, m, t)
         if len([c for c in linea if c.isalpha()]) < 3:
-            return False
+            # ... salvo un articulo de dos letras que existe ("TE 1,50"): solo si lleva importe
+            return bool(self.regex_precio.search(linea)) and any(
+                len(t) == 2 and self._es_palabra_de_producto(t.lower()) for t in re.findall(r'[^\W\d_]+', linea)
+            )
 
         return True
 
@@ -894,9 +931,11 @@ class ParserMejorado:
         precio_str = precio_str.replace('€', '').replace('$', '').strip()
         precio_str = precio_str.replace(',', '.')
         try:
-            return float(precio_str)
+            valor = float(precio_str)
         except ValueError:
             return 0
+        # Un importe de ticket nunca es infinito ni astronomico (texto basura).
+        return valor if valor < 10_000_000 else 0
 
     def _limpiar_nombre(self, linea: str, cantidad_texto: str, precio_total: float) -> str:
         """Limpia nombre del producto removiendo cantidad y precio.
@@ -1024,13 +1063,28 @@ class ParserMejorado:
         "gracias", "factura", "iva", "troco", "totale", "summe", "especes", "monnaie", "totqty", "qty",
     )
 
+    @staticmethod
+    def _es_palabra_de_producto(palabra: str) -> bool:
+        """True si la palabra es una palabra real de articulos (tarta, especias, recambio):
+        esas NUNCA se confunden con una palabra de cierre mal leida."""
+        try:
+            from .diccionario import obtener, _raiz
+            return _raiz(_sin_tildes(palabra.lower())) in obtener()._vocabulario
+        except Exception:
+            return False
+
     def _es_linea_de_cierre_fuzzy(self, nombre: str) -> bool:
         palabras = [w for w in re.split(r'[^a-záéíóúñ]+', nombre.lower()) if len(w) >= 3]
         if not palabras or len(palabras) > 4:
             return False
-        # Solo la PRIMERA palabra: "Totai", "Totqty", "Discount"; una palabra parecida en
-        # mitad del nombre ("Arroz Redondo" ~ "redondeo") no cuenta.
-        for w in (palabras[0], "".join(palabras[:2])):  # "Totai", "Sub Tal" (= "subtal")
+        # Solo la PRIMERA palabra (o las dos primeras unidas): "Totai", "Totqty", "Sub Tal".
+        # Una palabra parecida en mitad del nombre ("Arroz Redondo" ~ "redondeo") no cuenta,
+        # ni una palabra que ya es de un articulo real ("Tarta" ~ "tarjeta").
+        for w in (palabras[0], "".join(palabras[:2])):
+            if w in self._PALABRAS_CONTROL_FUZZY:
+                return True
+            if len(w) < 4 or self._es_palabra_de_producto(w):
+                continue
             for c in self._PALABRAS_CONTROL_FUZZY:
                 if abs(len(w) - len(c)) <= 2 and fuzz.ratio(w, c) >= 78:
                     return True

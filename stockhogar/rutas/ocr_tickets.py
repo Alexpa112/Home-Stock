@@ -70,6 +70,18 @@ def validar_instalacion():
     except ImportError:
         validaciones["error_rapidfuzz"] = "rapidfuzz no está instalado"
 
+    # Informativos (no entran en "ok": el escaner funciona sin el motor neuronal, con Tesseract)
+    try:
+        from ..integraciones import ocr_rapid
+        validaciones["motor_neuronal"] = ocr_rapid.disponible()
+    except Exception:
+        validaciones["motor_neuronal"] = False
+    try:
+        from ..servicios.ocr.diccionario import obtener
+        validaciones["diccionario_articulos"] = len(obtener().entradas)
+    except Exception:
+        validaciones["diccionario_articulos"] = 0
+
     todas_ok = all(
         v is True
         for k, v in validaciones.items()

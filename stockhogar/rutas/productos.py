@@ -158,8 +158,8 @@ def crear_producto():
     datos = cuerpo_json()
     nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 80)
     categoria = Validator.string_opcional(datos.get("categoria"), "Otros", 50)
-    cantidad = Validator.entero_no_negativo(Validator.con_defecto(datos, "cantidad", 0), "cantidad")
-    stock_minimo = Validator.entero_no_negativo(Validator.con_defecto(datos, "stock_minimo", 1), "stock mínimo")
+    cantidad = Validator.cantidad_stock(Validator.con_defecto(datos, "cantidad", 0), "cantidad")
+    stock_minimo = Validator.cantidad_stock(Validator.con_defecto(datos, "stock_minimo", 1), "stock mínimo")
     dias_aviso = Validator.entero_minimo(Validator.con_defecto(datos, "dias_aviso", DIAS_AVISO_DEFECTO), "días de aviso", 0, 365)
     unidad = Validator.string_opcional(datos.get("unidad"), "ud", 20)
     icono = Validator.string_opcional(datos.get("icono"), None, 30)
@@ -374,10 +374,10 @@ def actualizar_producto(producto_id):
         categoria = datos.get("categoria") or actual["categoria"]
         if categoria != normalizar_categoria(db, categoria):
             categoria = actual["categoria"]
-        cantidad = Validator.entero_no_negativo(
+        cantidad = Validator.cantidad_stock(
             Validator.con_defecto(datos, "cantidad", actual["cantidad"]), "cantidad"
         )
-        stock_minimo = Validator.entero_no_negativo(
+        stock_minimo = Validator.cantidad_stock(
             Validator.con_defecto(datos, "stock_minimo", actual["stock_minimo"]), "stock mínimo"
         )
         dias_aviso = int(Validator.con_defecto(datos, "dias_aviso", actual["dias_aviso"]))

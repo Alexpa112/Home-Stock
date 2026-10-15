@@ -29,6 +29,7 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
   const [creando, setCreando] = useState(false)
   const [nombreNuevo, setNombreNuevo] = useState('')
   const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [nombreEditado, setNombreEditado] = useState('')
   const [colorEditado, setColorEditado] = useState('')
@@ -190,9 +191,11 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
     if (!compartiendoId) return
     try {
       setError('')
-      await permisos.compartir(compartiendoId, { usuario: nombreUsuario, nivel: nivelNuevo })
+      setAviso('')
+      const resp: any = await permisos.compartir(compartiendoId, { usuario: nombreUsuario, nivel: nivelNuevo })
       await abrirCompartir(compartiendoId)
       setBusqueda('')
+      if (resp?.mensaje) setAviso(t(resp.mensaje))
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err_compartir'))
     }
@@ -239,6 +242,9 @@ export function SelectorHogarPantallaCompleta({ onCerrar }: Props) {
           )}
         </div>
 
+        {aviso && (
+          <div className="p-3 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-200 text-sm rounded-lg">{aviso}</div>
+        )}
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 text-sm rounded-lg">{error}</div>
         )}

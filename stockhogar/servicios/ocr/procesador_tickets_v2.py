@@ -226,6 +226,7 @@ def crear_respuesta_usuario(items: List[Dict], db, hogar_id=None) -> Dict:
     if len(sin_match) > len(items) * 0.3:  # Más del 30% sin match
         resultado["advertencias"].append({
             "tipo": "muchos_sin_match",
+            "n": len(sin_match),
             "mensaje": f"{len(sin_match)} productos no encontrados en catálogo. Revisa manualmente."
         })
 

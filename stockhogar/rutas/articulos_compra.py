@@ -283,9 +283,9 @@ def anadir_o_sumar_articulo(
 
     # Recordar para historial si tiene icono (o si se acaba de escanear un
     # código de barras nuevo: así el catálogo lo reconoce la próxima vez).
-    if icono and (recuerdo or codigo_barras):
+    if (icono or codigo_barras) and (recuerdo or codigo_barras):
         recordar_articulo(
-            db, nombre, icono, categoria, unidad, sub_descripcion, dias_aviso=dias_aviso,
+            db, nombre, icono or "h-archive-box", categoria, unidad, sub_descripcion, dias_aviso=dias_aviso,
             codigo_barras=codigo_barras,
         )
 

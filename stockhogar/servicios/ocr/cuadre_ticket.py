@@ -20,9 +20,9 @@ from .validacion_importes import validar_totales
 
 _RE_LINEA_TOTAL = re.compile(r"\b(total|suma)\b", re.IGNORECASE)
 _RE_NO_ES_EL_TOTAL = re.compile(
-    r"subtotal|ahorro|descuent|dto|iva|impuesto|art[ií]culos|\bart\b|puntos|cambio|entregado|promoci", re.IGNORECASE
+    r"subtotal|ahorro|descuent|dto|iva|impuesto|art[ií]culos|\bart\b|puntos|cambio|entregado|promoci|efectivo|tarjeta|sigue|visa", re.IGNORECASE
 )
-_RE_IMPORTE_FINAL = re.compile(r"(\d{1,6}[.,]\d{2})\s*(?:€|eur)?\s*[A-Za-z]?\s*$", re.IGNORECASE)
+_RE_IMPORTE_FINAL = re.compile(r"(\d{1,3}(?:\.\d{3})+,\d{2}|\d{1,6}[.,]\d{2})\s*(?:€|eur)?\s*[A-Za-z]?\s*$", re.IGNORECASE)
 _TOLERANCIA = 0.02
 
 
@@ -38,7 +38,10 @@ def extraer_total_impreso(texto: str) -> Optional[float]:
         m = _RE_IMPORTE_FINAL.search(linea.strip())
         if m:
             try:
-                candidatos.append(float(m.group(1).replace(",", ".")))
+                importe = m.group(1)
+                if re.search(r"\.\d{3},", importe):  # 1.234,56 (separador de miles)
+                    importe = importe.replace(".", "")
+                candidatos.append(float(importe.replace(",", ".")))
             except ValueError:
                 continue
     return max(candidatos) if candidatos else None

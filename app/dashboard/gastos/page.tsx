@@ -362,9 +362,14 @@ export default function GastosPage() {
     if (ids.length === 0) return siguiente
 
     if (siguiente.modoReparto === 'igual') {
-      const porCabeza = Math.round((importeTotal / ids.length) * 100) / 100
+      // Reparto en céntimos: el resto se lo lleva el último para que la suma cuadre
+      const totalCent = Math.round(importeTotal * 100)
+      const baseCent = Math.floor(totalCent / ids.length)
       const importesPorMiembro: Record<number, string> = {}
-      ids.forEach((id) => { importesPorMiembro[id] = porCabeza.toFixed(2) })
+      ids.forEach((id, i) => {
+        const cent = i === ids.length - 1 ? totalCent - baseCent * (ids.length - 1) : baseCent
+        importesPorMiembro[id] = (cent / 100).toFixed(2)
+      })
       return { ...siguiente, importesPorMiembro }
     }
 

@@ -107,10 +107,14 @@ def traducir_claves():
     if not isinstance(claves, list):
         return APIResponse.validacion("claves debe ser una lista")
 
-    # Traducir
+    if len(claves) > 2000:
+        return APIResponse.validacion("Demasiadas claves (máximo 2000)")
+
+    # Traducir (se ignoran los elementos que no sean texto)
     traducciones = {}
     for clave in claves:
-        traducciones[clave] = traducir(clave, idioma)
+        if isinstance(clave, str) and len(clave) <= 200:
+            traducciones[clave] = traducir(clave, idioma)
 
     return APIResponse.success({
         "idioma": idioma,

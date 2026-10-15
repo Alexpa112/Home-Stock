@@ -1,8 +1,9 @@
 """
-Lectura de tickets de compra con OCR local (Tesseract), sin conexion a
-internet. La deteccion de articulo/cantidad es heuristica y aproximada:
-la pantalla de revision de la app siempre deja corregir el resultado a mano
-antes de tocar el stock.
+Lectura de tickets de compra con OCR local, sin conexion a internet: motor
+neuronal (RapidOCR, ver ocr_rapid.py) y, si no esta disponible o lee mal,
+Tesseract. La deteccion de articulo/cantidad es heuristica y aproximada: la
+pantalla de revision de la app siempre deja corregir el resultado a mano antes de
+tocar el stock.
 """
 import logging
 import os
@@ -32,7 +33,7 @@ RE_CANTIDAD_INICIO = re.compile(r"^(\d+)\s*[xX]\s*(.+)$")
 RE_CANTIDAD_FINAL = re.compile(r"^(.+?)\s+(\d+)\s*(ud|uds|u|unid)\.?$", re.IGNORECASE)
 
 
-# Relectura de lineas dudosas. A veces Tesseract devuelve basura (confianza ~0)
+# Relectura de lineas dudosas (Tesseract). A veces devuelve basura (confianza ~0)
 # para una linea corta y perfectamente legible, p.ej. "2 x 1,85" -> "ZA A OS",
 # justo la que da la cantidad de un articulo. El umbral interno de Tesseract
 # sobre el gris con CLAHE falla ahi; binarizar (Otsu) SOLO ese recorte y leerlo
@@ -43,37 +44,6 @@ _CONFIANZA_LINEA_DUDOSA = 45
 _MEJORA_MINIMA_RELECTURA = 15
 _MAX_RELECTURAS = 12
 _TIMEOUT_RELECTURA_S = 5
-
-
-def _releer_linea(gris, linea):
-    """Devuelve (texto, confianza_media) de una segunda lectura de la linea, o
-    None si no se pudo. Nunca lanza: es una mejora opcional."""
-    try:
-        alto, ancho = gris.shape[:2]
-        margen = 14
-        arriba = max(0, min(p.arriba for p in linea.palabras) - margen)
-        abajo = min(alto, max(p.abajo for p in linea.palabras) + margen)
-        izquierda = max(0, linea.izquierda - margen)
-        # Las palabras dudosas suelen ser mas estrechas que el texto real.
-        derecha = min(ancho, linea.derecha + int(ancho * 0.15))
-        recorte = gris[arriba:abajo, izquierda:derecha]
-        if recorte.size == 0:
-            return None
-        _, binaria = cv2.threshold(recorte, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        binaria = cv2.copyMakeBorder(binaria, 30, 30, 30, 30, cv2.BORDER_CONSTANT, value=255)
-        datos = pytesseract.image_to_data(
-            Image.fromarray(binaria), lang="spa", config="--psm 7",
-            timeout=_TIMEOUT_RELECTURA_S, output_type=pytesseract.Output.DICT,
-        )
-        palabras = [
-            (t.strip(), float(c)) for t, c in zip(datos["text"], datos["conf"])
-            if t and t.strip() and float(c) >= 0
-        ]
-        if not palabras:
-            return None
-        return " ".join(t for t, _ in palabras), sum(c for _, c in palabras) / len(palabras)
-    except Exception:
-        return None
 
 
 _RE_PRECIO_AL_FINAL = re.compile(r"\d[.,]\d{2}\s*(?:€|eur)?\s*[A-Za-z]?\s*$", re.IGNORECASE)
@@ -277,11 +247,15 @@ def _texto_con_motor_neuronal(imagen_bytes):
         imagen = _procesador_imagen.procesar_para_motor_neuronal(imagen_bytes)
         lineas = ocr_rapid.leer_lineas(imagen)
     except Exception:
-        logger.exception("Fallo del motor neuronal de OCR; se usara Tesseract")
+        logger.warning("Fallo del motor neuronal de OCR; se usara Tesseract", exc_info=True)
         return None
     textos = [(l.y_centro, l.texto, _es_basura(l.texto, l.confianza_media)) for l in lineas]
     texto = "\n".join(t for _, t, basura in textos if not basura)
     return texto, _contar_importes(lineas)
+
+
+def _importes_en_texto(texto):
+    return len(_RE_IMPORTE_SUELTO.findall(texto or ""))
 
 
 def extraer_texto(ruta_imagen):
@@ -291,7 +265,21 @@ def extraer_texto(ruta_imagen):
     neuronal = _texto_con_motor_neuronal(imagen_bytes)
     if neuronal is not None and neuronal[1] >= _MIN_IMPORTES_MOTOR_NEURONAL:
         return neuronal[0]
+    try:
+        texto = _texto_con_tesseract(imagen_bytes)
+    except RuntimeError:
+        # Tesseract tardo demasiado: si el motor neuronal leyo algo, vale mas que un error.
+        if neuronal is not None and neuronal[0].strip():
+            return neuronal[0]
+        raise
+    # El motor neuronal leyo POCO (menos de 2 importes) y Tesseract tambien: gana el que
+    # haya leido mas importes (a igualdad, el neuronal, que es el mas fiable).
+    if neuronal is not None and _importes_en_texto(neuronal[0]) >= _importes_en_texto(texto):
+        return neuronal[0]
+    return texto
 
+
+def _texto_con_tesseract(imagen_bytes):
     # Reescalado a ancho óptimo (2000px) + corrección de orientación +
     # escala de grises + CLAHE: sin esto Tesseract corría sobre la foto
     # completa del móvil (varios MP) en color, con "spa+eng" (doble modelo de

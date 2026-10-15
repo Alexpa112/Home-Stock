@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from rapidfuzz import fuzz, process
+from rapidfuzz.distance import Levenshtein
 
 from .datos_abreviaturas import ABREVIATURAS, RELLENO
 from .datos_marcas import MARCAS
@@ -199,6 +200,11 @@ class Diccionario:
         raices = tuple(dict.fromkeys(self._tokens_contenido(self._expandir_para_carga(texto))))
         if not raices or raices in entrada.variantes:
             return
+        # Un alias como 'leche 1' o 'nata 35' pierde el numero al normalizar y
+        # quedaria como la palabra generica ('leche'): se descarta.
+        crudos = _tokens_crudos(texto)
+        if len(raices) == 1 and len(crudos) > 1 and any(_CANTIDAD.match(t) for t in crudos):
+            return
         entrada.variantes.append(raices)
 
     def _expandir_para_carga(self, texto: str) -> str:
@@ -342,6 +348,10 @@ class Diccionario:
             corte = 80 if len(raiz) <= 6 else (84 if len(raiz) <= 8 else 88)
             r = process.extractOne(raiz, [v for v in self._lista_vocabulario if len(v) >= 5 and abs(len(v) - len(raiz)) <= 1],
                                    scorer=fuzz.ratio, score_cutoff=corte)
+            # Se mide sobre la palabra entera, no sobre la raiz: 'alicante' no es
+            # 'alicates' ni 'marinera' es 'harina' (distancia > 1 letra).
+            if r and Levenshtein.distance(c, self._palabra_raiz.get(r[0], r[0])) > (1 if len(c) < 10 else 2):
+                r = None
             if r and (mejor is None or r[1] > mejor[1]):
                 mejor = r
         if mejor:
@@ -472,6 +482,22 @@ class Diccionario:
         return mejor, round(confianza, 3)
 
     def identificar(self, texto: str) -> Identificacion:
+        """Identifica el articulo de una linea de ticket (ver el docstring del modulo).
+
+        "congelado/a" en el ticket manda sobre la categoria del articulo: "GAMBAS CONGELADAS"
+        van a Congelados aunque "Gambas" sea de Pescados. El nombre solo se sustituye por el
+        del catalogo si ese nombre tambien dice "congelado" (si no, se afirmaria que es
+        otra cosa: "Hamburguesas congeladas" no es "Hamburguesas de ternera")."""
+        r = self._identificar_base(texto)
+        congelado = any(t.startswith("congel") or t == "cong" for t in _tokens_crudos(texto or ""))
+        if not congelado or r.categoria == "Congelados":
+            return r
+        if r.fuente == "catalogo" and r.canonico and "congelad" not in _sin_tildes(r.canonico.lower()):
+            r.fuente, r.nombre, r.confianza = "catalogo_parcial", r.nombre_limpio, min(r.confianza, 0.7)
+        r.categoria = "Congelados"
+        return r
+
+    def _identificar_base(self, texto: str) -> Identificacion:
         texto = (texto or "").strip()
         if not texto:
             return Identificacion("", None, None, None, 0.0, "ninguna", "")
@@ -485,7 +511,18 @@ class Diccionario:
                 if mejor_lectura is None or conf > mejor_conf:
                     mejor_ent, mejor_conf, mejor_lectura, mejor_pref = ent, conf, lectura, pref
         lectura = mejor_lectura or []
-        limpio = " ".join(self._acentuada.get(w, w) for w in lectura if not _CANTIDAD.match(w)).strip()
+        palabras_limpias = [self._acentuada.get(w, w) for w in lectura if not _CANTIDAD.match(w)]
+        for i in range(1, len(palabras_limpias)):
+            # "merluza cong" se expande a "congelado": concordar con el sustantivo anterior
+            if palabras_limpias[i] == "congelado":
+                previa = palabras_limpias[i - 1]
+                if previa.endswith("as"):
+                    palabras_limpias[i] = "congeladas"
+                elif previa.endswith("os"):
+                    palabras_limpias[i] = "congelados"
+                elif previa.endswith("a"):
+                    palabras_limpias[i] = "congelada"
+        limpio = " ".join(palabras_limpias).strip()
         limpio = limpio.title() if limpio else texto.title()
         if mejor_ent is not None and mejor_conf >= CONFIANZA_CANONICO:
             return Identificacion(

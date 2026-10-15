@@ -97,7 +97,7 @@ export function FormularioGasto({
   const todosParticipanesConImporte = Array.from(form.seleccionados).every(
     (uid) => parseFloat(form.importesPorMiembro[uid] || '0') > 0
   )
-  const reparteCuadra = form.seleccionados.size === 0 || (Math.abs(sumaReparto - importeTotal) <= TOLERANCIA_REPARTO && todosParticipanesConImporte)
+  const reparteCuadra = form.seleccionados.size === 0 || (Math.abs(Math.round(sumaReparto * 100) - Math.round(importeTotal * 100)) <= Math.round(TOLERANCIA_REPARTO * 100) && todosParticipanesConImporte)
 
   return (
     <form id={id} onSubmit={onSubmit} className="space-y-6">

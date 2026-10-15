@@ -64,17 +64,6 @@ class DegradacionTests(unittest.TestCase):
         with patch.dict("os.environ", {"DREAME_OCR": "tesseract"}):
             self.assertIsNone(ticket_ocr._texto_con_motor_neuronal(b"x"))
 
-    def test_poca_lectura_neuronal_cae_a_tesseract(self):
-        class _L:
-            texto, y_centro, confianza_media = "SIN IMPORTES", 10.0, 90.0
-        with patch.object(ticket_ocr, "_texto_con_motor_neuronal", return_value=("SIN IMPORTES", 0)), \
-                patch.object(ticket_ocr._procesador_imagen, "procesar", return_value=np.full((10, 10), 255, np.uint8)), \
-                patch.object(ticket_ocr, "_leer_pagina", return_value=([_L()], 95.0)) as leer, \
-                patch.object(ticket_ocr, "_texto_con_relectura", return_value="TESSERACT"), \
-                patch("builtins.open", unittest.mock.mock_open(read_data=b"x")):
-            self.assertEqual(ticket_ocr.extraer_texto("x.jpg"), "TESSERACT")
-        leer.assert_called()
-
 
 @unittest.skipUnless(ocr_rapid.disponible(), "RapidOCR no instalado")
 class MotorRealTests(unittest.TestCase):
@@ -90,3 +79,43 @@ class MotorRealTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EleccionEntreMotoresTests(unittest.TestCase):
+    def _extraer(self, neuronal, tesseract=None, tesseract_falla=False):
+        with patch.object(ticket_ocr, "_texto_con_motor_neuronal", return_value=neuronal), \
+                patch.object(ticket_ocr, "_texto_con_tesseract",
+                             side_effect=(RuntimeError("lento") if tesseract_falla else None),
+                             return_value=tesseract), \
+                patch("builtins.open", unittest.mock.mock_open(read_data=b"x")):
+            return ticket_ocr.extraer_texto("x.jpg")
+
+    def test_neuronal_con_importes_suficientes_no_llama_a_tesseract(self):
+        with patch.object(ticket_ocr, "_texto_con_motor_neuronal", return_value=("A 1,00\nB 2,00", 2)), \
+                patch.object(ticket_ocr, "_texto_con_tesseract") as t, \
+                patch("builtins.open", unittest.mock.mock_open(read_data=b"x")):
+            self.assertEqual(ticket_ocr.extraer_texto("x.jpg"), "A 1,00\nB 2,00")
+        t.assert_not_called()
+
+    def test_si_los_dos_leen_poco_gana_el_que_lee_mas_importes(self):
+        self.assertEqual(self._extraer(("PAN 1,00", 1), "PAN\nLECHE"), "PAN 1,00")
+        self.assertEqual(self._extraer(("PAN", 0), "PAN 1,00"), "PAN 1,00")
+
+    def test_empate_gana_el_neuronal(self):
+        self.assertEqual(self._extraer(("NEURONAL", 0), "TESSERACT"), "NEURONAL")
+
+    def test_si_tesseract_se_pasa_de_tiempo_se_devuelve_lo_del_neuronal(self):
+        self.assertEqual(self._extraer(("PAN 1,00", 1), tesseract_falla=True), "PAN 1,00")
+
+    def test_sin_neuronal_el_error_de_tesseract_sigue_siendo_error(self):
+        with self.assertRaises(RuntimeError):
+            self._extraer(None, tesseract_falla=True)
+
+    def test_sin_neuronal_se_usa_tesseract_tal_cual(self):
+        self.assertEqual(self._extraer(None, "TESSERACT"), "TESSERACT")
+
+
+class ConcurrenciaTests(unittest.TestCase):
+    def test_hay_un_limite_de_lecturas_simultaneas(self):
+        self.assertTrue(hasattr(ocr_rapid, "_turno"))
+        self.assertGreaterEqual(ocr_rapid._CONCURRENCIA, 1)

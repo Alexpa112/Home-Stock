@@ -235,7 +235,7 @@ def crear_gasto():
         reparto.append((usuario_id, importe))
         suma_reparto += importe
 
-    if abs(suma_reparto - importe_total) > TOLERANCIA_REPARTO:
+    if round(abs(suma_reparto - importe_total), 2) > TOLERANCIA_REPARTO:
         raise ValidationError("La suma del reparto no coincide con el importe total")
 
     usuario_id_actual = session.get("usuario_id")
@@ -352,7 +352,7 @@ def actualizar_gasto(gasto_id):
             reparto.append((usuario_id, importe))
             suma_reparto += importe
 
-        if abs(suma_reparto - nuevo_importe_total) > TOLERANCIA_REPARTO:
+        if round(abs(suma_reparto - nuevo_importe_total), 2) > TOLERANCIA_REPARTO:
             raise ValidationError("La suma del reparto no coincide con el importe total")
 
         db.execute("DELETE FROM gastos_participantes WHERE gasto_id = ?", (gasto_id,))
@@ -905,7 +905,7 @@ def crear_gasto_recurrente():
         reparto.append((usuario_id, importe))
         suma_reparto += importe
 
-    if abs(suma_reparto - importe_total) > TOLERANCIA_REPARTO:
+    if round(abs(suma_reparto - importe_total), 2) > TOLERANCIA_REPARTO:
         raise ValidationError("La suma del reparto no coincide con el importe total")
 
     cur = db.execute(

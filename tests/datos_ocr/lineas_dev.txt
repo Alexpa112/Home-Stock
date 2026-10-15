@@ -28,7 +28,7 @@ JAMON COCIDO EXTRA|Carnes y Embutidos
 CHORIZO SARTA|Carnes y Embutidos
 LOMO CERDO FILETEADO|Carnes y Embutidos
 SALMON FILETE|Pescados y Mariscos
-MERLUZA CONG|Pescados y Mariscos
+MERLUZA CONG|Congelados
 ATUN CLARO LATA|Pescados y Mariscos
 GAMBAS PELADAS|Pescados y Mariscos
 ACEITE OLIVA VIRGEN EXTRA 1L|Despensa|Aceite de oliva

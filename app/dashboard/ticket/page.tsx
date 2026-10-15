@@ -26,12 +26,29 @@ interface ItemTicket {
   incluir?: boolean
 }
 
+const CLAVE_AVISO: Record<string, string> = {
+  muchos_sin_match: 'aviso_muchos_sin_match',
+  confianza_baja: 'aviso_confianza_baja',
+  descuadre: 'aviso_descuadre_ticket',
+}
+
 export default function EscanearTicketPage() {
   const { t } = useTranslation()
+  // El backend manda cada aviso con su "tipo" y los datos; el texto se traduce aqui para
+  // que salga en el idioma del usuario (el "mensaje" del servidor va solo en castellano).
+  const textoAviso = (a: { tipo: string; mensaje: string; n?: number; suma?: number; total?: number }) => {
+    const clave = CLAVE_AVISO[a.tipo]
+    if (!clave) return a.mensaje
+    const euros = (v?: number) => (typeof v === 'number' ? v.toFixed(2).replace('.', ',') : '?')
+    return t(clave)
+      .replace('{n}', String(a.n ?? ''))
+      .replace('{suma}', euros(a.suma))
+      .replace('{total}', euros(a.total))
+  }
   const [analizando, setAnalizando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [items, setItems] = useState<ItemTicket[]>([])
-  const [advertencias, setAdvertencias] = useState<{ tipo: string; mensaje: string }[]>([])
+  const [advertencias, setAdvertencias] = useState<{ tipo: string; mensaje: string; n?: number; suma?: number; total?: number }[]>([])
   const [error, setError] = useState('')
   // Línea con el editor desplegado (lápiz de la revisión 6A).
   const [editando, setEditando] = useState<number | null>(null)
@@ -160,7 +177,7 @@ export default function EscanearTicketPage() {
           {advertencias.map((a, i) => (
             <div key={i} className="p-3 bg-yellow-50 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200 rounded-lg text-sm flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{a.mensaje}</span>
+              <span>{textoAviso(a)}</span>
             </div>
           ))}
         </div>

@@ -85,3 +85,37 @@ class DependenciasTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DiagnosticoOcrTests(unittest.TestCase):
+    """/api/ocr/validar-instalacion: la forma de la respuesta que lee Ajustes."""
+
+    def test_la_respuesta_anida_las_validaciones_y_ajustes_las_lee_ahi(self):
+        import uuid
+        from werkzeug.security import generate_password_hash
+        from stockhogar import create_app
+        from stockhogar.db import ahora, get_db
+        app = create_app()
+        nombre = f"diag_{uuid.uuid4().hex[:8]}"
+        with app.app_context():
+            db = get_db()
+            uid = db.execute("INSERT INTO usuarios (nombre_usuario, password_hash, fecha_creacion) VALUES (?, ?, ?)",
+                             (nombre, generate_password_hash("password123"), ahora())).lastrowid
+            db.commit()
+        try:
+            cliente = app.test_client()
+            with cliente.session_transaction() as s:
+                s["usuario"], s["usuario_id"] = nombre, uid
+            cuerpo = cliente.get("/api/ocr/validar-instalacion").get_json()
+            self.assertIn("validaciones", cuerpo)
+            self.assertNotIn("claude_api_key", cuerpo)            # NO en el nivel superior
+            for clave in ("claude_api_key", "claude_paquete", "tesseract", "motor_neuronal", "diccionario_articulos"):
+                self.assertIn(clave, cuerpo["validaciones"])
+            self.assertGreater(cuerpo["validaciones"]["diccionario_articulos"], 3000)
+            ajustes = (RAIZ / "app" / "dashboard" / "settings" / "page.tsx").read_text(encoding="utf-8")
+            self.assertIn("diag?.validaciones?.claude_api_key", ajustes)
+        finally:
+            with app.app_context():
+                db = get_db()
+                db.execute("DELETE FROM usuarios WHERE id = ?", (uid,))
+                db.commit()

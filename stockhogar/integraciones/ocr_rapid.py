@@ -22,7 +22,20 @@ _motor = None
 _cerrojo = threading.Lock()
 _no_disponible = False
 # Hilos de ONNX: una Raspberry Pi de 4 nucleos no debe quedarse sin CPU para el resto.
-_HILOS = int(os.environ.get("DREAME_OCR_HILOS", "2"))
+def _entero_de_entorno(nombre, defecto):
+    """Una variable mal escrita ("dos", vacia) no debe impedir arrancar la app."""
+    try:
+        return max(1, int(os.environ.get(nombre, defecto)))
+    except (TypeError, ValueError):
+        return defecto
+
+
+_HILOS = _entero_de_entorno("DREAME_OCR_HILOS", 2)
+# Lecturas simultaneas: gunicorn atiende varias peticiones a la vez y cada lectura usa
+# ~200 MB y varios hilos. Las demas esperan su turno (el limite de peticiones por
+# usuario ya acota la cola) en vez de agotar la memoria de una Raspberry Pi.
+_CONCURRENCIA = _entero_de_entorno("DREAME_OCR_CONCURRENCIA", 2)
+_turno = threading.BoundedSemaphore(_CONCURRENCIA)
 
 
 def disponible() -> bool:
@@ -80,7 +93,8 @@ def _con_espacios(texto, cajas):
     return "".join(salida)
 
 
-_RE_DIGITO_ENTRE_LETRAS = re.compile(r"(?<=[A-Za-z])([015])(?=[A-Za-z])")
+# Sin tocar los multipacks "6X1L", "2X5G": el digito tras "NxX" es un tamano.
+_RE_DIGITO_ENTRE_LETRAS = re.compile(r"(?<!\d[xX])(?<=[A-Za-z])([015])(?=[A-Za-z])")
 _DIGITO_A_LETRA = {"0": "O", "1": "I", "5": "S"}
 
 
@@ -98,7 +112,8 @@ def leer_lineas(imagen_bgr):
     "palabra": la columna de importes suele salir como un trozo aparte en la
     misma fila que el nombre, y `reconstruir_lineas` los junta por coordenadas."""
     motor = _obtener_motor()
-    resultado, _ = motor(imagen_bgr, return_word_box=True)
+    with _turno:
+        resultado, _ = motor(imagen_bgr, return_word_box=True)
     if not resultado:
         return []
     datos = {"text": [], "conf": [], "left": [], "top": [], "width": [], "height": []}

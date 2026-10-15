@@ -6,6 +6,7 @@
   fijan a lo MEDIDO para que un cambio que empeore la identificacion falle.
 - Integracion: el procesador local y la ruta de Claude devuelven nombre limpio.
 """
+import re
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -202,3 +203,34 @@ class IntegracionProcesadorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CongeladoTests(unittest.TestCase):
+    def test_congelado_en_el_ticket_manda_sobre_la_categoria(self):
+        for texto in ("GAMBAS CONGELADAS", "MERLUZA CONG", "HAMBURGUESAS CONG", "PATATAS FRITAS CONGELADAS"):
+            with self.subTest(texto=texto):
+                self.assertEqual(identificar_articulo(texto).categoria, "Congelados")
+
+    def test_no_se_afirma_un_nombre_de_catalogo_que_no_dice_congelado(self):
+        r = identificar_articulo("HAMBURGUESAS CONG")
+        self.assertNotEqual(r.nombre, "Hamburguesas de ternera")
+        self.assertIn("congelad", r.nombre.lower())
+
+    def test_el_adjetivo_concuerda(self):
+        self.assertEqual(identificar_articulo("MERLUZA CONG").nombre, "Merluza Congelada")
+
+    def test_sin_la_palabra_no_cambia_nada(self):
+        self.assertEqual(identificar_articulo("GAMBAS PELADAS").categoria, "Pescados y Mariscos")
+
+
+class CatalogoGeneradoTests(unittest.TestCase):
+    def test_zumos_y_nectares_no_son_alternativas_vegetales(self):
+        d = obtener()
+        mal = [e.nombre for e in d.entradas
+               if e.generado and e.categoria == "Alternativas Vegetales" and re.search(r"zumo|n[eé]ctar", e.nombre, re.I)]
+        self.assertEqual(mal, [])
+
+    def test_lo_congelado_del_catalogo_generado_va_a_congelados(self):
+        d = obtener()
+        mal = [e.nombre for e in d.entradas if e.generado and "congelad" in e.nombre.lower() and e.categoria != "Congelados"]
+        self.assertEqual(mal, [])
