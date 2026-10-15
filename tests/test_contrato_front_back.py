@@ -125,3 +125,25 @@ class CategoriasPermisoTests(ContratoTests):
                 db = get_db()
                 db.execute("DELETE FROM usuarios WHERE id=?", (otro,))
                 db.commit()
+
+
+class TraduccionNoBloqueaLaBdTests(ContratoTests):
+    def test_anadir_articulo_nuevo_no_espera_a_la_traduccion(self):
+        """Antes la traduccion (red/CPU) se hacia con la transaccion de escritura abierta:
+        varios usuarios anadiendo articulos a la vez recibian 'database is locked' (500)."""
+        import time
+        from unittest.mock import patch
+
+        def lenta(texto):
+            time.sleep(3)
+            return {"en": "x"}
+
+        with patch("stockhogar.servicios.traductor_auto.TraductorAutomatico.traducir_a_todos_idiomas", side_effect=lenta):
+            t = time.time()
+            r = self.c.post("/api/articulos", json={"nombre": "Articulo raro " + uuid.uuid4().hex[:6], "cantidad": 1,
+                                                    "categoria": "Otros", "icono": "h-archive-box"})
+            self.assertEqual(r.status_code, 201, r.get_data(as_text=True))
+            self.assertLess(time.time() - t, 2.0)
+            # y mientras traduce, otra escritura entra sin problema
+            r2 = self.c.post("/api/productos", json={"nombre": "Otro " + uuid.uuid4().hex[:6], "cantidad": 1, "categoria": "Otros"})
+            self.assertIn(r2.status_code, (200, 201))

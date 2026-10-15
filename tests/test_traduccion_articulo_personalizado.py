@@ -75,11 +75,17 @@ class TraduccionArticuloPersonalizadoTest(unittest.TestCase):
             ).fetchone()
             self.assertIsNotNone(articulo, "El artículo personalizado no se creó")
 
-            traducciones = db.execute(
-                "SELECT idioma, texto_original, texto_traducido FROM traducciones_productos "
-                "WHERE articulo_personalizado_id = ? AND tipo = 'nombre'",
-                (articulo["id"],),
-            ).fetchall()
+            # La traduccion se hace en segundo plano (no bloquea la BD a los demas usuarios).
+            import time
+            for _ in range(60):
+                traducciones = db.execute(
+                    "SELECT idioma, texto_original, texto_traducido FROM traducciones_productos "
+                    "WHERE articulo_personalizado_id = ? AND tipo = 'nombre'",
+                    (articulo["id"],),
+                ).fetchall()
+                if len({t["idioma"] for t in traducciones}) >= 6:
+                    break
+                time.sleep(0.5)
 
             idiomas_esperados = {"gl", "en", "pt", "fr", "it", "de"}
             idiomas_obtenidos = {t["idioma"] for t in traducciones}
