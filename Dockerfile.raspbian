@@ -3,7 +3,7 @@
 # Bookworm (no Bullseye): los wheels de piwheels.org para numpy/opencv en armv7l
 # están compilados contra glibc >= 2.34, que Bullseye (2.31) no tiene; Bookworm
 # trae glibc 2.36 y evita el "GLIBC_2.34 not found" en tiempo de ejecución.
-FROM python:3.11-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 LABEL maintainer="StockHogar Dev Team"
 LABEL version="1.1"
