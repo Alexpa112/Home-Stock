@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from stockhogar.servicios.ocr.diccionario import obtener, identificar_articulo
 from stockhogar.servicios.ocr.procesador_tickets_v2 import ProcesadorTicketsV2
-from stockhogar.servicios.ocr.parser_mejorado import LineaTicketMejorada, TipoUnidad
+from stockhogar.servicios.ocr.parser import LineaTicketMejorada, TipoUnidad
 
 DATOS = Path(__file__).parent / "datos_ocr"
 

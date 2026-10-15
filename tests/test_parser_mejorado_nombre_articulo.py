@@ -13,7 +13,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stockhogar.servicios.ocr.parser_mejorado import ParserMejorado, TipoUnidad
+from stockhogar.servicios.ocr.parser import ParserMejorado, TipoUnidad
 
 
 def test_cantidad_suelta_delante_del_nombre_no_rompe_palabras():

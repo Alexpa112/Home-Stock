@@ -7,7 +7,7 @@ cabeceras y palabras de cierre de otros idiomas, importes pegados a la moneda
 """
 import unittest
 
-from stockhogar.servicios.ocr.parser_mejorado import ParserMejorado, TipoUnidad
+from stockhogar.servicios.ocr.parser import ParserMejorado, TipoUnidad
 
 
 def _items(texto):

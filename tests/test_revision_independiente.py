@@ -4,7 +4,7 @@ import unittest
 from stockhogar.integraciones import ocr_rapid
 from stockhogar.servicios.ocr.cuadre_ticket import extraer_total_impreso
 from stockhogar.servicios.ocr.diccionario import identificar_articulo
-from stockhogar.servicios.ocr.parser_mejorado import ParserMejorado
+from stockhogar.servicios.ocr.parser import ParserMejorado
 
 CAB = "MERCADONA S.A.\nC/ MAYOR 5\nCIF A46103834\n01/02/2024 12:30\n"
 PIE = "\nTOTAL 20,00\nTARJETA 20,00"

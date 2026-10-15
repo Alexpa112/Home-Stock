@@ -17,7 +17,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stockhogar.servicios.ocr.parser_mejorado import ParserMejorado
+from stockhogar.servicios.ocr.parser import ParserMejorado
 
 
 TICKET_MAYORISTA = """ca * gus

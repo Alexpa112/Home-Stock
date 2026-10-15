@@ -9,7 +9,7 @@ Flujo:
 5. Respuesta con alternativas
 """
 from typing import List, Dict, Optional
-from .parser_mejorado import ParserMejorado, LineaTicketMejorada, TipoUnidad
+from .parser import ParserMejorado, LineaTicketMejorada, TipoUnidad
 from .matcher_inteligente import MatcherInteligente
 from .diccionario import identificar_articulo
 

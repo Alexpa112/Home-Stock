@@ -7,7 +7,7 @@ codigo de articulo delante del nombre y "2x1,50" sin espacios.
 """
 import unittest
 
-from stockhogar.servicios.ocr.parser_mejorado import ParserMejorado, TipoUnidad
+from stockhogar.servicios.ocr.parser import ParserMejorado, TipoUnidad
 
 
 def _items(texto):
