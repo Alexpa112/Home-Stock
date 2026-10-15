@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { CheckCircle2, AlertCircle, Loader } from 'lucide-react'
 import { permisos } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 
 export default function AceptarInvitacionPage() {
   const params = useParams<{ codigo: string }>()
-  const router = useRouter()
   const { t } = useTranslation()
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando')
   const [mensaje, setMensaje] = useState('')
@@ -20,7 +19,7 @@ export default function AceptarInvitacionPage() {
     // la vuelta a esta misma URL.
     const aceptar = async () => {
       try {
-        const datos: any = await permisos.aceptarInvitacion(params.codigo)
+        await permisos.aceptarInvitacion(params.codigo)
         setMensaje(t('invitacion_aceptada_titulo'))
         setEstado('ok')
         setTimeout(() => { window.location.href = '/dashboard' }, 1500)

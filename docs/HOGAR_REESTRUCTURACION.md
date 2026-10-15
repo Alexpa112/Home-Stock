@@ -150,7 +150,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
       `hogar_actual_id`
 - [x] Verificado: `python -m pytest tests/ -q` -> 66 passed, 1 skipped
 - Hallazgo aparte (no relacionado con esta tarea, reportado como tarea suelta):
-  `tests/test_historial_catalogo.py` no limpia una fila fija de
+  `tests/inventario/test_historial_catalogo.py` no limpia una fila fija de
   `historial_articulos` en tearDown; si la suite corre dos veces seguidas contra
   la BD real sin reiniciarla, falla por UNIQUE constraint. Prexistente, no
   causado por esta migracion.
@@ -265,7 +265,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 ### 7. Tests (tests/) — COMPLETADO 2026-07-30
 - [x] Actualizar tests que usan `/api/listas`, tabla `listas`, `lista_actual_id` — hecho
       en el Punto 2 (13 ficheros), no quedaba nada pendiente aqui
-- [x] Test de regresion de la migracion (`tests/test_migracion_hogares.py`, nuevo):
+- [x] Test de regresion de la migracion (`tests/hogares/test_migracion_hogares.py`, nuevo):
       inserta una fila "vieja" directamente en `listas`/`stock_lista`/`articulos_lista`/
       `permisos_lista` con un id explicito muy por encima del maximo actual en ambas
       tablas (evita falsos negativos por desincronizacion de autoincrement entre
@@ -307,6 +307,6 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 - 2026-07-30 — Punto 6 completado sin cambios de codigo: no hay service worker
   clasico que purgar; el cache-busting existente (useCacheBuster + /api/cache-version
   basado en mtime) ya cubre el caso automaticamente en cualquier despliegue.
-- 2026-07-30 — Punto 7 completado: nuevo tests/test_migracion_hogares.py (5 tests) de
+- 2026-07-30 — Punto 7 completado: nuevo tests/hogares/test_migracion_hogares.py (5 tests) de
   regresion de la migracion aditiva. Suite completa 71 passed, 1 skipped, dos veces
   seguidas sin reiniciar la BD.

@@ -1,5 +1,5 @@
 """Articulos generados desde Open Food Facts (ODbL). NO editar a mano:
-ver scripts/generar_diccionario_off.py."""
+ver scripts/generadores/generar_diccionario_off.py."""
 TEXTO = """
 == Alternativas Vegetales
 Agua de coco | Aigua de coco ; Koko-ur | ud

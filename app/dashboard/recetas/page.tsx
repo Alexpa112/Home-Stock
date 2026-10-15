@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, ChefHat, X, AlertCircle, ShoppingCart, Pencil, Trash2 } from 'lucide-react'
+import { Plus, ChefHat, X, ShoppingCart, Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
 import { recetas as recetasApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
@@ -9,6 +9,7 @@ import { useHogar } from '@/contexts/HogarContext'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { getCached, setCached } from '@/lib/dataCache'
+import { AvisoError } from '@/components/shared/AvisoError'
 
 const CACHE_KEY_RECETAS = 'recetas:lista'
 
@@ -141,12 +142,7 @@ export default function RecetasPage() {
         )}
       </CabeceraPantalla>
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
+      <AvisoError mensaje={error} />
       {mensaje && (
         <div className="p-3 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-200 rounded-lg text-sm">
           {mensaje}

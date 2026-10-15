@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Pencil, Check, AlertTriangle, Grid3x3, List, X, ScanBarcode, Download, Upload } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Circle, Pencil, Check, AlertTriangle, Grid3x3, List, X, ScanBarcode, Download, Upload } from 'lucide-react'
 import { SearchBar } from '@/components/dashboard/SearchBar'
 import { CategoryBadge, getCategoryTileGradient } from '@/components/dashboard/CategoryBadge'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
@@ -20,6 +20,9 @@ import { useHogar } from '@/contexts/HogarContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
+import { AvisoError } from '@/components/shared/AvisoError'
+import type { ArticuloCatalogo, Categoria } from '@/lib/tipos'
+import { ListaSugerencias } from '@/components/dashboard/ListaSugerencias'
 
 const CACHE_KEY_ARTICULOS = 'shopping:articulos'
 const CACHE_KEY_CATEGORIAS = 'stock:categorias'
@@ -51,20 +54,6 @@ interface ArticuloLista {
   completado: boolean
   origen: 'auto' | 'manual'
   dias_aviso: number
-}
-
-interface Categoria {
-  id: number
-  nombre: string
-  icono: string
-}
-
-interface ArticuloCatalogo {
-  nombre: string
-  icono: string | null
-  categoria: string | null
-  unidad: string | null
-  origen: 'estandar' | 'personalizado'
 }
 
 export default function ShoppingPage() {
@@ -834,22 +823,8 @@ export default function ShoppingPage() {
                 inputMode="text"
                 autoComplete="off"
               />
-              {mostrarSugerencias && sugerenciasNombre.length > 0 && (
-                <ul className="absolute z-10 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                  {sugerenciasNombre.map((item) => (
-                    <li key={`${item.origen}-${item.nombre}`}>
-                      <button
-                        type="button"
-                        onMouseDown={() => seleccionarSugerencia(item)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted transition-colors"
-                      >
-                        {item.icono && <IconRenderer name={item.icono} className="w-4 h-4 text-muted-foreground" />}
-                        <span className="text-sm">{item.nombre}</span>
-                        {item.categoria && <span className="text-xs text-muted-foreground ml-auto">{item.categoria}</span>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              {mostrarSugerencias && (
+                <ListaSugerencias sugerencias={sugerenciasNombre} onSeleccionar={seleccionarSugerencia} />
               )}
             </div>
 
@@ -932,15 +907,7 @@ export default function ShoppingPage() {
       )}
 
       {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium">{t('error')}</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        </div>
-      )}
+      <AvisoError mensaje={error} conTitulo />
 
       {/* Loading */}
       {loading ? (

@@ -151,4 +151,18 @@ docs/Docker/CI en una sola pasada. Mismos 122 endpoints; 855 tests en verde.
 ### Fase 6 (parcial) — `rutas/cuenta/auth.py` (1.047 líneas) partido en 6 módulos (hecha)
 `blueprint` (Blueprint + rutas públicas), `comunes` (tokens, validaciones, reautenticación), `sesion`, `doble_factor`,
 `perfil`, `credenciales`, `datos_personales` (RGPD). Los nombres compartidos pierden el guion bajo. Se añade
-`tests/test_mapa_de_rutas.py`, que fija las 122 rutas/endpoints para que ninguna reorganización pueda perder o renombrar una.
+`tests/plataforma/test_mapa_de_rutas.py`, que fija las 122 rutas/endpoints para que ninguna reorganización pueda perder o renombrar una.
+
+### Fase 7 — Frontend (parcial, hecha)
+`AvisoError` sustituye 6 copias del banner de error; `ListaSugerencias` las 2 del desplegable de autocompletado;
+`lib/tipos.ts` unifica `Categoria`/`ArticuloCatalogo`; `leerRespuesta` en `lib/api.ts`. Quitados 8 imports/variables sin usar
+y `BgPattern`, `handlePagarSugerencia` (código muerto). **Pendiente** (ver sección 6): partir en componentes
+`gastos/page.tsx`, `shopping/page.tsx`, `dashboard/page.tsx` y `settings/page.tsx` (>1.000 líneas).
+
+### Fase 8 — `scripts/` y `tests/` (hecha)
+- `scripts/`: generadores, desarrollo y evaluación en subcarpetas. **Los scripts que invocan el cron de los
+  servidores ya instalados (`auto_update.sh`, `enviar_avisos_caducidad.py`), el instalador y el Panel no se mueven**
+  (romperían la auto-actualización de las instalaciones existentes); ver `scripts/README.md`.
+- `tests/`: 118 ficheros planos → 7 carpetas por área. La suite pasa de ~275 s a ~160 s (un test de traducción
+  esperaba a Argos sin red durante 2 minutos; ahora usa un traductor determinista).
+- Documentación de estructura: `docs/ESTRUCTURA.md`.

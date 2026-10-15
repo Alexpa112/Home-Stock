@@ -13,19 +13,8 @@
 
 ### Estructura Modular (Blueprints)
 
-Cada dominio es un blueprint independiente en `stockhogar/rutas/`:
-
-```
-rutas/
-├── auth.py           # Login, usuarios, sesión
-├── productos.py      # Inventario
-├── listas.py         # Múltiples listas de compra
-├── articulos_lista.py # Ítems de listas
-├── categorias.py     # Gestión de categorías
-├── historial.py      # Catálogo + aprendizaje de iconos
-├── tickets.py        # Gestión de tickets
-└── ocr_tickets.py    # Escaneo OCR
-```
+Cada dominio es un subpaquete de `stockhogar/rutas/` con su propio Blueprint. El árbol completo y las reglas
+para añadir código están en [ESTRUCTURA.md](ESTRUCTURA.md).
 
 ### Capa de Abstracción (Base OOP)
 
@@ -159,7 +148,7 @@ window.productosManager.cargar();
 
 ### Esquema Normalizado
 
-Esquema real definido en `stockhogar/db.py` (función `init_db()`). El
+Esquema real definido en `stockhogar/db/esquema/` (función `init_db()`). El
 aislamiento de cara al usuario se hace vía `listas`/`stock_lista`. La
 funcionalidad de "espacios" (stocks independientes tipo casa/oficina, que
 nunca tuvo UI) se eliminó por completo: cubría el mismo caso de uso que
@@ -209,7 +198,7 @@ movimientos_stock (producto_id, lista_id, usuario_id, delta, cantidad_resultante
 
 ### Migraciones
 
-En `stockhogar/db.py`:
+En `stockhogar/db/`:
 - **Esquema inicial**: Creado al primer inicio
 - **Migraciones**: Funciones `_migrar_*` que se ejecutan solo cuando necesario
 - **Foreign keys**: Habilitadas automáticamente (`PRAGMA foreign_keys = ON`)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, AlertCircle, Receipt, HandCoins, Download, Repeat, Pause, Play, Trash2 } from 'lucide-react'
+import { Plus, Receipt, HandCoins, Download, Repeat, Pause, Play, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/dashboard/Modal'
 import { HojaCompleta } from '@/components/dashboard/HojaCompleta'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
@@ -32,6 +32,7 @@ import {
   variacionMensual,
   parteDeUsuario,
 } from '@/lib/gastosStats'
+import { AvisoError } from '@/components/shared/AvisoError'
 
 const CACHE_KEY_GASTOS = 'gastos:lista'
 const CACHE_KEY_SALDO = 'gastos:saldo'
@@ -196,7 +197,6 @@ export default function GastosPage() {
 
   const [showLiquidacion, setShowLiquidacion] = useState(false)
   const [liquidacion, setLiquidacion] = useState({ usuario_origen_id: null as number | null, usuario_destino_id: null as number | null, importe: '', nota: '' })
-  const [confirmandoLiquidacionId, setConfirmandoLiquidacionId] = useState<number | null>(null)
 
   const FORM_RECURRENTE_VACIO = {
     descripcion: '',
@@ -609,20 +609,6 @@ export default function GastosPage() {
     setShowLiquidacion(true)
   }
 
-  const handlePagarSugerencia = async (s: SugerenciaPago) => {
-    try {
-      setError('')
-      await gastosApi.registrarLiquidacion({
-        usuario_origen_id: s.usuario_origen_id,
-        usuario_destino_id: s.usuario_destino_id,
-        importe: s.importe,
-      })
-      await cargarDatos()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('err_actualizar'))
-    }
-  }
-
   const cerrarFormulario = () => {
     setShowForm(false)
     setModalEdicionId(null)
@@ -671,12 +657,7 @@ export default function GastosPage() {
         ]}
       />
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
+      <AvisoError mensaje={error} />
 
       {vista === 'gastos' ? (
         <>

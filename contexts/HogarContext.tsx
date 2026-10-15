@@ -104,7 +104,7 @@ export function HogarProvider({ children }: { children: ReactNode }) {
       setPropios(data.propias || [])
       setCompartidos(data.compartidas || [])
       setHogarActivoId(hogarActivoIdNuevo)
-    } catch (e) {
+    } catch {
       if (!silencioso) setError(tRef.current('err_cargar_hogares'))
     } finally {
       if (!silencioso) setLoading(false)

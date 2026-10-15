@@ -8,8 +8,8 @@
 // hidratacion (#418) en todas las paginas.
 //
 // Regenerar con:
-//   python scripts/generar_traducciones_base.py
-// tests/test_traducciones_completas.py falla si este fichero se desincroniza.
+//   python scripts/generadores/generar_traducciones_base.py
+// tests/frontend/test_traducciones_completas.py falla si este fichero se desincroniza.
 
 const TRADUCCIONES_BASE: Record<string, string> = {
   "abriendo_whatsapp": "Abriendo WhatsApp...",

@@ -30,7 +30,7 @@ function IconRendererBase({ name, className = 'w-4 h-4' }: IconRendererProps) {
   // Lucide icons
   const lucideName = iconName
     .split('-')
-    .map((word, i) => {
+    .map((word) => {
       if (word === '') return ''
       return word.charAt(0).toUpperCase() + word.slice(1)
     })

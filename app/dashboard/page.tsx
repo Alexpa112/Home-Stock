@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, AlertCircle, Package, TrendingUp, Pencil, X, Tags, ShoppingCart, Grid3x3, List, LineChart, Download, Upload, Timer, Check } from 'lucide-react'
-import { StatsCard } from '@/components/dashboard/StatsCard'
+import { Plus, Trash2, Package, X, Tags, ShoppingCart, Grid3x3, List, LineChart, Download, Upload, Timer, Check } from 'lucide-react'
+
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { useAccionAnadir } from '@/lib/accionAnadir'
@@ -19,6 +19,9 @@ import { useHogar } from '@/contexts/HogarContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
+import { AvisoError } from '@/components/shared/AvisoError'
+import type { ArticuloCatalogo, Categoria } from '@/lib/tipos'
+import { ListaSugerencias } from '@/components/dashboard/ListaSugerencias'
 
 const CACHE_KEY_PRODUCTOS = 'stock:productos'
 const CACHE_KEY_CATEGORIAS = 'stock:categorias'
@@ -38,20 +41,6 @@ interface Producto {
   dias_aviso: number
   fecha_actualizacion: string | null
   revisar_caducidad: boolean
-}
-
-interface Categoria {
-  id: number
-  nombre: string
-  icono: string
-}
-
-interface ArticuloCatalogo {
-  nombre: string
-  icono: string | null
-  categoria: string | null
-  unidad: string | null
-  origen: 'estandar' | 'personalizado'
 }
 
 interface FormularioProducto {
@@ -779,22 +768,8 @@ export default function StockPage() {
                 inputMode="text"
                 autoComplete="off"
               />
-              {mostrarSugerencias && sugerenciasNombre.length > 0 && (
-                <ul className="absolute z-10 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                  {sugerenciasNombre.map((item) => (
-                    <li key={`${item.origen}-${item.nombre}`}>
-                      <button
-                        type="button"
-                        onMouseDown={() => seleccionarSugerencia(item)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted transition-colors"
-                      >
-                        {item.icono && <IconRenderer name={item.icono} className="w-4 h-4 text-muted-foreground" />}
-                        <span className="text-sm">{item.nombre}</span>
-                        {item.categoria && <span className="text-xs text-muted-foreground ml-auto">{item.categoria}</span>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              {mostrarSugerencias && (
+                <ListaSugerencias sugerencias={sugerenciasNombre} onSeleccionar={seleccionarSugerencia} />
               )}
             </div>
 
@@ -967,15 +942,7 @@ export default function StockPage() {
       )}
 
       {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium">{t('error')}</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        </div>
-      )}
+      <AvisoError mensaje={error} conTitulo />
 
       {/* Search Bar */}
       {items.length > 0 && !loading && (
