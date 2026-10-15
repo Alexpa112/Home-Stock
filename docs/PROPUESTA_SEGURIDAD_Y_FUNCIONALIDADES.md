@@ -171,7 +171,7 @@ No todo son problemas; conviene no romperlo al refactorizar:
 
 #### S-01 · Crítico · El rate limit de login es un cubo global
 
-**Dónde:** `stockhogar/rutas/cuenta/auth.py:136`, `stockhogar/servicios/intentos_login.py`,
+**Dónde:** `stockhogar/rutas/cuenta/auth.py:136`, `stockhogar/servicios/cuenta/intentos_login.py`,
 `next.config.mjs:119-131`
 
 **Qué pasa.** El navegador nunca habla con Flask: Next reescribe `/api/*` hacia
@@ -537,7 +537,7 @@ concretos—, pero cada endpoint nuevo es una oportunidad de IDOR y el coste de
 revisarlo crece con cada módulo.
 
 **Propuesta.**
-- Un único módulo `stockhogar/autorizacion.py` con
+- Un único módulo `stockhogar/nucleo/autorizacion.py` con
   `@requerir_hogar(nivel="ver"|"editar"|"propietario")` que resuelva el hogar,
   compruebe el permiso y lo deje en `g`.
 - Migrar los blueprints uno a uno, sin cambiar comportamiento.
@@ -579,7 +579,7 @@ profundidad barata.
 
 #### S-18 · Medio · `secret.json` sin rotación
 
-**Dónde:** `stockhogar/seguridad.py`
+**Dónde:** `stockhogar/nucleo/seguridad.py`
 
 Clave única, generada una vez, en el volumen montado, sin rotación y sin
 soporte para varias claves simultáneas. Su filtración es irreversible mientras
@@ -617,7 +617,7 @@ además del de IP (S-01).
 #### S-21 · Medio · Sin límite en operaciones caras
 
 **Dónde:** `stockhogar/rutas/escaner/ocr_tickets.py`, `stockhogar/rutas/escaner/tickets.py`,
-`stockhogar/rutas/finanzas/gastos.py` (recibos), `stockhogar/servicios/email_service.py`
+`stockhogar/rutas/finanzas/gastos.py` (recibos), `stockhogar/servicios/cuenta/email_service.py`
 
 Un usuario autenticado puede encadenar escaneos OCR (25 s de timeout contra Groq
 o Tesseract local en una Pi), subir recibos de MB, y disparar invitaciones por

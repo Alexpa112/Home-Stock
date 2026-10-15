@@ -140,7 +140,7 @@ class ClaveFiltradaEnElHistorialTests(unittest.TestCase):
 
     Mientras lo siga haciendo, cualquiera que clone el repositorio puede
     fabricar una cookie de sesion valida para CUALQUIER usuario y entrar sin
-    contraseña. `claves_verificacion_previas` (stockhogar/seguridad.py)
+    contraseña. `claves_verificacion_previas` (stockhogar/nucleo/seguridad.py)
     mantiene validas hasta dos claves anteriores, asi que una sola rotacion no
     basta si la filtrada quedo en esa lista.
 
@@ -162,7 +162,7 @@ class ClaveFiltradaEnElHistorialTests(unittest.TestCase):
             claves.get("flask_secret_key"), self.CLAVE_PUBLICADA,
             "ESTE DESPLIEGUE FIRMA LAS COOKIES CON UNA CLAVE PUBLICA: cualquiera "
             "puede falsificar la sesion de cualquier usuario. Rota la clave "
-            "(stockhogar.seguridad.rotar_clave()) y reinicia el proceso.",
+            "(stockhogar.nucleo.seguridad.rotar_clave()) y reinicia el proceso.",
         )
         self.assertNotIn(
             self.CLAVE_PUBLICADA, claves.get("claves_verificacion_previas", []),
@@ -180,7 +180,7 @@ class ClaveFiltradaEnElHistorialTests(unittest.TestCase):
         para no dejar CI en rojo de forma permanente por algo que no se arregla
         con codigo. El arreglo real es del dueño del repositorio:
 
-          1. Rotar la clave de firma (stockhogar.seguridad.rotar_clave()) y
+          1. Rotar la clave de firma (stockhogar.nucleo.seguridad.rotar_clave()) y
              reiniciar, DOS veces mas si la publicada quedo en
              claves_verificacion_previas.
           2. Purgar el historial publicado (git filter-repo --path data/ --path

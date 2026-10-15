@@ -13,7 +13,7 @@ from ...servicios.stock import hogar_actual_con_permiso, revisar_stock_bajo, sum
 from .categorias import normalizar_categoria
 from .historial import recordar_articulo
 from ..hogar.hogares import _usuario_tiene_permiso
-from ...servicios.traductor_auto import TraductorAutomatico
+from ...servicios.traduccion.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 logger = logging.getLogger(__name__)

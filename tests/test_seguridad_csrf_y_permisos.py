@@ -8,7 +8,7 @@ Dos bloques que el resto de la suite no cubria porque desactiva CSRF:
    (@csrf.exempt en rutas/sistema/paginas.py) no pueden modificar nada del usuario.
 
 2. Escalada de privilegios de un invitado con nivel "ver": la jerarquia es
-   ver < editar < propietario (stockhogar/autorizacion.py). Un miembro de solo
+   ver < editar < propietario (stockhogar/nucleo/autorizacion.py). Un miembro de solo
    lectura tiene sesion valida Y pertenece al hogar, asi que las
    comprobaciones de IDOR no le afectan: lo unico que le separa de escribir es
    el nivel. Se le intenta hacer escribir, borrar y administrar.

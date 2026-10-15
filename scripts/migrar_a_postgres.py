@@ -10,7 +10,7 @@ Uso:
     python scripts/migrar_a_postgres.py             # migra de verdad
     python scripts/migrar_a_postgres.py --dry-run    # solo cuenta filas
 
-Variables de entorno para el destino (mismas que stockhogar/db_backend.py):
+Variables de entorno para el destino (mismas que stockhogar/db/backend_postgres.py):
     POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 
 Decisiones de tipos SQLite -> Postgres:

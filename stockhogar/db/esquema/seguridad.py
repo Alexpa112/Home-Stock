@@ -153,7 +153,7 @@ def aplicar(db):
     # Nivel de permiso intermedio "comprar" (P-08): puede marcar
     # articulos de la lista como comprados y mover stock, pero no crear/
     # editar gastos ni artículos de la lista en sí (ver
-    # stockhogar/autorizacion.py). El CHECK de SQLite no se puede
+    # stockhogar/nucleo/autorizacion.py). El CHECK de SQLite no se puede
     # ampliar con ALTER TABLE, asi que en instalaciones con el CHECK
     # antiguo ('ver','editar') se recrea la tabla conservando los datos.
     for tabla in ("permisos_hogar", "invitaciones_hogar"):

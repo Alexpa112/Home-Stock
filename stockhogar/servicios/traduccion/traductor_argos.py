@@ -2,7 +2,7 @@
 Traducción offline de nombres/descripciones de producto usando Argos Translate.
 
 Argos no distribuye un modelo neuronal para gallego (gl); ese idioma se cubre
-aparte con stockhogar.servicios.diccionario_gallego. Este módulo cubre
+aparte con stockhogar.servicios.traduccion.diccionario_gallego. Este módulo cubre
 es -> en, fr, it, de, pt.
 
 Los paquetes de idioma se descargan una única vez (requiere red) y después de

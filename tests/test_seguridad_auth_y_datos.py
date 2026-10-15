@@ -27,7 +27,7 @@ class FuerzaBrutaLoginTests(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
         self.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
-        from stockhogar.red import _contadores
+        from stockhogar.nucleo.red import _contadores
         _contadores.clear()
 
         self.nombre = f"fb_{uuid.uuid4().hex[:8]}"
@@ -70,7 +70,7 @@ class FuerzaBrutaLoginTests(unittest.TestCase):
         proxies, o falseando CF-Connecting-IP contra el proxy del frontend
         desde la red local) tenia intentos ILIMITADOS contra una sola cuenta.
         El cubo por cuenta, sin IP, es el que lo acota."""
-        from stockhogar.servicios.intentos_login import MAX_INTENTOS_CUENTA
+        from stockhogar.servicios.cuenta.intentos_login import MAX_INTENTOS_CUENTA
         codigos = []
         for n in range(MAX_INTENTOS_CUENTA + 5):
             # Una IP distinta en cada intento: cada uno cae en un cubo por IP
@@ -88,7 +88,7 @@ class FuerzaBrutaLoginTests(unittest.TestCase):
         """Contrapartida del cubo por cuenta: un tercero no debe poder bloquear
         la cuenta de otro con unos pocos fallos. El umbral por cuenta es mas
         alto que el de IP a proposito."""
-        from stockhogar.servicios.intentos_login import MAX_INTENTOS, MAX_INTENTOS_CUENTA
+        from stockhogar.servicios.cuenta.intentos_login import MAX_INTENTOS, MAX_INTENTOS_CUENTA
         self.assertGreater(
             MAX_INTENTOS_CUENTA, MAX_INTENTOS,
             "si el umbral por cuenta no fuera mas alto, cualquiera podria dejar "
@@ -105,7 +105,7 @@ class EnumeracionUsuariosTests(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
         self.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
-        from stockhogar.red import _contadores
+        from stockhogar.nucleo.red import _contadores
         _contadores.clear()
 
         self.nombre = f"enum_{uuid.uuid4().hex[:8]}"

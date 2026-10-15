@@ -138,7 +138,7 @@ class TraduccionNoBloqueaLaBdTests(ContratoTests):
             time.sleep(3)
             return {"en": "x"}
 
-        with patch("stockhogar.servicios.traductor_auto.TraductorAutomatico.traducir_a_todos_idiomas", side_effect=lenta):
+        with patch("stockhogar.servicios.traduccion.traductor_auto.TraductorAutomatico.traducir_a_todos_idiomas", side_effect=lenta):
             t = time.time()
             r = self.c.post("/api/articulos", json={"nombre": "Articulo raro " + uuid.uuid4().hex[:6], "cantidad": 1,
                                                     "categoria": "Otros", "icono": "h-archive-box"})

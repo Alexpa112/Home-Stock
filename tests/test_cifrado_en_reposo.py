@@ -7,7 +7,8 @@ import uuid
 from PIL import Image
 from werkzeug.security import generate_password_hash
 
-from stockhogar import cifrado, create_app, seguridad
+from stockhogar.nucleo import cifrado, seguridad
+from stockhogar import create_app
 from stockhogar.db import ahora, get_db
 
 

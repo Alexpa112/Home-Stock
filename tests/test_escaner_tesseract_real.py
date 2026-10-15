@@ -18,7 +18,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from werkzeug.security import generate_password_hash
 
-from stockhogar import create_app, red
+from stockhogar import create_app
+from stockhogar.nucleo import red
 from stockhogar.db import ahora, get_db
 
 

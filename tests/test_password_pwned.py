@@ -4,11 +4,11 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
-from stockhogar.servicios.password_pwned import es_password_filtrada
+from stockhogar.servicios.cuenta.password_pwned import es_password_filtrada
 
 
 class PasswordPwnedTests(unittest.TestCase):
-    @patch("stockhogar.servicios.password_pwned.requests.get")
+    @patch("stockhogar.servicios.cuenta.password_pwned.requests.get")
     def test_password_filtrada_detecta_sufijo_presente(self, mock_get):
         # sha1("password123456") -> comprobamos el sufijo real de ese hash.
         import hashlib
@@ -22,7 +22,7 @@ class PasswordPwnedTests(unittest.TestCase):
 
         self.assertTrue(es_password_filtrada("password123456"))
 
-    @patch("stockhogar.servicios.password_pwned.requests.get")
+    @patch("stockhogar.servicios.cuenta.password_pwned.requests.get")
     def test_password_no_filtrada_cuando_sufijo_no_aparece(self, mock_get):
         respuesta = MagicMock()
         respuesta.text = "SUFIJOQUENOCOINCIDE:1"
@@ -31,11 +31,11 @@ class PasswordPwnedTests(unittest.TestCase):
 
         self.assertFalse(es_password_filtrada("unaContraseñaMuySegura987"))
 
-    @patch("stockhogar.servicios.password_pwned.requests.get", side_effect=requests.ConnectionError)
+    @patch("stockhogar.servicios.cuenta.password_pwned.requests.get", side_effect=requests.ConnectionError)
     def test_fallo_de_red_no_bloquea(self, _mock_get):
         self.assertFalse(es_password_filtrada("cualquierPassword123"))
 
-    @patch("stockhogar.servicios.password_pwned.requests.get", side_effect=requests.Timeout)
+    @patch("stockhogar.servicios.cuenta.password_pwned.requests.get", side_effect=requests.Timeout)
     def test_timeout_no_bloquea(self, _mock_get):
         self.assertFalse(es_password_filtrada("cualquierPassword123"))
 

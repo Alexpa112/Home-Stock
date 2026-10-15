@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
-from stockhogar.servicios import push_service
+from stockhogar.servicios.notificaciones import push_service
 
 
 class SuscripcionesPushTests(unittest.TestCase):
@@ -111,7 +111,7 @@ class SuscripcionesPushTests(unittest.TestCase):
             db = get_db()
             filas = db.execute("SELECT * FROM push_subscriptions WHERE endpoint = ?", (endpoint,)).fetchall()
             self.assertEqual(len(filas), 1)
-            from stockhogar import cifrado
+            from stockhogar.nucleo import cifrado
             self.assertEqual(cifrado.descifrar_texto(filas[0]["p256dh"]), "nueva")
 
     def test_suscripcion_sin_claves_se_rechaza(self):
@@ -120,18 +120,18 @@ class SuscripcionesPushTests(unittest.TestCase):
 
 
 class EnviarPushTests(unittest.TestCase):
-    """Tests de stockhogar.servicios.push_service, mockeando pywebpush.webpush
+    """Tests de stockhogar.servicios.notificaciones.push_service, mockeando pywebpush.webpush
     para no hacer llamadas de red reales."""
 
     def setUp(self):
         self.app = create_app()
         self.app.config.update(TESTING=True)
 
-    @patch("stockhogar.servicios.push_service.webpush")
+    @patch("stockhogar.servicios.notificaciones.push_service.webpush")
     def test_enviar_push_con_suscripcion_caducada_la_borra(self, mock_webpush):
         from pywebpush import WebPushException
 
-        from stockhogar.servicios.push_service import enviar_push
+        from stockhogar.servicios.notificaciones.push_service import enviar_push
 
         respuesta_falsa = MagicMock()
         respuesta_falsa.status_code = 410
@@ -163,9 +163,9 @@ class EnviarPushTests(unittest.TestCase):
             db.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
             db.commit()
 
-    @patch("stockhogar.servicios.push_service.webpush")
+    @patch("stockhogar.servicios.notificaciones.push_service.webpush")
     def test_enviar_push_exitoso_devuelve_true(self, mock_webpush):
-        from stockhogar.servicios.push_service import enviar_push
+        from stockhogar.servicios.notificaciones.push_service import enviar_push
 
         mock_webpush.return_value = None
         with self.app.app_context():

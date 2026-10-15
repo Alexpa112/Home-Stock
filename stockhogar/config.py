@@ -15,7 +15,7 @@ DB_PATH = DATA_DIR / "stock.db"
 CLAVES_PATH = DATA_DIR / "secret.json"
 
 # Motor de base de datos: "sqlite" (defecto, el unico soportado en produccion
-# hoy) o "postgres" (opt-in, experimental - ver stockhogar/db_backend.py y
+# hoy) o "postgres" (opt-in, experimental - ver stockhogar/db/backend_postgres.py y
 # docs/PROPUESTA_SEGURIDAD_Y_FUNCIONALIDADES.md, Fase 1.5).
 DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").strip().lower()
 

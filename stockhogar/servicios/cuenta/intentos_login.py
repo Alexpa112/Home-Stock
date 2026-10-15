@@ -25,7 +25,7 @@ acotada a 20 intentos por ventana en vez de infinitos.
 """
 import time
 
-from ..db import get_db
+from ...db import get_db
 
 MAX_INTENTOS = 5
 # Ver la explicacion del docstring: mas alto a proposito, para que llenarlo no

@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from stockhogar import create_app
-from stockhogar.red import ip_cliente
+from stockhogar.nucleo.red import ip_cliente
 
 IP_REAL_DEL_VISITANTE = "203.0.113.7"
 IP_INVENTADA = "198.51.100.99"
@@ -27,7 +27,7 @@ def _ip_vista_por_la_app(app, entorno, cabeceras=None):
 def test_se_confia_en_la_cabecera_si_el_salto_es_el_proxy_interno(monkeypatch):
     # Caso real de produccion: Cloudflare -> Next -> Flask, asi que a Flask le
     # llega desde una IP privada de la red de Docker (despliegue con APP_URL https).
-    monkeypatch.setattr("stockhogar.red.USAR_COOKIE_SEGURA", True)
+    monkeypatch.setattr("stockhogar.nucleo.red.USAR_COOKIE_SEGURA", True)
     app = create_app()
     ip = _ip_vista_por_la_app(
         app,
@@ -39,7 +39,7 @@ def test_se_confia_en_la_cabecera_si_el_salto_es_el_proxy_interno(monkeypatch):
 
 def test_en_red_local_sin_https_se_ignora_la_cabecera(monkeypatch):
     # El puerto del frontend es alcanzable directamente: la cabecera la escribe el cliente.
-    monkeypatch.setattr("stockhogar.red.USAR_COOKIE_SEGURA", False)
+    monkeypatch.setattr("stockhogar.nucleo.red.USAR_COOKIE_SEGURA", False)
     app = create_app()
     ip = _ip_vista_por_la_app(app, {"REMOTE_ADDR": "172.18.0.5"}, {"CF-Connecting-IP": IP_INVENTADA})
     assert ip == "172.18.0.5"

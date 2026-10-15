@@ -160,7 +160,7 @@ def _traducir_en_segundo_plano(articulo_id, nombre, sub_descripcion, traducir_no
     def trabajo():
         try:
             from stockhogar.config import DB_PATH
-            from stockhogar.servicios.traductor_auto import TraductorAutomatico
+            from stockhogar.servicios.traduccion.traductor_auto import TraductorAutomatico
             textos = []
             if traducir_nombre and nombre:
                 textos.append(("nombre", nombre))

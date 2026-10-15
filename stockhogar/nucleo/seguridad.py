@@ -17,7 +17,7 @@ import secrets
 
 from cryptography.fernet import Fernet
 
-from .config import CLAVES_PATH
+from ..config import CLAVES_PATH
 
 MAX_CLAVES_VERIFICACION = 2
 
@@ -76,7 +76,7 @@ def rotar_clave():
 
     Uso en una rotacion de emergencia real (p.ej. sospecha de filtracion de
     secret.json): desde un shell de Flask del contenedor,
-        >>> from stockhogar import seguridad
+        >>> from stockhogar.nucleo import seguridad
         >>> seguridad.rotar_clave()
     y reiniciar el proceso para que gunicorn recargue la clave activa en
     todos los workers (este modulo la lee una sola vez al importarse).

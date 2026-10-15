@@ -40,11 +40,11 @@ class DosFactorTests(unittest.TestCase):
             ).lastrowid
             db.commit()
 
-        # El limitador por IP (stockhogar/red.py::_contadores) es un dict de
+        # El limitador por IP (stockhogar/nucleo/red.py::_contadores) es un dict de
         # modulo, compartido por todo el proceso: sin vaciarlo, los intentos
         # fallidos de un test agotan la cuota del siguiente y el 429 aparece
         # donde no toca.
-        from stockhogar.red import _contadores
+        from stockhogar.nucleo.red import _contadores
         _contadores.clear()
 
         self.client = self.app.test_client()
@@ -137,7 +137,7 @@ class DosFactorTests(unittest.TestCase):
         self._fallar(MAX_INTENTOS_CODIGO)
         self._dejar_2fa_pendiente()
 
-        with patch("stockhogar.servicios.email_service.EmailService.enviar_codigo_verificacion",
+        with patch("stockhogar.servicios.cuenta.email_service.EmailService.enviar_codigo_verificacion",
                    return_value=True):
             reenvio = self.client.post("/api/auth/reenviar-codigo", json={})
         self.assertEqual(reenvio.status_code, 200, reenvio.get_data(as_text=True))

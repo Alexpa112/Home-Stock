@@ -20,7 +20,7 @@ from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
-from stockhogar.servicios.email_service import EmailService
+from stockhogar.servicios.cuenta.email_service import EmailService
 
 
 class ActualizarPerfilTests(unittest.TestCase):

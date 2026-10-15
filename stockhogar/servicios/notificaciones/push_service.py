@@ -3,7 +3,7 @@ de suscripciones caducadas.
 
 Las claves VAPID (identifican al SERVIDOR ante los servicios push de cada
 navegador, no al usuario) se generan una sola vez y se guardan en
-data/vapid_private_key.pem, mismo patron que stockhogar/seguridad.py con la
+data/vapid_private_key.pem, mismo patron que stockhogar/nucleo/seguridad.py con la
 clave de firma de sesiones: si el fichero se pierde, las suscripciones ya
 guardadas dejan de aceptarse (el navegador las verifica contra la clave
 publica que tenia al suscribirse) y los usuarios tendrian que reactivar las
@@ -32,8 +32,8 @@ except ImportError:
     def webpush(*args, **kwargs):  # Dummy para tests cuando pywebpush no está disponible
         raise WebPushException("pywebpush no disponible")
 
-from .. import cifrado
-from ..config import DATA_DIR, EMAIL_CONTACTO_LEGAL
+from ...nucleo import cifrado
+from ...config import DATA_DIR, EMAIL_CONTACTO_LEGAL
 
 logger = logging.getLogger(__name__)
 

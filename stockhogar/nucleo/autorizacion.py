@@ -11,8 +11,8 @@ from functools import wraps
 
 from flask import g, session
 
-from .api import APIResponse
-from .db import get_db
+from ..api import APIResponse
+from ..db import get_db
 
 NIVELES = {"ver": 1, "comprar": 2, "editar": 3, "propietario": 4}
 

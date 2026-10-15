@@ -139,3 +139,11 @@ anterior → **idénticos** (56 tablas/índices, mismas filas sembradas). `tests
 categorias_gasto), `escaner/` (tickets, ocr_tickets), `sistema/` (paginas, legal, version, idiomas, formularios, push).
 Movido con `git mv` y una herramienta que reescribe imports relativos/absolutos, cadenas de `patch("...")` y rutas en
 docs/Docker/CI en una sola pasada. Mismos 122 endpoints; 855 tests en verde.
+
+### Fase 5 — Núcleo y servicios (hecha)
+- `nucleo/`: seguridad, cifrado, red, autorizacion (primitivas transversales que antes estaban sueltas en la raíz).
+- `servicios/cuenta/` (auditoria, intentos_login, password_pwned, email_service), `servicios/notificaciones/`
+  (push_service), `servicios/traduccion/` (traductor_argos, traductor_auto, diccionario_gallego), `servicios/ocr/cuota_ocr.py`.
+- `db_backend.py` (Postgres opcional) → `db/backend_postgres.py`.
+- `config.py`, `translator.py` y `translations.json` se quedan en la raíz del paquete (los usa casi todo el código y
+  el frontend genera `traduccionesBase.ts` desde el JSON).

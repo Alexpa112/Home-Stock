@@ -89,7 +89,7 @@ class OAuth2FARedirectTests(unittest.TestCase):
         # El envio del codigo se mockea: aqui interesa a donde redirige, no el correo.
         with patch("stockhogar.rutas.cuenta.oauth.requests.post", return_value=respuesta_token), \
              patch("stockhogar.rutas.cuenta.oauth.requests.get", return_value=respuesta_usuario), \
-             patch("stockhogar.servicios.email_service.EmailService.enviar_codigo_verificacion",
+             patch("stockhogar.servicios.cuenta.email_service.EmailService.enviar_codigo_verificacion",
                    return_value=True):
             return self.client.get(
                 "/auth/google/callback?code=codigo-falso&state=estado-de-prueba"

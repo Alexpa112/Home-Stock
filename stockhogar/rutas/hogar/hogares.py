@@ -2,7 +2,7 @@
 from flask import Blueprint, session
 
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ...autorizacion import nivel_acceso_hogar, nivel_alcanza, requerir_hogar
+from ...nucleo.autorizacion import nivel_acceso_hogar, nivel_alcanza, requerir_hogar
 from ...config import LIMITE_HOGARES_POR_USUARIO
 from ...db import ahora, get_db
 from ...utils import Validator, DataConverter, ValidationError

@@ -12,7 +12,8 @@ from flask.sessions import SecureCookieSessionInterface
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from . import db, seguridad
+from . import db
+from .nucleo import seguridad
 from .config import DIAS_SESION, USAR_COOKIE_SEGURA, LOG_FILE_PATH
 from .servicios import mantenimiento
 from .translator import traducir
@@ -91,7 +92,7 @@ def create_app():
     app = Flask(__name__)
     # Un solo salto de proxy de confianza: el contenedor Next (rewrite de
     # /api/*). Sin esto, request.remote_addr siempre es la IP del contenedor
-    # Next, nunca la del cliente real (ver stockhogar/red.py::ip_cliente()).
+    # Next, nunca la del cliente real (ver stockhogar/nucleo/red.py::ip_cliente()).
     # x_for=1 exactamente: mas de un salto permitiria a un cliente falsear su
     # propia IP añadiendo entradas propias a X-Forwarded-For.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0)
@@ -251,7 +252,7 @@ def _restringir_permisos_de_datos():
 def _cifrar_datos_existentes(app):
     """Cifra en reposo lo que una version anterior guardo en claro (idempotente)."""
     import logging
-    from . import cifrado
+    from .nucleo import cifrado
     try:
         with app.app_context():
             n = cifrado.cifrar_existentes(db.get_db())

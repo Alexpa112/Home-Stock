@@ -9,7 +9,7 @@ import unittest
 
 from stockhogar import create_app
 from stockhogar.db import get_db
-from stockhogar.servicios import intentos_login
+from stockhogar.servicios.cuenta import intentos_login
 
 
 class IntentosLoginTests(unittest.TestCase):

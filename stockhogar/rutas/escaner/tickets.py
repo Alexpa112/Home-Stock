@@ -11,10 +11,10 @@ from flask import Blueprint, request, session
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ...config import LIMITE_OCR_DIARIO
 from ...db import get_db
-from ...red import ip_cliente, limite_por_ip
+from ...nucleo.red import ip_cliente, limite_por_ip
 from ...translator import traducir
 from ...integraciones import ticket_ocr
-from ...servicios import cuota_ocr
+from ...servicios.ocr import cuota_ocr
 from ...servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
 from ...servicios.ocr.catalogo import catalogo_del_hogar as _catalogo_del_hogar
 from ...servicios.ocr.claude_ocr import ClaudeOCR

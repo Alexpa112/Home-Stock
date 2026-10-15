@@ -179,7 +179,7 @@ email y confirmación desde el antiguo si ya había uno.
 
 ### A-4 El límite de intentos de login se puede resetear, y no hay cubo por cuenta
 
-**Ubicación**: `stockhogar/servicios/intentos_login.py:21-22, 60-68` (verificado)
+**Ubicación**: `stockhogar/servicios/cuenta/intentos_login.py:21-22, 60-68` (verificado)
 
 ```python
 def _clave_cuenta(ip, cuenta):

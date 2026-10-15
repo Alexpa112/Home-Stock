@@ -5,7 +5,7 @@ from email.mime.multipart import MIMEMultipart
 import logging
 import html
 
-from ..config import SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, APP_URL
+from ...config import SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, APP_URL
 
 logger = logging.getLogger(__name__)
 

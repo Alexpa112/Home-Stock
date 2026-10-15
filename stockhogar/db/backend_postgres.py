@@ -63,7 +63,7 @@ Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
 """
 import re
 
-from .config import DB_ENGINE, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PASSWORD, POSTGRES_PORT, POSTGRES_USER
+from ..config import DB_ENGINE, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PASSWORD, POSTGRES_PORT, POSTGRES_USER
 
 _RE_PLACEHOLDER = re.compile(r"\?")
 
@@ -161,6 +161,6 @@ def conectar():
         )
         return _ConexionCompatPostgres(conexion)
 
-    from . import db as _db
+    from .. import db as _db
 
     return _db.get_db()

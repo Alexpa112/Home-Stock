@@ -13,7 +13,7 @@ import unittest
 
 from itsdangerous import URLSafeTimedSerializer
 
-from stockhogar import seguridad
+from stockhogar.nucleo import seguridad
 
 
 class RotacionSecretTests(unittest.TestCase):

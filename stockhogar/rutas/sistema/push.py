@@ -2,9 +2,9 @@
 from flask import Blueprint, session
 
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ... import cifrado
+from ...nucleo import cifrado
 from ...db import ahora, get_db
-from ...servicios.push_service import clave_publica_vapid, endpoint_push_permitido
+from ...servicios.notificaciones.push_service import clave_publica_vapid, endpoint_push_permitido
 
 bp = Blueprint("push", __name__, url_prefix="/api/push")
 

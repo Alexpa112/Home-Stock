@@ -5,7 +5,8 @@ tasa de peticiones por IP.
 import logging
 import unittest
 
-from stockhogar import create_app, red
+from stockhogar import create_app
+from stockhogar.nucleo import red
 
 
 class LogClientTests(unittest.TestCase):

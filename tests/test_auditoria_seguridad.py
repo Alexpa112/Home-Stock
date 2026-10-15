@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
-from stockhogar.servicios.push_service import endpoint_push_permitido
+from stockhogar.servicios.notificaciones.push_service import endpoint_push_permitido
 from stockhogar.utils.csv_seguro import desproteger, proteger
 from stockhogar.utils.imagenes import imagen_demasiado_grande, validar_y_recodificar
 

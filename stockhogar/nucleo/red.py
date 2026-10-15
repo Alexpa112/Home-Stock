@@ -18,7 +18,7 @@ import time
 
 from flask import request
 
-from .config import PROXIES_CONFIABLES, USAR_COOKIE_SEGURA
+from ..config import PROXIES_CONFIABLES, USAR_COOKIE_SEGURA
 
 _REDES_CONFIABLES = []
 for _rango in PROXIES_CONFIABLES:
