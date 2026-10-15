@@ -1,15 +1,14 @@
 """Rutas de artículos en la lista de la compra de un hogar (antes lista_compra)."""
-import csv
 import io
 import logging
-from flask import Blueprint, Response, request, session, jsonify
+from flask import Blueprint, Response, request, session
 
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
 from ..servicios.stock import hogar_actual_con_permiso
-from ..utils.csv_seguro import EscritorCsvSeguro, desproteger
-from ..utils import Validator, DataConverter, ValidationError
+from ..utils.csv_seguro import EscritorCsvSeguro, desproteger, leer_csv_subido
+from ..utils import Validator, DataConverter
 from .categorias import normalizar_categoria
 from .historial import buscar_historial, recordar_articulo
 from .hogares import _usuario_tiene_permiso
@@ -127,20 +126,12 @@ def importar_lista_csv():
     if not permiso or (permiso != "propietario" and permiso != "editar"):
         return APIResponse.no_permitido()
 
-    archivo = request.files.get("fichero")
-    if archivo is None or archivo.filename == "":
+    filas = leer_csv_subido(request.files, MAX_FILAS_IMPORTACION)
+    if filas is None:
         return APIResponse.validacion("err_sin_fichero")
 
-    try:
-        texto = archivo.read().decode("utf-8-sig")
-    except UnicodeDecodeError as e:
-        raise ValidationError("El fichero debe ser un CSV de texto") from e
-
-    lector = csv.DictReader(io.StringIO(texto), delimiter=";")
     anadidos = 0
-    for i, fila in enumerate(lector):
-        if i >= MAX_FILAS_IMPORTACION:
-            break
+    for fila in filas:
         nombre = desproteger((fila.get("nombre") or "").strip())[:100]
         if not nombre:
             continue

@@ -246,7 +246,6 @@ def revocar_acceso(hogar_id, usuario_id):
 @manejo_errores
 def generar_enlace_compartible(hogar_id):
     """Generar un enlace compartible para una lista."""
-    usuario_id = session.get("usuario_id")
     db = get_db()
 
     lista = db.execute(

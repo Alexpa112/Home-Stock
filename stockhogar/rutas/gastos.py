@@ -1,7 +1,6 @@
 """Gastos compartidos del hogar (division tipo Tricount): registro de quien
 pago que y como se reparte entre los miembros, y saldo neto de cada uno."""
 import calendar
-import csv
 import heapq
 import io
 from datetime import date, datetime, timedelta
@@ -43,6 +42,29 @@ def _miembros_hogar_ids(db, hogar_id):
         (hogar_id, hogar_id),
     ).fetchall()
     return {f["id"] for f in filas}
+
+
+def _validar_reparto(participantes, miembros_ids, importe_total):
+    """Valida el reparto de un gasto (normal o recurrente) y lo devuelve como [(usuario_id, importe)].
+
+    Cada participante debe ser un objeto con un usuario miembro del hogar y un importe > 0, y la
+    suma debe coincidir con el total (tolerancia de un centimo)."""
+    if not isinstance(participantes, list) or not participantes:
+        raise ValidationError("El gasto debe tener al menos un participante")
+    reparto = []
+    suma_reparto = 0.0
+    for participante in participantes:
+        if not isinstance(participante, dict):
+            raise ValidationError("cada participante debe ser un objeto JSON")
+        usuario_id = participante.get("usuario_id")
+        if usuario_id not in miembros_ids:
+            raise ValidationError("Todos los participantes deben ser miembros del hogar")
+        importe = Validator.decimal_positivo(participante.get("importe"), "importe del participante")
+        reparto.append((usuario_id, importe))
+        suma_reparto += importe
+    if round(abs(suma_reparto - importe_total), 2) > TOLERANCIA_REPARTO:
+        raise ValidationError("La suma del reparto no coincide con el importe total")
+    return reparto
 
 
 def _avisar_si_supera_presupuesto(db, hogar_id):
@@ -218,27 +240,10 @@ def crear_gasto():
     usuario_pagador_id = datos.get("usuario_pagador_id")
     participantes = datos.get("participantes")
 
-    if not isinstance(participantes, list) or not participantes:
-        raise ValidationError("El gasto debe tener al menos un participante")
-
     miembros_ids = _miembros_hogar_ids(db, hogar_id)
     if usuario_pagador_id not in miembros_ids:
         raise ValidationError("El pagador debe ser miembro del hogar")
-
-    reparto = []
-    suma_reparto = 0.0
-    for participante in participantes:
-        if not isinstance(participante, dict):
-            raise ValidationError("cada participante debe ser un objeto JSON")
-        usuario_id = participante.get("usuario_id")
-        if usuario_id not in miembros_ids:
-            raise ValidationError("Todos los participantes deben ser miembros del hogar")
-        importe = Validator.decimal_positivo(participante.get("importe"), "importe del participante")
-        reparto.append((usuario_id, importe))
-        suma_reparto += importe
-
-    if round(abs(suma_reparto - importe_total), 2) > TOLERANCIA_REPARTO:
-        raise ValidationError("La suma del reparto no coincide con el importe total")
+    reparto = _validar_reparto(participantes, miembros_ids, importe_total)
 
     usuario_id_actual = session.get("usuario_id")
     cur = db.execute(
@@ -339,23 +344,9 @@ def actualizar_gasto(gasto_id):
         db.execute(f"UPDATE gastos SET {campos} WHERE id = ?", parametros)  # nosec B608 - claves de actualizaciones son literales fijos, nunca claves de datos
 
     if "participantes" in datos:
-        participantes = datos.get("participantes")
-        if not isinstance(participantes, list) or not participantes:
-            raise ValidationError("El gasto debe tener al menos un participante")
-
-        miembros_ids = _miembros_hogar_ids(db, gasto["hogar_id"])
-        reparto = []
-        suma_reparto = 0.0
-        for participante in participantes:
-            usuario_id = participante.get("usuario_id")
-            if usuario_id not in miembros_ids:
-                raise ValidationError("Todos los participantes deben ser miembros del hogar")
-            importe = Validator.decimal_positivo(participante.get("importe"), "importe del participante")
-            reparto.append((usuario_id, importe))
-            suma_reparto += importe
-
-        if round(abs(suma_reparto - nuevo_importe_total), 2) > TOLERANCIA_REPARTO:
-            raise ValidationError("La suma del reparto no coincide con el importe total")
+        reparto = _validar_reparto(
+            datos.get("participantes"), _miembros_hogar_ids(db, gasto["hogar_id"]), nuevo_importe_total
+        )
 
         db.execute("DELETE FROM gastos_participantes WHERE gasto_id = ?", (gasto_id,))
         for usuario_id, importe in reparto:
@@ -902,21 +893,7 @@ def crear_gasto_recurrente():
     miembros_ids = _miembros_hogar_ids(db, hogar_id)
     if usuario_pagador_id not in miembros_ids:
         raise ValidationError("El pagador debe ser miembro del hogar")
-
-    reparto = []
-    suma_reparto = 0.0
-    for participante in participantes:
-        if not isinstance(participante, dict):
-            raise ValidationError("cada participante debe ser un objeto JSON")
-        usuario_id = participante.get("usuario_id")
-        if usuario_id not in miembros_ids:
-            raise ValidationError("Todos los participantes deben ser miembros del hogar")
-        importe = Validator.decimal_positivo(participante.get("importe"), "importe del participante")
-        reparto.append((usuario_id, importe))
-        suma_reparto += importe
-
-    if round(abs(suma_reparto - importe_total), 2) > TOLERANCIA_REPARTO:
-        raise ValidationError("La suma del reparto no coincide con el importe total")
+    reparto = _validar_reparto(participantes, miembros_ids, importe_total)
 
     cur = db.execute(
         """INSERT INTO gastos_recurrentes

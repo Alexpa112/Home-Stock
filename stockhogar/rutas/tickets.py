@@ -448,7 +448,7 @@ def analizar_ticket():
                     ),
                 })
 
-    except Exception as e:
+    except Exception:
         # No se devuelve str(e) al cliente: puede filtrar rutas de fichero
         # temporales o detalles internos de librerías (ver @manejo_errores,
         # que para el resto de endpoints ya evita esto con un mensaje

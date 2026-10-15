@@ -1,5 +1,4 @@
 """Rutas del inventario de productos (stock)."""
-import csv
 import io
 import logging
 import threading
@@ -8,7 +7,7 @@ from flask import Blueprint, Response, current_app, g, request, session
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..config import DIAS_AVISO_DEFECTO
 from ..db import ahora, get_db
-from ..utils.csv_seguro import EscritorCsvSeguro, desproteger
+from ..utils.csv_seguro import EscritorCsvSeguro, desproteger, leer_csv_subido
 from ..utils import Validator, DataConverter, ValidationError
 from ..servicios.stock import (
     hogar_actual_con_permiso,
@@ -77,21 +76,13 @@ def importar_inventario_csv():
     if not hogar_id:
         return APIResponse.no_permitido()
 
-    archivo = request.files.get("fichero")
-    if archivo is None or archivo.filename == "":
+    filas = leer_csv_subido(request.files, MAX_FILAS_IMPORTACION)
+    if filas is None:
         return APIResponse.validacion("err_sin_fichero")
 
-    try:
-        texto = archivo.read().decode("utf-8-sig")
-    except UnicodeDecodeError as e:
-        raise ValidationError("El fichero debe ser un CSV de texto") from e
-
-    lector = csv.DictReader(io.StringIO(texto), delimiter=";")
     creados = 0
     actualizados = 0
-    for i, fila in enumerate(lector):
-        if i >= MAX_FILAS_IMPORTACION:
-            break
+    for fila in filas:
         nombre = desproteger((fila.get("nombre") or "").strip())[:100]
         if not nombre:
             continue
@@ -122,6 +113,18 @@ def importar_inventario_csv():
 
     db.commit()
     return APIResponse.success({"creados": creados, "actualizados": actualizados})
+
+
+def _producto_del_hogar(db, producto_id, hogar_id):
+    """Fila de un producto con SU stock en el hogar indicado (o None si no esta en ese hogar)."""
+    return db.execute(
+        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
+                  p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
+                  sl.cantidad, sl.stock_minimo
+           FROM productos p JOIN stock_hogar sl ON p.id = sl.producto_id AND sl.hogar_id = ?
+           WHERE p.id = ?""",
+        (hogar_id, producto_id),
+    ).fetchone()
 
 
 @bp.route("", methods=["GET"])
@@ -175,14 +178,7 @@ def crear_producto():
         db, nombre, categoria, cantidad, unidad, stock_minimo, dias_aviso, icono, hogar_id
     )
     db.commit()
-    fila = db.execute(
-        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
-                  p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
-                  sl.cantidad, sl.stock_minimo
-           FROM productos p JOIN stock_hogar sl ON p.id = sl.producto_id AND sl.hogar_id = ?
-           WHERE p.id = ?""",
-        (hogar_id, producto_id),
-    ).fetchone()
+    fila = _producto_del_hogar(db, producto_id, hogar_id)
     return APIResponse.success(DataConverter.producto_to_dict(fila), 201)
 
 
@@ -347,14 +343,7 @@ def actualizar_producto(producto_id):
     if not hogar_id:
         return APIResponse.no_permitido()
 
-    fila = db.execute(
-        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
-                  p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
-                  sl.cantidad, sl.stock_minimo
-           FROM productos p JOIN stock_hogar sl ON p.id = sl.producto_id AND sl.hogar_id = ?
-           WHERE p.id = ?""",
-        (hogar_id, producto_id),
-    ).fetchone()
+    fila = _producto_del_hogar(db, producto_id, hogar_id)
     if not fila:
         return APIResponse.no_encontrado("recurso_producto")
 
@@ -407,14 +396,7 @@ def actualizar_producto(producto_id):
         revisar_stock_bajo(db, producto_id, hogar_id)
 
     db.commit()
-    fila = db.execute(
-        """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
-                  p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
-                  sl.cantidad, sl.stock_minimo
-           FROM productos p JOIN stock_hogar sl ON p.id = sl.producto_id AND sl.hogar_id = ?
-           WHERE p.id = ?""",
-        (hogar_id, producto_id),
-    ).fetchone()
+    fila = _producto_del_hogar(db, producto_id, hogar_id)
     return APIResponse.success(DataConverter.producto_to_dict(fila))
 
 

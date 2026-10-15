@@ -1,13 +1,19 @@
 """Rutas para gestionar categorías de productos (editables desde la app)."""
-from flask import Blueprint, jsonify, session
+from flask import Blueprint
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ..api import manejo_errores, requerir_sesion
 from ..config import CATEGORIA_DEFECTO, CATEGORIAS_DEFECTO
-from ..db import get_db
-from ..translator import traducir
-from ..utils import Validator, DataConverter
+from ..servicios.catalogo_categorias import CatalogoCategorias
 
 bp = Blueprint("categorias", __name__, url_prefix="/api/categorias")
+
+CATALOGO = CatalogoCategorias(
+    tabla="categorias",
+    tabla_uso="productos",
+    comodin=CATEGORIA_DEFECTO,
+    de_serie=tuple(c[0] for c in CATEGORIAS_DEFECTO),
+    clave_en_uso="err_categoria_en_uso",
+)
 
 
 def normalizar_categoria(db, nombre):
@@ -20,60 +26,18 @@ def normalizar_categoria(db, nombre):
 @requerir_sesion
 @manejo_errores
 def listar_categorias():
-    db = get_db()
-    filas = db.execute("SELECT * FROM categorias ORDER BY LOWER(nombre)").fetchall()
-    return APIResponse.success([DataConverter.categoria_to_dict(f) for f in filas])
+    return CATALOGO.listar()
 
 
 @bp.route("", methods=["POST"])
 @requerir_sesion
 @manejo_errores
 def crear_categoria():
-    from ..servicios.stock import hogar_actual_con_permiso  # import local: evita el ciclo con servicios.stock
-    if not hogar_actual_con_permiso(get_db(), session, nivel_requerido="editar"):
-        return APIResponse.no_permitido()
-    datos = cuerpo_json()
-    nombre = Validator.string_requerido(datos.get("nombre"), "nombre", 50)
-    icono = Validator.string_opcional(datos.get("icono"), "h-folder", 30)
-
-    db = get_db()
-    existente = db.execute(
-        "SELECT id FROM categorias WHERE LOWER(nombre) = LOWER(?)", (nombre,)
-    ).fetchone()
-    if existente:
-        return APIResponse.error("err_categoria_duplicada", 400)
-
-    cur = db.execute("INSERT INTO categorias (nombre, icono) VALUES (?, ?) RETURNING id", (nombre, icono))
-    nueva_id = cur.fetchone()["id"]
-    db.commit()
-    fila = db.execute("SELECT * FROM categorias WHERE id = ?", (nueva_id,)).fetchone()
-    return APIResponse.success(DataConverter.categoria_to_dict(fila), 201)
+    return CATALOGO.crear()
 
 
 @bp.route("/<int:categoria_id>", methods=["DELETE"])
 @requerir_sesion
 @manejo_errores
 def borrar_categoria(categoria_id):
-    from ..servicios.stock import hogar_actual_con_permiso
-    db = get_db()
-    if not hogar_actual_con_permiso(db, session, nivel_requerido="editar"):
-        return APIResponse.no_permitido()
-    fila = db.execute("SELECT * FROM categorias WHERE id = ?", (categoria_id,)).fetchone()
-    if not fila:
-        return APIResponse.no_encontrado("recurso_categoria")
-    # Las categorias de serie son de todos los hogares: nadie las borra.
-    if fila["nombre"] == CATEGORIA_DEFECTO or fila["nombre"] in {c[0] for c in CATEGORIAS_DEFECTO}:
-        mensaje = traducir("err_no_borrar_categoria_defecto").replace("{nombre}", CATEGORIA_DEFECTO)
-        return jsonify({"error": mensaje}), 400
-
-    en_uso = db.execute(
-        "SELECT COUNT(*) AS n FROM productos WHERE categoria = ?", (fila["nombre"],)
-    ).fetchone()["n"]
-    if en_uso:
-        return APIResponse.error(
-            traducir("err_categoria_en_uso").replace("{en_uso}", str(en_uso)), 409
-        )
-
-    db.execute("DELETE FROM categorias WHERE id = ?", (categoria_id,))
-    db.commit()
-    return APIResponse.success()
+    return CATALOGO.borrar(categoria_id)

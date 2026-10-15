@@ -15,13 +15,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ..api.base import revocar_sesion_actual
 from .. import cifrado
-from ..config import APP_URL, LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
+from ..config import LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
 from ..db import ahora, get_db
 from ..red import ip_cliente, limite_por_ip
 from ..servicios import auditoria, intentos_login
 from ..servicios.email_service import EmailService
 from ..servicios.password_pwned import es_password_filtrada
-from ..utils import Validator, DataConverter, ValidationError
+from ..utils import Validator, ValidationError
 
 bp = Blueprint("auth", __name__)
 

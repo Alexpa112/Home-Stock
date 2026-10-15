@@ -63,7 +63,7 @@ class BarcodeScannerTests(unittest.TestCase):
 
 class SubidaDeFotosTests(unittest.TestCase):
     def _apiupload(self):
-        i = API.index("export async function apiUpload")
+        i = API.index("async function apiUpload")
         return API[i:API.index("// Como apiCall pero para descargar", i)]
 
     def test_apiupload_reintenta_si_el_token_csrf_caduco(self):
@@ -72,7 +72,11 @@ class SubidaDeFotosTests(unittest.TestCase):
         self.assertIn("includes('csrf')", f)
 
     def test_apiupload_trata_la_sesion_invalidada_como_apicall(self):
-        f = self._apiupload()
+        # La interpretacion de la respuesta (401 -> limpiar cache y token) es UNA sola funcion
+        # compartida por apiCall, apiUpload y apiDownload.
+        self.assertIn("return leerRespuesta<T>(response)", self._apiupload())
+        j = API.index("async function leerRespuesta")
+        f = API[j:API.index("// Como apiCall pero para multipart", j)]
         self.assertIn("response.status === 401", f)
         self.assertIn("clearAllCache()", f)
 

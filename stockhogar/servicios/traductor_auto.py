@@ -5,8 +5,6 @@ Utiliza un diccionario de palabras comunes de supermercado en múltiples idiomas
 más búsqueda de términos similares.
 """
 
-import json
-from pathlib import Path
 
 from . import diccionario_gallego, traductor_argos
 

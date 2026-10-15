@@ -114,3 +114,13 @@ hallazgo se corrige con su test o se anota aquí.
 - 3 imports sin usar quitados.
 - `scripts/i18n/` (22 scripts de migraciones ya aplicadas, uno con ruta de Windows fija) → `docs/HISTORICO/scripts_i18n/`.
 - Batería: pytest 855 OK, tsc, eslint, jest 57, build.
+
+### Fase 2 — Duplicación backend (hecha)
+- `_validar_reparto()` sustituye 3 copias del reparto de gastos (alta, edición y recurrentes); de paso la edición
+  ahora valida que cada participante sea un objeto (antes daba 500 con un participante que no lo fuera).
+- `leer_csv_subido()` (utils/csv_seguro.py): lectura del CSV de las dos importaciones.
+- `_producto_del_hogar()`: 3 copias de la misma SELECT en `productos.py`.
+- `servicios/catalogo_categorias.py`: el CRUD de categorías de producto y de gasto era el mismo código con otra
+  tabla; las dos rutas quedan en ~40 líneas cada una.
+- `lib/api.ts`: `leerRespuesta()` unifica la interpretación de respuestas (503/401/error) de apiCall, apiUpload y apiDownload.
+- 14 imports y variables sin usar quitados (pyflakes).

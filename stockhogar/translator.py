@@ -5,7 +5,6 @@ Carga diccionarios de traducción desde translations.json
 y proporciona funciones helper para traducir strings.
 """
 import json
-import os
 from pathlib import Path
 from flask import session
 

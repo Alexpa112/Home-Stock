@@ -108,7 +108,7 @@ def rotar_clave_cifrado():
     """Nueva clave de cifrado en reposo; la actual pasa a la lista de descifrado.
     Despues hay que llamar a cifrado.recifrar_existentes() para que los datos
     ya guardados pasen a la clave nueva."""
-    global _claves, CLAVE_CIFRADO, CLAVES_CIFRADO_PREVIAS
+    global CLAVE_CIFRADO, CLAVES_CIFRADO_PREVIAS
     previas = [_claves["cifrado_clave"]] + _claves.get("cifrado_claves_previas", [])
     _claves["cifrado_clave"] = Fernet.generate_key().decode()
     _claves["cifrado_claves_previas"] = previas[:MAX_CLAVES_VERIFICACION]

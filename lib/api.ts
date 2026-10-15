@@ -56,10 +56,33 @@ function establecerCsrfToken(token: string | null) {
 
 const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
+// Interpreta una respuesta: JSON (o null), y efectos comunes a todas las llamadas.
+//  - 503 con `mantenimiento`: red de seguridad si el stream SSE de mantenimiento
+//    (RootLayoutClient) se hubiera perdido; cualquier peticion real lo detecta igualmente.
+//  - 401: sesion invalidada (S-19), p.ej. otro dispositivo cambio la contraseña o pulso
+//    "cerrar otras sesiones" (session_version, stockhogar/api/base.py). Sin limpiar la cache,
+//    quien vuelve a entrar en el mismo dispositivo con OTRA cuenta veria datos de la anterior.
+//  - !ok: lanza Error con el mensaje del servidor.
+async function leerRespuesta<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get('content-type') || ''
+  const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
+  if (response.status === 503 && datos?.mantenimiento) {
+    marcarMantenimiento(true)
+  }
+  if (response.status === 401) {
+    clearAllCache()
+    resetearCsrfToken()
+  }
+  if (!response.ok) {
+    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
+  }
+  return datos as T
+}
+
 // Como apiCall pero para multipart/form-data (subida de imagen de ticket):
 // no se fija Content-Type (el navegador pone el boundary solo) ni se
 // serializa el body a JSON.
-export async function apiUpload<T = any>(endpoint: string, formData: FormData, timeoutMs = 120_000): Promise<T> {
+async function apiUpload<T = any>(endpoint: string, formData: FormData, timeoutMs = 120_000): Promise<T> {
   // AbortController con timeout: si el servidor corta la conexión sin cerrar
   // bien el socket (p.ej. worker de gunicorn matado a mitad de un OCR largo),
   // fetch se queda esperando indefinidamente y el spinner nunca termina.
@@ -97,35 +120,15 @@ export async function apiUpload<T = any>(endpoint: string, formData: FormData, t
     }
   }
 
-  const contentType = response.headers.get('content-type') || ''
-  const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
-  if (response.status === 503 && datos?.mantenimiento) {
-    marcarMantenimiento(true)
-  }
-  // Sesión invalidada (S-19), igual que apiCall.
-  if (response.status === 401) {
-    clearAllCache()
-    resetearCsrfToken()
-  }
-  if (!response.ok) {
-    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
-  }
-  return datos as T
+  return leerRespuesta<T>(response)
 }
 
 // Como apiCall pero para descargar un blob (CSV/exportaciones): no espera
 // JSON de vuelta, dispara la descarga en el navegador vía un <a> sintético.
-export async function apiDownload(endpoint: string, filenameFallback: string): Promise<void> {
+async function apiDownload(endpoint: string, filenameFallback: string): Promise<void> {
   const response = await fetch(endpoint, { credentials: 'include' })
 
-  if (!response.ok) {
-    const contentType = response.headers.get('content-type') || ''
-    const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
-    if (response.status === 503 && datos?.mantenimiento) {
-      marcarMantenimiento(true)
-    }
-    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
-  }
+  if (!response.ok) await leerRespuesta(response)
 
   const blob = await response.blob()
   const disposition = response.headers.get('content-disposition') || ''
@@ -173,29 +176,7 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
 
   if (response.status === 204) return undefined as T
 
-  const contentType = response.headers.get('content-type') || ''
-  const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
-
-  // Red de seguridad si el stream SSE de mantenimiento (RootLayoutClient) se
-  // hubiera perdido: cualquier petición real detecta el 503 igualmente.
-  if (response.status === 503 && datos?.mantenimiento) {
-    marcarMantenimiento(true)
-  }
-
-  // Sesión invalidada (S-19): p.ej. otro dispositivo cambió la contraseña o
-  // pulsó "cerrar otras sesiones" (ver session_version, stockhogar/api/base.py).
-  // Sin esto, un usuario que vuelve a entrar en el mismo dispositivo con OTRA
-  // cuenta seguiría viendo en caché los datos de la sesión anterior.
-  if (response.status === 401) {
-    clearAllCache()
-    resetearCsrfToken()
-  }
-
-  if (!response.ok) {
-    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
-  }
-
-  return datos as T
+  return leerRespuesta<T>(response)
 }
 
 // ===== Autenticación (stockhogar/rutas/auth.py) =====

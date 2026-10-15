@@ -61,7 +61,6 @@ Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
     produccion, probar el flujo completo (migrar datos + arrancar con
     DB_ENGINE=postgres + ejercitar los endpoints) contra una instancia real.
 """
-import os
 import re
 
 from .config import (

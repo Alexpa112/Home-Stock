@@ -9,7 +9,7 @@ jerarquía de niveles (propietario > editar > ver) en un único sitio.
 """
 from functools import wraps
 
-from flask import g, request, session
+from flask import g, session
 
 from .api import APIResponse
 from .db import get_db

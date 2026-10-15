@@ -7,7 +7,7 @@ import os
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
-from flask import Flask, g, jsonify, redirect, request, session, url_for
+from flask import Flask, g, jsonify, redirect, request, session
 from flask.sessions import SecureCookieSessionInterface
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
