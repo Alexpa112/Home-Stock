@@ -17,7 +17,7 @@ class LogClientTests(unittest.TestCase):
 
     def test_saltos_de_linea_saneados_y_mensaje_truncado(self):
         mensaje_malicioso = "hola\n2026-01-01 ERROR [otro] entrada falsa" + ("x" * 600)
-        with self.assertLogs("stockhogar.rutas.paginas", level="INFO") as logs:
+        with self.assertLogs("stockhogar.rutas.sistema.paginas", level="INFO") as logs:
             resp = self.client.post(
                 "/api/log/client",
                 json={"nivel": "info", "mensaje": mensaje_malicioso, "contexto": {}},

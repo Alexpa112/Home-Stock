@@ -2,11 +2,11 @@
 de golpe a la lista de la compra los que falten."""
 from flask import Blueprint, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..db import ahora, get_db
-from ..servicios.stock import hogar_actual_con_permiso
-from ..utils import Validator, ValidationError
-from .articulos_compra import anadir_o_sumar_articulo
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...db import ahora, get_db
+from ...servicios.stock import hogar_actual_con_permiso
+from ...utils import Validator, ValidationError
+from ..compra.articulos_compra import anadir_o_sumar_articulo
 
 bp = Blueprint("recetas", __name__, url_prefix="/api/recetas")
 

@@ -4,22 +4,16 @@ import logging
 import threading
 from flask import Blueprint, Response, current_app, g, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..config import DIAS_AVISO_DEFECTO
-from ..db import ahora, get_db
-from ..utils.csv_seguro import EscritorCsvSeguro, desproteger, leer_csv_subido
-from ..utils import Validator, DataConverter, ValidationError
-from ..servicios.stock import (
-    hogar_actual_con_permiso,
-    revisar_stock_bajo,
-    sumar_stock,
-    crear_producto_nuevo,
-    registrar_movimiento,
-)
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...config import DIAS_AVISO_DEFECTO
+from ...db import ahora, get_db
+from ...utils.csv_seguro import EscritorCsvSeguro, desproteger, leer_csv_subido
+from ...utils import Validator, DataConverter, ValidationError
+from ...servicios.stock import hogar_actual_con_permiso, revisar_stock_bajo, sumar_stock, crear_producto_nuevo, registrar_movimiento
 from .categorias import normalizar_categoria
 from .historial import recordar_articulo
-from .hogares import _usuario_tiene_permiso
-from ..servicios.traductor_auto import TraductorAutomatico
+from ..hogar.hogares import _usuario_tiene_permiso
+from ...servicios.traductor_auto import TraductorAutomatico
 
 bp = Blueprint("productos", __name__, url_prefix="/api/productos")
 logger = logging.getLogger(__name__)

@@ -1,5 +1,5 @@
 """Tests de la exportación CSV de gastos compartidos (formato largo: una
-fila por gasto+participante). Ver stockhogar/rutas/gastos.py:exportar_gastos_csv."""
+fila por gasto+participante). Ver stockhogar/rutas/finanzas/gastos.py:exportar_gastos_csv."""
 import csv
 import io
 import unittest

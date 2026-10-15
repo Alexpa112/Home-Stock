@@ -5,13 +5,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stockhogar.servicios.ocr.validacion_importes import (
-    coherencia_linea,
-    confianza_item,
-    normalizar_importe,
-    precio_unitario_derivado,
-    validar_totales,
-)
+from stockhogar.servicios.ocr.validacion_importes import coherencia_linea, confianza_item, normalizar_importe, precio_unitario_derivado, validar_totales
 
 
 # --- normalizar_importe -------------------------------------------------

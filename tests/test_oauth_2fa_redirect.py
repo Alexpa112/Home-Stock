@@ -21,7 +21,7 @@ from urllib.parse import urlparse, parse_qs
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
-from stockhogar.rutas.oauth import PARAM_CODIGO_2FA
+from stockhogar.rutas.cuenta.oauth import PARAM_CODIGO_2FA
 
 RAIZ = Path(__file__).resolve().parent.parent
 EMAIL = "oauth.2fa@example.com"
@@ -87,8 +87,8 @@ class OAuth2FARedirectTests(unittest.TestCase):
             sess["oauth_state"] = "estado-de-prueba"
 
         # El envio del codigo se mockea: aqui interesa a donde redirige, no el correo.
-        with patch("stockhogar.rutas.oauth.requests.post", return_value=respuesta_token), \
-             patch("stockhogar.rutas.oauth.requests.get", return_value=respuesta_usuario), \
+        with patch("stockhogar.rutas.cuenta.oauth.requests.post", return_value=respuesta_token), \
+             patch("stockhogar.rutas.cuenta.oauth.requests.get", return_value=respuesta_usuario), \
              patch("stockhogar.servicios.email_service.EmailService.enviar_codigo_verificacion",
                    return_value=True):
             return self.client.get(

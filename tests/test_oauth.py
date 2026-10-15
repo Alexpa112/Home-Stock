@@ -46,8 +46,8 @@ class OAuthGoogleCallbackTests(unittest.TestCase):
         }
         return respuesta_token, respuesta_usuario
 
-    @patch("stockhogar.rutas.oauth.requests.get")
-    @patch("stockhogar.rutas.oauth.requests.post")
+    @patch("stockhogar.rutas.cuenta.oauth.requests.get")
+    @patch("stockhogar.rutas.cuenta.oauth.requests.post")
     def test_login_google_deja_sesion_autenticada(self, mock_post, mock_get):
         """Tras el callback de Google, una peticion API posterior no debe dar 401."""
         email = "nuevo.oauth@example.com"

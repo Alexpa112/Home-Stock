@@ -1,5 +1,5 @@
 """Tests de enlace compartible, aceptar invitación, actualizar y revocar
-permisos. Cubre stockhogar/rutas/permisos.py, sin test previo."""
+permisos. Cubre stockhogar/rutas/hogar/permisos.py, sin test previo."""
 import unittest
 import uuid
 

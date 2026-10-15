@@ -143,7 +143,7 @@ class CompartirListaTests(unittest.TestCase):
     def test_fallo_inesperado_al_compartir_por_email_no_expone_texto_crudo(self):
         mensaje_interno_sensible = "boom: credenciales SMTP invalidas en servidor interno XYZ"
         with patch(
-            "stockhogar.rutas.permisos.EmailService.enviar_invitacion_lista",
+            "stockhogar.rutas.hogar.permisos.EmailService.enviar_invitacion_lista",
             side_effect=RuntimeError(mensaje_interno_sensible),
         ):
             resp = self.client.post(

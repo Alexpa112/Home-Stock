@@ -30,7 +30,7 @@ const TOLERANCIA = 0.01
 // con la cifra que importa (positiva = te deben, negativa = debes) en
 // grande, y el desglose frente a cada persona en chips. Reutiliza las
 // sugerencias de pago que ya calcula el backend (GET /api/gastos/simplificar,
-// stockhogar/rutas/gastos.py) en vez de repetir el algoritmo en el cliente,
+// stockhogar/rutas/finanzas/gastos.py) en vez de repetir el algoritmo en el cliente,
 // así BalanceHero y BalancesPanel.tsx (9A) siempre coinciden.
 export function BalanceHero({ saldo, sugerenciasPropias, usuarioId, simboloMoneda, t }: BalanceHeroProps) {
   const tuSaldo = saldo.find((s) => s.usuario_id === usuarioId)?.saldo ?? 0

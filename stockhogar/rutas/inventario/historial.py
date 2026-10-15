@@ -8,15 +8,15 @@ compra) y para poder navegarlo como catalogo al añadir a la lista.
 """
 from flask import Blueprint, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
-from ..db import ahora, get_db
+from ...api import APIResponse, manejo_errores, requerir_sesion
+from ...db import ahora, get_db
 
 bp = Blueprint("historial", __name__, url_prefix="/api/historial")
 
 
 def hogar_id_del_catalogo(db):
     """Hogar activo de la peticion (0 si no hay): el catalogo aprendido es POR HOGAR."""
-    from ..servicios.stock import hogar_actual_con_permiso
+    from ...servicios.stock import hogar_actual_con_permiso
     try:
         return hogar_actual_con_permiso(db, session) or 0
     except RuntimeError:  # fuera de una peticion
@@ -138,7 +138,7 @@ def buscar_catalogo():
             (hogar_id_del_catalogo(db),),
         ).fetchall()
 
-    from ..servicios.stock import hogar_actual_con_permiso
+    from ...servicios.stock import hogar_actual_con_permiso
 
     personalizados = []
     hogar_id = hogar_actual_con_permiso(db, session)

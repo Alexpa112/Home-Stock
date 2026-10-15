@@ -26,7 +26,7 @@ class RegistroAbiertoTests(unittest.TestCase):
         self.client = self.app.test_client()
 
     def test_registro_cerrado_devuelve_403(self):
-        with patch("stockhogar.rutas.auth.REGISTRO_ABIERTO", False):
+        with patch("stockhogar.rutas.cuenta.auth.REGISTRO_ABIERTO", False):
             resp = self.client.post(
                 "/api/auth/registrar",
                 json={
@@ -65,7 +65,7 @@ class LimiteHogaresTests(unittest.TestCase):
             db.commit()
 
     def test_limite_hogares_por_usuario_se_respeta(self):
-        with patch("stockhogar.rutas.hogares.LIMITE_HOGARES_POR_USUARIO", 2):
+        with patch("stockhogar.rutas.hogar.hogares.LIMITE_HOGARES_POR_USUARIO", 2):
             for i in range(2):
                 resp = self.client.post("/api/hogares", json={"nombre": f"Hogar {i}"})
                 self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
@@ -132,7 +132,7 @@ class LimiteOcrDiarioTests(unittest.TestCase):
     def test_limite_diario_ocr_se_respeta(self):
         # Se simula que el motor de nube esta disponible y responde: es el
         # unico camino que consume cuota.
-        with patch("stockhogar.rutas.tickets.LIMITE_OCR_DIARIO", 2), \
+        with patch("stockhogar.rutas.escaner.tickets.LIMITE_OCR_DIARIO", 2), \
              patch.object(ClaudeOCR, "disponible", return_value=True), \
              patch.object(ClaudeOCR, "procesar", return_value={"productos": []}):
             for _ in range(2):
@@ -144,9 +144,9 @@ class LimiteOcrDiarioTests(unittest.TestCase):
 
     def test_el_pipeline_local_no_consume_cuota(self):
         """Tesseract es gratuito: solo el motor de nube gasta cuota."""
-        with patch("stockhogar.rutas.tickets.LIMITE_OCR_DIARIO", 1), \
+        with patch("stockhogar.rutas.escaner.tickets.LIMITE_OCR_DIARIO", 1), \
              patch.object(ClaudeOCR, "disponible", return_value=False), \
-             patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value=""):
+             patch("stockhogar.rutas.escaner.tickets.ticket_ocr.extraer_texto", return_value=""):
             for _ in range(3):
                 resp = self._subir_ticket()
                 self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))

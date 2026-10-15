@@ -9,7 +9,7 @@ comentarios, bytes añadidos tras el fin de la imagen) de un plumazo, sin
 necesitar un parser de metadatos aparte.
 
 No cubre HEIC/HEIF: Pillow no los decodifica en este proyecto a proposito
-(ver stockhogar/rutas/tickets.py::_convertir_heic_a_imagen, no hay wheel de
+(ver stockhogar/rutas/escaner/tickets.py::_convertir_heic_a_imagen, no hay wheel de
 pillow-heif para armv7l). Los ficheros HEIC/HEIF quedan fuera de esta
 validacion; quien los acepte debe convertirlos primero con heif-convert.
 """

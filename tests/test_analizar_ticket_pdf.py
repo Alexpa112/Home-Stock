@@ -85,8 +85,8 @@ class AnalizarTicketPdfTests(unittest.TestCase):
         )
 
     def test_pdf_llega_entero_al_motor_de_vision_sin_rasterizar(self):
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets._convertir_pdf_a_imagen") as convertir:
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets._convertir_pdf_a_imagen") as convertir:
                 resp = self._subir(PDF_MINIMO, "factura.pdf")
 
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -102,7 +102,7 @@ class AnalizarTicketPdfTests(unittest.TestCase):
         buffer = io.BytesIO()
         Image.new("RGB", (300, 500), (255, 255, 255)).save(buffer, format="JPEG")
 
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
             resp = self._subir(buffer.getvalue(), "ticket.jpg")
 
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -111,9 +111,9 @@ class AnalizarTicketPdfTests(unittest.TestCase):
     def test_sin_motor_de_vision_el_pdf_si_se_rasteriza_para_tesseract(self):
         """Sin poppler en el servidor la conversion no es posible: error 500."""
         _ClaudeFalso.disponible_valor = False
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets._convertir_pdf_a_imagen", return_value=None) as convertir:
-                with patch("stockhogar.rutas.tickets.shutil.which", return_value=None):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets._convertir_pdf_a_imagen", return_value=None) as convertir:
+                with patch("stockhogar.rutas.escaner.tickets.shutil.which", return_value=None):
                     resp = self._subir(PDF_MINIMO, "factura.pdf")
 
         convertir.assert_called_once()
@@ -123,9 +123,9 @@ class AnalizarTicketPdfTests(unittest.TestCase):
         """Con pdftoppm presente, que no convierta significa que el PDF esta
         corrupto: 400 (no un 500 que parezca un fallo del servidor)."""
         _ClaudeFalso.disponible_valor = False
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets._convertir_pdf_a_imagen", return_value=None):
-                with patch("stockhogar.rutas.tickets.shutil.which", return_value="/usr/bin/pdftoppm"):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets._convertir_pdf_a_imagen", return_value=None):
+                with patch("stockhogar.rutas.escaner.tickets.shutil.which", return_value="/usr/bin/pdftoppm"):
                     resp = self._subir(PDF_MINIMO, "factura.pdf")
 
         self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))
@@ -134,11 +134,11 @@ class AnalizarTicketPdfTests(unittest.TestCase):
         """Un .heic corrupto no es un fallo del servidor: 400, no 500. Sin el
         binario heif-convert si es un fallo del servidor (500)."""
         _ClaudeFalso.disponible_valor = False
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets._convertir_heic_a_imagen", return_value=None):
-                with patch("stockhogar.rutas.tickets.shutil.which", return_value="/usr/bin/heif-convert"):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets._convertir_heic_a_imagen", return_value=None):
+                with patch("stockhogar.rutas.escaner.tickets.shutil.which", return_value="/usr/bin/heif-convert"):
                     corrupto = self._subir(b"no soy un heic" * 20, "foto.heic")
-                with patch("stockhogar.rutas.tickets.shutil.which", return_value=None):
+                with patch("stockhogar.rutas.escaner.tickets.shutil.which", return_value=None):
                     sin_binario = self._subir(b"no soy un heic" * 20, "foto.heic")
 
         self.assertEqual(corrupto.status_code, 400, corrupto.get_data(as_text=True))
@@ -146,7 +146,7 @@ class AnalizarTicketPdfTests(unittest.TestCase):
 
     def test_fichero_que_no_es_pdf_pero_se_llama_pdf_se_rechaza(self):
         """Sin la conversion previa hay que validar la firma a mano (S-16)."""
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
             resp = self._subir(b"esto no es un pdf en absoluto", "falso.pdf")
 
         self.assertEqual(resp.status_code, 400, resp.get_data(as_text=True))

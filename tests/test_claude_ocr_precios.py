@@ -2,7 +2,7 @@
 nombre/cantidad.
 
 Antes el esquema solo pedia nombre_ticket/cantidad/unidad/producto_id, asi que
-rutas/tickets.py rellenaba precio_unitario=0, precio_total=0 y
+rutas/escaner/tickets.py rellenaba precio_unitario=0, precio_total=0 y
 confianza_nombre=100 fijos: la app mostraba confianza del 100% para todo y
 nunca un precio.
 """
@@ -11,11 +11,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stockhogar.servicios.ocr.claude_ocr import (
-    _ESQUEMA_RESPUESTA,
-    _normalizar_items,
-    _normalizar_totales,
-)
+from stockhogar.servicios.ocr.claude_ocr import _ESQUEMA_RESPUESTA, _normalizar_items, _normalizar_totales
 
 
 def _campos_del_esquema():

@@ -1,6 +1,6 @@
 """Tests de las categorías de gasto (independientes de las de producto):
 CRUD basico, semilla inicial, y bloqueo de borrado si es la categoría por
-defecto o si está en uso por algún gasto. Ver stockhogar/rutas/categorias_gasto.py."""
+defecto o si está en uso por algún gasto. Ver stockhogar/rutas/finanzas/categorias_gasto.py."""
 import unittest
 import uuid
 

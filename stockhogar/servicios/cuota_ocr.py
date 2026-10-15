@@ -1,6 +1,6 @@
 """Cuota diaria de escaneo de tickets (LIMITE_OCR_DIARIO).
 
-Vivia dentro de rutas/ocr_tickets.py, es decir, protegia
+Vivia dentro de rutas/escaner/ocr_tickets.py, es decir, protegia
 `POST /api/ocr/procesar-ticket`... que es el endpoint que el frontend NO usa:
 la app escanea por `POST /api/tickets/analizar` (ver lib/api.ts), que no tenia
 ninguna cuota. El test que la cubria tambien atacaba la ruta muerta, asi que

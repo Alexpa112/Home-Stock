@@ -93,7 +93,7 @@ await window.API.borrarProducto(1);  // Devuelve void
 | `PATCH` | `/api/listas/:id` | Actualizar lista |
 | `DELETE` | `/api/listas/:id` | Eliminar lista |
 | `POST` | `/api/listas/:id/seleccionar` | Seleccionar como activa |
-| `GET` | `/api/listas/buscar-usuarios` | Buscar usuarios para compartir (`rutas/permisos.py`) |
+| `GET` | `/api/listas/buscar-usuarios` | Buscar usuarios para compartir (`rutas/hogar/permisos.py`) |
 | `GET` | `/api/listas/:id/miembros` | Ver miembros/permisos de la lista |
 | `POST` | `/api/listas/:id/compartir` | Compartir con otro usuario |
 | `PATCH` | `/api/listas/:id/permisos/:usuario_id` | Cambiar nivel de permiso |

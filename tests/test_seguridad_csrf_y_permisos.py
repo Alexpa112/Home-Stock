@@ -5,7 +5,7 @@ Dos bloques que el resto de la suite no cubria porque desactiva CSRF:
 1. CSRF con la proteccion ACTIVADA, tal como corre en produccion
    (WTF_CSRF_CHECK_DEFAULT = True). Se comprueba que una escritura sin token
    se rechaza, que con token valido pasa, y que las dos unicas rutas exentas
-   (@csrf.exempt en rutas/paginas.py) no pueden modificar nada del usuario.
+   (@csrf.exempt en rutas/sistema/paginas.py) no pueden modificar nada del usuario.
 
 2. Escalada de privilegios de un invitado con nivel "ver": la jerarquia es
    ver < editar < propietario (stockhogar/autorizacion.py). Un miembro de solo

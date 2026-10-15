@@ -1,9 +1,9 @@
 """Rutas para gestionar categorías de productos (editables desde la app)."""
 from flask import Blueprint
 
-from ..api import manejo_errores, requerir_sesion
-from ..config import CATEGORIA_DEFECTO, CATEGORIAS_DEFECTO
-from ..servicios.catalogo_categorias import CatalogoCategorias
+from ...api import manejo_errores, requerir_sesion
+from ...config import CATEGORIA_DEFECTO, CATEGORIAS_DEFECTO
+from ...servicios.catalogo_categorias import CatalogoCategorias
 
 bp = Blueprint("categorias", __name__, url_prefix="/api/categorias")
 

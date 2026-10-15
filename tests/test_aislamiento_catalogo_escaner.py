@@ -2,7 +2,7 @@
 
 `productos` no tiene columna de hogar -- el aislamiento vive en `stock_hogar` --
 y el escaner era el UNICO sitio del backend que leia esa tabla sin el JOIN.
-Cuatro consultas lo hacian: rutas/tickets.py, servicios/ocr/gestor_ocr.py (ya
+Cuatro consultas lo hacian: rutas/escaner/tickets.py, servicios/ocr/gestor_ocr.py (ya
 eliminado), matcher_inteligente.py y matcher_productos.py.
 
 Consecuencias que se cierran aqui:

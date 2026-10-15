@@ -6,10 +6,10 @@ from urllib.parse import urlencode
 import requests
 import logging
 
-from ..api import APIResponse, manejo_errores
-from ..db import ahora, get_db
-from ..translator import traducir
-from ..config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_URL
+from ...api import APIResponse, manejo_errores
+from ...db import ahora, get_db
+from ...translator import traducir
+from ...config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_URL
 
 bp = Blueprint("oauth", __name__, url_prefix="/auth")
 

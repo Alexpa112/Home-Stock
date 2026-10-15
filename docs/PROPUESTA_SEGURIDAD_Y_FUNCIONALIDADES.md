@@ -121,7 +121,7 @@ No todo son problemas; conviene no romperlo al refactorizar:
 - CSRF activo en toda la app con excepciones justificadas y documentadas.
 - Contraseñas con `werkzeug.security` (pbkdf2/scrypt), nunca en claro.
 - Verificación real de firma del `id_token` de Apple contra JWKS
-  (`stockhogar/rutas/oauth.py:31`) y vinculación por email **solo si el
+  (`stockhogar/rutas/cuenta/oauth.py:31`) y vinculación por email **solo si el
   proveedor lo ha verificado**. Esto es un error clásico y aquí está resuelto.
 - `state` en OAuth, tokens de invitación de 192 bits.
 - Cabeceras de seguridad completas en Next (HSTS, nosniff, CSP,
@@ -171,7 +171,7 @@ No todo son problemas; conviene no romperlo al refactorizar:
 
 #### S-01 · Crítico · El rate limit de login es un cubo global
 
-**Dónde:** `stockhogar/rutas/auth.py:136`, `stockhogar/servicios/intentos_login.py`,
+**Dónde:** `stockhogar/rutas/cuenta/auth.py:136`, `stockhogar/servicios/intentos_login.py`,
 `next.config.mjs:119-131`
 
 **Qué pasa.** El navegador nunca habla con Flask: Next reescribe `/api/*` hacia
@@ -206,7 +206,7 @@ Consecuencias, en orden de gravedad:
 
 #### S-02 · Crítico · El SSE de mantenimiento bloquea un hilo por cliente
 
-**Dónde:** `stockhogar/rutas/paginas.py:24`,
+**Dónde:** `stockhogar/rutas/sistema/paginas.py:24`,
 `stockhogar/servicios/mantenimiento.py:52`, `Dockerfile.raspbian:141`
 
 **Qué pasa.** `/api/mantenimiento/stream` es público (está en `RUTAS_PUBLICAS`),
@@ -316,7 +316,7 @@ Pi a una WiFi. Todo eso, ahora, desde cualquier lugar del mundo.
 
 #### S-05 · Crítico · Registro abierto sin cuotas ni CAPTCHA
 
-**Dónde:** `stockhogar/rutas/auth.py:94`
+**Dónde:** `stockhogar/rutas/cuenta/auth.py:94`
 
 **Qué pasa.** `/api/auth/registrar` es público y no tiene límite de frecuencia,
 CAPTCHA, verificación de email ni lista de invitación. Una vez dentro, un
@@ -363,7 +363,7 @@ y arrastrar al sistema entero.
 
 #### S-07 · Alto · Sin recuperación de contraseña; el email nunca se verifica
 
-**Dónde:** `stockhogar/rutas/auth.py` (no existe el flujo), `auth.py:154`
+**Dónde:** `stockhogar/rutas/cuenta/auth.py` (no existe el flujo), `auth.py:154`
 
 **Qué pasa.**
 - No hay "he olvidado mi contraseña". El único remedio es que tú entres al panel
@@ -432,7 +432,7 @@ documentar un incidente.
 
 #### S-10 · Alto · Enumeración de usuarios y alta sin consentimiento
 
-**Dónde:** `stockhogar/rutas/permisos.py:106-150`
+**Dónde:** `stockhogar/rutas/hogar/permisos.py:106-150`
 
 **Qué pasa.** Compartir un hogar por nombre de usuario devuelve
 `err_usuario_no_encontrado` (404) si no existe: eso permite comprobar qué
@@ -508,7 +508,7 @@ GHCR dependa de que ese workflow pase. Activar Dependabot para `pip`, `npm` y
 
 #### S-14 · Medio · `/api/log/client`: inyección y saturación del log
 
-**Dónde:** `stockhogar/rutas/paginas.py:63`
+**Dónde:** `stockhogar/rutas/sistema/paginas.py:63`
 
 **Qué pasa.** Endpoint público, exento de CSRF, que escribe el `mensaje` y el
 `contexto` recibidos **tal cual** en el log de la aplicación. Sin autenticación,
@@ -524,9 +524,9 @@ por IP real, y considerar exigir sesión salvo en la pantalla de login.
 
 #### S-15 · Medio · Autorización reimplementada en cada blueprint
 
-**Dónde:** `stockhogar/rutas/articulos_compra.py:26` y `:348`,
-`stockhogar/rutas/gastos.py:33` y `:153`, `stockhogar/rutas/permisos.py`,
-`stockhogar/rutas/hogares.py` (63 referencias sueltas a `permisos_hogar` /
+**Dónde:** `stockhogar/rutas/compra/articulos_compra.py:26` y `:348`,
+`stockhogar/rutas/finanzas/gastos.py:33` y `:153`, `stockhogar/rutas/hogar/permisos.py`,
+`stockhogar/rutas/hogar/hogares.py` (63 referencias sueltas a `permisos_hogar` /
 `usuario_propietario_id` en las rutas)
 
 **Qué pasa.** Cada blueprint tiene su propio helper privado con su propia
@@ -548,7 +548,7 @@ revisarlo crece con cada módulo.
 
 #### S-16 · Medio · Subidas validadas solo por extensión
 
-**Dónde:** `stockhogar/rutas/ocr_tickets.py:22`, `stockhogar/rutas/gastos.py:527-563`
+**Dónde:** `stockhogar/rutas/escaner/ocr_tickets.py:22`, `stockhogar/rutas/finanzas/gastos.py:527-563`
 
 **Qué pasa.** Se comprueba la extensión del nombre de fichero, no el contenido.
 El MIME con el que luego se sirve el recibo se deduce de esa misma extensión.
@@ -603,7 +603,7 @@ si contienen algo del usuario) en el logout y ante cualquier 401.
 
 #### S-20 · Medio · Política de contraseñas mínima
 
-**Dónde:** `stockhogar/rutas/auth.py:102`, `:329`, `:392`
+**Dónde:** `stockhogar/rutas/cuenta/auth.py:102`, `:329`, `:392`
 
 Solo se exige longitud ≥ 8. No hay comprobación contra contraseñas filtradas ni
 bloqueo por cuenta. **Propuesta:** seguir NIST SP 800-63B — longitud mínima 10,
@@ -616,8 +616,8 @@ además del de IP (S-01).
 
 #### S-21 · Medio · Sin límite en operaciones caras
 
-**Dónde:** `stockhogar/rutas/ocr_tickets.py`, `stockhogar/rutas/tickets.py`,
-`stockhogar/rutas/gastos.py` (recibos), `stockhogar/servicios/email_service.py`
+**Dónde:** `stockhogar/rutas/escaner/ocr_tickets.py`, `stockhogar/rutas/escaner/tickets.py`,
+`stockhogar/rutas/finanzas/gastos.py` (recibos), `stockhogar/servicios/email_service.py`
 
 Un usuario autenticado puede encadenar escaneos OCR (25 s de timeout contra Groq
 o Tesseract local en una Pi), subir recibos de MB, y disparar invitaciones por

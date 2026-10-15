@@ -123,7 +123,7 @@ class ConsultasDeGastosTests(unittest.TestCase):
 
         modulo_db.get_db = get_db_espiado
         # Los modulos de rutas importaron get_db por nombre, hay que sustituirlo ahi.
-        import stockhogar.rutas.gastos as rutas_gastos
+        import stockhogar.rutas.finanzas.gastos as rutas_gastos
         import stockhogar.servicios.stock as servicio_stock
         originales = []
         for modulo in (rutas_gastos, servicio_stock):

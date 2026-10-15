@@ -3,15 +3,15 @@ import io
 import logging
 from flask import Blueprint, Response, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..config import DIAS_AVISO_DEFECTO
-from ..db import ahora, get_db
-from ..servicios.stock import hogar_actual_con_permiso
-from ..utils.csv_seguro import EscritorCsvSeguro, desproteger, leer_csv_subido
-from ..utils import Validator, DataConverter
-from .categorias import normalizar_categoria
-from .historial import buscar_historial, recordar_articulo
-from .hogares import _usuario_tiene_permiso
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...config import DIAS_AVISO_DEFECTO
+from ...db import ahora, get_db
+from ...servicios.stock import hogar_actual_con_permiso
+from ...utils.csv_seguro import EscritorCsvSeguro, desproteger, leer_csv_subido
+from ...utils import Validator, DataConverter
+from ..inventario.categorias import normalizar_categoria
+from ..inventario.historial import buscar_historial, recordar_articulo
+from ..hogar.hogares import _usuario_tiene_permiso
 
 bp = Blueprint("articulos_compra", __name__, url_prefix="/api/articulos")
 logger = logging.getLogger(__name__)

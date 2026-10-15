@@ -2,7 +2,7 @@
 import os
 from flask import Blueprint
 
-from ..api import APIResponse, manejo_errores
+from ...api import APIResponse, manejo_errores
 
 bp = Blueprint("ocr", __name__, url_prefix="/api/ocr")
 
@@ -75,12 +75,12 @@ def validar_instalacion():
 
     # Informativos (no entran en "ok": el escaner funciona sin el motor neuronal, con Tesseract)
     try:
-        from ..integraciones import ocr_rapid
+        from ...integraciones import ocr_rapid
         validaciones["motor_neuronal"] = ocr_rapid.disponible()
     except Exception:
         validaciones["motor_neuronal"] = False
     try:
-        from ..servicios.ocr.diccionario import obtener
+        from ...servicios.ocr.diccionario import obtener
         validaciones["diccionario_articulos"] = len(obtener().entradas)
     except Exception:
         validaciones["diccionario_articulos"] = 0

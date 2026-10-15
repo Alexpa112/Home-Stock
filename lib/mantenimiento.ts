@@ -3,7 +3,7 @@
  *
  * Se activa por dos vías (la que llegue primero gana):
  * 1. SSE en tiempo real (`useMantenimientoStream`, ver RootLayoutClient) contra
- *    /api/mantenimiento/stream (stockhogar/rutas/paginas.py): el backend
+ *    /api/mantenimiento/stream (stockhogar/rutas/sistema/paginas.py): el backend
  *    empuja el cambio en cuanto detecta el flag, sin esperar a que el usuario
  *    haga nada.
  * 2. Cualquier llamada a la API (lib/api.ts) que reciba un 503 con

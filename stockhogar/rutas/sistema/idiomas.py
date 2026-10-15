@@ -4,9 +4,9 @@ import unicodedata
 
 from flask import Blueprint, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..db import get_db
-from ..translator import IDIOMAS_DISPONIBLES, traducir, obtener_idiomas, traducir_todas_para_idioma
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...db import get_db
+from ...translator import IDIOMAS_DISPONIBLES, traducir, obtener_idiomas, traducir_todas_para_idioma
 
 bp = Blueprint("idiomas", __name__, url_prefix="/api/idiomas")
 

@@ -8,16 +8,16 @@ from pathlib import Path
 
 from flask import Blueprint, Response, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from .. import cifrado
-from ..config import LIMITE_RECIBOS_DIARIO_POR_USUARIO
-from ..db import ahora, get_db
-from ..servicios.push_service import enviar_push_a_usuario
-from ..servicios.stock import hogar_actual_con_permiso
-from ..translator import traducir
-from ..utils.csv_seguro import EscritorCsvSeguro
-from ..utils import Validator, ValidationError
-from ..utils.imagenes import validar_y_recodificar
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ... import cifrado
+from ...config import LIMITE_RECIBOS_DIARIO_POR_USUARIO
+from ...db import ahora, get_db
+from ...servicios.push_service import enviar_push_a_usuario
+from ...servicios.stock import hogar_actual_con_permiso
+from ...translator import traducir
+from ...utils.csv_seguro import EscritorCsvSeguro
+from ...utils import Validator, ValidationError
+from ...utils.imagenes import validar_y_recodificar
 from .categorias_gasto import normalizar_categoria_gasto
 
 bp = Blueprint("gastos", __name__, url_prefix="/api/gastos")

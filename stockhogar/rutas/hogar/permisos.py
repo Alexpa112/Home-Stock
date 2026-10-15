@@ -4,14 +4,14 @@ import secrets
 from flask import Blueprint, session
 from datetime import datetime, timedelta
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..autorizacion import requerir_hogar
-from ..config import APP_URL, LIMITE_INVITACIONES_DIARIO_POR_HOGAR
-from ..db import ahora, get_db
-from ..red import ip_cliente
-from ..servicios import auditoria
-from ..utils import Validator
-from ..servicios.email_service import EmailService
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...autorizacion import requerir_hogar
+from ...config import APP_URL, LIMITE_INVITACIONES_DIARIO_POR_HOGAR
+from ...db import ahora, get_db
+from ...red import ip_cliente
+from ...servicios import auditoria
+from ...utils import Validator
+from ...servicios.email_service import EmailService
 
 bp = Blueprint("permisos", __name__, url_prefix="/api/hogares")
 

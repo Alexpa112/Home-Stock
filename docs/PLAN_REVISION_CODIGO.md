@@ -132,3 +132,10 @@ recetas, seguridad, push; se ejecutan en el mismo orden que antes), `migraciones
 `inicializacion.py` (init_db con flock). La API pública (`from ..db import get_db, ahora`) no cambia.
 Verificación: esquema recreado en BD vacía y migración sobre una BD existente comparados con el código
 anterior → **idénticos** (56 tablas/índices, mismas filas sembradas). `tests/conftest.py` parchea ahora solo `config.DB_PATH`.
+
+### Fase 4 — `rutas/` por dominio (hecha)
+21 módulos planos → 7 subpaquetes: `cuenta/` (auth, oauth), `hogar/` (hogares, permisos), `inventario/`
+(productos, categorias, historial, consumo, recetas), `compra/` (articulos_compra), `finanzas/` (gastos,
+categorias_gasto), `escaner/` (tickets, ocr_tickets), `sistema/` (paginas, legal, version, idiomas, formularios, push).
+Movido con `git mv` y una herramienta que reescribe imports relativos/absolutos, cadenas de `patch("...")` y rutas en
+docs/Docker/CI en una sola pasada. Mismos 122 endpoints; 855 tests en verde.

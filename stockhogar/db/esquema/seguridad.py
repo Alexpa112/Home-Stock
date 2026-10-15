@@ -52,7 +52,7 @@ def aplicar(db):
     )
 
     # Uso diario de OCR por usuario, para el limite de cuota (ver config.py
-    # LIMITE_OCR_DIARIO y rutas/ocr_tickets.py).
+    # LIMITE_OCR_DIARIO y rutas/escaner/ocr_tickets.py).
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS uso_ocr_diario (
@@ -87,7 +87,7 @@ def aplicar(db):
 
     # Opt-out del OCR en la nube (S-26): con esto activo, el escaneo de
     # tickets usa solo el pipeline local (Tesseract), sin enviar la foto
-    # a Anthropic. Ver stockhogar/rutas/tickets.py::analizar_ticket.
+    # a Anthropic. Ver stockhogar/rutas/escaner/tickets.py::analizar_ticket.
     asegurar_columna(db, "usuarios", "usuario_ocr_local", "INTEGER NOT NULL DEFAULT 0")
 
     # session_version (S-08): alternativa minima a una tabla de sesiones

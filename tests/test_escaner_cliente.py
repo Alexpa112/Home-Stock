@@ -112,7 +112,7 @@ class PantallaDeTicketTests(unittest.TestCase):
 
     def test_el_limite_del_cliente_coincide_con_el_del_servidor(self):
         # tickets.py rechaza > TAMANO_MAXIMO_MB; el texto de ayuda debe decir lo mismo
-        servidor = (RAIZ / "stockhogar" / "rutas" / "tickets.py").read_text(encoding="utf-8")
+        servidor = (RAIZ / "stockhogar" / "rutas" / "escaner" / "tickets.py").read_text(encoding="utf-8")
         mb = int(re.search(r"TAMANO_MAXIMO_MB = (\d+)", servidor).group(1))
         d = json.loads((RAIZ / "stockhogar" / "translations.json").read_text(encoding="utf-8"))["es"]
         self.assertIn(str(mb), d["jpg_png_hasta_10mb"])

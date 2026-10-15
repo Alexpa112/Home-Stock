@@ -10,11 +10,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stockhogar.servicios.ocr.reconstructor_espacial import (
-    reconstruir_lineas,
-    lineas_a_texto,
-    Palabra,
-)
+from stockhogar.servicios.ocr.reconstructor_espacial import reconstruir_lineas, lineas_a_texto, Palabra
 
 
 def _datos_tesseract(palabras):

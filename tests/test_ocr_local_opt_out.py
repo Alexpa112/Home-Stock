@@ -55,9 +55,9 @@ class OptOutOcrLocalTests(unittest.TestCase):
             db.execute("DELETE FROM uso_ocr_diario WHERE usuario_id = ?", (self.usuario_id,))
             db.commit()
 
-    @patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value="")
-    @patch("stockhogar.rutas.tickets.ClaudeOCR.procesar")
-    @patch("stockhogar.rutas.tickets.ClaudeOCR.disponible", return_value=True)
+    @patch("stockhogar.rutas.escaner.tickets.ticket_ocr.extraer_texto", return_value="")
+    @patch("stockhogar.rutas.escaner.tickets.ClaudeOCR.procesar")
+    @patch("stockhogar.rutas.escaner.tickets.ClaudeOCR.disponible", return_value=True)
     def test_con_ocr_local_activo_no_llama_a_claude(self, _mock_disponible, mock_procesar, _mock_extraer):
         resp_pref = self.client.post("/api/auth/preferencia-ocr", json={"ocr_local": True})
         self.assertEqual(resp_pref.status_code, 200, resp_pref.get_data(as_text=True))
@@ -71,7 +71,7 @@ class OptOutOcrLocalTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         mock_procesar.assert_not_called()
 
-    @patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value="")
+    @patch("stockhogar.rutas.escaner.tickets.ticket_ocr.extraer_texto", return_value="")
     def test_sin_claude_usa_tesseract_como_fallback(self, _mock_extraer):
         """Sin ANTHROPIC_API_KEY configurada: OCR usa Tesseract como fallback."""
         resp = self.client.post(

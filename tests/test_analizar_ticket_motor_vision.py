@@ -94,7 +94,7 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
                 {"nombre_ticket": "Chorizo de Pamplona", "cantidad": 1, "unidad": "ud", "producto_id": None}
             ]
         }
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
             resp = self._analizar()
 
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -133,7 +133,7 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
             ]
         }
         try:
-            with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
                 resp = self._analizar()
 
             self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -148,8 +148,8 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
                 db.commit()
 
     def test_sin_articulos_reconocidos_se_intenta_el_pipeline_local(self):
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto",
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets.ticket_ocr.extraer_texto",
                        return_value=TEXTO_OCR) as extraer:
                 resp = self._analizar()
 
@@ -165,8 +165,8 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
                 {"nombre_ticket": "Leche entera 1L", "cantidad": 2, "unidad": "ud", "producto_id": None}
             ]
         }
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto") as extraer:
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets.ticket_ocr.extraer_texto") as extraer:
                 resp = self._analizar()
 
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -176,8 +176,8 @@ class AnalizarTicketMotorVisionTests(unittest.TestCase):
         self.assertEqual(items[0]["cantidad"], 2)
 
     def test_si_ambos_motores_fallan_la_respuesta_sigue_siendo_valida(self):
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto",
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets.ticket_ocr.extraer_texto",
                        side_effect=RuntimeError("tesseract no instalado")):
                 resp = self._analizar()
 
@@ -198,8 +198,8 @@ class CuadreConElTotalImpresoTests(AnalizarTicketMotorVisionTests):
     del _nombre
 
     def _analizar_texto(self, texto):
-        with patch("stockhogar.rutas.tickets.ClaudeOCR", _ClaudeFalso):
-            with patch("stockhogar.rutas.tickets.ticket_ocr.extraer_texto", return_value=texto):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR", _ClaudeFalso):
+            with patch("stockhogar.rutas.escaner.tickets.ticket_ocr.extraer_texto", return_value=texto):
                 return self._analizar()
 
     def test_ticket_que_cuadra_trae_el_cuadre_y_ningun_aviso(self):

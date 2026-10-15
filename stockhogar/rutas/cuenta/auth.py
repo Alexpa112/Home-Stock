@@ -12,16 +12,16 @@ from flask import Blueprint, Response, session
 from flask_wtf.csrf import generate_csrf
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..api.base import revocar_sesion_actual
-from .. import cifrado
-from ..config import LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
-from ..db import ahora, get_db
-from ..red import ip_cliente, limite_por_ip
-from ..servicios import auditoria, intentos_login
-from ..servicios.email_service import EmailService
-from ..servicios.password_pwned import es_password_filtrada
-from ..utils import Validator, ValidationError
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api.base import revocar_sesion_actual
+from ... import cifrado
+from ...config import LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
+from ...db import ahora, get_db
+from ...red import ip_cliente, limite_por_ip
+from ...servicios import auditoria, intentos_login
+from ...servicios.email_service import EmailService
+from ...servicios.password_pwned import es_password_filtrada
+from ...utils import Validator, ValidationError
 
 bp = Blueprint("auth", __name__)
 
@@ -268,7 +268,7 @@ def login():
 
 def _restaurar_idioma(idioma):
     """Al iniciar sesión recupera el idioma guardado en el perfil."""
-    from ..translator import IDIOMAS_DISPONIBLES
+    from ...translator import IDIOMAS_DISPONIBLES
     if idioma in IDIOMAS_DISPONIBLES:
         session["idioma"] = idioma
 
@@ -621,7 +621,7 @@ def cambiar_teclado_virtual():
 def cambiar_preferencia_ocr():
     """Opt-out del OCR en la nube (S-26): con ocr_local=True, el escaneo de
     tickets usa solo el pipeline local (Tesseract) sin enviar la foto a
-    Anthropic, ver stockhogar/rutas/tickets.py::analizar_ticket."""
+    Anthropic, ver stockhogar/rutas/escaner/tickets.py::analizar_ticket."""
     usuario_id = session.get("usuario_id")
     datos = cuerpo_json()
     ocr_local = bool(datos.get("ocr_local"))

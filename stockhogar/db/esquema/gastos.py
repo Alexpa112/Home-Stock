@@ -51,7 +51,7 @@ def aplicar(db):
     db.execute("CREATE INDEX IF NOT EXISTS idx_liquidaciones_hogar_fecha ON liquidaciones(hogar_id, fecha)")
 
     # Categorias de gasto (independientes de las de producto, ver
-    # rutas/categorias_gasto.py) y columna opcional en gastos para
+    # rutas/finanzas/categorias_gasto.py) y columna opcional en gastos para
     # asignarlas. Sin datos previos que migrar aparte de la columna nueva.
     db.execute(
         """
@@ -76,7 +76,7 @@ def aplicar(db):
     asegurar_columna(db, "gastos", "imagen_recibo_mime", "TEXT")
 
     # Gastos recurrentes: plantillas que se materializan como gastos
-    # normales (generacion perezosa al listar, ver rutas/gastos.py) en
+    # normales (generacion perezosa al listar, ver rutas/finanzas/gastos.py) en
     # vez de depender de una tarea programada aparte.
     db.execute(
         """

@@ -6,7 +6,7 @@ frontend nunca llamo -- y ambos leian el catalogo `productos` sin filtrar por
 hogar y enviaban imagen + catalogo a un proveedor externo saltandose el opt-out
 `usuario_ocr_local` y la cuota diaria. GroqOCR ademas apuntaba a un modelo sin
 vision (habria fallado al activarlo) y a un cuarto proveedor que no figura en
-la politica de privacidad. El escaner real vive en rutas/tickets.py: ClaudeOCR
+la politica de privacidad. El escaner real vive en rutas/escaner/tickets.py: ClaudeOCR
 como motor principal y el pipeline local (ExtractorTexto + ParserMejorado +
 MatcherInteligente) como respaldo.
 """

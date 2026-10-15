@@ -1,6 +1,6 @@
 """Rutas para servir formularios HTML dinámicamente"""
 from flask import Blueprint, jsonify
-from ..api import manejo_errores
+from ...api import manejo_errores
 
 bp = Blueprint("formularios", __name__, url_prefix="/api/formularios")
 

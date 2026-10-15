@@ -203,7 +203,7 @@ class RecurrentesTests(Base):
 class OauthTests(unittest.TestCase):
     def test_no_se_vincula_por_email_no_verificado(self):
         import inspect
-        from stockhogar.rutas import oauth
+        from stockhogar.rutas.cuenta import oauth
         fuente = inspect.getsource(oauth)
         self.assertIn("email_verificado = 1", fuente)
 

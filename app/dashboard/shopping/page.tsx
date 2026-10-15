@@ -24,7 +24,7 @@ import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
 const CACHE_KEY_ARTICULOS = 'shopping:articulos'
 const CACHE_KEY_CATEGORIAS = 'stock:categorias'
 
-// Espejo de LIMITE_COMPLETADOS en stockhogar/rutas/articulos_lista.py: al
+// Espejo de LIMITE_COMPLETADOS en stockhogar/rutas/compra/articulos_compra.py: al
 // actualizar la lista en local (sin volver a pedirla al backend) hay que
 // recortar los completados igual que lo hace el servidor.
 const LIMITE_COMPLETADOS = 12
@@ -256,7 +256,7 @@ export default function ShoppingPage() {
   // Código escaneado (P-03): si el catálogo ya lo tiene asociado, se
   // rellena el formulario; si no, se deja el nombre en blanco para que el
   // usuario lo escriba y así se aprenda para la próxima vez (ver
-  // recordar_articulo en stockhogar/rutas/historial.py).
+  // recordar_articulo en stockhogar/rutas/inventario/historial.py).
   const handleCodigoDetectado = async (codigo: string) => {
     setMostrarEscaner(false)
     setFormCodigoBarras(codigo)

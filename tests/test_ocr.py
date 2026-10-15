@@ -7,12 +7,7 @@ import pytest
 # Agregar el directorio del proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stockhogar.servicios.ocr import (
-    ProcesadorImagen,
-    ExtractorTexto,
-    ParseadorTicket,
-    MatcherProductos,
-)
+from stockhogar.servicios.ocr import ProcesadorImagen, ExtractorTexto, ParseadorTicket, MatcherProductos
 from stockhogar.servicios.ocr.parseador_ticket import LineaTicket
 
 
@@ -137,7 +132,7 @@ def test_endpoints_api():
     """Test 8: Validar que endpoint está registrado."""
     print(f"\n{ColoresTerminal.BOLD}TEST 8: Endpoints API{ColoresTerminal.RESET}")
 
-    from stockhogar.rutas import ocr_tickets
+    from stockhogar.rutas.escaner import ocr_tickets
     print(f"  {ColoresTerminal.OK}{ColoresTerminal.CHECK}{ColoresTerminal.RESET} Módulo ocr_tickets importado")
 
     assert hasattr(ocr_tickets, 'bp'), "Falta blueprint"

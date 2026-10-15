@@ -225,7 +225,7 @@ que en su día quedaron pendientes: `auth.py`, `historial.py`, `tickets.py`,
 ## Duda?
 
 Mira:
-- `stockhogar/rutas/productos.py` - Ejemplo completamente refactorizado
+- `stockhogar/rutas/inventario/productos.py` - Ejemplo completamente refactorizado
 - `stockhogar/api/base.py` - Clases base (APIResponse)
 - `stockhogar/utils/validation.py` - Validator
 - `stockhogar/utils/converters.py` - DataConverter

@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
-from stockhogar.rutas.auth import _hash_token
+from stockhogar.rutas.cuenta.auth import _hash_token
 
 
 class VerificacionEmailTests(unittest.TestCase):
@@ -53,7 +53,7 @@ class VerificacionEmailTests(unittest.TestCase):
             db.commit()
         return token
 
-    @patch("stockhogar.rutas.auth.EmailService.enviar_verificacion_email", return_value=True)
+    @patch("stockhogar.rutas.cuenta.auth.EmailService.enviar_verificacion_email", return_value=True)
     def test_enviar_verificacion_email_crea_token(self, _mock_email):
         resp = self.client.post("/api/auth/enviar-verificacion-email")
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
@@ -116,7 +116,7 @@ class ResetPasswordTests(unittest.TestCase):
             db.execute("DELETE FROM usuarios WHERE id = ?", (self.usuario_id,))
             db.commit()
 
-    @patch("stockhogar.rutas.auth.EmailService.enviar_recuperacion_password", return_value=True)
+    @patch("stockhogar.rutas.cuenta.auth.EmailService.enviar_recuperacion_password", return_value=True)
     def test_solicitar_reset_responde_igual_exista_o_no_la_cuenta(self, _mock_email):
         resp_existente = self.client.post(
             "/api/auth/solicitar-reset-password", json={"usuario_o_email": self.nombre_usuario}
@@ -127,7 +127,7 @@ class ResetPasswordTests(unittest.TestCase):
         self.assertEqual(resp_existente.status_code, resp_inexistente.status_code)
         self.assertEqual(resp_existente.get_json(), resp_inexistente.get_json())
 
-    @patch("stockhogar.rutas.auth.EmailService.enviar_recuperacion_password", return_value=True)
+    @patch("stockhogar.rutas.cuenta.auth.EmailService.enviar_recuperacion_password", return_value=True)
     def test_restablecer_password_con_token_valido_cambia_hash_e_invalida_sesiones(self, _mock_email):
         self.client.post("/api/auth/solicitar-reset-password", json={"usuario_o_email": self.nombre_usuario})
         with self.app.app_context():

@@ -1,10 +1,10 @@
 """Rutas para gestionar categorías de gasto (editables desde la app),
-catálogo independiente del de categorías de producto (ver rutas/categorias.py)."""
+catálogo independiente del de categorías de producto (ver rutas/inventario/categorias.py)."""
 from flask import Blueprint
 
-from ..api import manejo_errores, requerir_sesion
-from ..config import CATEGORIA_GASTO_DEFECTO, CATEGORIAS_GASTO_DEFECTO
-from ..servicios.catalogo_categorias import CatalogoCategorias
+from ...api import manejo_errores, requerir_sesion
+from ...config import CATEGORIA_GASTO_DEFECTO, CATEGORIAS_GASTO_DEFECTO
+from ...servicios.catalogo_categorias import CatalogoCategorias
 
 bp = Blueprint("categorias_gasto", __name__, url_prefix="/api/categorias-gasto")
 

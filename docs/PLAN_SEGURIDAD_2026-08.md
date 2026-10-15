@@ -79,7 +79,7 @@ inmediata y trivial.
 
 ### A-1 El catálogo `productos` de TODA la instalación se filtra entre hogares y se envía a Anthropic
 
-**Ubicación**: `stockhogar/rutas/tickets.py:251`, `stockhogar/servicios/ocr/gestor_ocr.py:55`,
+**Ubicación**: `stockhogar/rutas/escaner/tickets.py:251`, `stockhogar/servicios/ocr/gestor_ocr.py:55`,
 `stockhogar/servicios/ocr/matcher_inteligente.py:138`, `stockhogar/servicios/ocr/matcher_productos.py:33`,
 `stockhogar/servicios/ocr/claude_ocr.py:482-485`
 
@@ -130,7 +130,7 @@ se envía la lista de nombres del inventario (REGLA 11).
 
 ### A-2 `GET /api/hogares/buscar-usuarios` expone nombre de usuario y email de cualquier usuario
 
-**Ubicación**: `stockhogar/rutas/permisos.py:19-50` (verificado íntegro)
+**Ubicación**: `stockhogar/rutas/hogar/permisos.py:19-50` (verificado íntegro)
 
 `SELECT id, nombre_usuario, email FROM usuarios WHERE (nombre_usuario LIKE ? OR
 email LIKE ?) AND id != ? LIMIT 10` con `%q%` de 2 caracteres. Sin `hogar_id`, sin
@@ -146,7 +146,7 @@ de `LIKE %…%`, respuesta `{"existe": bool}` sin `id`, y cuota diaria.
 
 ### A-3 `PUT /api/auth/perfil` cambia la contraseña sin pedir la actual
 
-**Ubicación**: `stockhogar/rutas/auth.py:374-386` (verificado)
+**Ubicación**: `stockhogar/rutas/cuenta/auth.py:374-386` (verificado)
 
 Compárese con `/api/auth/cambiar-password` (`auth.py:476`), que sí exige
 `password_actual`. Quien tenga una sesión válida sin conocer la contraseña (cookie

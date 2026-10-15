@@ -7,11 +7,7 @@ from io import BytesIO
 # Agregar proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stockhogar.servicios.ocr import (
-    ProcesadorImagen,
-    ParseadorTicket,
-    MatcherProductos,
-)
+from stockhogar.servicios.ocr import ProcesadorImagen, ParseadorTicket, MatcherProductos
 
 
 class SuiteOCR:

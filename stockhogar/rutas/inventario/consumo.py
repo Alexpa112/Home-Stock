@@ -1,9 +1,9 @@
 """Auditoria de movimientos de stock y resumen de consumo por periodo."""
 from flask import Blueprint, request, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion
-from ..db import get_db
-from ..servicios.stock import hogar_actual_con_permiso
+from ...api import APIResponse, manejo_errores, requerir_sesion
+from ...db import get_db
+from ...servicios.stock import hogar_actual_con_permiso
 
 bp = Blueprint("consumo", __name__, url_prefix="/api/consumo")
 

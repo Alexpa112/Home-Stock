@@ -110,21 +110,21 @@ Descubrimiento durante el trabajo: el plan original solo contaba 3 ficheros
 dependian del modelo antiguo. Se decidio con el usuario ampliar el alcance a
 los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 
-- [x] `stockhogar/rutas/listas.py` -> `stockhogar/rutas/hogares.py` (git mv),
+- [x] `stockhogar/rutas/listas.py` -> `stockhogar/rutas/hogar/hogares.py` (git mv),
       Blueprint `hogares`, prefijo `/api/hogares`
 - [x] Alias `/api/listas` registrado en `stockhogar/__init__.py` reutilizando el
       mismo blueprint (`register_blueprint(hogares.bp, name="hogares_alias_legado",
       url_prefix="/api/listas")`) para no romper peticiones de PWA offline en cola
-- [x] `stockhogar/rutas/articulos_lista.py` -> `stockhogar/rutas/articulos_compra.py`
+- [x] `stockhogar/rutas/articulos_lista.py` -> `stockhogar/rutas/compra/articulos_compra.py`
       (git mv), Blueprint `articulos_compra`, sigue en `/api/articulos` (sin cambio
       de prefijo, solo de tabla interna: `articulos_lista` -> `articulos_compra`)
-- [x] `stockhogar/rutas/permisos.py` — usa `hogares`/`permisos_hogar`/
+- [x] `stockhogar/rutas/hogar/permisos.py` — usa `hogares`/`permisos_hogar`/
       `invitaciones_hogar`, prefijo ya era `/api/hogares`
 - [x] `stockhogar/servicios/stock.py` — logica central de stock (`sumar_stock`,
       `revisar_stock_bajo`, `registrar_movimiento`, `crear_producto_nuevo`) migrada
       a `stock_hogar`/`articulos_compra`/`hogares`; `lista_actual_con_permiso` ->
       `hogar_actual_con_permiso`
-- [x] `stockhogar/rutas/productos.py`, `tickets.py`, `consumo.py`, `historial.py`,
+- [x] `stockhogar/rutas/inventario/productos.py`, `tickets.py`, `consumo.py`, `historial.py`,
       `auth.py` — actualizados a `hogar_id`/`stock_hogar`/`articulos_compra`/
       `hogares`/`permisos_hogar`
 - [x] `session['lista_actual_id']` -> `session['hogar_actual_id']` en todos los sitios
@@ -248,7 +248,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 - [x] Investigado: NO existe un service worker clasico con lista de URLs cacheadas
       (no hay `navigator.serviceWorker.register` en toda la app). El mecanismo real
       de cache-busting es `lib/useCacheBuster.ts` (activo en `app/RootLayoutClient.tsx`),
-      que cada 15s consulta `GET /api/cache-version` (`stockhogar/rutas/version.py`,
+      que cada 15s consulta `GET /api/cache-version` (`stockhogar/rutas/sistema/version.py`,
       version = mtime de `docker-compose.yml` o, si no existe, de `stockhogar/__init__.py`)
       y si cambia: desregistra cualquier service worker residual, borra TODO
       `caches.keys()` (Cache Storage API) y recarga la pagina

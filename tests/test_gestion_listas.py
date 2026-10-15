@@ -1,5 +1,5 @@
 """Tests de CRUD de hogares: crear, obtener, actualizar, seleccionar, salir,
-eliminar. Cubre stockhogar/rutas/hogares.py, sin test previo."""
+eliminar. Cubre stockhogar/rutas/hogar/hogares.py, sin test previo."""
 import unittest
 import uuid
 

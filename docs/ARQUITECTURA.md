@@ -348,9 +348,9 @@ class FavoritosManager {
 
 ## Roadmap Futuro
 
-- [x] Compartir listas entre usuarios (API + UI en `rutas/permisos.py` y `static/modules/drawer-listas.js`)
+- [x] Compartir listas entre usuarios (API + UI en `rutas/hogar/permisos.py` y `static/modules/drawer-listas.js`)
 - [x] Historial de cambios (auditoría) — tabla `movimientos_stock`
-- [x] Gráficos de consumo — `rutas/consumo.py`
+- [x] Gráficos de consumo — `rutas/inventario/consumo.py`
 - [ ] Integración con APIs de supermercados
 - [ ] App móvil nativa (Flutter/React Native)
 - [x] Eliminar `espacios` del backend (nunca tuvo UI; su función de aislamiento ya la cubrían `listas`)

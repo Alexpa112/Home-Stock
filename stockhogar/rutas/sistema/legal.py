@@ -6,8 +6,8 @@ textos antes incluso de registrarse.
 """
 from flask import Blueprint
 
-from ..api import APIResponse, manejo_errores
-from ..config import DOMINIO_PUBLICO, EMAIL_CONTACTO_LEGAL, TITULAR_LEGAL, VERSION_TERMINOS
+from ...api import APIResponse, manejo_errores
+from ...config import DOMINIO_PUBLICO, EMAIL_CONTACTO_LEGAL, TITULAR_LEGAL, VERSION_TERMINOS
 
 bp = Blueprint("legal", __name__, url_prefix="/api/legal")
 

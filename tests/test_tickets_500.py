@@ -4,7 +4,7 @@ Tres fallos reales, todos introducidos al endurecer tickets.py:
 
 1) `/api/tickets/confirmar` lanzaba `ValidationError` sin haberlo importado en
    el modulo -> NameError -> 500 en vez del 400 que se pretendia. El mismo
-   descuido estaba en rutas/auth.py.
+   descuido estaba en rutas/cuenta/auth.py.
 
 2) `_items_desde_ia` comparaba `precio_unitario > 0` con el valor crudo del
    modelo. Si un importe llegaba como cadena, el TypeError lo capturaba el
@@ -89,8 +89,8 @@ class TicketsSinErrorInternoTests(unittest.TestCase):
         buf = io.BytesIO()
         Image.new("RGB", (400, 500), "white").save(buf, format="JPEG")
         buf.seek(0)
-        with patch("stockhogar.rutas.tickets.ClaudeOCR.disponible", return_value=True), \
-             patch("stockhogar.rutas.tickets.ClaudeOCR.procesar", return_value=respuesta_ia):
+        with patch("stockhogar.rutas.escaner.tickets.ClaudeOCR.disponible", return_value=True), \
+             patch("stockhogar.rutas.escaner.tickets.ClaudeOCR.procesar", return_value=respuesta_ia):
             return self.client.post(
                 "/api/tickets/analizar",
                 data={"foto": (buf, "ticket.jpg")},

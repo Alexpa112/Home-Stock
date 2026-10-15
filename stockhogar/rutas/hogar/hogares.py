@@ -1,11 +1,11 @@
 """Rutas para gestionar hogares de compra (modelo Bring!)."""
 from flask import Blueprint, session
 
-from ..api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
-from ..autorizacion import nivel_acceso_hogar, nivel_alcanza, requerir_hogar
-from ..config import LIMITE_HOGARES_POR_USUARIO
-from ..db import ahora, get_db
-from ..utils import Validator, DataConverter, ValidationError
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...autorizacion import nivel_acceso_hogar, nivel_alcanza, requerir_hogar
+from ...config import LIMITE_HOGARES_POR_USUARIO
+from ...db import ahora, get_db
+from ...utils import Validator, DataConverter, ValidationError
 
 bp = Blueprint("hogares", __name__, url_prefix="/api/hogares")
 
@@ -16,7 +16,7 @@ def _usuario_tiene_permiso(db, hogar_id, usuario_id, nivel_requerido=None):
     Delegado en autorizacion.nivel_acceso_hogar (S-15): este era, hasta
     ahora, el UNICO sitio con la consulta real (hogares.usuario_propietario_id
     + permisos_hogar); servicios/stock.py::hogar_actual_con_permiso y
-    rutas/articulos_compra.py lo importan de aqui, asi que centralizar la
+    rutas/compra/articulos_compra.py lo importan de aqui, asi que centralizar la
     consulta en autorizacion.py los beneficia a ambos sin tocarlos.
     """
     nivel = nivel_acceso_hogar(db, hogar_id, usuario_id)
@@ -61,8 +61,8 @@ def listar_listas():
     #
     # Import diferido: servicios/stock.py importa _usuario_tiene_permiso de
     # ESTE modulo, asi que hacerlo arriba crearia un ciclo (mismo patron que
-    # rutas/historial.py::buscar_catalogo).
-    from ..servicios.stock import hogar_actual_con_permiso
+    # rutas/inventario/historial.py::buscar_catalogo).
+    from ...servicios.stock import hogar_actual_con_permiso
 
     hogar_actual_id = hogar_actual_con_permiso(db, session)
     if hogar_actual_id and session.get("hogar_actual_id") != hogar_actual_id:
@@ -337,7 +337,7 @@ def version_hogar_actual():
 @manejo_errores
 def miembros_basico(hogar_id):
     """Lista básica (id + nombre) de los miembros del hogar, accesible a
-    cualquiera con acceso (a diferencia de /miembros en rutas/permisos.py,
+    cualquiera con acceso (a diferencia de /miembros en rutas/hogar/permisos.py,
     que reserva la gestión de permisos al propietario). Pensado para
     selectores de participantes en funcionalidades como gastos compartidos."""
     db = get_db()
@@ -351,5 +351,5 @@ def miembros_basico(hogar_id):
     return APIResponse.success([{"id": f["id"], "nombre_usuario": f["nombre_usuario"]} for f in filas])
 
 
-# Nota: compartir/miembros/permisos de lista se gestionan en rutas/permisos.py
+# Nota: compartir/miembros/permisos de lista se gestionan en rutas/hogar/permisos.py
 # (incluye compartir por usuario, por email con invitación, y aceptar invitación).

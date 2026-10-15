@@ -1,6 +1,6 @@
 """Tests de la funcionalidad de gastos compartidos del hogar (tipo Tricount):
 permisos de escritura, validacion del reparto, calculo de saldo neto y
-registro de liquidaciones. Ver stockhogar/rutas/gastos.py."""
+registro de liquidaciones. Ver stockhogar/rutas/finanzas/gastos.py."""
 import io
 import unittest
 import uuid

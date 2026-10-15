@@ -19,8 +19,14 @@ from .translator import traducir
 
 csrf = CSRFProtect()
 
-from .rutas import auth, articulos_compra, categorias, categorias_gasto, consumo, gastos, historial, hogares, paginas, productos, recetas, tickets, ocr_tickets, permisos, oauth, idiomas, formularios, version, legal, push
-from .rutas.auth import RUTAS_PUBLICAS
+from .rutas.cuenta import auth, oauth
+from .rutas.compra import articulos_compra
+from .rutas.inventario import categorias, consumo, historial, productos, recetas
+from .rutas.finanzas import categorias_gasto, gastos
+from .rutas.hogar import hogares, permisos
+from .rutas.sistema import paginas, idiomas, formularios, version, legal, push
+from .rutas.escaner import tickets, ocr_tickets
+from .rutas.cuenta.auth import RUTAS_PUBLICAS
 
 
 def _configurar_logging_a_fichero():

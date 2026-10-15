@@ -13,16 +13,16 @@ Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
 2026-08-05 tras completar la traduccion de las rutas activas):
 
     - `.lastrowid` (tras INSERT, estilo sqlite3.Cursor): TRADUCIDO. Los 14
-      sitios (db.py, rutas/articulos_compra.py, rutas/categorias.py,
-      rutas/categorias_gasto.py, rutas/gastos.py, rutas/hogares.py,
-      rutas/oauth.py, servicios/stock.py) usan ahora `INSERT ... RETURNING
+      sitios (db.py, rutas/compra/articulos_compra.py, rutas/inventario/categorias.py,
+      rutas/finanzas/categorias_gasto.py, rutas/finanzas/gastos.py, rutas/hogar/hogares.py,
+      rutas/cuenta/oauth.py, servicios/stock.py) usan ahora `INSERT ... RETURNING
       id` + `cursor.fetchone()["id"]`, sintaxis identica valida en SQLite
       3.35+ y en Postgres. OJO al leerlo: el fetchone() debe hacerse
       INMEDIATAMENTE tras el INSERT, antes de cualquier otro `execute()` u
       `commit()` en la misma conexion - un cursor con RETURNING sin
       consumir bloquea ambas cosas en SQLite ("cannot commit transaction -
       SQL statements in progress").
-    - `INSERT OR REPLACE`: TRADUCIDO (rutas/permisos.py, rutas/productos.py)
+    - `INSERT OR REPLACE`: TRADUCIDO (rutas/hogar/permisos.py, rutas/inventario/productos.py)
       a `INSERT ... ON CONFLICT (col_unica) DO UPDATE SET ...`.
     - `INSERT OR IGNORE`: TRADUCIDO (db.py, servicios/stock.py) a
       `INSERT ... ON CONFLICT (col_unica) DO NOTHING`.
@@ -45,7 +45,7 @@ Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
       pasar por asegurar_columna). Bajo valor/alto esfuerzo para el
       alcance actual.
     - `strftime(...)` / `julianday(...)`: no aplica - la unica aparicion
-      encontrada (rutas/gastos.py) es `datetime.strftime` de Python, no la
+      encontrada (rutas/finanzas/gastos.py) es `datetime.strftime` de Python, no la
       funcion SQL de SQLite.
     - `AUTOINCREMENT` (SQLite): no requiere traduccion en el codigo de la
       app; lo resuelve scripts/migrar_a_postgres.py al recrear el esquema
@@ -63,14 +63,7 @@ Inventario de sintaxis especifica de SQLite en stockhogar/ (actualizado
 """
 import re
 
-from .config import (
-    DB_ENGINE,
-    POSTGRES_DB,
-    POSTGRES_HOST,
-    POSTGRES_PASSWORD,
-    POSTGRES_PORT,
-    POSTGRES_USER,
-)
+from .config import DB_ENGINE, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PASSWORD, POSTGRES_PORT, POSTGRES_USER
 
 _RE_PLACEHOLDER = re.compile(r"\?")
 

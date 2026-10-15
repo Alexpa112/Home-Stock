@@ -1,6 +1,6 @@
 """Tests de GET /api/hogares/version: marca de version barata usada por el
 polling silencioso del cliente (ver lib/usePollingRefresh.ts) para saber si
-hay que recargar datos completos. Cubre stockhogar/rutas/hogares.py."""
+hay que recargar datos completos. Cubre stockhogar/rutas/hogar/hogares.py."""
 import unittest
 import uuid
 
