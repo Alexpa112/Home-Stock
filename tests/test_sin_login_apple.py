@@ -48,7 +48,7 @@ class SinLoginAppleTests(unittest.TestCase):
 
     def test_el_backend_no_menciona_credenciales_de_apple(self):
         for modulo in ("stockhogar/config.py", "stockhogar/rutas/cuenta/oauth.py",
-                       "stockhogar/rutas/cuenta/auth.py"):
+                       "stockhogar/rutas/cuenta/sesion.py", "stockhogar/rutas/cuenta/comunes.py"):
             with self.subTest(modulo=modulo):
                 texto = (RAIZ / modulo).read_text(encoding="utf-8").lower()
                 self.assertNotIn("apple", texto, f"{modulo} sigue nombrando Apple")

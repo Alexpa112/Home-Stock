@@ -155,8 +155,8 @@ def oauth_google_callback():
 
         if fila_usuario["doble_factor_activo"] and fila_usuario["email"]:
             # Importar la función de auth.py para generar y enviar el código
-            from .auth import _generar_y_enviar_codigo
-            _generar_y_enviar_codigo(db, usuario_id, fila_usuario["email"])
+            from .doble_factor import generar_y_enviar_codigo
+            generar_y_enviar_codigo(db, usuario_id, fila_usuario["email"])
             session["pendiente_2fa_usuario_id"] = usuario_id
             # A la pantalla de login con el formulario del código ya abierto.
             # Antes esto apuntaba a "/verificar-codigo-2fa", una página que no

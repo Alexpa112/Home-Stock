@@ -4,7 +4,7 @@ Tres fallos reales, todos introducidos al endurecer tickets.py:
 
 1) `/api/tickets/confirmar` lanzaba `ValidationError` sin haberlo importado en
    el modulo -> NameError -> 500 en vez del 400 que se pretendia. El mismo
-   descuido estaba en rutas/cuenta/auth.py.
+   descuido estaba en rutas/cuenta/ (datos_personales.py).
 
 2) `_items_desde_ia` comparaba `precio_unitario > 0` con el valor crudo del
    modelo. Si un importe llegaba como cadena, el TypeError lo capturaba el

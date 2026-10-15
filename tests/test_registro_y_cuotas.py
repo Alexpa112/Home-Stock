@@ -26,7 +26,7 @@ class RegistroAbiertoTests(unittest.TestCase):
         self.client = self.app.test_client()
 
     def test_registro_cerrado_devuelve_403(self):
-        with patch("stockhogar.rutas.cuenta.auth.REGISTRO_ABIERTO", False):
+        with patch("stockhogar.rutas.cuenta.sesion.REGISTRO_ABIERTO", False):
             resp = self.client.post(
                 "/api/auth/registrar",
                 json={

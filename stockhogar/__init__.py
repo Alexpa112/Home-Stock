@@ -20,14 +20,15 @@ from .translator import traducir
 
 csrf = CSRFProtect()
 
-from .rutas.cuenta import auth, oauth
+from .rutas import cuenta
+from .rutas.cuenta import oauth
 from .rutas.compra import articulos_compra
 from .rutas.inventario import categorias, consumo, historial, productos, recetas
 from .rutas.finanzas import categorias_gasto, gastos
 from .rutas.hogar import hogares, permisos
 from .rutas.sistema import paginas, idiomas, formularios, version, legal, push
 from .rutas.escaner import tickets, ocr_tickets
-from .rutas.cuenta.auth import RUTAS_PUBLICAS
+from .rutas.cuenta import RUTAS_PUBLICAS
 
 
 def _configurar_logging_a_fichero():
@@ -151,7 +152,7 @@ def create_app():
         return response
 
     app.register_blueprint(paginas.bp)
-    app.register_blueprint(auth.bp)
+    app.register_blueprint(cuenta.bp)
     app.register_blueprint(oauth.bp)
     app.register_blueprint(idiomas.bp)
     app.register_blueprint(formularios.bp)

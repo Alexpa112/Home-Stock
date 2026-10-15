@@ -18,7 +18,7 @@ from werkzeug.security import generate_password_hash
 
 from stockhogar import create_app
 from stockhogar.db import ahora, get_db
-from stockhogar.rutas.cuenta.auth import DURACION_CODIGO_SEGUNDOS, MAX_INTENTOS_CODIGO, _hash_codigo
+from stockhogar.rutas.cuenta.doble_factor import DURACION_CODIGO_SEGUNDOS, MAX_INTENTOS_CODIGO, hash_codigo as _hash_codigo
 
 CODIGO_BUENO = "123456"
 CODIGO_MALO = "000000"

@@ -147,3 +147,8 @@ docs/Docker/CI en una sola pasada. Mismos 122 endpoints; 855 tests en verde.
 - `db_backend.py` (Postgres opcional) → `db/backend_postgres.py`.
 - `config.py`, `translator.py` y `translations.json` se quedan en la raíz del paquete (los usa casi todo el código y
   el frontend genera `traduccionesBase.ts` desde el JSON).
+
+### Fase 6 (parcial) — `rutas/cuenta/auth.py` (1.047 líneas) partido en 6 módulos (hecha)
+`blueprint` (Blueprint + rutas públicas), `comunes` (tokens, validaciones, reautenticación), `sesion`, `doble_factor`,
+`perfil`, `credenciales`, `datos_personales` (RGPD). Los nombres compartidos pierden el guion bajo. Se añade
+`tests/test_mapa_de_rutas.py`, que fija las 122 rutas/endpoints para que ninguna reorganización pueda perder o renombrar una.
