@@ -12,7 +12,7 @@ const nextConfig = {
   compress: true,
 
   // Optimizaciones de bundle para Raspberry Pi
-  optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+  optimizePackageImports: ['lucide-react'],
   swcMinify: true,
   
   // Headers de seguridad y caché

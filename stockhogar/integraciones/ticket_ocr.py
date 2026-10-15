@@ -17,7 +17,7 @@ from PIL import Image
 
 from . import ocr_rapid
 from ..servicios.ocr.procesador_imagen import ProcesadorImagen
-from ..servicios.ocr.reconstructor_espacial import reconstruir_lineas, lineas_a_texto
+from ..servicios.ocr.reconstructor_espacial import reconstruir_lineas
 
 _procesador_imagen = ProcesadorImagen()
 

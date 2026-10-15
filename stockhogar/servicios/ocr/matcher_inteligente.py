@@ -11,7 +11,6 @@ Características:
 import re
 from typing import List, Dict, Optional, Tuple
 from difflib import SequenceMatcher
-from collections import Counter
 
 from .catalogo import catalogo_del_hogar
 from .parser_mejorado import _sin_tildes

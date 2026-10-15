@@ -13,7 +13,7 @@ import re
 from rapidfuzz import fuzz
 import unicodedata
 from typing import List, Dict, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
 
 
