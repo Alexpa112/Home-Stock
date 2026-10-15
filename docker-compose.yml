@@ -44,7 +44,10 @@ services:
     # data/logs/uploads).
     security_opt:
       - "no-new-privileges:true"
-    mem_limit: 768m
+    # 1024m con el lector neuronal de tickets (RapidOCR + diccionario: ~240 MB en
+    # reposo y ~450 MB en pico al leer un ticket); install.sh escribe 768m en
+    # .env para armv7l (sin ese motor) o con poca RAM.
+    mem_limit: ${STOCKHOGAR_MEM_LIMIT:-1024m}
     cpus: 1.5
 
   frontend:
