@@ -12,9 +12,11 @@ const nextConfig = {
   compress: true,
 
   // Optimizaciones de bundle para Raspberry Pi
-  optimizePackageImports: ['lucide-react'],
-  swcMinify: true,
-  
+  // (swcMinify ya no existe en Next 16: la minificacion SWC es la de serie.)
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
+
   // Headers de seguridad y caché
   async headers() {
     return [

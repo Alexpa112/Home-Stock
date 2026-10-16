@@ -5,7 +5,7 @@ import secrets
 import time
 from flask import session
 from werkzeug.security import check_password_hash, generate_password_hash
-from ...api import APIResponse
+from ...api import APIResponse, texto_json
 from ...nucleo.red import limite_por_ip
 from ...servicios.cuenta.email_service import EmailService
 
@@ -79,7 +79,7 @@ def falta_reautenticar(db, usuario_id, datos):
     if fila and fila["password_hash"]:
         if limite_por_ip(f"reauth:{usuario_id}", 10, 60 * 60):
             return APIResponse.error("err_demasiados_intentos_login", 429)
-        if not password_valida(fila["password_hash"], datos.get("password_actual") or ""):
+        if not password_valida(fila["password_hash"], texto_json(datos, "password_actual", recortar=False)):
             return APIResponse.error("err_password_actual_incorrecta", 400)
     return None
 

@@ -1,7 +1,7 @@
 """Rutas de notificaciones push del navegador (P-01)."""
 from flask import Blueprint, session
 
-from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...nucleo import cifrado
 from ...db import ahora, get_db
 from ...servicios.notificaciones.push_service import clave_publica_vapid, endpoint_push_permitido
@@ -24,10 +24,12 @@ def suscribir():
     claves nuevas) la suscripcion push del dispositivo actual."""
     usuario_id = session.get("usuario_id")
     datos = cuerpo_json()
-    endpoint = (datos.get("endpoint") or "").strip()
+    endpoint = texto_json(datos, "endpoint")
     claves = datos.get("keys") or {}
-    p256dh = (claves.get("p256dh") or "").strip()
-    auth = (claves.get("auth") or "").strip()
+    if not isinstance(claves, dict):
+        return APIResponse.validacion("err_suscripcion_push_invalida")
+    p256dh = texto_json(claves, "p256dh")
+    auth = texto_json(claves, "auth")
 
     if not endpoint or not p256dh or not auth:
         return APIResponse.validacion("err_suscripcion_push_invalida")
@@ -51,7 +53,7 @@ def suscribir():
 @manejo_errores
 def desuscribir():
     datos = cuerpo_json()
-    endpoint = (datos.get("endpoint") or "").strip()
+    endpoint = texto_json(datos, "endpoint")
     if not endpoint:
         return APIResponse.validacion("err_suscripcion_push_invalida")
 

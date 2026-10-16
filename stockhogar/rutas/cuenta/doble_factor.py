@@ -7,7 +7,7 @@ import secrets
 import time
 from flask import session
 from flask_wtf.csrf import generate_csrf
-from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...db import get_db
 from ...nucleo.red import ip_cliente, limite_por_ip
 from ...servicios.cuenta import auditoria
@@ -73,7 +73,7 @@ def verificar_codigo_dos_pasos():
         return APIResponse.error("err_demasiados_intentos_2fa", 429)
 
     datos = cuerpo_json()
-    codigo = (datos.get("codigo") or "").strip()
+    codigo = texto_json(datos, "codigo")
 
     db = get_db()
 
