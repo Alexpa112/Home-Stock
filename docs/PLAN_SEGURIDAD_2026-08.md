@@ -79,7 +79,7 @@ inmediata y trivial.
 
 ### A-1 El catálogo `productos` de TODA la instalación se filtra entre hogares y se envía a Anthropic
 
-**Ubicación**: `stockhogar/rutas/tickets.py:251`, `stockhogar/servicios/ocr/gestor_ocr.py:55`,
+**Ubicación**: `stockhogar/rutas/escaner/tickets.py:251`, `stockhogar/servicios/ocr/gestor_ocr.py:55`,
 `stockhogar/servicios/ocr/matcher_inteligente.py:138`, `stockhogar/servicios/ocr/matcher_productos.py:33`,
 `stockhogar/servicios/ocr/claude_ocr.py:482-485`
 
@@ -130,7 +130,7 @@ se envía la lista de nombres del inventario (REGLA 11).
 
 ### A-2 `GET /api/hogares/buscar-usuarios` expone nombre de usuario y email de cualquier usuario
 
-**Ubicación**: `stockhogar/rutas/permisos.py:19-50` (verificado íntegro)
+**Ubicación**: `stockhogar/rutas/hogar/permisos.py:19-50` (verificado íntegro)
 
 `SELECT id, nombre_usuario, email FROM usuarios WHERE (nombre_usuario LIKE ? OR
 email LIKE ?) AND id != ? LIMIT 10` con `%q%` de 2 caracteres. Sin `hogar_id`, sin
@@ -146,7 +146,7 @@ de `LIKE %…%`, respuesta `{"existe": bool}` sin `id`, y cuota diaria.
 
 ### A-3 `PUT /api/auth/perfil` cambia la contraseña sin pedir la actual
 
-**Ubicación**: `stockhogar/rutas/auth.py:374-386` (verificado)
+**Ubicación**: `stockhogar/rutas/cuenta/auth.py:374-386` (verificado)
 
 Compárese con `/api/auth/cambiar-password` (`auth.py:476`), que sí exige
 `password_actual`. Quien tenga una sesión válida sin conocer la contraseña (cookie
@@ -179,7 +179,7 @@ email y confirmación desde el antiguo si ya había uno.
 
 ### A-4 El límite de intentos de login se puede resetear, y no hay cubo por cuenta
 
-**Ubicación**: `stockhogar/servicios/intentos_login.py:21-22, 60-68` (verificado)
+**Ubicación**: `stockhogar/servicios/cuenta/intentos_login.py:21-22, 60-68` (verificado)
 
 ```python
 def _clave_cuenta(ip, cuenta):
@@ -192,7 +192,7 @@ def limpiar_exito(ip, cuenta=None):
 Dos fallos: **(a)** el atacante se registra una cuenta propia (registro abierto, sin
 cuota) y hace el bucle `4 intentos contra la víctima → 1 login correcto contra su
 propia cuenta → contador a cero`. Fuerza bruta ilimitada desde una sola IP sin
-ninguna espera. `tests/test_intentos_login.py:36-39` documenta ese borrado como
+ninguna espera. `tests/seguridad/test_intentos_login.py:36-39` documenta ese borrado como
 comportamiento esperado. **(b)** El cubo "por cuenta" lleva la IP delante, así que
 no protege una cuenta atacada desde varias IPs — que es justo lo que su docstring
 afirma hacer, y lo que S-01 daba por resuelto.
@@ -226,7 +226,7 @@ intentos.
 
 Verificado: `uso_ocr_diario` solo se lee/escribe en `ocr_tickets.py`, y el frontend
 escanea por `/api/tickets/analizar` (`lib/api.ts:504`). El test que cubre la cuota
-(`tests/test_registro_y_cuotas.py:106`) parchea `ocr_tickets.LIMITE_OCR_DIARIO` y
+(`tests/seguridad/test_registro_y_cuotas.py:106`) parchea `ocr_tickets.LIMITE_OCR_DIARIO` y
 ataca la ruta que no se usa: **pasa en verde sin cubrir nada**.
 
 Cada llamada usa `_MAX_TOKENS = 16000` con `effort: "high"` y hasta 10 imágenes de
@@ -360,7 +360,7 @@ lo está (la "bifurcación" que ya hace `articulos_compra.py:386-421`).
 
 **S-15 sigue parcial**: 11 de los 13 blueprints de datos resuelven autorización a
 mano (`productos.py` ×9, `gastos.py` ×14, `articulos_compra.py` ×6 más dos helpers
-propios), y `tests/test_matriz_autorizacion.py` **no cubre ninguno** de esos
+propios), y `tests/seguridad/test_matriz_autorizacion.py` **no cubre ninguno** de esos
 endpoints, solo las rutas `/api/hogares/…`. Ampliar la matriz es la tarea de mayor
 retorno de toda la fase.
 
@@ -563,7 +563,7 @@ Si se corrige la declaración de terceros, el cambio es sustancial: subir
 3. **Esta semana**: A-1 (aislamiento del catálogo, el que más superficie cierra), A-6
    (cuota real), A-4 y A-5 (rate limit y 2FA), A-3b (email en el perfil), A-10 y A-11
    (integridad del despliegue y dependencias).
-4. **Fase 2**, empezando por ampliar `tests/test_matriz_autorizacion.py` a los 11
+4. **Fase 2**, empezando por ampliar `tests/seguridad/test_matriz_autorizacion.py` a los 11
    blueprints que hoy no cubre: sin esa red, los arreglos de M-1…M-4 no son
    verificables.
 5. **Fase 3** e higiene, con el Panel (sección 5) como decisión aparte: mientras siga

@@ -8,8 +8,8 @@ Flujo:
 4. Estimación de precios → validación
 5. Respuesta con alternativas
 """
-from typing import List, Dict, Optional
-from .parser_mejorado import ParserMejorado, LineaTicketMejorada, TipoUnidad
+from typing import List, Dict
+from .parser import ParserMejorado, LineaTicketMejorada
 from .matcher_inteligente import MatcherInteligente
 from .diccionario import identificar_articulo
 

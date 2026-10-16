@@ -15,7 +15,7 @@ def ahora():
     return datetime.now().isoformat(timespec="seconds")
 
 def hash_password(password):
-    """Mismo hash que usa la app real (stockhogar/rutas/auth.py)."""
+    """Mismo hash que usa la app real (stockhogar/rutas/cuenta/ (datos_personales.py))."""
     return generate_password_hash(password)
 
 def setup_test_data():

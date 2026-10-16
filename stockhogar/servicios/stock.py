@@ -1,17 +1,17 @@
 """Lógica de negocio de stock por lista: creación de productos, sumas de
 cantidad y sincronización automática con la lista de la compra.
 
-Extraído de rutas/productos.py para separar las rutas HTTP (CRUD) de la
-lógica de dominio, que también reutiliza rutas/tickets.py al confirmar un
+Extraído de rutas/inventario/productos.py para separar las rutas HTTP (CRUD) de la
+lógica de dominio, que también reutiliza rutas/escaner/tickets.py al confirmar un
 ticket escaneado.
 """
 import logging
 
 from ..db import ahora
 from ..config import DIAS_AVISO_DEFECTO
-from ..rutas.categorias import normalizar_categoria
-from ..rutas.historial import buscar_historial, recordar_articulo
-from ..rutas.hogares import _usuario_tiene_permiso
+from ..rutas.inventario.categorias import normalizar_categoria
+from ..rutas.inventario.historial import buscar_historial, recordar_articulo
+from ..rutas.hogar.hogares import _usuario_tiene_permiso
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ def revisar_stock_bajo(db, producto_id, hogar_id=None):
 
 def registrar_movimiento(db, producto_id, hogar_id, delta, cantidad_resultante, origen="ajuste"):
     """Audita un cambio de cantidad de stock para poder consultar el historial
-    de un producto y graficar consumo por periodo (ver rutas/historial.py)."""
+    de un producto y graficar consumo por periodo (ver rutas/inventario/historial.py)."""
     if delta == 0:
         return
     from flask import session

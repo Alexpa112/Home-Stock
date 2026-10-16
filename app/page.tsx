@@ -9,40 +9,6 @@ import { auth } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 
 // Patrón SVG de fondo con iconos del hogar que se repite en tile 120×120
-function BgPattern() {
-  return (
-    <svg
-      className="absolute inset-0 w-full h-full text-accent opacity-[0.15] dark:opacity-[0.22] pointer-events-none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <pattern id="lp" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
-          {/* Carrito */}
-          <g transform="translate(8,8)" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-            <path d="M1 1h4l2.68 11.39A2 2 0 0 0 9.62 14h9.76a2 2 0 0 0 1.94-1.58L23 6H6"/>
-          </g>
-          {/* Caja */}
-          <g transform="translate(68,8)" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
-            <path d="m3.29 7 8.71 5 8.71-5M12 22V12"/>
-          </g>
-          {/* Reloj */}
-          <g transform="translate(8,68)" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </g>
-          {/* Lista */}
-          <g transform="translate(68,68)" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
-          </g>
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#lp)"/>
-    </svg>
-  )
-}
 
 function HomeContent() {
   const router = useRouter()
@@ -63,7 +29,7 @@ function HomeContent() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  // 'codigo_2fa=1' lo pone el callback OAuth (stockhogar/rutas/oauth.py,
+  // 'codigo_2fa=1' lo pone el callback OAuth (stockhogar/rutas/cuenta/oauth.py,
   // PARAM_CODIGO_2FA) cuando el usuario tiene 2FA activo: la sesion aun no
   // existe, solo queda pendiente meter el codigo, asi que se abre directamente
   // este formulario en vez del de usuario/contrasena. El login por contrasena

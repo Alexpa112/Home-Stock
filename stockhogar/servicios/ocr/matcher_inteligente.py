@@ -11,21 +11,13 @@ Características:
 import re
 from typing import List, Dict, Optional, Tuple
 from difflib import SequenceMatcher
-from collections import Counter
 
 from .catalogo import catalogo_del_hogar
-from .parser_mejorado import _sin_tildes
+from .parser import _sin_tildes
 
 # Centinela: None es un hogar_id valido de 'sin hogar', asi que no sirve para
 # distinguir 'cache vacia' de 'cache del hogar None'.
 _SIN_CACHE = object()
-
-try:
-    from .parser_mejorado import TipoUnidad
-except ImportError:
-    # Fallback para imports standalone
-    from parser_mejorado import TipoUnidad
-
 
 class MatcherInteligente:
     """Matcher contextual que razona sobre productos."""
@@ -382,7 +374,7 @@ class MatcherInteligente:
     def obtener_historico_compras(self, db, nombre: str, limite: int = 10) -> List[Dict]:
         """Obtiene histórico de compras para este producto."""
 
-        from ...rutas.historial import hogar_id_del_catalogo
+        from ...rutas.inventario.historial import hogar_id_del_catalogo
         # Buscar en historial_articulos (aprendizaje de nombre/icono/categoria/cantidad)
         historico = db.execute(
             """

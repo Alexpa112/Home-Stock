@@ -213,14 +213,14 @@ Categorías: `[feat]`, `[fix]`, `[refactor]`, `[docs]`, `[test]`
 ### Ejecutar tests
 ```bash
 pytest                              # Todos
-pytest tests/test_productos.py      # Específico
+pytest tests/inventario/test_productos.py      # Específico
 pytest -v                           # Verbose
 pytest --cov=stockhogar            # Con cobertura
 ```
 
 ### Escribir tests
 ```python
-# tests/test_productos.py
+# tests/inventario/test_productos.py
 def test_crear_producto(client):
     resp = client.post('/api/productos', json={
         'nombre': 'Leche',

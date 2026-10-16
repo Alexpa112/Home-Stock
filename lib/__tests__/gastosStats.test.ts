@@ -10,7 +10,7 @@ import {
 } from '../gastosStats'
 
 // La simplificación de deudas (sugerir quién paga a quién) vive en el
-// backend (GET /api/gastos/simplificar, stockhogar/rutas/gastos.py) y ya
+// backend (GET /api/gastos/simplificar, stockhogar/rutas/finanzas/gastos.py) y ya
 // tiene su propia cobertura ahí; no se duplica esa lógica en el cliente.
 
 describe('agruparPorMes', () => {

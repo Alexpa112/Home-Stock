@@ -6,7 +6,7 @@ hogar: OCR + comprensión del documento en una sola llamada.
 
 Requiere ANTHROPIC_API_KEY (ver .env.example). Sin esa clave, sin el paquete
 `anthropic` instalado, o si la llamada falla (sin red, cuota agotada...), el
-flujo cae al pipeline local con Tesseract (ver rutas/tickets.py).
+flujo cae al pipeline local con Tesseract (ver rutas/escaner/tickets.py).
 
 Decisiones de diseño que afectan a la fiabilidad del reconocimiento:
 
@@ -33,13 +33,7 @@ import os
 from typing import List, Optional, Tuple
 
 from .catalogo import MAX_LONGITUD_NOMBRE
-from .validacion_importes import (
-    coherencia_linea,
-    confianza_item,
-    normalizar_importe,
-    precio_unitario_derivado,
-    validar_totales,
-)
+from .validacion_importes import coherencia_linea, confianza_item, normalizar_importe, precio_unitario_derivado, validar_totales
 
 logger = logging.getLogger(__name__)
 
@@ -524,7 +518,7 @@ def _extraer_json(texto: str) -> Optional[dict]:
 class ClaudeOCR:
     """Motor de OCR de tickets basado en Claude Vision."""
 
-    # De clase, no de instancia: rutas/tickets.py construye un ClaudeOCR por
+    # De clase, no de instancia: rutas/escaner/tickets.py construye un ClaudeOCR por
     # peticion, asi que un flag de instancia volveria a intentar (y a fallar)
     # la llamada con esquema en cada ticket.
     _soporta_esquema = True

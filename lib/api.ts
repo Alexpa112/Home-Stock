@@ -56,10 +56,33 @@ function establecerCsrfToken(token: string | null) {
 
 const METODOS_MUTABLES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
+// Interpreta una respuesta: JSON (o null), y efectos comunes a todas las llamadas.
+//  - 503 con `mantenimiento`: red de seguridad si el stream SSE de mantenimiento
+//    (RootLayoutClient) se hubiera perdido; cualquier peticion real lo detecta igualmente.
+//  - 401: sesion invalidada (S-19), p.ej. otro dispositivo cambio la contraseña o pulso
+//    "cerrar otras sesiones" (session_version, stockhogar/api/base.py). Sin limpiar la cache,
+//    quien vuelve a entrar en el mismo dispositivo con OTRA cuenta veria datos de la anterior.
+//  - !ok: lanza Error con el mensaje del servidor.
+async function leerRespuesta<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get('content-type') || ''
+  const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
+  if (response.status === 503 && datos?.mantenimiento) {
+    marcarMantenimiento(true)
+  }
+  if (response.status === 401) {
+    clearAllCache()
+    resetearCsrfToken()
+  }
+  if (!response.ok) {
+    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
+  }
+  return datos as T
+}
+
 // Como apiCall pero para multipart/form-data (subida de imagen de ticket):
 // no se fija Content-Type (el navegador pone el boundary solo) ni se
 // serializa el body a JSON.
-export async function apiUpload<T = any>(endpoint: string, formData: FormData, timeoutMs = 120_000): Promise<T> {
+async function apiUpload<T = any>(endpoint: string, formData: FormData, timeoutMs = 120_000): Promise<T> {
   // AbortController con timeout: si el servidor corta la conexión sin cerrar
   // bien el socket (p.ej. worker de gunicorn matado a mitad de un OCR largo),
   // fetch se queda esperando indefinidamente y el spinner nunca termina.
@@ -97,35 +120,15 @@ export async function apiUpload<T = any>(endpoint: string, formData: FormData, t
     }
   }
 
-  const contentType = response.headers.get('content-type') || ''
-  const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
-  if (response.status === 503 && datos?.mantenimiento) {
-    marcarMantenimiento(true)
-  }
-  // Sesión invalidada (S-19), igual que apiCall.
-  if (response.status === 401) {
-    clearAllCache()
-    resetearCsrfToken()
-  }
-  if (!response.ok) {
-    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
-  }
-  return datos as T
+  return leerRespuesta<T>(response)
 }
 
 // Como apiCall pero para descargar un blob (CSV/exportaciones): no espera
 // JSON de vuelta, dispara la descarga en el navegador vía un <a> sintético.
-export async function apiDownload(endpoint: string, filenameFallback: string): Promise<void> {
+async function apiDownload(endpoint: string, filenameFallback: string): Promise<void> {
   const response = await fetch(endpoint, { credentials: 'include' })
 
-  if (!response.ok) {
-    const contentType = response.headers.get('content-type') || ''
-    const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
-    if (response.status === 503 && datos?.mantenimiento) {
-      marcarMantenimiento(true)
-    }
-    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
-  }
+  if (!response.ok) await leerRespuesta(response)
 
   const blob = await response.blob()
   const disposition = response.headers.get('content-disposition') || ''
@@ -173,32 +176,10 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
 
   if (response.status === 204) return undefined as T
 
-  const contentType = response.headers.get('content-type') || ''
-  const datos = contentType.includes('application/json') ? await response.json().catch(() => null) : null
-
-  // Red de seguridad si el stream SSE de mantenimiento (RootLayoutClient) se
-  // hubiera perdido: cualquier petición real detecta el 503 igualmente.
-  if (response.status === 503 && datos?.mantenimiento) {
-    marcarMantenimiento(true)
-  }
-
-  // Sesión invalidada (S-19): p.ej. otro dispositivo cambió la contraseña o
-  // pulsó "cerrar otras sesiones" (ver session_version, stockhogar/api/base.py).
-  // Sin esto, un usuario que vuelve a entrar en el mismo dispositivo con OTRA
-  // cuenta seguiría viendo en caché los datos de la sesión anterior.
-  if (response.status === 401) {
-    clearAllCache()
-    resetearCsrfToken()
-  }
-
-  if (!response.ok) {
-    throw new Error((datos && datos.error) || `Error HTTP ${response.status}`)
-  }
-
-  return datos as T
+  return leerRespuesta<T>(response)
 }
 
-// ===== Autenticación (stockhogar/rutas/auth.py) =====
+// ===== Autenticación (stockhogar/rutas/cuenta/auth.py) =====
 export const auth = {
   estado: () => apiCall('/api/auth/estado'),
 
@@ -245,7 +226,7 @@ export const auth = {
     return result
   },
 
-  // Diagnostico del motor de OCR (stockhogar/rutas/ocr_tickets.py). Se usa en
+  // Diagnostico del motor de OCR (stockhogar/rutas/escaner/ocr_tickets.py). Se usa en
   // Ajustes para avisar si el escaner va a caer a Tesseract.
   validarInstalacionOcr: () => apiCall('/api/ocr/validar-instalacion'),
 
@@ -308,7 +289,7 @@ export const auth = {
     apiCall(`/api/usuarios/${usuarioId}`, { method: 'DELETE', body: JSON.stringify({ password_actual: passwordActual }) }),
 }
 
-// ===== Hogares (stockhogar/rutas/hogares.py) =====
+// ===== Hogares (stockhogar/rutas/hogar/hogares.py) =====
 export const hogares = {
   listar: () => apiCall('/api/hogares'),
 
@@ -334,7 +315,7 @@ export const hogares = {
   miembrosBasico: (hogarId: number) => apiCall(`/api/hogares/${hogarId}/miembros-basico`),
 }
 
-// ===== Productos / stock (stockhogar/rutas/productos.py) =====
+// ===== Productos / stock (stockhogar/rutas/inventario/productos.py) =====
 export const productos = {
   listar: () => apiCall('/api/productos'),
 
@@ -365,7 +346,7 @@ export const productos = {
   },
 }
 
-// ===== Lista de la compra (stockhogar/rutas/articulos_compra.py) =====
+// ===== Lista de la compra (stockhogar/rutas/compra/articulos_compra.py) =====
 export const articulosLista = {
   // Devuelve { pendientes: [...], completados: [...] }
   listar: () => apiCall('/api/articulos'),
@@ -401,7 +382,7 @@ export const articulosPersonalizados = {
   eliminar: (id: number) => apiCall(`/api/articulos/personalizados/${id}`, { method: 'DELETE' }),
 }
 
-// ===== Categorías (stockhogar/rutas/categorias.py) =====
+// ===== Categorías (stockhogar/rutas/inventario/categorias.py) =====
 export const categorias = {
   listar: () => apiCall('/api/categorias'),
   crear: (nombre: string, icono?: string) =>
@@ -409,7 +390,7 @@ export const categorias = {
   eliminar: (id: number) => apiCall(`/api/categorias/${id}`, { method: 'DELETE' }),
 }
 
-// ===== Categorías de gasto (stockhogar/rutas/categorias_gasto.py) =====
+// ===== Categorías de gasto (stockhogar/rutas/finanzas/categorias_gasto.py) =====
 export const categoriasGasto = {
   listar: () => apiCall('/api/categorias-gasto'),
   crear: (nombre: string, icono?: string) =>
@@ -417,7 +398,7 @@ export const categoriasGasto = {
   eliminar: (id: number) => apiCall(`/api/categorias-gasto/${id}`, { method: 'DELETE' }),
 }
 
-// ===== Hogares compartidos / permisos (stockhogar/rutas/permisos.py) =====
+// ===== Hogares compartidos / permisos (stockhogar/rutas/hogar/permisos.py) =====
 export const permisos = {
 
   // { propietario: {...}, miembros: [...] }
@@ -446,7 +427,7 @@ export const permisos = {
     apiCall(`/api/hogares/invitaciones-pendientes/${codigo}`, { method: 'DELETE' }),
 }
 
-// ===== Gastos compartidos del hogar (stockhogar/rutas/gastos.py) =====
+// ===== Gastos compartidos del hogar (stockhogar/rutas/finanzas/gastos.py) =====
 export const gastos = {
   listar: () => apiCall('/api/gastos'),
 
@@ -512,7 +493,7 @@ export const gastos = {
   exportarCsv: () => apiDownload('/api/gastos/exportar', 'gastos.csv'),
 }
 
-// ===== Escaneo de tickets (stockhogar/rutas/tickets.py) =====
+// ===== Escaneo de tickets (stockhogar/rutas/escaner/tickets.py) =====
 export const tickets = {
   // Sube la foto y devuelve { items: [...], resumen: {...}, advertencias: [...] }
   analizar: (foto: File) => {
@@ -532,12 +513,12 @@ export const tickets = {
   ) => apiCall('/api/tickets/confirmar', { method: 'POST', body: JSON.stringify({ items }) }),
 }
 
-// ===== Historial / catálogo aprendido (stockhogar/rutas/historial.py) =====
+// ===== Historial / catálogo aprendido (stockhogar/rutas/inventario/historial.py) =====
 export const historial = {
   listar: () => apiCall('/api/historial'),
 }
 
-// ===== Recetas (stockhogar/rutas/recetas.py) =====
+// ===== Recetas (stockhogar/rutas/inventario/recetas.py) =====
 export const recetas = {
   listar: () => apiCall('/api/recetas'),
 
@@ -552,26 +533,26 @@ export const recetas = {
   anadirALista: (id: number) => apiCall(`/api/recetas/${id}/anadir-a-lista`, { method: 'POST' }),
 }
 
-// ===== Consumo / auditoría de stock (stockhogar/rutas/consumo.py) =====
+// ===== Consumo / auditoría de stock (stockhogar/rutas/inventario/consumo.py) =====
 export const consumo = {
   movimientosProducto: (productoId: number) => apiCall(`/api/consumo/producto/${productoId}`),
   resumen: (dias = 30) => apiCall(`/api/consumo/resumen?dias=${dias}`),
 }
 
-// ===== Idiomas (stockhogar/rutas/idiomas.py) =====
+// ===== Idiomas (stockhogar/rutas/sistema/idiomas.py) =====
 export const idiomas = {
   disponibles: () => apiCall('/api/idiomas/disponibles'),
   cambiar: (idioma: string) => apiCall('/api/idiomas/cambiar', { method: 'POST', body: JSON.stringify({ idioma }) }),
   todos: (idioma: string) => apiCall(`/api/idiomas/todos/${idioma}`),
 }
 
-// ===== Configuración pública para páginas legales (stockhogar/rutas/legal.py) =====
+// ===== Configuración pública para páginas legales (stockhogar/rutas/sistema/legal.py) =====
 export const legal = {
   configuracion: (): Promise<{ titular: string; email_contacto: string; dominio: string; version_terminos: string }> =>
     apiCall('/api/legal/config'),
 }
 
-// ===== Notificaciones push (stockhogar/rutas/push.py, P-01) =====
+// ===== Notificaciones push (stockhogar/rutas/sistema/push.py, P-01) =====
 export const push = {
   vapidClavePublica: (): Promise<{ clave_publica: string }> => apiCall('/api/push/vapid-clave-publica'),
 

@@ -110,21 +110,21 @@ Descubrimiento durante el trabajo: el plan original solo contaba 3 ficheros
 dependian del modelo antiguo. Se decidio con el usuario ampliar el alcance a
 los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 
-- [x] `stockhogar/rutas/listas.py` -> `stockhogar/rutas/hogares.py` (git mv),
+- [x] `stockhogar/rutas/listas.py` -> `stockhogar/rutas/hogar/hogares.py` (git mv),
       Blueprint `hogares`, prefijo `/api/hogares`
 - [x] Alias `/api/listas` registrado en `stockhogar/__init__.py` reutilizando el
       mismo blueprint (`register_blueprint(hogares.bp, name="hogares_alias_legado",
       url_prefix="/api/listas")`) para no romper peticiones de PWA offline en cola
-- [x] `stockhogar/rutas/articulos_lista.py` -> `stockhogar/rutas/articulos_compra.py`
+- [x] `stockhogar/rutas/articulos_lista.py` -> `stockhogar/rutas/compra/articulos_compra.py`
       (git mv), Blueprint `articulos_compra`, sigue en `/api/articulos` (sin cambio
       de prefijo, solo de tabla interna: `articulos_lista` -> `articulos_compra`)
-- [x] `stockhogar/rutas/permisos.py` — usa `hogares`/`permisos_hogar`/
+- [x] `stockhogar/rutas/hogar/permisos.py` — usa `hogares`/`permisos_hogar`/
       `invitaciones_hogar`, prefijo ya era `/api/hogares`
 - [x] `stockhogar/servicios/stock.py` — logica central de stock (`sumar_stock`,
       `revisar_stock_bajo`, `registrar_movimiento`, `crear_producto_nuevo`) migrada
       a `stock_hogar`/`articulos_compra`/`hogares`; `lista_actual_con_permiso` ->
       `hogar_actual_con_permiso`
-- [x] `stockhogar/rutas/productos.py`, `tickets.py`, `consumo.py`, `historial.py`,
+- [x] `stockhogar/rutas/inventario/productos.py`, `tickets.py`, `consumo.py`, `historial.py`,
       `auth.py` — actualizados a `hogar_id`/`stock_hogar`/`articulos_compra`/
       `hogares`/`permisos_hogar`
 - [x] `session['lista_actual_id']` -> `session['hogar_actual_id']` en todos los sitios
@@ -150,7 +150,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
       `hogar_actual_id`
 - [x] Verificado: `python -m pytest tests/ -q` -> 66 passed, 1 skipped
 - Hallazgo aparte (no relacionado con esta tarea, reportado como tarea suelta):
-  `tests/test_historial_catalogo.py` no limpia una fila fija de
+  `tests/inventario/test_historial_catalogo.py` no limpia una fila fija de
   `historial_articulos` en tearDown; si la suite corre dos veces seguidas contra
   la BD real sin reiniciarla, falla por UNIQUE constraint. Prexistente, no
   causado por esta migracion.
@@ -248,7 +248,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 - [x] Investigado: NO existe un service worker clasico con lista de URLs cacheadas
       (no hay `navigator.serviceWorker.register` en toda la app). El mecanismo real
       de cache-busting es `lib/useCacheBuster.ts` (activo en `app/RootLayoutClient.tsx`),
-      que cada 15s consulta `GET /api/cache-version` (`stockhogar/rutas/version.py`,
+      que cada 15s consulta `GET /api/cache-version` (`stockhogar/rutas/sistema/version.py`,
       version = mtime de `docker-compose.yml` o, si no existe, de `stockhogar/__init__.py`)
       y si cambia: desregistra cualquier service worker residual, borra TODO
       `caches.keys()` (Cache Storage API) y recarga la pagina
@@ -265,7 +265,7 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 ### 7. Tests (tests/) — COMPLETADO 2026-07-30
 - [x] Actualizar tests que usan `/api/listas`, tabla `listas`, `lista_actual_id` — hecho
       en el Punto 2 (13 ficheros), no quedaba nada pendiente aqui
-- [x] Test de regresion de la migracion (`tests/test_migracion_hogares.py`, nuevo):
+- [x] Test de regresion de la migracion (`tests/hogares/test_migracion_hogares.py`, nuevo):
       inserta una fila "vieja" directamente en `listas`/`stock_lista`/`articulos_lista`/
       `permisos_lista` con un id explicito muy por encima del maximo actual en ambas
       tablas (evita falsos negativos por desincronizacion de autoincrement entre
@@ -307,6 +307,6 @@ los 8 para no dejar el backend con dos fuentes de verdad divergentes.
 - 2026-07-30 — Punto 6 completado sin cambios de codigo: no hay service worker
   clasico que purgar; el cache-busting existente (useCacheBuster + /api/cache-version
   basado en mtime) ya cubre el caso automaticamente en cualquier despliegue.
-- 2026-07-30 — Punto 7 completado: nuevo tests/test_migracion_hogares.py (5 tests) de
+- 2026-07-30 — Punto 7 completado: nuevo tests/hogares/test_migracion_hogares.py (5 tests) de
   regresion de la migracion aditiva. Suite completa 71 passed, 1 skipped, dos veces
   seguidas sin reiniciar la BD.

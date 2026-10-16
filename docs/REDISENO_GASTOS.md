@@ -118,7 +118,7 @@ Cada fase es un commit coherente en `dev2`, con la suite de tests verde antes de
 ### Fase 0 — Identidad del usuario actual (habilitador)
 - `GET /api/auth/estado` devuelve además `usuario_id` (hoy solo devuelve `usuario`, el nombre).
 - El front lo consume para resolver «Tú» en 1A / 3C / 9A sin comparar por nombre.
-- Test: `tests/test_auth_estado_usuario_id.py`.
+- Test: `tests/seguridad/test_auth_estado_usuario_id.py`.
 
 ### Fase 1 — Utilidades puras y color de categoría
 - `lib/gastosStats.ts`: `simplificarDeudas`, `agruparPorMes`, `totalMes`, `variacionMensual`, `parteDeUsuario`.
@@ -164,9 +164,9 @@ Claves previstas: `tu_balance`, `te_deben_total`, `debes_total`, `estas_en_paz`,
 
 | Fase | Tests |
 |---|---|
-| 0 | `tests/test_auth_estado_usuario_id.py` |
+| 0 | `tests/seguridad/test_auth_estado_usuario_id.py` |
 | 1 | `__tests__/gastosStats.test.js`: simplificación de deudas (caso circular A→B→C, saldos que no cuadran por redondeo, hogar en paz), agrupación por mes con meses vacíos, variación mensual sin mes anterior |
-| 3 | `tests/test_gastos.py` ampliado: alta con `fecha` explícita y edición de la fecha |
+| 3 | `tests/gastos/test_gastos.py` ampliado: alta con `fecha` explícita y edición de la fecha |
 | 7 | `tests/test_liquidaciones.py`: listado, borrado, permisos (`ver` no puede borrar), saldo recalculado |
 
 Verificación final: `python -m pytest tests/ -q` y `npm test` en verde, más comprobación visual de la pantalla en claro y oscuro a 375 px y en escritorio.

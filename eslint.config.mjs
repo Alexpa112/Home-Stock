@@ -20,7 +20,7 @@ export default [
       'stockhogar/**',
       'scripts/**',
       // Copia generada de translations.json (ver
-      // scripts/generar_traducciones_base.py): no se edita a mano.
+      // scripts/generadores/generar_traducciones_base.py): no se edita a mano.
       'lib/traduccionesBase.ts',
     ],
   },

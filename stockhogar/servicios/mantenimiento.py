@@ -19,7 +19,7 @@ def activo() -> bool:
     # Lectura directa del flag en cada llamada (S-02): antes habia un hilo
     # daemon que lo comprobaba cada segundo y notificaba a streams SSE, pero
     # el SSE se elimino (el frontend ahora hace polling a /api/mantenimiento/estado,
-    # ver rutas/paginas.py) y sin el, ese hilo y su Condition ya no tenian
+    # ver rutas/sistema/paginas.py) y sin el, ese hilo y su Condition ya no tenian
     # ningun consumidor. Un stat() de fichero por peticion es barato.
     return RUTA_FLAG.exists()
 

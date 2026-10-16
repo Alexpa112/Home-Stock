@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.11"
       # La mayoria de tests de OCR mockean el motor de reconocimiento, pero
-      # tests/test_escaner_tesseract_real.py pasa tickets sinteticos por
+      # tests/escaner/test_escaner_tesseract_real.py pasa tickets sinteticos por
       # Tesseract DE VERDAD (los mismos paquetes que Dockerfile y
       # Dockerfile.raspbian). Sin el binario esos tests se saltan en silencio.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils fonts-dejavu-core

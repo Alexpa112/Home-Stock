@@ -31,7 +31,7 @@ COPY contexts ./contexts
 COPY hooks ./hooks
 COPY lib ./lib
 COPY public ./public
-COPY middleware.ts next.config.mjs tailwind.config.ts postcss.config.mjs tsconfig.json components.json ./
+COPY middleware.ts next.config.mjs tailwind.config.ts postcss.config.mjs tsconfig.json ./
 
 # URL del backend Flask DENTRO de la red de docker-compose (nombre del
 # servicio "stockhogar", no localhost): la usa next.config.mjs en su función

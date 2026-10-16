@@ -1,6 +1,5 @@
 """Extracción de texto desde imágenes usando Tesseract OCR."""
 import pytesseract
-import cv2
 import re
 from typing import Tuple
 

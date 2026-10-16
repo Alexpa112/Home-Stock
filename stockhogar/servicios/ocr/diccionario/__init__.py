@@ -38,7 +38,7 @@ from .datos_abreviaturas import ABREVIATURAS, RELLENO
 from .datos_marcas import MARCAS
 from . import datos_articulos_a, datos_articulos_b, datos_articulos_c, datos_articulos_d, datos_off
 
-# Umbrales (ajustados con tests/test_diccionario_articulos.py).
+# Umbrales (ajustados con tests/escaner/test_diccionario_articulos.py).
 CONFIANZA_CANONICO = 0.80   # a partir de aqui se usa el nombre del catalogo
 CONFIANZA_CATEGORIA = 0.55  # a partir de aqui se fia de la categoria votada
 MAX_PALABRAS_ALIAS = 5      # un alias mas largo es una frase suelta, no un sinonimo
@@ -51,7 +51,7 @@ MODIFICADORES = {
     "granel", "pieza", "piezas", "kg", "lavado", "lavada", "pelado", "pelada", "troceado", "troceada",
     "fileteado", "fileteada", "envasado", "envasada", "natural_", "eco", "ecologico", "ecologica",
     "bio", "nacional", "importacion", "primera", "extra_", "categoria", "calibre", "temporada",
-    "bandeja", "malla", "granel", "cesta", "clase", "gr", "ud", "uds", "x",
+    "bandeja", "malla", "cesta", "clase", "gr", "ud", "uds", "x",
     "filete", "filetes", "rodaja", "rodajas", "loncha", "lonchas", "trozo", "trozos", "taco", "tacos",
     "tira", "tiras", "tarro", "lata", "latas", "brik", "botella", "botellin",
 }

@@ -8,6 +8,7 @@ import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { usePushNotifications } from '@/lib/usePushNotifications'
+import { AvisoError } from '@/components/shared/AvisoError'
 
 export default function SettingsPage() {
   const { preferences, updatePreferences } = useListPreferences()
@@ -335,15 +336,7 @@ export default function SettingsPage() {
       <CabeceraPantalla titulo={t('ajustes')} subtitulo={t('subtitulo_ajustes')} />
 
       {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium">{t('error')}</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        </div>
-      )}
+      <AvisoError mensaje={error} conTitulo />
 
       {/* Success Message */}
       {exito && (

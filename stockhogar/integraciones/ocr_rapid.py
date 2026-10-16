@@ -14,7 +14,7 @@ import os
 import re
 import threading
 
-from ..servicios.ocr.reconstructor_espacial import LineaReconstruida, Palabra, reconstruir_lineas
+from ..servicios.ocr.reconstructor_espacial import reconstruir_lineas
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,7 @@ DB_PATH = DATA_DIR / "stock.db"
 CLAVES_PATH = DATA_DIR / "secret.json"
 
 # Motor de base de datos: "sqlite" (defecto, el unico soportado en produccion
-# hoy) o "postgres" (opt-in, experimental - ver stockhogar/db_backend.py y
+# hoy) o "postgres" (opt-in, experimental - ver stockhogar/db/backend_postgres.py y
 # docs/PROPUESTA_SEGURIDAD_Y_FUNCIONALIDADES.md, Fase 1.5).
 DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").strip().lower()
 
@@ -923,7 +923,7 @@ EMAIL_CONTACTO_LEGAL = "pazsilva.alejandro@gmail.com"
 
 # Version vigente de Terminos y Condiciones / Politica de Privacidad. Al
 # subir esta fecha, todo usuario (incluido el que ya tenia cuenta) debe
-# volver a aceptar antes de seguir usando la app (ver rutas/auth.py).
+# volver a aceptar antes de seguir usando la app (ver rutas/cuenta/ (datos_personales.py)).
 VERSION_TERMINOS = "2026-08-22-1"
 
 # Interruptor de emergencia para el registro publico (S-05): abierto por

@@ -17,14 +17,14 @@ simplemente no ha vuelto a tocar ese producto).
 """
 import sqlite3
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from stockhogar.config import DB_PATH  # noqa: E402
 from stockhogar.db import ahora  # noqa: E402
-from stockhogar.servicios.push_service import enviar_push_a_usuario  # noqa: E402
+from stockhogar.servicios.notificaciones.push_service import enviar_push_a_usuario  # noqa: E402
 
 REPETIR_AVISO_TRAS_DIAS = 7
 

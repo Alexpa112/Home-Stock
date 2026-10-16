@@ -222,7 +222,7 @@ Output:
 
 ## 🔧 Integración con Rutas Flask
 
-### Actualizar `rutas/tickets.py`:
+### Actualizar `rutas/escaner/tickets.py`:
 
 ```python
 from stockhogar.servicios.ocr import ProcesadorTicketsV2, crear_respuesta_usuario
@@ -364,7 +364,7 @@ matcher.palabras_categoria["Nuevacategoría"] = [
 - `stockhogar/servicios/ocr/parser_mejorado.py` - Parser
 - `stockhogar/servicios/ocr/matcher_inteligente.py` - Matcher
 - `stockhogar/servicios/ocr/procesador_tickets_v2.py` - Integración
-- `stockhogar/rutas/tickets.py` - Endpoints Flask
+- `stockhogar/rutas/escaner/tickets.py` - Endpoints Flask
 
 ---
 

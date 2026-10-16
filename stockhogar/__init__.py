@@ -7,20 +7,29 @@ import os
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
-from flask import Flask, g, jsonify, redirect, request, session, url_for
+from flask import Flask, g, jsonify, redirect, request, session
 from flask.sessions import SecureCookieSessionInterface
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from . import db, seguridad
+from . import db
+from .nucleo import seguridad
 from .config import DIAS_SESION, USAR_COOKIE_SEGURA, LOG_FILE_PATH
 from .servicios import mantenimiento
 from .translator import traducir
 
 csrf = CSRFProtect()
 
-from .rutas import auth, articulos_compra, categorias, categorias_gasto, consumo, gastos, historial, hogares, paginas, productos, recetas, tickets, ocr_tickets, permisos, oauth, idiomas, formularios, version, legal, push
-from .rutas.auth import RUTAS_PUBLICAS
+from .rutas import cuenta
+from .rutas.cuenta import oauth
+from .rutas import compra
+from .rutas.inventario import categorias, consumo, historial, productos, recetas
+from .rutas import finanzas
+from .rutas.finanzas import categorias_gasto
+from .rutas.hogar import hogares, permisos
+from .rutas.sistema import paginas, idiomas, formularios, version, legal, push
+from .rutas.escaner import tickets, ocr_tickets
+from .rutas.cuenta import RUTAS_PUBLICAS
 
 
 def _configurar_logging_a_fichero():
@@ -85,7 +94,7 @@ def create_app():
     app = Flask(__name__)
     # Un solo salto de proxy de confianza: el contenedor Next (rewrite de
     # /api/*). Sin esto, request.remote_addr siempre es la IP del contenedor
-    # Next, nunca la del cliente real (ver stockhogar/red.py::ip_cliente()).
+    # Next, nunca la del cliente real (ver stockhogar/nucleo/red.py::ip_cliente()).
     # x_for=1 exactamente: mas de un salto permitiria a un cliente falsear su
     # propia IP añadiendo entradas propias a X-Forwarded-For.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0)
@@ -144,7 +153,7 @@ def create_app():
         return response
 
     app.register_blueprint(paginas.bp)
-    app.register_blueprint(auth.bp)
+    app.register_blueprint(cuenta.bp)
     app.register_blueprint(oauth.bp)
     app.register_blueprint(idiomas.bp)
     app.register_blueprint(formularios.bp)
@@ -158,9 +167,9 @@ def create_app():
     # hasta que se confirme que todos los clientes migraron (ver
     # docs/HOGAR_REESTRUCTURACION.md).
     app.register_blueprint(hogares.bp, name="hogares_alias_legado", url_prefix="/api/listas")
-    app.register_blueprint(articulos_compra.bp)
+    app.register_blueprint(compra.bp)
     app.register_blueprint(permisos.bp)
-    app.register_blueprint(gastos.bp)
+    app.register_blueprint(finanzas.bp)
     app.register_blueprint(tickets.bp)
     app.register_blueprint(ocr_tickets.bp)
     app.register_blueprint(consumo.bp)
@@ -245,7 +254,7 @@ def _restringir_permisos_de_datos():
 def _cifrar_datos_existentes(app):
     """Cifra en reposo lo que una version anterior guardo en claro (idempotente)."""
     import logging
-    from . import cifrado
+    from .nucleo import cifrado
     try:
         with app.app_context():
             n = cifrado.cifrar_existentes(db.get_db())

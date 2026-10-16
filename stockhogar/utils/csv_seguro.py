@@ -34,3 +34,26 @@ def desproteger(valor):
     if isinstance(valor, str) and len(valor) > 1 and valor[0] == "'" and valor[1] in "=+-@\t\r":
         return valor[1:]
     return valor
+
+
+def leer_csv_subido(archivos, max_filas, campo="fichero"):
+    """Filas (dicts) de un CSV subido con el formato de los /exportar (UTF-8, ';').
+
+    Devuelve None si no se subio fichero; lanza ValidationError si no es texto. Se leen como
+    mucho `max_filas` filas: un CSV enorme no debe poder bloquear la peticion."""
+    import io
+    from .validation import ValidationError
+
+    archivo = archivos.get(campo)
+    if archivo is None or archivo.filename == "":
+        return None
+    try:
+        texto = archivo.read().decode("utf-8-sig")
+    except UnicodeDecodeError as e:
+        raise ValidationError("El fichero debe ser un CSV de texto") from e
+    filas = []
+    for i, fila in enumerate(csv.DictReader(io.StringIO(texto), delimiter=";")):
+        if i >= max_filas:
+            break
+        filas.append(fila)
+    return filas

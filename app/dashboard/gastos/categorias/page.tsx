@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Tags, X, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Plus, Tags, X } from 'lucide-react'
 import { IconPicker } from '@/components/dashboard/IconPicker'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { categoriasGasto as categoriasGastoApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached } from '@/lib/dataCache'
+import { AvisoError } from '@/components/shared/AvisoError'
 
 const CACHE_KEY_CATEGORIAS_GASTO = 'gastos:categorias'
 
@@ -82,12 +83,7 @@ export default function CategoriasGastoPage() {
         <h1 className="text-xl font-bold">{t('categorias_gasto')}</h1>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
+      <AvisoError mensaje={error} />
 
       <form onSubmit={handleCrear} className="flex gap-2">
         <button
