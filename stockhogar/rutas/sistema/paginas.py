@@ -4,7 +4,7 @@ from flask import Blueprint, request
 from flask_wtf.csrf import generate_csrf
 
 from ... import csrf
-from ...api import manejo_errores, APIResponse, cuerpo_json
+from ...api import manejo_errores, APIResponse, cuerpo_json, texto_json
 from ...nucleo.red import ip_cliente, limite_por_ip
 from ...servicios import mantenimiento
 
@@ -68,7 +68,7 @@ def log_client_error():
         return APIResponse.error("err_demasiadas_peticiones", 429)
 
     datos = cuerpo_json()
-    nivel = (datos.get("nivel") or "info").lower()  # info, warning, error
+    nivel = (texto_json(datos, "nivel") or "info").lower()  # info, warning, error
     mensaje = str(datos.get("mensaje", ""))
     contexto = datos.get("contexto", {})
 

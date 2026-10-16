@@ -4,7 +4,7 @@ import secrets
 from flask import Blueprint, session
 from datetime import datetime, timedelta
 
-from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...nucleo.autorizacion import requerir_hogar
 from ...config import APP_URL, LIMITE_INVITACIONES_DIARIO_POR_HOGAR
 from ...db import ahora, get_db
@@ -85,8 +85,8 @@ def compartir_lista(hogar_id):
     datos = cuerpo_json()
 
     # Obtener email o nombre de usuario destino (acepta "usuario" como alias)
-    email_destino = (datos.get("email") or "").strip()
-    nombre_usuario_destino = (datos.get("nombre_usuario") or datos.get("usuario") or "").strip()
+    email_destino = texto_json(datos, "email")
+    nombre_usuario_destino = texto_json(datos, "nombre_usuario", "usuario")
     nivel = Validator.string_opcional(datos.get("nivel"), "editar", 10)
 
     if nivel not in ["ver", "comprar", "editar"]:

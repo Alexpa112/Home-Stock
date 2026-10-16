@@ -1,7 +1,7 @@
 """Lista de la compra: listar, anadir o sumar, editar y borrar articulos."""
 from .blueprint import bp, logger
 from flask import session
-from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...config import DIAS_AVISO_DEFECTO
 from ...db import ahora, get_db
 from ...servicios.stock import hogar_actual_con_permiso
@@ -256,12 +256,12 @@ def anadir_articulo():
     articulo = anadir_o_sumar_articulo(
         db, hogar_id, nombre,
         cantidad=datos.get("cantidad") or 1,
-        categoria=datos.get("categoria"),
-        icono=datos.get("icono"),
-        unidad=datos.get("unidad"),
-        sub_descripcion=datos.get("sub_descripcion"),
+        categoria=texto_json(datos, "categoria"),
+        icono=texto_json(datos, "icono"),
+        unidad=texto_json(datos, "unidad"),
+        sub_descripcion=texto_json(datos, "sub_descripcion"),
         dias_aviso=datos.get("dias_aviso"),
-        codigo_barras=datos.get("codigo_barras"),
+        codigo_barras=texto_json(datos, "codigo_barras"),
     )
     return APIResponse.success(articulo, 201)
 

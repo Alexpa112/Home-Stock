@@ -5,7 +5,7 @@ import secrets
 import time
 from flask import session
 from werkzeug.security import generate_password_hash
-from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...config import LONGITUD_PASSWORD_MINIMA
 from ...db import get_db
 from ...nucleo.red import ip_cliente, limite_por_ip
@@ -21,9 +21,9 @@ def cambiar_password():
     """Cambiar contraseña del usuario actual."""
     usuario_id = session.get("usuario_id")
     datos = cuerpo_json()
-    password_actual = datos.get("password_actual") or ""
-    password_nueva = datos.get("password_nueva") or ""
-    password_confirmacion = datos.get("password_confirmacion") or ""
+    password_actual = texto_json(datos, "password_actual", recortar=False)
+    password_nueva = texto_json(datos, "password_nueva", recortar=False)
+    password_confirmacion = texto_json(datos, "password_confirmacion", recortar=False)
 
     # Validar contraseña nueva
     if len(password_nueva) < LONGITUD_PASSWORD_MINIMA:
@@ -148,7 +148,7 @@ def solicitar_reset_password():
         return APIResponse.error("err_demasiadas_peticiones", 429)
 
     datos = cuerpo_json()
-    identificador = (datos.get("usuario_o_email") or "").strip()
+    identificador = texto_json(datos, "usuario_o_email")
     respuesta_generica = APIResponse.success({"mensaje": "mensaje_reset_generico"})
     if not identificador:
         return respuesta_generica
@@ -180,8 +180,8 @@ def solicitar_reset_password():
 @manejo_errores
 def restablecer_password():
     datos = cuerpo_json()
-    token = (datos.get("token") or "").strip()
-    password_nueva = datos.get("password_nueva") or ""
+    token = texto_json(datos, "token")
+    password_nueva = texto_json(datos, "password_nueva", recortar=False)
 
     if len(password_nueva) < LONGITUD_PASSWORD_MINIMA:
         return APIResponse.validacion("err_password_min_8")

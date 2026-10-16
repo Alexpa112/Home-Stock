@@ -19,6 +19,11 @@ from cryptography.fernet import Fernet
 
 from ..config import CLAVES_PATH
 
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+
 MAX_CLAVES_VERIFICACION = 2
 
 
@@ -32,6 +37,21 @@ def _migrar_formato_antiguo(claves):
 
 
 def _cargar_claves():
+    """Con flock: gunicorn arranca varios workers a la vez y, en el primer
+    arranque, todos veian que no habia secret.json y lo creaban con claves
+    distintas (o se pisaban el .tmp y el worker caia al arrancar)."""
+    if fcntl is None:
+        return _cargar_claves_impl()
+    CLAVES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(CLAVES_PATH.with_name(".secret.lock"), "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            return _cargar_claves_impl()
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _cargar_claves_impl():
     if CLAVES_PATH.exists():
         claves = _migrar_formato_antiguo(json.loads(CLAVES_PATH.read_text(encoding="utf-8")))
         # Instalaciones anteriores al cifrado en reposo: se crea su clave sin tocar la de sesion.

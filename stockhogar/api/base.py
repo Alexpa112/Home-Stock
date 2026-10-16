@@ -26,6 +26,23 @@ def cuerpo_json():
     return datos
 
 
+def texto_json(datos, clave, *alternativas, recortar=True):
+    """Texto (sin espacios sobrantes) de un campo del cuerpo JSON. Vacio si falta o es null.
+    `recortar=False` conserva los espacios (contraseñas).
+
+    Un valor que no sea texto (`5`, `[]`, `{}`) es un error del cliente (400); con
+    `(datos.get(k) or "").strip()` provocaba AttributeError y un 500.
+    """
+    for k in (clave, *alternativas):
+        valor = datos.get(k)
+        if valor in (None, ""):
+            continue
+        if not isinstance(valor, str):
+            raise ValidationError(f"el campo '{k}' debe ser texto")
+        return valor.strip() if recortar else valor
+    return ""
+
+
 def session_version_en_bd():
     """session_version que la BD tiene para el usuario de la sesión.
 

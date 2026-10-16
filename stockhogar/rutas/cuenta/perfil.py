@@ -2,7 +2,7 @@
 from .blueprint import bp
 from .comunes import email_valido, enviar_token_verificacion_email, password_valida
 from flask import session
-from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...config import VERSION_TERMINOS
 from ...db import ahora, get_db
 
@@ -48,10 +48,10 @@ def actualizar_perfil():
     """
     usuario_id = session.get("usuario_id")
     datos = cuerpo_json()
-    nombre_usuario_nuevo = datos.get("usuario", "").strip()
-    nombre = datos.get("nombre", "").strip()
-    email_nuevo = (datos.get("email") or "").strip().lower()
-    password_actual = datos.get("password_actual") or ""
+    nombre_usuario_nuevo = texto_json(datos, "usuario")
+    nombre = texto_json(datos, "nombre")
+    email_nuevo = texto_json(datos, "email").lower()
+    password_actual = texto_json(datos, "password_actual", recortar=False)
 
     if "password" in datos:
         return APIResponse.error("err_usa_cambiar_password", 400)
@@ -115,7 +115,7 @@ def cambiar_tema():
     """Guarda la preferencia de tema (light/dark/auto) del usuario."""
     usuario_id = session.get("usuario_id")
     datos = cuerpo_json()
-    tema = (datos.get("tema") or "auto").strip().lower()
+    tema = (texto_json(datos, "tema") or "auto").lower()
 
     if tema not in ("light", "dark", "auto"):
         return APIResponse.validacion("Tema no válido. Debe ser 'light', 'dark' o 'auto'")
@@ -134,7 +134,7 @@ def cambiar_teclado_virtual():
     """Guarda si el usuario quiere el teclado virtual propio (on/off)."""
     usuario_id = session.get("usuario_id")
     datos = cuerpo_json()
-    valor = (datos.get("teclado_virtual_activo") or "on").strip().lower()
+    valor = (texto_json(datos, "teclado_virtual_activo") or "on").lower()
 
     if valor not in ("on", "off"):
         return APIResponse.validacion("Valor no válido. Debe ser 'on' u 'off'")
@@ -171,8 +171,8 @@ def actualizar_preferencias_listas():
     usuario_id = session.get("usuario_id")
     datos = cuerpo_json()
 
-    vista = (datos.get("vista_lista_compra") or "lista").strip().lower()
-    agrupar = (datos.get("agrupar_categorias") or "off").strip().lower()
+    vista = (texto_json(datos, "vista_lista_compra") or "lista").lower()
+    agrupar = (texto_json(datos, "agrupar_categorias") or "off").lower()
 
     if vista not in ("lista", "recuadros"):
         return APIResponse.validacion("Vista no válida. Debe ser 'lista' o 'recuadros'")

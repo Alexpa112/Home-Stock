@@ -5,7 +5,7 @@ from .doble_factor import generar_y_enviar_codigo
 from flask import session
 from flask_wtf.csrf import generate_csrf
 from werkzeug.security import generate_password_hash
-from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
+from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...api.base import revocar_sesion_actual
 from ...config import LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
 from ...db import ahora, get_db
@@ -85,7 +85,7 @@ def registrar():
     db = get_db()
     datos = cuerpo_json()
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
-    password = datos.get("password") or ""
+    password = texto_json(datos, "password", recortar=False)
 
     # Sin limite se podian crear cuentas a miles (cada una cuesta un hash scrypt).
     if limite_por_ip(f"registro:{ip_cliente()}", 10, 60 * 60):
@@ -143,7 +143,7 @@ def login():
     if intentos_login.bloqueada(ip, nombre_usuario):
         return APIResponse.error("err_demasiados_intentos_login", 429)
 
-    password = datos.get("password") or ""
+    password = texto_json(datos, "password", recortar=False)
 
     db = get_db()
     fila = db.execute(
