@@ -32,7 +32,6 @@ tqdm>=4.60; platform_machine != "armv7l"
 # arranque del contenedor con "unrecognized arguments".
 gunicorn>=26.0,<27
 argostranslate>=1.9,<2; platform_machine != "armv7l"
-stanza>=1.12.2; platform_machine != "armv7l"  # dependencia de argostranslate: 1.10.x tiene un aviso de seguridad (PYSEC-2026-3075)
 cryptography>=50.0,<51
 # Soporte Postgres opt-in (DB_ENGINE=postgres, ver stockhogar/db/backend_postgres.py).
 # -binary evita compilar contra libpq en la Raspberry Pi.
