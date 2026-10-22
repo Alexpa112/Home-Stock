@@ -5,12 +5,14 @@
 // "Archivo demasiado grande" sin poder hacer nada. El backend reescala a 2000 px
 // de ancho para el OCR de todos modos, asi que mandar 50 MP solo gasta datos.
 
-// Por encima de este peso se intenta reducir; por debajo, se sube tal cual.
-export const UMBRAL_REDUCIR_BYTES = 3 * 1024 * 1024
+// Por encima de este peso se intenta reducir; por debajo, se sube tal cual. Una
+// foto mas pequena sube antes por datos moviles y el analisis (que se paga en
+// tiempo de Claude/OCR segun el tamano) acaba antes: bajar de 3 a 1,5 MB.
+export const UMBRAL_REDUCIR_BYTES = 1.5 * 1024 * 1024
 // Tope de megapixeles tras reducir. Se limita por AREA y no por lado mayor: un
 // ticket largo y estrecho (1500x6000) no debe perder anchura util de texto.
 export const MAX_PIXELES = 8_000_000
-export const CALIDAD_JPEG = 0.88
+export const CALIDAD_JPEG = 0.85
 
 const TIPOS_REDUCIBLES = /^image\/(jpeg|jpg|png|webp|bmp|gif)$/i
 

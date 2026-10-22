@@ -846,7 +846,9 @@
     "catgasto_salud": "Salud",
     "catgasto_suministros": "Suministros",
     "catgasto_otros": "Otros",
-    "titulo_pestana": "Dreame! - Inventario del Hogar"
+    "titulo_pestana": "Dreame! - Inventario del Hogar",
+    "recurso_ticket": "Ticket",
+    "err_ticket_en_curso": "Ya hay un ticket analizándose. Espera a que termine para subir otro."
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1695,7 +1697,9 @@
     "catgasto_salud": "Saúde",
     "catgasto_suministros": "Subministracións",
     "catgasto_otros": "Outros",
-    "titulo_pestana": "Dreame! - Inventario do Fogar"
+    "titulo_pestana": "Dreame! - Inventario do Fogar",
+    "recurso_ticket": "Tícket",
+    "err_ticket_en_curso": "Xa hai un tícket analizándose. Agarda a que remate para subir outro."
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2544,7 +2548,9 @@
     "catgasto_salud": "Health",
     "catgasto_suministros": "Utilities",
     "catgasto_otros": "Other",
-    "titulo_pestana": "Dreame! - Home Inventory"
+    "titulo_pestana": "Dreame! - Home Inventory",
+    "recurso_ticket": "Receipt",
+    "err_ticket_en_curso": "A receipt is already being analyzed. Wait for it to finish before uploading another."
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3393,7 +3399,9 @@
     "catgasto_salud": "Saúde",
     "catgasto_suministros": "Serviços",
     "catgasto_otros": "Outros",
-    "titulo_pestana": "Dreame! - Inventário do Lar"
+    "titulo_pestana": "Dreame! - Inventário do Lar",
+    "recurso_ticket": "Talão",
+    "err_ticket_en_curso": "Já está a ser analisado um talão. Aguarde que termine para enviar outro."
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4242,7 +4250,9 @@
     "catgasto_salud": "Santé",
     "catgasto_suministros": "Factures",
     "catgasto_otros": "Autres",
-    "titulo_pestana": "Dreame! - Inventaire du Foyer"
+    "titulo_pestana": "Dreame! - Inventaire du Foyer",
+    "recurso_ticket": "Ticket",
+    "err_ticket_en_curso": "Un ticket est déjà en cours d'analyse. Attendez la fin avant d'en envoyer un autre."
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -5091,7 +5101,9 @@
     "catgasto_salud": "Salute",
     "catgasto_suministros": "Utenze",
     "catgasto_otros": "Altro",
-    "titulo_pestana": "Dreame! - Inventario della Casa"
+    "titulo_pestana": "Dreame! - Inventario della Casa",
+    "recurso_ticket": "Scontrino",
+    "err_ticket_en_curso": "Uno scontrino è già in analisi. Attendi che finisca prima di caricarne un altro."
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5940,6 +5952,8 @@
     "catgasto_salud": "Gesundheit",
     "catgasto_suministros": "Nebenkosten",
     "catgasto_otros": "Sonstiges",
-    "titulo_pestana": "Dreame! - Haushaltsinventar"
+    "titulo_pestana": "Dreame! - Haushaltsinventar",
+    "recurso_ticket": "Beleg",
+    "err_ticket_en_curso": "Ein Beleg wird bereits analysiert. Warte, bis er fertig ist, bevor du einen weiteren hochlädst."
   }
 }

@@ -26,6 +26,13 @@ def get_db():
         # todo bajo tests, que abren/cierran conexiones muy seguido contra el
         # mismo fichero).
         g.db.execute("PRAGMA busy_timeout = 5000")
+        # Ajustes de lectura para una Raspberry Pi (SD lenta, poca RAM): cache de
+        # paginas de 8 MB por conexion (el defecto son 2 MB), temporales de
+        # ordenacion en memoria en vez de en la SD y lecturas mapeadas en memoria
+        # (64 MB: no consume RAM propia, la reparte el kernel).
+        g.db.execute("PRAGMA cache_size = -8000")
+        g.db.execute("PRAGMA temp_store = MEMORY")
+        g.db.execute("PRAGMA mmap_size = 67108864")
     return g.db
 
 

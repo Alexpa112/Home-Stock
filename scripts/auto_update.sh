@@ -66,7 +66,42 @@ LOCAL_REV="$(git rev-parse HEAD)"
 REMOTE_REV="$(git rev-parse "origin/$BRANCH")"
 
 if [[ "$LOCAL_REV" == "$REMOTE_REV" ]]; then
-    # Sin cambios; no se escribe nada para no ensuciar el log en cada ejecución.
+    # Mismo commit: el CODIGO no cambia, pero las IMAGENES si pueden haber
+    # cambiado. Las publica .github/workflows/docker-publish.yml DESPUES del push
+    # (CI + compilacion para ARM tardan ~15-30 min), de modo que una
+    # actualizacion disparada nada más el push bajaba la imagen ":latest" antigua,
+    # y como el commit ya coincidia, esta rama no volvia a mirar: la Pi se
+    # quedaba semanas con una version vieja. Se comprueba el registro en cada
+    # pasada (un pull sin novedades solo consulta manifiestos) y, si hay imagen
+    # nueva, se recrea el stack con el mismo install.sh --update.
+    refrescar_imagenes() {
+        local arch; arch="$(uname -m)"
+        # docker-publish.yml solo publica linux/arm/v7; en otras arquitecturas se
+        # compila en local y no hay nada que descargar.
+        [[ "$arch" == armv7l || "$arch" == armv6l ]] || return 0
+        command -v docker >/dev/null 2>&1 || return 0
+        local imagenes=(ghcr.io/alexpa112/home-stock-backend:latest ghcr.io/alexpa112/home-stock-frontend:latest)
+        local antes="" despues="" img
+        for img in "${imagenes[@]}"; do
+            antes+="$(docker image inspect -f '{{.Id}}' "$img" 2>/dev/null || true) "
+        done
+        # Sin red o registro caido: no es un error, se reintenta en 5 minutos.
+        docker compose pull --quiet >/dev/null 2>&1 || return 0
+        for img in "${imagenes[@]}"; do
+            despues+="$(docker image inspect -f '{{.Id}}' "$img" 2>/dev/null || true) "
+        done
+        [[ "$antes" != "$despues" ]] || return 0
+
+        echo "[$(ts)] [INFO] Imágenes nuevas en GHCR para el mismo commit $LOCAL_REV. Recreando contenedores..."
+        exec 200>&-   # soltar el lock: install.sh toma el suyo (ver más abajo)
+        if ./install.sh --update; then
+            echo "[$(ts)] [OK] Contenedores actualizados con las imágenes nuevas."
+        else
+            echo "[$(ts)] [ERROR] install.sh --update falló al aplicar las imágenes nuevas; revisa install.log."
+            exit 1
+        fi
+    }
+    refrescar_imagenes
     exit 0
 fi
 

@@ -8,6 +8,7 @@ import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { usePushNotifications } from '@/lib/usePushNotifications'
+import { Interruptor } from '@/components/shared/Interruptor'
 import { AvisoError } from '@/components/shared/AvisoError'
 
 export default function SettingsPage() {
@@ -540,24 +541,13 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">{t('err_doble_factor_requiere_email')}</p>
             )}
           </div>
-          <button
-            onClick={() => cambiarDobleFactor(!dobleFactorActivo)}
-            disabled={!user.email || cargandoDobleFactor}
-            role="switch"
-            aria-checked={dobleFactorActivo}
-            aria-label={t('doble_factor_titulo')}
-            className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 disabled:opacity-50 border-2 ${
-              dobleFactorActivo
-                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
-                : 'bg-muted border-border hover:border-muted-foreground'
-            }`}
-          >
-            <span
-              className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
-                dobleFactorActivo ? 'translate-x-6' : ''
-              }`}
-            />
-          </button>
+          <Interruptor
+            activo={dobleFactorActivo}
+            onChange={cambiarDobleFactor}
+            deshabilitado={!user.email}
+            cargando={cargandoDobleFactor}
+            etiqueta={t('doble_factor_titulo')}
+          />
         </div>
 
         {/* Notificaciones push (P-01) */}
@@ -571,24 +561,12 @@ export default function SettingsPage() {
                 <p className="text-xs text-red-500 mt-0.5">{t(notificacionesPush.error)}</p>
               )}
             </div>
-            <button
-              onClick={() => (notificacionesPush.suscrito ? notificacionesPush.desactivar() : notificacionesPush.activar())}
-              disabled={notificacionesPush.cargando}
-              role="switch"
-              aria-checked={notificacionesPush.suscrito}
-              aria-label={t('notificaciones_push_titulo')}
-              className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 disabled:opacity-50 border-2 ${
-                notificacionesPush.suscrito
-                  ? 'bg-accent border-accent shadow-lg shadow-accent/30'
-                  : 'bg-muted border-border hover:border-muted-foreground'
-              }`}
-            >
-              <span
-                className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
-                  notificacionesPush.suscrito ? 'translate-x-6' : ''
-                }`}
-              />
-            </button>
+            <Interruptor
+              activo={notificacionesPush.suscrito}
+              onChange={(activar) => (activar ? notificacionesPush.activar() : notificacionesPush.desactivar())}
+              cargando={notificacionesPush.cargando}
+              etiqueta={t('notificaciones_push_titulo')}
+            />
           </div>
         )}
 
@@ -605,24 +583,12 @@ export default function SettingsPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => cambiarOcrLocal(!ocrLocal)}
-            disabled={cargandoOcrLocal}
-            role="switch"
-            aria-checked={ocrLocal}
-            aria-label={t('ocr_local_titulo')}
-            className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 disabled:opacity-50 border-2 ${
-              ocrLocal
-                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
-                : 'bg-muted border-border hover:border-muted-foreground'
-            }`}
-          >
-            <span
-              className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
-                ocrLocal ? 'translate-x-6' : ''
-              }`}
-            />
-          </button>
+          <Interruptor
+            activo={ocrLocal}
+            onChange={cambiarOcrLocal}
+            cargando={cargandoOcrLocal}
+            etiqueta={t('ocr_local_titulo')}
+          />
         </div>
 
         {/* Contraseña */}
@@ -743,22 +709,11 @@ export default function SettingsPage() {
             <Sun className="w-[18px] h-[18px] text-muted-foreground shrink-0" />
           )}
           <span className="flex-1 text-sm">{t('modo_oscuro')}</span>
-          <button
-            onClick={toggleDarkMode}
-            className={`relative inline-flex items-center h-8 w-14 rounded-full transition-all duration-300 shrink-0 border-2 ${
-              darkMode
-                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
-                : 'bg-muted border-border hover:border-muted-foreground'
-            }`}
-            aria-label={darkMode ? t('aria_desactivar_modo_oscuro') : t('aria_activar_modo_oscuro')}
-            aria-pressed={darkMode}
-          >
-            <span
-              className={`absolute top-1.5 left-1.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${
-                darkMode ? 'translate-x-6' : ''
-              }`}
-            />
-          </button>
+          <Interruptor
+            activo={darkMode}
+            onChange={() => toggleDarkMode()}
+            etiqueta={t('modo_oscuro')}
+          />
         </div>
 
         {/* Idioma */}
@@ -817,22 +772,11 @@ export default function SettingsPage() {
             <p className="text-sm">{t('agrupar_por_categoria')}</p>
             <p className="text-xs text-muted-foreground">{t('en_listas_compra_y_stock')}</p>
           </div>
-          <button
-            onClick={() => updatePreferences({ agrupar_categorias: preferences.agrupar_categorias === 'on' ? 'off' : 'on' })}
-            className={`relative inline-flex items-center h-8 w-14 rounded-full transition-all duration-300 shrink-0 border-2 ${
-              preferences.agrupar_categorias === 'on'
-                ? 'bg-accent border-accent shadow-lg shadow-accent/30'
-                : 'bg-muted border-border hover:border-muted-foreground'
-            }`}
-            aria-label={t('agrupar_por_categoria')}
-            aria-pressed={preferences.agrupar_categorias === 'on'}
-          >
-            <span
-              className={`absolute top-1.5 left-1.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${
-                preferences.agrupar_categorias === 'on' ? 'translate-x-6' : ''
-              }`}
-            />
-          </button>
+          <Interruptor
+            activo={preferences.agrupar_categorias === 'on'}
+            onChange={(activo) => updatePreferences({ agrupar_categorias: activo ? 'on' : 'off' })}
+            etiqueta={t('agrupar_por_categoria')}
+          />
         </div>
       </div>
       </section>

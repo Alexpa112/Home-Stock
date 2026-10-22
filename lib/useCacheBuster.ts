@@ -2,7 +2,10 @@ import { useEffect } from 'react';
 import { hayEdicionEnCurso } from '@/lib/editSuspension';
 
 const CACHE_VERSION_KEY = 'stockhogar_cache_version';
-const CHECK_INTERVAL = 15000; // Chequear cada 15s (más frecuente para detectar updates rápido)
+// Cada 30 s con la pestaña visible, y al instante cuando vuelve a estarlo: con la
+// pestaña oculta no se pregunta nada (en una Pi tras un tunel cada peticion
+// cuesta ~300 ms de red y algo de CPU, y nadie ve el resultado).
+const CHECK_INTERVAL = 30000;
 const MAX_RETRIES = 3;
 
 export function useCacheBuster() {
@@ -11,6 +14,7 @@ export function useCacheBuster() {
     let updatePendiente = false;
 
     const checkVersion = async () => {
+      if (document.visibilityState !== 'visible') return;
       // Si ya se detecto una actualizacion pendiente, solo se comprueba si
       // ahora es seguro recargar (pestaña visible, sin edicion en curso).
       if (updatePendiente) {
@@ -68,7 +72,12 @@ export function useCacheBuster() {
 
     // Y luego cada 15s
     const interval = setInterval(checkVersion, CHECK_INTERVAL);
-    return () => clearInterval(interval);
+    const alVolver = () => { if (document.visibilityState === 'visible') checkVersion(); };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', alVolver);
+    };
   }, []);
 }
 

@@ -15,6 +15,7 @@
 import { marcarMantenimiento } from './mantenimiento'
 import { clearAllCache } from './dataCache'
 import { compartirEnVuelo, olvidarEnVuelo } from './peticionesEnVuelo'
+import { esperarTrabajo } from './esperarTrabajo'
 
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>
@@ -502,16 +503,27 @@ export const gastos = {
 // ===== Escaneo de tickets (stockhogar/rutas/escaner/tickets.py) =====
 export const tickets = {
   // Sube la foto y devuelve { items: [...], resumen: {...}, advertencias: [...] }
-  analizar: (foto: File) => {
+  analizar: async (foto: File) => {
     const formData = new FormData()
     formData.append('foto', foto)
-    // 270s, el escalón externo de la cadena de timeouts del escáner (llamada a
-    // la API 180s < worker de gunicorn 240s < este abort, ver
-    // stockhogar/servicios/ocr/claude_ocr.py). Va por encima del worker a
-    // propósito: así, cuando algo se pasa de tiempo, el usuario recibe el error
-    // real del servidor en vez de un abort del navegador que no dice nada.
-    // Solo se amplía aquí; el resto de subidas siguen con el defecto de 120s.
-    return apiUpload('/api/tickets/analizar', formData, 270_000)
+
+    // Asincrono: la subida crea un trabajo y responde al instante (202); luego se
+    // consulta su estado. Ninguna peticion es larga, asi que no hay proxy ni
+    // tunel (Next 30 s, Cloudflare 100 s) que pueda cortar un analisis lento.
+    let id: string
+    try {
+      id = (await apiUpload<{ id: string }>('/api/tickets/trabajos', formData)).id
+    } catch (err) {
+      // Backend anterior sin /trabajos (despliegue a medias): ruta de una sola
+      // peticion. 270s es el escalon externo de la escalera de timeouts del
+      // escaner (ver claude_ocr.py).
+      if (err instanceof Error && /Error HTTP (404|405)/.test(err.message)) {
+        return apiUpload('/api/tickets/analizar', formData, 270_000)
+      }
+      throw err
+    }
+
+    return esperarTrabajo<any>(() => apiCall(`/api/tickets/trabajos/${id}`))
   },
 
   confirmar: (

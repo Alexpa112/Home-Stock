@@ -2,7 +2,7 @@
 import re
 import unicodedata
 
-from flask import Blueprint, session
+from flask import Blueprint, jsonify, request, session
 
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...db import get_db
@@ -292,7 +292,13 @@ def obtener_todas_traducciones(idioma):
         clave = _clave_categoria(categoria_original)
         todas[clave] = traduccion
 
-    return APIResponse.success({
+    # ETag + revalidacion: el diccionario pesa ~13 KB y solo cambia con un despliegue.
+    # El navegador pregunta con If-None-Match y recibe un 304 sin cuerpo (en una Pi
+    # detras de un tunel, cada KB y cada viaje cuentan).
+    respuesta = jsonify({
         "idioma": idioma,
         "traducciones": todas
     })
+    respuesta.add_etag()
+    respuesta.headers["Cache-Control"] = "private, no-cache"
+    return respuesta.make_conditional(request)
