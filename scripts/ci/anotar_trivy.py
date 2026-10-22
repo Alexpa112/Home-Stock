@@ -11,12 +11,13 @@ for resultado in informe.get("Results") or []:
     destino = resultado.get("Target", "?")
     for v in resultado.get("Vulnerabilities") or []:
         print(
-            "::error::TRIVY {sev} {id} {pkg} {inst} -> {fix} [{tgt}]".format(
+            "::error::TRIVY {sev} {id} {pkg} {inst} -> {fix} [{tgt}] {ruta}".format(
                 sev=v.get("Severity"),
                 id=v.get("VulnerabilityID"),
                 pkg=v.get("PkgName"),
                 inst=v.get("InstalledVersion"),
                 fix=v.get("FixedVersion"),
                 tgt=destino,
+                ruta=v.get("PkgPath") or (v.get("PkgIdentifier") or {}).get("PURL"),
             )[:400]
         )
