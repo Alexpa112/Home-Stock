@@ -1,12 +1,16 @@
 """Rutas para escanear tickets de compra y volcarlos al stock."""
+import json
 import logging
 import os
 import shutil
 import subprocess
 import tempfile
+import threading
+import time
+import uuid
 from pathlib import Path
 
-from flask import Blueprint, request, session
+from flask import Blueprint, current_app, request, session
 
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ...config import LIMITE_OCR_DIARIO
@@ -258,11 +262,24 @@ def _convertir_heic_a_imagen(ruta_heic):
 
 
 class _Rechazo(Exception):
-    """Corta el analisis con una respuesta ya construida (validacion, permiso, formato...)."""
+    """Corta el analisis con una respuesta (validacion, permiso, formato...).
 
-    def __init__(self, respuesta):
+    Se da la respuesta ya construida, o una `clave` de traduccion + `status`
+    para construirla despues: el analisis asincrono corre en un hilo sin
+    peticion ni sesion, donde `traducir` no puede resolver el idioma, y la
+    respuesta se arma al consultar el trabajo."""
+
+    def __init__(self, respuesta=None, clave=None, status=400):
         super().__init__("rechazo")
-        self.respuesta = respuesta
+        self._respuesta = respuesta
+        self.clave = clave
+        self.status = status
+
+    @property
+    def respuesta(self):
+        if self._respuesta is not None:
+            return self._respuesta
+        return APIResponse.error(self.clave, self.status)
 
 
 def _comprobar_peticion(archivo, db, usuario_id):
@@ -372,8 +389,8 @@ def _leer_con_ocr_local(ruta_imagen, ruta_original, es_pdf, db, hogar_id, a_borr
         convertida = _convertir_pdf_a_imagen(ruta_original)
         if not convertida:
             if shutil.which("pdftoppm"):
-                raise _Rechazo(APIResponse.validacion("err_formato_no_permitido"))
-            raise _Rechazo(APIResponse.error("err_procesando_ticket", 500))
+                raise _Rechazo(clave="err_formato_no_permitido", status=400)
+            raise _Rechazo(clave="err_procesando_ticket", status=500)
         a_borrar.append(convertida)
         ruta_imagen = convertida
     try:
@@ -415,10 +432,47 @@ def _construir_respuesta(items, totales, cuadre, db, hogar_id):
     return respuesta
 
 
+def _ejecutar_analisis(db, usuario_id, hogar_id, ruta_imagen, ruta_original, es_pdf, a_borrar):
+    """Lee el ticket (Claude Vision, con el lector local de respaldo) y devuelve la respuesta
+    para la interfaz. Lanza _Rechazo si el fichero no se puede procesar. No usa la peticion
+    ni la sesion: sirve igual desde la ruta sincrona y desde el hilo del trabajo asincrono."""
+    prefiere_ocr_local = bool(
+        db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
+    )
+
+    # El catalogo SOLO del hogar activo (A-1): sin filtrar por hogar, el id devuelto por el
+    # modelo se validaba contra el catalogo global y se enviaban a Anthropic nombres de
+    # producto de todos los hogares, cosa que la politica de privacidad no declaraba.
+    productos_catalogo = _catalogo_del_hogar(db, hogar_id)
+
+    # Motor principal: Claude Vision (la mejor vision disponible), salvo opt-out del usuario.
+    items = totales = cuadre = None
+    uso_motor_nube = False
+    if not prefiere_ocr_local:
+        items, totales, cuadre, uso_motor_nube = _leer_con_claude(
+            ruta_imagen, es_pdf, productos_catalogo, db, hogar_id
+        )
+
+    # Fallback al lector local si Claude no funciono (items is None), esta deshabilitado, o no
+    # reconocio ningun articulo (items == []): un segundo intento solo puede anadir candidatos,
+    # y el usuario los revisa antes de confirmar el ticket.
+    if not items:
+        items, totales, cuadre = _leer_con_ocr_local(ruta_imagen, ruta_original, es_pdf, db, hogar_id, a_borrar)
+
+    # La cuota se consume solo si se llego a llamar al motor de nube: el
+    # pipeline local es gratuito y no tiene por que gastarla.
+    if uso_motor_nube:
+        cuota_ocr.incrementar(db, usuario_id)
+
+    return _construir_respuesta(items, totales, cuadre, db, hogar_id)
+
+
 @bp.route("/analizar", methods=["POST"])
 @requerir_sesion
 @manejo_errores
 def analizar_ticket():
+    """Version sincrona (una sola peticion). El frontend usa /trabajos; esta se mantiene para
+    clientes antiguos y para depuracion."""
     db = get_db()
     usuario_id = session.get("usuario_id")
     archivo = request.files.get("foto")
@@ -435,35 +489,7 @@ def analizar_ticket():
         es_pdf = sufijo == ".pdf"
         ruta_imagen = _validar_y_preparar_imagen(tmp.name, sufijo, a_borrar)
 
-        prefiere_ocr_local = bool(
-            db.execute("SELECT usuario_ocr_local FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()["usuario_ocr_local"]
-        )
-
-        # El catalogo SOLO del hogar activo (A-1): sin filtrar por hogar, el id devuelto por el
-        # modelo se validaba contra el catalogo global y se enviaban a Anthropic nombres de
-        # producto de todos los hogares, cosa que la politica de privacidad no declaraba.
-        productos_catalogo = _catalogo_del_hogar(db, hogar_id)
-
-        # Motor principal: Claude Vision (la mejor vision disponible), salvo opt-out del usuario.
-        items = totales = cuadre = None
-        uso_motor_nube = False
-        if not prefiere_ocr_local:
-            items, totales, cuadre, uso_motor_nube = _leer_con_claude(
-                ruta_imagen, es_pdf, productos_catalogo, db, hogar_id
-            )
-
-        # Fallback al lector local si Claude no funciono (items is None), esta deshabilitado, o no
-        # reconocio ningun articulo (items == []): un segundo intento solo puede anadir candidatos,
-        # y el usuario los revisa antes de confirmar el ticket.
-        if not items:
-            items, totales, cuadre = _leer_con_ocr_local(ruta_imagen, tmp.name, es_pdf, db, hogar_id, a_borrar)
-
-        # La cuota se consume solo si se llego a llamar al motor de nube: el
-        # pipeline local es gratuito y no tiene por que gastarla.
-        if uso_motor_nube:
-            cuota_ocr.incrementar(db, usuario_id)
-
-        respuesta = _construir_respuesta(items, totales, cuadre, db, hogar_id)
+        respuesta = _ejecutar_analisis(db, usuario_id, hogar_id, ruta_imagen, tmp.name, es_pdf, a_borrar)
     except _Rechazo as r:
         return r.respuesta
     except Exception:
@@ -477,6 +503,147 @@ def analizar_ticket():
                 os.unlink(ruta)
 
     return APIResponse.success(respuesta)
+
+
+# ----- Analisis asincrono: el cliente crea un trabajo y consulta su estado -----------------------
+
+# Un trabajo "procesando" mas viejo que esto se da por perdido (el worker murio o se reinicio
+# a mitad): por encima de la llamada a la API (180 s) y de gunicorn (240 s), ver claude_ocr.py.
+TIEMPO_MAXIMO_TRABAJO_S = 330
+# Los trabajos terminados se conservan un dia (por si el cliente recarga y vuelve a consultar).
+CONSERVAR_TRABAJOS_S = 24 * 3600
+
+
+def _guardar_trabajo(db, trabajo_id, estado, resultado=None, error_clave=None, error_estado=None):
+    db.execute(
+        "UPDATE trabajos_ticket SET estado = ?, resultado = ?, error_clave = ?, error_estado = ?, "
+        "actualizado = ? WHERE id = ?",
+        (estado, resultado, error_clave, error_estado, int(time.time()), trabajo_id),
+    )
+    db.commit()
+
+
+def _procesar_trabajo(app, trabajo_id, usuario_id, hogar_id, ruta_imagen, ruta_original, es_pdf, a_borrar):
+    """Cuerpo del hilo: analiza el ticket con SU PROPIA conexion y deja el resultado en la tabla."""
+    logger = logging.getLogger(__name__)
+    with app.app_context():
+        db = get_db()
+        try:
+            respuesta = _ejecutar_analisis(db, usuario_id, hogar_id, ruta_imagen, ruta_original, es_pdf, a_borrar)
+            _guardar_trabajo(db, trabajo_id, "listo", resultado=json.dumps(respuesta, default=str))
+        except _Rechazo as r:
+            _guardar_trabajo(db, trabajo_id, "error", error_clave=r.clave or "err_procesando_ticket",
+                             error_estado=r.status)
+        except Exception:
+            logger.exception("Error analizando ticket (trabajo %s)", trabajo_id)
+            try:
+                _guardar_trabajo(db, trabajo_id, "error", error_clave="err_interno_generico", error_estado=500)
+            except Exception:
+                logger.exception("No se pudo guardar el error del trabajo %s", trabajo_id)
+        finally:
+            for ruta in a_borrar:
+                try:
+                    if os.path.exists(ruta):
+                        os.unlink(ruta)
+                except OSError:
+                    pass
+
+
+@bp.route("/trabajos", methods=["POST"])
+@requerir_sesion
+@manejo_errores
+def crear_trabajo_ticket():
+    """Valida la subida y lanza el analisis en segundo plano; responde 202 con el id del trabajo
+    al instante, sin esperar a Claude ni al OCR."""
+    db = get_db()
+    usuario_id = session.get("usuario_id")
+    archivo = request.files.get("foto")
+    a_borrar = []
+    entregado = False
+    try:
+        hogar_id = _comprobar_peticion(archivo, db, usuario_id)
+
+        ahora_s = int(time.time())
+        db.execute("DELETE FROM trabajos_ticket WHERE creado < ?", (ahora_s - CONSERVAR_TRABAJOS_S,))
+        # Uno a la vez por usuario: cada analisis ocupa un hilo y, en la nube, cuesta dinero.
+        if db.execute(
+            "SELECT 1 FROM trabajos_ticket WHERE usuario_id = ? AND estado = 'procesando' AND creado > ?",
+            (usuario_id, ahora_s - TIEMPO_MAXIMO_TRABAJO_S),
+        ).fetchone():
+            raise _Rechazo(clave="err_ticket_en_curso", status=429)
+
+        sufijo = Path(archivo.filename).suffix.lower() or ".jpg"
+        tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
+        tmp.close()
+        a_borrar.append(tmp.name)
+        archivo.save(tmp.name)
+
+        es_pdf = sufijo == ".pdf"
+        ruta_imagen = _validar_y_preparar_imagen(tmp.name, sufijo, a_borrar)
+
+        trabajo_id = uuid.uuid4().hex
+        db.execute(
+            "INSERT INTO trabajos_ticket (id, usuario_id, estado, creado, actualizado) VALUES (?, ?, 'procesando', ?, ?)",
+            (trabajo_id, usuario_id, ahora_s, ahora_s),
+        )
+        db.commit()
+
+        hilo = threading.Thread(
+            target=_procesar_trabajo,
+            args=(current_app._get_current_object(), trabajo_id, usuario_id, hogar_id,
+                  ruta_imagen, tmp.name, es_pdf, a_borrar),
+            daemon=True,
+        )
+        hilo.start()
+        entregado = True  # desde aqui los temporales los borra el hilo
+    except _Rechazo as r:
+        return r.respuesta
+    except Exception:
+        logging.getLogger(__name__).exception("Error creando el trabajo de analisis de ticket")
+        return APIResponse.error("err_interno_generico", 500)
+    finally:
+        if not entregado:
+            for ruta in a_borrar:
+                if os.path.exists(ruta):
+                    os.unlink(ruta)
+
+    return APIResponse.success({"id": trabajo_id}, 202)
+
+
+@bp.route("/trabajos/<trabajo_id>", methods=["GET"])
+@requerir_sesion
+@manejo_errores
+def estado_trabajo_ticket(trabajo_id):
+    """Estado de un trabajo: {estado: procesando} | {estado: listo, resultado} | {estado: error, error}.
+    Solo lo ve quien lo creo."""
+    db = get_db()
+    fila = db.execute(
+        "SELECT estado, resultado, error_clave, error_estado, creado FROM trabajos_ticket "
+        "WHERE id = ? AND usuario_id = ?",
+        (trabajo_id, session.get("usuario_id")),
+    ).fetchone()
+    if fila is None:
+        return APIResponse.no_encontrado("recurso_ticket")
+
+    estado = fila["estado"]
+    if estado == "procesando" and int(time.time()) - fila["creado"] > TIEMPO_MAXIMO_TRABAJO_S:
+        # Su hilo ya no existe (reinicio del worker): no dejar al cliente esperando para siempre.
+        _guardar_trabajo(db, trabajo_id, "error", error_clave="err_procesando_ticket", error_estado=504)
+        estado = "error"
+        fila = db.execute(
+            "SELECT estado, resultado, error_clave, error_estado, creado FROM trabajos_ticket WHERE id = ?",
+            (trabajo_id,),
+        ).fetchone()
+
+    if estado == "listo":
+        return APIResponse.success({"estado": "listo", "resultado": json.loads(fila["resultado"] or "{}")})
+    if estado == "error":
+        return APIResponse.success({
+            "estado": "error",
+            "error": traducir(fila["error_clave"] or "err_procesando_ticket"),
+            "http": fila["error_estado"] or 500,
+        })
+    return APIResponse.success({"estado": "procesando"})
 
 
 @bp.route("/confirmar", methods=["POST"])

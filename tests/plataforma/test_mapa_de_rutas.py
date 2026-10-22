@@ -1,6 +1,6 @@
 """El mapa de rutas (URL, metodos, endpoint) no cambia al reorganizar el codigo.
 
-`tests/datos/mapa_rutas.json` es la foto de las 122 rutas. Si anades, quitas o renombras una ruta a
+`tests/datos/mapa_rutas.json` es la foto de las 124 rutas. Si anades, quitas o renombras una ruta a
 proposito, regenera el fichero: `python tests/plataforma/test_mapa_de_rutas.py --regenerar`."""
 import json
 import sys
