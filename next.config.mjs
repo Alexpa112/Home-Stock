@@ -15,6 +15,15 @@ const nextConfig = {
   // (swcMinify ya no existe en Next 16: la minificacion SWC es la de serie.)
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    // Tiempo maximo que el proxy de rewrites espera al backend Flask. Por
+    // defecto son 30 s, y escanear un ticket con una foto grande tarda mas
+    // (Claude Vision, o el lector local en una Raspberry Pi): a los 30 s Next
+    // cortaba y el usuario recibia un 500 "Internal Server Error" en texto
+    // plano, mientras el backend seguia trabajando. Es un escalon de la
+    // escalera de timeouts del escaneo (ver _TIMEOUT_SEGUNDOS en
+    // stockhogar/servicios/ocr/claude_ocr.py): API 180 s < gunicorn 240 s <
+    // este proxy 255 s < abort del frontend 270 s (apiUpload en lib/api.ts).
+    proxyTimeout: 255_000,
   },
 
   // Headers de seguridad y caché

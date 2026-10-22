@@ -44,11 +44,13 @@ _MODELO = "claude-opus-5"
 #
 #   llamada a la API   180 s  (aquí)
 #   worker de gunicorn 240 s  (--timeout, Dockerfile y Dockerfile.raspbian)
+#   proxy de Next      255 s  (experimental.proxyTimeout en next.config.mjs;
+#                              su valor por defecto, 30 s, cortaba con un 500)
 #   abort del frontend 270 s  (apiUpload en lib/api.ts)
 #
 # Los 60 s entre la API y gunicorn cubren la subida de la foto, el troceado y
-# el emparejado contra el catálogo. Si se cambia uno de los tres, hay que
-# revisar los otros dos: con gunicorn por debajo de la llamada, el worker
+# el emparejado contra el catálogo. Si se cambia uno de los cuatro, hay que
+# revisar los otros: con gunicorn por debajo de la llamada, el worker
 # muere a mitad del análisis y el usuario recibe un error genérico.
 _TIMEOUT_SEGUNDOS = 180
 # Un ticket de compra grande no cabe en 2048 tokens (el presupuesto anterior),
