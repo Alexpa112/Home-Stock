@@ -7,9 +7,11 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     informe = json.load(f)
 
+hallazgos = 0
 for resultado in informe.get("Results") or []:
     destino = resultado.get("Target", "?")
     for v in resultado.get("Vulnerabilities") or []:
+        hallazgos += 1
         print(
             "::error::TRIVY {sev} {id} {pkg} {inst} -> {fix} [{tgt}] {ruta}".format(
                 sev=v.get("Severity"),
@@ -28,3 +30,7 @@ for resultado in informe.get("Results") or []:
         if p.get("Name") == "urllib3":
             print("::error::PKG urllib3 {v} {ruta}".format(
                 v=p.get("Version"), ruta=p.get("FilePath") or p.get("Identifier", {}).get("PURL"))[:400])
+
+if hallazgos:
+    print(f"::error::Trivy: {hallazgos} hallazgo(s) CRITICAL/HIGH con arreglo disponible")
+    sys.exit(1)
