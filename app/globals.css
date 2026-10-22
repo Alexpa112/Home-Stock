@@ -294,3 +294,64 @@
   /* Alto real de la bottom tab bar movil (h-16 + safe-area-pb), lg:hidden */
   --mobile-toolbar-h: calc(4rem + env(safe-area-inset-bottom, 0px));
 }
+
+/* Interruptor (components/shared/Interruptor.tsx). Pista de 56x32, pulgar de
+   24 con 4 de margen en los dos lados y centrado vertical. Apagado: pista gris
+   visible sobre la tarjeta en claro y oscuro; encendido: color de acento con
+   una marca de verificacion, para que el estado no dependa solo del color. */
+@layer components {
+  .interruptor {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 3.5rem;
+    height: 2rem;
+    padding: 0.25rem;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--color-muted-foreground) 38%, var(--color-card));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-muted-foreground) 45%, transparent);
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Zona tactil de al menos 44 px sin agrandar el dibujo */
+  .interruptor::before {
+    content: '';
+    position: absolute;
+    inset: -0.5rem;
+  }
+  .interruptor[aria-checked='true'] {
+    background: var(--color-accent);
+    box-shadow: none;
+  }
+  .interruptor:focus-visible {
+    border-radius: 9999px;
+    outline-offset: 3px;
+  }
+  .interruptor:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .interruptor-pulgar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    background: #ffffff;
+    color: var(--color-accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .interruptor[aria-checked='true'] .interruptor-pulgar {
+    transform: translateX(1.5rem);
+    /* Blanco sobre el acento oscuro del tema claro; oscuro sobre el acento claro
+       del tema oscuro: el pulgar siempre contrasta con la pista. */
+    background: var(--color-accent-foreground);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .interruptor, .interruptor-pulgar { transition: none; }
+  }
+}
