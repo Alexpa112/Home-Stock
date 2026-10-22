@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TranslationProvider } from '@/contexts/TranslationContext'
+import { usePathname } from 'next/navigation'
+import { TranslationProvider, useTranslation } from '@/contexts/TranslationContext'
 import { ListPreferencesProvider } from '@/contexts/ListPreferencesContext'
 import { useCacheBuster } from '@/lib/useCacheBuster'
 import { useMantenimientoStream } from '@/lib/useMantenimientoStream'
@@ -19,6 +20,20 @@ function MantenimientoGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// El <title> de metadata (app/layout.tsx) es fijo y en espanol; aqui se sustituye
+// por el del idioma activo. Se reaplica al navegar porque Next vuelve a escribir
+// el titulo de metadata en cada cambio de ruta.
+function TituloPestana() {
+  const { t } = useTranslation()
+  const ruta = usePathname()
+
+  useEffect(() => {
+    document.title = t('titulo_pestana')
+  }, [t, ruta])
+
+  return null
+}
+
 export default function RootLayoutClient({ children }: { children: React.ReactNode }) {
   useCacheBuster()
 
@@ -34,6 +49,7 @@ export default function RootLayoutClient({ children }: { children: React.ReactNo
   return (
     <TranslationProvider>
       <ListPreferencesProvider>
+        <TituloPestana />
         <OfflineBanner />
         <MantenimientoGate>{children}</MantenimientoGate>
       </ListPreferencesProvider>

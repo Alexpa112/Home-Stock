@@ -28,7 +28,8 @@ export function BalancesPanel({ sugerencias, simboloMoneda, onSaldar, t }: Balan
   if (sugerencias.length === 0) {
     return (
       <div className="card text-center py-8">
-        <p className="text-sm text-muted-foreground">{t('estas_en_paz')}</p>
+        {/* "Estás en paz" ya lo dice BalanceHero justo encima: aqui no se repite. */}
+        <p className="text-sm text-muted-foreground">{t('sin_pagos_pendientes')}</p>
       </div>
     )
   }
