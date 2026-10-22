@@ -41,6 +41,7 @@ ENV PYTHONUNBUFFERED=1 \
 # (que sí requería Rust) ya publica wheel armv7l prebuilt desde hace tiempo,
 # así que se ha retirado el toolchain de Rust que se instalaba aquí antes.
 RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-spa \
