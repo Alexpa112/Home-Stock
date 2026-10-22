@@ -8,7 +8,6 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=5000
 
 RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils libheif-examples curl \
     && rm -rf /var/lib/apt/lists/*
 

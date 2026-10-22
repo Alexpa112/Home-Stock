@@ -192,6 +192,16 @@ class ClaveFiltradaEnElHistorialTests(unittest.TestCase):
         "unexpected success": ESE es el aviso para venir aqui y quitar el
         decorador @unittest.expectedFailure.
         """
+        # En un clon superficial (actions/checkout trae solo el ultimo commit)
+        # d3cb82d2 no existe aunque siga en el historial real: la comprobacion
+        # daria "unexpected success" sin significar que se haya purgado nada.
+        superficial = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"],
+            cwd=RAIZ, capture_output=True, text=True,
+        )
+        if superficial.stdout.strip() == "true":
+            self.skipTest("clon superficial: no se puede comprobar el historial")
+
         proceso = subprocess.run(
             ["git", "cat-file", "-e", "d3cb82d2:data/secret.json"],
             cwd=RAIZ, capture_output=True, text=True,

@@ -29,11 +29,14 @@ jobs:
         with:
           image-ref: stockhogar-backend:ci
           severity: "CRITICAL,HIGH"
+          format: json
+          list-all-pkgs: true
+          output: trivy.json
           # A-11: exit-code 1 bloquea si hay vulnerabilidades Críticas o Altas
           # en la imagen. Las vulnerabilidades de dependencias ya se cubren en
           # el job audit-deps de ci.yml; este job además detecta las que
           # pudieran introducir en la construcción propia del Dockerfile.
-          exit-code: "1"
+          exit-code: "0"  # el bloqueo lo decide anotar_trivy.py (exit 1 si hay hallazgos)
           # ignore-unfixed: bloquear solo por lo que se puede arreglar. La
           # imagen base de Debian arrastra CVE sin parche publicado (perl,
           # ncurses, util-linux... en estado "affected"/"fix_deferred"), que
@@ -42,12 +45,16 @@ jobs:
           # accionables. Se siguen viendo en el log, pero no tumban el build.
           ignore-unfixed: true
 
+      - name: Anotar y bloquear por hallazgos Trivy (backend)
+        run: python3 scripts/ci/anotar_trivy.py trivy.json
+
+
       - name: Escanear ticket PDF de prueba dentro del contenedor
         run: |
           docker run --rm -v "${{ github.workspace }}/tests/fixtures:/fixtures:ro" \
             stockhogar-backend:ci python3 -c "
           import shutil
-          from stockhogar.rutas.tickets import _convertir_pdf_a_imagen
+          from stockhogar.rutas.escaner.tickets import _convertir_pdf_a_imagen
           from stockhogar.integraciones import ticket_ocr
 
           # /fixtures esta montado solo-lectura; igual que el endpoint real
@@ -91,9 +98,16 @@ jobs:
         with:
           image-ref: stockhogar-backend-raspbian:ci
           severity: "CRITICAL,HIGH"
-          exit-code: "1"
+          format: json
+          list-all-pkgs: true
+          output: trivy.json
+          exit-code: "0"  # idem backend
           # Ver el comentario del escaneo del backend x86_64.
           ignore-unfixed: true
+
+      - name: Anotar y bloquear por hallazgos Trivy (raspbian)
+        run: python3 scripts/ci/anotar_trivy.py trivy.json
+
 
   build-frontend:
     runs-on: ubuntu-latest

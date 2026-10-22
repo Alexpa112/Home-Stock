@@ -34,3 +34,11 @@ CVE-2026-54499
 # seguir ignorandola.
 CVE-2025-47273
 GHSA-6v7p-g79w-8964
+#
+# urllib3 2.7.0 (CVE-2026-97687 y CVE-2026-97689): mismo caso. Sale del target
+# sintetico "Python" sin ruta (PURL pkg:pypi/urllib3@2.7.0) y el escaneo de los
+# METADATA reales de la imagen muestra usr/local/lib/python3.11/site-packages/
+# urllib3-2.8.0.dist-info (la fija requirements.txt con urllib3>=2.8.0), es
+# decir, la version ya corregida.
+CVE-2026-97687
+CVE-2026-97689
