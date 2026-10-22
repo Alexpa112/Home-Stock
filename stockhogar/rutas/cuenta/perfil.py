@@ -1,10 +1,15 @@
 """Perfil y preferencias del usuario (nombre, email, tema, teclado, OCR, listas, terminos)."""
 from .blueprint import bp
 from .comunes import email_valido, enviar_token_verificacion_email, password_valida
+import time
+
 from flask import session
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...config import VERSION_TERMINOS
 from ...db import ahora, get_db
+
+# Un inicio de sesion mas viejo que esto no basta para cambiar el email de una cuenta sin contrasena.
+VENTANA_REAUTENTICACION_S = 10 * 60
 
 
 def _validar_cambios_perfil(db, usuario_id, usuario, nombre_usuario_nuevo, nombre, email_nuevo):
@@ -71,6 +76,15 @@ def actualizar_perfil():
 
     if not usuario:
         return APIResponse.no_autorizado()
+
+    # Las cuentas sin contrasena (OAuth) no pueden reautenticarse con ella, y quien robase la
+    # cookie podria fijar SU email, verificarlo y pedir un reset de contrasena: toma de cuenta.
+    # Para fijar o cambiar el email se exige un inicio de sesion reciente (auth_ts, que pone cada
+    # login); una cookie robada no lo tiene. Las cookies anteriores a este campo caen aqui y
+    # basta con volver a iniciar sesion.
+    if email_nuevo and usuario and not usuario["password_hash"]:
+        if int(time.time()) - int(session.get("auth_ts") or 0) > VENTANA_REAUTENTICACION_S:
+            return APIResponse.error("err_reautenticar_para_cambiar_email", 403)
 
     # Primero se validan TODOS los cambios y despues se aplican: antes se iba escribiendo campo a
     # campo, y un fallo en el ultimo (email invalido) dejaba la sesion con el usuario ya cambiado

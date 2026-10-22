@@ -52,20 +52,37 @@ def generar_gastos_recurrentes_pendientes(db, hogar_id, usuario_id_actual):
             (recurrente["id"],),
         ).fetchall()
 
+        # Primero se calculan las ocurrencias pendientes (por si nadie abrio la app durante varios
+        # periodos), parando en cuanto la siguiente supere fecha_fin; sin escribir nada todavia.
         proxima_fecha = recurrente["proxima_fecha"]
         activo = True
-        # Genera todas las ocurrencias pendientes hasta hoy (por si nadie abrio
-        # la app durante varios periodos), parando en cuanto la siguiente
-        # ocurrencia calculada supere fecha_fin.
-        generados = 0
-        while activo and proxima_fecha <= hoy and generados < 400:  # tope por llamada
-            generados += 1
+        fechas = []
+        while activo and proxima_fecha <= hoy and len(fechas) < 400:  # tope por llamada
+            fechas.append(proxima_fecha)
+            siguiente_fecha = _siguiente_fecha(proxima_fecha, recurrente["frecuencia"])
+            if recurrente["fecha_fin"] and siguiente_fecha > recurrente["fecha_fin"]:
+                activo = False
+            proxima_fecha = siguiente_fecha
+
+        # Se RECLAMA el recurrente moviendo su puntero solo si sigue donde lo leimos. Esto corre en
+        # un GET (nivel "ver"): dos peticiones simultaneas leian la misma proxima_fecha y cada una
+        # insertaba las mismas ocurrencias (gastos duplicados). Solo la que consigue el UPDATE
+        # (rowcount == 1) genera los gastos; la otra ve el puntero ya movido y se salta este recurrente.
+        reclamado = db.execute(
+            "UPDATE gastos_recurrentes SET proxima_fecha = ?, activo = ? "
+            "WHERE id = ? AND proxima_fecha = ? AND activo = 1",
+            (proxima_fecha, 1 if activo else 0, recurrente["id"], recurrente["proxima_fecha"]),
+        )
+        if reclamado.rowcount != 1:
+            continue
+
+        for fecha_ocurrencia in fechas:
             cur = db.execute(
                 """INSERT INTO gastos
                    (hogar_id, descripcion, importe_total, fecha, usuario_pagador_id, categoria, creado_por_usuario_id, fecha_creacion)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
                 (
-                    hogar_id, recurrente["descripcion"], recurrente["importe_total"], proxima_fecha + "T00:00:00",
+                    hogar_id, recurrente["descripcion"], recurrente["importe_total"], fecha_ocurrencia + "T00:00:00",
                     recurrente["usuario_pagador_id"], recurrente["categoria"], usuario_id_actual, ahora(),
                 ),
             )
@@ -75,16 +92,6 @@ def generar_gastos_recurrentes_pendientes(db, hogar_id, usuario_id_actual):
                     "INSERT INTO gastos_participantes (gasto_id, usuario_id, importe) VALUES (?, ?, ?)",
                     (gasto_id, p["usuario_id"], p["importe"]),
                 )
-
-            siguiente_fecha = _siguiente_fecha(proxima_fecha, recurrente["frecuencia"])
-            if recurrente["fecha_fin"] and siguiente_fecha > recurrente["fecha_fin"]:
-                activo = False
-            proxima_fecha = siguiente_fecha
-
-        db.execute(
-            "UPDATE gastos_recurrentes SET proxima_fecha = ?, activo = ? WHERE id = ?",
-            (proxima_fecha, 1 if activo else 0, recurrente["id"]),
-        )
 
     db.commit()
 

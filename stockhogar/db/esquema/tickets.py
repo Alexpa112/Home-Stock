@@ -26,3 +26,23 @@ def aplicar(db):
     db.execute(
         "CREATE INDEX IF NOT EXISTS idx_trabajos_ticket_usuario ON trabajos_ticket(usuario_id, estado)"
     )
+    # Un trabajo "procesando" por usuario, garantizado por la BD: comprobarlo con un SELECT antes
+    # del INSERT dejaba pasar peticiones simultaneas (cada una veia "ninguno en curso") y un
+    # usuario podia lanzar N analisis a la vez y agotar los hilos del servidor.
+    try:
+        db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_trabajos_ticket_uno_por_usuario "
+            "ON trabajos_ticket(usuario_id) WHERE estado = 'procesando'"
+        )
+    except Exception:
+        # Ya habia dos "procesando" del mismo usuario (de antes del indice): se dan por perdidos
+        # todos menos el mas reciente y se reintenta.
+        db.execute(
+            "UPDATE trabajos_ticket SET estado = 'error', error_clave = 'err_procesando_ticket', error_estado = 504 "
+            "WHERE estado = 'procesando' AND rowid NOT IN ("
+            "  SELECT MAX(rowid) FROM trabajos_ticket WHERE estado = 'procesando' GROUP BY usuario_id)"
+        )
+        db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_trabajos_ticket_uno_por_usuario "
+            "ON trabajos_ticket(usuario_id) WHERE estado = 'procesando'"
+        )

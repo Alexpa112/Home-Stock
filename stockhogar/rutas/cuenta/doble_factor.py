@@ -106,6 +106,7 @@ def verificar_codigo_dos_pasos():
     session["usuario"] = usuario["nombre_usuario"]
     session["usuario_id"] = usuario_id
     session["session_version"] = usuario["session_version"]
+    session["auth_ts"] = int(time.time())
     restaurar_idioma(usuario["idioma_preferido"])
     return APIResponse.success({"usuario": usuario["nombre_usuario"], "csrf_token": generate_csrf()})
 

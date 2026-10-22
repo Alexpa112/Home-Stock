@@ -108,7 +108,9 @@ def create_app():
     # memoria/disco antes de que el codigo de la ruta llegue a validar nada.
     app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
     app.config["WTF_CSRF_CHECK_DEFAULT"] = True
-    app.config["WTF_CSRF_TIME_LIMIT"] = None
+    # 8 h (antes sin caducidad): un token robado deja de valer. El cliente ya refresca y
+    # reintenta una vez si el servidor lo rechaza por caducado (lib/api.ts, apiCall/apiUpload).
+    app.config["WTF_CSRF_TIME_LIMIT"] = 8 * 60 * 60
     app.config["WTF_CSRF_SSL_STRICT"] = False
     app.session_interface = SessionInterfaceOmitible()
     app.teardown_appcontext(db.close_db)
@@ -119,12 +121,13 @@ def create_app():
     def token_csrf_invalido(e):
         import logging
         logger = logging.getLogger(__name__)
+        # Nunca se registra ni un fragmento de la cookie de sesion: es una credencial.
         logger.warning(
-            "Error CSRF: %s | Ruta: %s | Método: %s | Sesión: %s | Usuario: %s",
+            "Error CSRF: %s | Ruta: %s | Método: %s | Con cookie: %s | Usuario: %s",
             str(e),
             request.path,
             request.method,
-            request.cookies.get("session", "sin_cookie")[:20],
+            "session" in request.cookies,
             session.get("usuario_id", "no_autenticado")
         )
         if request.path.startswith("/api/"):

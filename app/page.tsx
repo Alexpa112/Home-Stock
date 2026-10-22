@@ -7,6 +7,7 @@ import { PieLegal } from '@/components/shared/PieLegal'
 import { User, Lock, ArrowRight, ShieldCheck, Mail, AlertTriangle, Check } from 'lucide-react'
 import { auth } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { destinoSeguro } from '@/lib/rutaSegura'
 
 // Patrón SVG de fondo con iconos del hogar que se repite en tile 120×120
 
@@ -15,15 +16,9 @@ function HomeContent() {
   const searchParams = useSearchParams()
   const { t } = useTranslation()
 
-  // M-12: validar que 'next' sea una ruta relativa del origen, no un redirect
-  // a otro dominio. Acepta rutas que empiezan con / y no contienen :/
-  const _validar_ruta_relativa = (ruta: string): boolean => {
-    // "//evil.com" y "/\\evil.com" empiezan por "/" pero el navegador los trata como otro host.
-    return ruta.startsWith('/') && !ruta.startsWith('//') && !ruta.includes('\\') && !ruta.includes('://')
-  }
-
-  const nextParam = searchParams.get('next') || '/dashboard'
-  const destino = _validar_ruta_relativa(nextParam) ? nextParam : '/dashboard'
+  // M-12: 'next' solo vale si es una ruta interna segura (ver lib/rutaSegura.ts:
+  // rechaza //host, barras invertidas y los tabuladores que el navegador elimina).
+  const destino = destinoSeguro(searchParams.get('next'))
   const [isLogin, setIsLogin] = useState(true)
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')

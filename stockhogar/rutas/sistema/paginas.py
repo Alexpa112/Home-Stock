@@ -1,6 +1,6 @@
 """Endpoints de API y configuración (frontend manejado por Next.js)."""
 import logging
-from flask import Blueprint, request
+from flask import Blueprint, request, session
 from flask_wtf.csrf import generate_csrf
 
 from ... import csrf
@@ -28,11 +28,7 @@ def csrf_token():
     Next.js separada del backend): sin esto no hay forma de rellenar la
     cabecera X-CSRFToken que exige Flask-WTF en toda petición mutable."""
     token = generate_csrf()
-    logger.debug(
-        "CSRF token generado para sesión %s (usuario_id: %s)",
-        request.cookies.get("session", "sin_sesion")[:20],
-        request.environ.get("session", {}).get("usuario_id", "no_autenticado") if hasattr(request, "environ") else "unknown"
-    )
+    logger.debug("CSRF token generado (usuario_id: %s)", session.get("usuario_id", "no_autenticado"))
     return APIResponse.success({"csrf_token": token})
 
 

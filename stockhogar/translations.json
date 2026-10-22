@@ -848,7 +848,9 @@
     "catgasto_otros": "Otros",
     "titulo_pestana": "Dreame! - Inventario del Hogar",
     "recurso_ticket": "Ticket",
-    "err_ticket_en_curso": "Ya hay un ticket analizándose. Espera a que termine para subir otro."
+    "err_ticket_en_curso": "Ya hay un ticket analizándose. Espera a que termine para subir otro.",
+    "err_reautenticar_para_cambiar_email": "Por seguridad, vuelve a iniciar sesión para cambiar el correo electrónico.",
+    "err_escaner_ocupado": "El servidor está ocupado analizando otros tickets. Inténtalo de nuevo en unos segundos."
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1699,7 +1701,9 @@
     "catgasto_otros": "Outros",
     "titulo_pestana": "Dreame! - Inventario do Fogar",
     "recurso_ticket": "Tícket",
-    "err_ticket_en_curso": "Xa hai un tícket analizándose. Agarda a que remate para subir outro."
+    "err_ticket_en_curso": "Xa hai un tícket analizándose. Agarda a que remate para subir outro.",
+    "err_reautenticar_para_cambiar_email": "Por seguridade, volve iniciar sesión para cambiar o correo electrónico.",
+    "err_escaner_ocupado": "O servidor está ocupado analizando outros tícketes. Téntao de novo en uns segundos."
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2550,7 +2554,9 @@
     "catgasto_otros": "Other",
     "titulo_pestana": "Dreame! - Home Inventory",
     "recurso_ticket": "Receipt",
-    "err_ticket_en_curso": "A receipt is already being analyzed. Wait for it to finish before uploading another."
+    "err_ticket_en_curso": "A receipt is already being analyzed. Wait for it to finish before uploading another.",
+    "err_reautenticar_para_cambiar_email": "For security, sign in again to change your email address.",
+    "err_escaner_ocupado": "The server is busy analyzing other receipts. Try again in a few seconds."
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3401,7 +3407,9 @@
     "catgasto_otros": "Outros",
     "titulo_pestana": "Dreame! - Inventário do Lar",
     "recurso_ticket": "Talão",
-    "err_ticket_en_curso": "Já está a ser analisado um talão. Aguarde que termine para enviar outro."
+    "err_ticket_en_curso": "Já está a ser analisado um talão. Aguarde que termine para enviar outro.",
+    "err_reautenticar_para_cambiar_email": "Por segurança, inicie sessão novamente para alterar o e-mail.",
+    "err_escaner_ocupado": "O servidor está ocupado a analisar outros talões. Tente novamente dentro de alguns segundos."
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4252,7 +4260,9 @@
     "catgasto_otros": "Autres",
     "titulo_pestana": "Dreame! - Inventaire du Foyer",
     "recurso_ticket": "Ticket",
-    "err_ticket_en_curso": "Un ticket est déjà en cours d'analyse. Attendez la fin avant d'en envoyer un autre."
+    "err_ticket_en_curso": "Un ticket est déjà en cours d'analyse. Attendez la fin avant d'en envoyer un autre.",
+    "err_reautenticar_para_cambiar_email": "Par sécurité, reconnectez-vous pour modifier votre adresse e-mail.",
+    "err_escaner_ocupado": "Le serveur est occupé à analyser d'autres tickets. Réessayez dans quelques secondes."
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -5103,7 +5113,9 @@
     "catgasto_otros": "Altro",
     "titulo_pestana": "Dreame! - Inventario della Casa",
     "recurso_ticket": "Scontrino",
-    "err_ticket_en_curso": "Uno scontrino è già in analisi. Attendi che finisca prima di caricarne un altro."
+    "err_ticket_en_curso": "Uno scontrino è già in analisi. Attendi che finisca prima di caricarne un altro.",
+    "err_reautenticar_para_cambiar_email": "Per sicurezza, accedi di nuovo per cambiare l'indirizzo email.",
+    "err_escaner_ocupado": "Il server è occupato ad analizzare altri scontrini. Riprova tra qualche secondo."
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5954,6 +5966,8 @@
     "catgasto_otros": "Sonstiges",
     "titulo_pestana": "Dreame! - Haushaltsinventar",
     "recurso_ticket": "Beleg",
-    "err_ticket_en_curso": "Ein Beleg wird bereits analysiert. Warte, bis er fertig ist, bevor du einen weiteren hochlädst."
+    "err_ticket_en_curso": "Ein Beleg wird bereits analysiert. Warte, bis er fertig ist, bevor du einen weiteren hochlädst.",
+    "err_reautenticar_para_cambiar_email": "Aus Sicherheitsgründen melde dich erneut an, um deine E-Mail-Adresse zu ändern.",
+    "err_escaner_ocupado": "Der Server analysiert gerade andere Belege. Versuche es in einigen Sekunden erneut."
   }
 }

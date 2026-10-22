@@ -2,6 +2,8 @@
 from .blueprint import bp
 from .comunes import password_valida, restaurar_idioma
 from .doble_factor import generar_y_enviar_codigo
+import time
+
 from flask import session
 from flask_wtf.csrf import generate_csrf
 from werkzeug.security import generate_password_hash
@@ -129,6 +131,7 @@ def registrar():
     session["usuario"] = nombre_usuario
     session["usuario_id"] = usuario["id"]
     session["session_version"] = usuario["session_version"] or 0
+    session["auth_ts"] = int(time.time())
 
     return APIResponse.success({"creado": True, "usuario": nombre_usuario, "csrf_token": generate_csrf()}, 201)
 
@@ -170,6 +173,7 @@ def login():
     session["usuario"] = fila["nombre_usuario"]
     session["usuario_id"] = fila["id"]
     session["session_version"] = fila["session_version"]
+    session["auth_ts"] = int(time.time())
     restaurar_idioma(fila["idioma_preferido"])
     return APIResponse.success({"usuario": fila["nombre_usuario"], "csrf_token": generate_csrf()})
 

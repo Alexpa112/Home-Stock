@@ -121,11 +121,11 @@ def actualizar_articulo_personalizado(articulo_id):
         return APIResponse.error("err_nada_que_actualizar", 400)
 
     # Actualizar campos permitidos
-    nombre = str(datos.get("nombre") or articulo["nombre"] or "").strip()
+    nombre = Validator.texto_acotado(datos.get("nombre") or articulo["nombre"], "nombre", 80)
     categoria = normalizar_categoria(db, datos.get("categoria") or articulo["categoria"])
     icono = str(datos.get("icono") or articulo["icono"] or "").strip() or None
-    unidad = str(datos.get("unidad") or articulo["unidad"] or "").strip()
-    sub_descripcion = str(datos.get("sub_descripcion") or articulo["sub_descripcion"] or "").strip() or None
+    unidad = Validator.texto_acotado(datos.get("unidad") or articulo["unidad"], "unidad", 20)
+    sub_descripcion = Validator.texto_acotado(datos.get("sub_descripcion") or articulo["sub_descripcion"], "descripcion", 200) or None
     dias_aviso = Validator.entero_minimo(
         Validator.con_defecto(datos, "dias_aviso", articulo["dias_aviso"]),
         "días de aviso", 0, 365,
