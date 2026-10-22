@@ -99,6 +99,15 @@ class Validator:
         return valor
 
     @staticmethod
+    def texto_acotado(valor: Any, nombre_campo: str, max_len: int) -> str:
+        """Texto recortado que puede estar vacio, pero no pasar de `max_len`. Sin tope, un campo de
+        varios MB se guardaba y encima se mandaba a traducir (cada hilo de traduccion carga el modelo)."""
+        texto = str(valor or "").strip()
+        if len(texto) > max_len:
+            raise ValidationError(f"El {nombre_campo} no puede exceder {max_len} caracteres")
+        return texto
+
+    @staticmethod
     def string_opcional(valor: Optional[str], default: str = "", max_len: int = 255) -> str:
         """Valida string opcional con valor por defecto."""
         if not valor:

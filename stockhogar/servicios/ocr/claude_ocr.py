@@ -513,7 +513,8 @@ def _extraer_json(texto: str) -> Optional[dict]:
     try:
         return json.loads(limpio[inicio:final + 1])
     except json.JSONDecodeError as error:
-        logger.error("Respuesta de Claude no parseable: %s (%s)", error, limpio[:300])
+        # Solo la longitud: el texto de la respuesta lleva los articulos comprados por el usuario.
+        logger.error("Respuesta de Claude no parseable: %s (%d caracteres)", error, len(limpio))
         return None
 
 
@@ -688,7 +689,7 @@ class ClaudeOCR:
             datos = _extraer_json(texto)
 
         if not isinstance(datos, dict) or not isinstance(datos.get("productos"), list):
-            logger.error("Claude devolvió un formato inesperado: %s", texto[:300])
+            logger.error("Claude devolvió un formato inesperado (%d caracteres)", len(texto))
             return None
         return datos
 

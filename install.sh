@@ -394,9 +394,10 @@ if check_cmd docker; then
     log_success "Docker ya instalado: $(docker --version)"
 else
     log_info "Instalando Docker (script oficial get.docker.com)..."
-    retry curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
-    run $SUDO sh /tmp/get-docker.sh
-    rm -f /tmp/get-docker.sh
+    DOCKER_SCRIPT="$(mktemp /tmp/get-docker.XXXXXX.sh)"
+    retry curl -fsSL https://get.docker.com -o "$DOCKER_SCRIPT"
+    run $SUDO sh "$DOCKER_SCRIPT"
+    rm -f "$DOCKER_SCRIPT"
     if [[ -n "$SUDO" ]]; then
         run $SUDO usermod -aG docker "$(id -un)"
         log_warning "Se añadió tu usuario al grupo 'docker'. Si algo falla por permisos," \
@@ -611,6 +612,244 @@ fi
 step_end
 
 ################################################################################
+step_start "Reforzar la seguridad del sistema"
+################################################################################
+
+# Endurece la Raspberry Pi: parches de seguridad automáticos, cortafuegos,
+# bloqueo de intentos de acceso por SSH, SSH más estricto, parámetros de red del
+# kernel y permisos de los ficheros con secretos.
+#
+# Reglas, igual que en la optimización: IDEMPOTENTE, nada es fatal (un fallo se
+# avisa y se sigue) y se omite con DREAME_ENDURECER_SISTEMA=0. Y una regla más:
+# NUNCA dejar al usuario sin acceso. Por eso el cortafuegos no se activa sin una
+# regla de SSH ya confirmada, el SSH solo se recarga si `sshd -t` valida la
+# configuración, y desactivar la contraseña de SSH es opt-in explícito
+# (DREAME_SSH_SOLO_CLAVES=1) y solo si hay una clave pública autorizada.
+SEGURIDAD_REINICIAR_SSH=0
+
+# ¿Hay un túnel de Cloudflare en esta máquina? Entonces el tráfico público entra
+# por el túnel (que se conecta a localhost) y el frontend no tiene por qué
+# escuchar en toda la red local.
+hay_tunel() {
+    systemctl is-active --quiet cloudflared 2>/dev/null && return 0
+    pgrep -x cloudflared >/dev/null 2>&1 && return 0
+    docker ps --format '{{.Image}} {{.Names}}' 2>/dev/null | grep -qi cloudflared && return 0
+    return 1
+}
+# Puerto y enlace del frontend tal como estan (o estaran) en .env
+env_previo() { grep -m1 "^${1}=" .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true; }
+FRONTEND_PORT_FW="$(env_previo STOCKHOGAR_FRONTEND_PORT)"; FRONTEND_PORT_FW="${FRONTEND_PORT_FW:-3000}"
+FRONTEND_BIND_FW="$(env_previo STOCKHOGAR_FRONTEND_BIND)"
+if [[ -z "$FRONTEND_BIND_FW" ]]; then
+    if [[ "${DREAME_ABRIR_LAN:-0}" != "1" ]] && hay_tunel; then FRONTEND_BIND_FW="127.0.0.1"; else FRONTEND_BIND_FW="0.0.0.0"; fi
+fi
+
+if [[ "${DREAME_ENDURECER_SISTEMA:-1}" == "0" ]]; then
+    log_info "DREAME_ENDURECER_SISTEMA=0: se omite el refuerzo de seguridad"
+elif [[ ! -d /run/systemd/system ]]; then
+    log_info "Sin systemd: se omite el refuerzo de seguridad"
+elif ! check_cmd apt-get; then
+    log_info "Sin apt: se omite el refuerzo de seguridad (solo Debian/Raspberry Pi OS/Ubuntu)"
+else
+    # Puerto real de SSH (puede no ser el 22) y si hay un sshd escuchando.
+    SSH_PUERTO=""
+    if check_cmd sshd; then
+        SSH_PUERTO="$($SUDO sshd -T 2>/dev/null | awk '/^port /{print $2; exit}')"
+    fi
+    if [[ -z "$SSH_PUERTO" ]] && check_cmd ss; then
+        SSH_PUERTO="$(ss -ltnp 2>/dev/null | awk '/sshd/{n=split($4,a,":"); print a[n]; exit}')"
+    fi
+    SSH_ACTIVO=0
+    if systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null; then
+        SSH_ACTIVO=1
+    fi
+    [[ "$SSH_ACTIVO" -eq 1 ]] && SSH_PUERTO="${SSH_PUERTO:-22}"
+
+    PAQUETES_SEGURIDAD=()
+    check_cmd ufw || PAQUETES_SEGURIDAD+=(ufw)
+    check_cmd fail2ban-client || PAQUETES_SEGURIDAD+=(fail2ban)
+    dpkg -s unattended-upgrades >/dev/null 2>&1 || PAQUETES_SEGURIDAD+=(unattended-upgrades)
+    if [[ "${#PAQUETES_SEGURIDAD[@]}" -gt 0 ]]; then
+        log_info "Instalando paquetes de seguridad: ${PAQUETES_SEGURIDAD[*]}"
+        {
+            $SUDO apt-get update -qq \
+            && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq "${PAQUETES_SEGURIDAD[@]}"
+        } >> "$LOG_FILE" 2>&1 \
+            && log_success "Paquetes de seguridad instalados" \
+            || log_warning "No se pudieron instalar todos los paquetes de seguridad; se aplica lo que haya"
+    fi
+
+    # 1) Parches de seguridad automáticos. Sin reinicio automático (el watchdog y
+    #    el cron ya recuperan la app; reiniciar de madrugada sin avisar es decisión
+    #    del usuario: Unattended-Upgrade::Automatic-Reboot).
+    if dpkg -s unattended-upgrades >/dev/null 2>&1; then
+        if escribir_si_cambia /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";
+EOF
+        then
+            log_success "Parches de seguridad automáticos activados (unattended-upgrades)"
+        else
+            log_info "Parches de seguridad automáticos ya activados"
+        fi
+    fi
+
+    # 2) Parámetros de red y del kernel (sin tocar ip_forward: Docker lo necesita).
+    if escribir_si_cambia /etc/sysctl.d/99-dreame-seguridad.conf <<'EOF'
+# Dreame! - endurecimiento del kernel (install.sh)
+net.ipv4.tcp_syncookies = 1
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+fs.protected_hardlinks = 1
+fs.protected_symlinks = 1
+fs.suid_dumpable = 0
+EOF
+    then
+        $SUDO sysctl -p /etc/sysctl.d/99-dreame-seguridad.conf >> "$LOG_FILE" 2>&1 \
+            && log_success "Parámetros de red y kernel endurecidos" \
+            || log_warning "Algunos parámetros del kernel no se pudieron aplicar (kernel sin soporte)"
+    else
+        log_info "Parámetros de seguridad del kernel ya aplicados"
+    fi
+
+    # 3) SSH más estricto. Un fichero propio en sshd_config.d (no se edita el
+    #    sshd_config del sistema) que se valida con `sshd -t` antes de recargar.
+    if [[ "$SSH_ACTIVO" -eq 1 ]] && [[ -d /etc/ssh/sshd_config.d ]]; then
+        SSH_SOLO_CLAVES=0
+        if [[ "${DREAME_SSH_SOLO_CLAVES:-0}" == "1" ]]; then
+            if [[ -s "${HOME}/.ssh/authorized_keys" ]] && grep -qE '^(ssh-|ecdsa-|sk-)' "${HOME}/.ssh/authorized_keys"; then
+                SSH_SOLO_CLAVES=1
+            else
+                log_warning "DREAME_SSH_SOLO_CLAVES=1 ignorado: ${HOME}/.ssh/authorized_keys no tiene ninguna clave pública."
+                log_warning "Copia tu clave primero (ssh-copy-id) o te quedarías sin acceso."
+            fi
+        fi
+        SSH_CONF_NUEVA="$(mktemp)"
+        {
+            echo "# Dreame! - SSH más estricto (install.sh). Se puede borrar este fichero para revertirlo."
+            echo "MaxAuthTries 4"
+            echo "LoginGraceTime 30"
+            echo "X11Forwarding no"
+            echo "ClientAliveInterval 300"
+            echo "ClientAliveCountMax 2"
+            echo "PermitEmptyPasswords no"
+            # Solo se prohíbe root si quien instala NO es root: si no, nadie más podría entrar.
+            [[ "$(id -u)" -ne 0 ]] && echo "PermitRootLogin no"
+            [[ "$SSH_SOLO_CLAVES" -eq 1 ]] && { echo "PasswordAuthentication no"; echo "KbdInteractiveAuthentication no"; }
+        } > "$SSH_CONF_NUEVA"
+        if [[ -f /etc/ssh/sshd_config.d/99-dreame.conf ]] && cmp -s "$SSH_CONF_NUEVA" /etc/ssh/sshd_config.d/99-dreame.conf; then
+            log_info "SSH ya endurecido"
+        else
+            SSH_CONF_ANTERIOR=""
+            [[ -f /etc/ssh/sshd_config.d/99-dreame.conf ]] && SSH_CONF_ANTERIOR="$(cat /etc/ssh/sshd_config.d/99-dreame.conf)"
+            $SUDO install -m 644 "$SSH_CONF_NUEVA" /etc/ssh/sshd_config.d/99-dreame.conf
+            if $SUDO sshd -t >> "$LOG_FILE" 2>&1; then
+                { $SUDO systemctl reload ssh 2>/dev/null || $SUDO systemctl reload sshd 2>/dev/null; } >> "$LOG_FILE" 2>&1 \
+                    && log_success "SSH endurecido (intentos limitados, sin root$([[ "$SSH_SOLO_CLAVES" -eq 1 ]] && echo ', solo claves'))" \
+                    || log_warning "SSH configurado pero no se pudo recargar; se aplicará al reiniciar el servicio"
+            else
+                log_warning "La configuración de SSH no valida (sshd -t): se revierte y no se toca"
+                if [[ -n "$SSH_CONF_ANTERIOR" ]]; then
+                    printf '%s\n' "$SSH_CONF_ANTERIOR" | $SUDO tee /etc/ssh/sshd_config.d/99-dreame.conf > /dev/null
+                else
+                    $SUDO rm -f /etc/ssh/sshd_config.d/99-dreame.conf
+                fi
+            fi
+        fi
+        rm -f "$SSH_CONF_NUEVA"
+        if [[ "$SSH_SOLO_CLAVES" -eq 0 ]]; then
+            log_info "Consejo: para desactivar la contraseña de SSH, copia tu clave (ssh-copy-id) y relanza con DREAME_SSH_SOLO_CLAVES=1"
+        fi
+    fi
+
+    # 4) fail2ban: bloquea durante una hora a quien falle 5 veces seguidas en SSH.
+    if check_cmd fail2ban-client; then
+        if escribir_si_cambia /etc/fail2ban/jail.d/dreame.local <<EOF
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+backend  = systemd
+
+[sshd]
+enabled = true
+port    = ${SSH_PUERTO:-22}
+EOF
+        then
+            $SUDO systemctl enable --now fail2ban >> "$LOG_FILE" 2>&1 || true
+            $SUDO systemctl restart fail2ban >> "$LOG_FILE" 2>&1 || true
+            log_success "fail2ban activo (SSH: 5 fallos → 1 hora de bloqueo)"
+        else
+            $SUDO systemctl enable --now fail2ban >> "$LOG_FILE" 2>&1 || true
+            log_info "fail2ban ya configurado"
+        fi
+    fi
+
+    # 5) Cortafuegos. Política: todo lo entrante denegado salvo SSH y, si el
+    #    frontend escucha en la red local, el puerto del frontend SOLO desde
+    #    redes privadas. OJO: Docker publica sus puertos saltándose ufw, así que
+    #    la protección real del puerto 3000 es su enlace (STOCKHOGAR_FRONTEND_BIND
+    #    en .env, ver el paso de variables de entorno), no esta regla.
+    if check_cmd ufw; then
+        if [[ "$SSH_ACTIVO" -eq 1 ]] || [[ "${DREAME_UFW_SIN_SSH:-0}" == "1" ]]; then
+            UFW_ANTES="$($SUDO ufw status verbose 2>/dev/null | head -3 | tr '\n' ' ')"
+            {
+                $SUDO ufw default deny incoming \
+                && $SUDO ufw default allow outgoing \
+                && { [[ "$SSH_ACTIVO" -eq 1 ]] && $SUDO ufw limit "${SSH_PUERTO}/tcp" comment 'SSH (limitado)' || true; } \
+                && { if [[ "$FRONTEND_BIND_FW" != "127.0.0.1" ]]; then
+                         for RED_PRIVADA in 192.168.0.0/16 10.0.0.0/8 172.16.0.0/12; do
+                             $SUDO ufw allow from "$RED_PRIVADA" to any port "$FRONTEND_PORT_FW" proto tcp comment 'Dreame! frontend (red local)' || true
+                         done
+                     fi; }
+            } >> "$LOG_FILE" 2>&1 || log_warning "No se pudieron definir todas las reglas del cortafuegos"
+            if $SUDO ufw status 2>/dev/null | grep -qE "${SSH_PUERTO:-22}/tcp.*(ALLOW|LIMIT)" || [[ "$SSH_ACTIVO" -eq 0 ]]; then
+                $SUDO ufw --force enable >> "$LOG_FILE" 2>&1 \
+                    && log_success "Cortafuegos (ufw) activo: entrante denegado salvo SSH${SSH_PUERTO:+ (puerto $SSH_PUERTO)} y red local al frontend" \
+                    || log_warning "No se pudo activar ufw"
+            else
+                log_warning "No se confirmó la regla de SSH en ufw: NO se activa el cortafuegos para no dejarte sin acceso"
+            fi
+        else
+            log_warning "No hay sshd activo: no se activa ufw automáticamente (DREAME_UFW_SIN_SSH=1 para forzarlo si usas teclado y pantalla)"
+        fi
+    fi
+
+    # 6) Permisos de los ficheros con secretos.
+    if [[ -f .env ]]; then
+        chmod 600 .env 2>/dev/null && log_success ".env solo legible por su propietario (600)" || true
+    fi
+    for SECRETO in data/secret.json data/vapid_private_key.pem; do
+        [[ -f "$SECRETO" ]] && chmod 600 "$SECRETO" 2>/dev/null || true
+    done
+    if [[ -d data ]] && [[ "$(stat -c %u data 2>/dev/null)" == "$(id -u)" ]]; then
+        chmod 750 data 2>/dev/null || true
+        ls data/*.db >/dev/null 2>&1 && chmod 640 data/*.db 2>/dev/null || true
+    fi
+
+    # 7) Informe de lo que escucha en la red (lo que no debería estar ahí se ve aquí).
+    if check_cmd ss; then
+        ABIERTOS="$(ss -ltnH 2>/dev/null | awk '{print $4}' | grep -vE '^(127\.|\[::1\]|::1)' | sed 's/.*://' | sort -un | tr '\n' ' ')"
+        log_info "Puertos TCP escuchando fuera de loopback: ${ABIERTOS:-ninguno}"
+    fi
+fi
+
+step_end
+
+################################################################################
 step_start "Detectar Docker Compose"
 ################################################################################
 
@@ -794,6 +1033,9 @@ REQUIRED_VARS=(
     # Concurrencia de gunicorn (Dockerfile / Dockerfile.raspbian): se ajusta a la RAM.
     GUNICORN_WORKERS
     GUNICORN_THREADS
+    # Interfaz en la que escucha el frontend: 127.0.0.1 si hay túnel de Cloudflare
+    # (nada de la LAN llega a él), 0.0.0.0 para usarlo desde la red local.
+    STOCKHOGAR_FRONTEND_BIND
 )
 DEFAULT_VALUE() {
     case "$1" in
@@ -819,6 +1061,10 @@ DEFAULT_VALUE() {
             if [[ -n "${MEMORY_MB:-}" && "$MEMORY_MB" -lt 1500 ]]; then echo "1"; else echo "2"; fi ;;
         GUNICORN_THREADS)
             if [[ -n "${MEMORY_MB:-}" && "$MEMORY_MB" -lt 1500 ]]; then echo "6"; else echo "4"; fi ;;
+        # Con túnel de Cloudflare el frontend solo escucha en loopback: docker publica
+        # sus puertos saltándose ufw, así que el enlace ES el cortafuegos. DREAME_ABRIR_LAN=1
+        # lo deja abierto a la red local.
+        STOCKHOGAR_FRONTEND_BIND) echo "$FRONTEND_BIND_FW" ;;
         *) echo "" ;;
     esac
 }

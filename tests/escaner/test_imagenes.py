@@ -47,13 +47,18 @@ class ValidarYRecodificarTests(unittest.TestCase):
         self.assertEqual(error, "err_formato_no_permitido")
 
     def test_extension_no_cubierta_por_pillow_se_deja_pasar_sin_recodificar(self):
-        """heic/heif: fuera de alcance de esta validacion (ver docstring del
-        modulo), se deja pasar tal cual para que la llame quien sepa
-        convertirla (heif-convert)."""
-        contenido = b"bytes-cualquiera-de-un-heic"
+        """heic/heif: Pillow no los decodifica, asi que no se recodifican y se dejan pasar tal cual
+        para que la llame quien sepa convertirlos (heif-convert), pero SOLO si son de verdad un
+        contenedor HEIF (cabecera ftyp + marca heic/mif1...): antes pasaba cualquier cosa renombrada."""
+        contenido = b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00heicmif1"
         resultado, error = validar_y_recodificar(contenido, "heic")
         self.assertIsNone(error)
         self.assertEqual(resultado, contenido)
+
+    def test_un_heic_falso_se_rechaza(self):
+        resultado, error = validar_y_recodificar(b"bytes-cualquiera-de-un-heic", "heic")
+        self.assertIsNone(resultado)
+        self.assertEqual(error, "err_formato_no_permitido")
 
 
 if __name__ == "__main__":

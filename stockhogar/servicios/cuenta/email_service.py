@@ -10,6 +10,14 @@ from ...config import SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FRO
 logger = logging.getLogger(__name__)
 
 
+def _enmascarar(email) -> str:
+    """"ana.perez@gmail.com" -> "a***@gmail.com": los logs no deben llevar direcciones completas
+    (se conservan, rotadas, en disco y se pegan en tickets de soporte)."""
+    texto = str(email or "")
+    usuario, _, dominio = texto.partition("@")
+    return f"{usuario[:1]}***@{dominio}" if dominio else "***"
+
+
 class EmailService:
     """Servicio para enviar emails de invitación."""
 
@@ -85,7 +93,7 @@ class EmailService:
             )
 
         except Exception as e:
-            logger.error(f"Error enviando invitación a {email_destino}: {str(e)}")
+            logger.error(f"Error enviando invitación a {_enmascarar(email_destino)}: {str(e)}")
             return False
 
     @staticmethod
@@ -113,7 +121,7 @@ class EmailService:
                 cuerpo_html=cuerpo_html,
             )
         except Exception as e:
-            logger.error(f"Error enviando código de verificación a {email_destino}: {str(e)}")
+            logger.error(f"Error enviando código de verificación a {_enmascarar(email_destino)}: {str(e)}")
             return False
 
     @staticmethod
@@ -149,7 +157,7 @@ class EmailService:
             """
             return EmailService._enviar_smtp(email_destino=email_destino, asunto=asunto, cuerpo_html=cuerpo_html)
         except Exception as e:
-            logger.error(f"Error enviando verificación de email a {email_destino}: {str(e)}")
+            logger.error(f"Error enviando verificación de email a {_enmascarar(email_destino)}: {str(e)}")
             return False
 
     @staticmethod
@@ -187,7 +195,7 @@ class EmailService:
             """
             return EmailService._enviar_smtp(email_destino=email_destino, asunto=asunto, cuerpo_html=cuerpo_html)
         except Exception as e:
-            logger.error(f"Error enviando recuperación de contraseña a {email_destino}: {str(e)}")
+            logger.error(f"Error enviando recuperación de contraseña a {_enmascarar(email_destino)}: {str(e)}")
             return False
 
     @staticmethod
@@ -219,7 +227,7 @@ class EmailService:
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.send_message(msg)
 
-            logger.info(f"Email enviado a {email_destino}")
+            logger.info(f"Email enviado a {_enmascarar(email_destino)}")
             return True
 
         except smtplib.SMTPAuthenticationError:

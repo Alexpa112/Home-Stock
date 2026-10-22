@@ -28,8 +28,9 @@ class ValidarFormatoTests(unittest.TestCase):
         Image.new("1", (9000, 9000)).save(b, "PNG")
         self.assertEqual(validar_formato(b.getvalue(), "png"), "err_formato_no_permitido")
 
-    def test_extension_no_cubierta_se_deja_pasar(self):
-        self.assertIsNone(validar_formato(b"cualquier cosa", "heic"))
+    def test_heic_valido_se_deja_pasar_y_falso_se_rechaza(self):
+        self.assertIsNone(validar_formato(b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00heicmif1", "heic"))
+        self.assertEqual(validar_formato(b"cualquier cosa", "heic"), "err_formato_no_permitido")
 
 
 class AplanarIluminacionTests(unittest.TestCase):

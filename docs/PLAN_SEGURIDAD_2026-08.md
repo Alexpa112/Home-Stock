@@ -573,3 +573,50 @@ Si se corrige la declaración de terceros, el cambio es sustancial: subir
 Cada fase debe cerrar con la suite completa en verde (`python -m pytest tests/ -q`) y
 con test de regresión propio por hallazgo, en particular para A-1, A-3, A-4, A-6 y
 A-7, donde los tests actuales pasan en verde sin cubrir el camino real.
+
+---
+
+## 7. Revisión de 2026-10-22 (re-verificación y endurecimiento)
+
+Dos revisiones independientes (autenticación/sesiones y autorización/subidas) re-verificaron
+contra el código actual los hallazgos de este documento y las rutas nuevas del escáner
+asíncrono. Tests: `tests/seguridad/test_endurecimiento_2026_10.py`.
+
+**Corregido en esta revisión**
+
+| Hallazgo | Arreglo |
+|---|---|
+| Toma de cuenta OAuth con solo la cookie (fijar email propio → verificar → reset) | Para fijar/cambiar el email de una cuenta sin contraseña se exige un inicio de sesión de menos de 10 min (`auth_ts`, `perfil.py`) |
+| `ip_cliente` falseable desde la LAN (puerto 3000 en `0.0.0.0`, M-8/M-13) | `install.sh` fija `STOCKHOGAR_FRONTEND_BIND=127.0.0.1` si detecta un túnel de Cloudflare; `DREAME_ABRIR_LAN=1` lo deja abierto |
+| Open redirect `?next=` con tabulador (`/%09/evil.com`) (M-12) | `lib/rutaSegura.ts` rechaza caracteres de control, `\`, `//` y comprueba el origen |
+| Escáner: `/analizar` sin tope y carrera en «uno a la vez» | Índice único parcial en `trabajos_ticket`, reserva atómica, 2 plazas de análisis por proceso, 429 si saturado; `/analizar` acotada igual |
+| Hilos de traducción sin tope (CSV de 500 filas = 500 hilos) | Cola acotada con un solo consumidor (`servicios/cola_segundo_plano.py`) |
+| Nombres/descripciones sin límite en lista de compra y personalizados | `Validator.texto_acotado` (80/20/200) |
+| Gastos recurrentes duplicados por peticiones simultáneas | El puntero se reclama con `UPDATE ... WHERE proxima_fecha = ?` y solo gana quien consigue `rowcount == 1` |
+| HEIC/HEIF guardado sin validar (B-6) | Se exige cabecera ISO-BMFF con marca HEIF (`parece_heif`) |
+| Fragmento de la cookie de sesión en logs (B-3), emails completos y texto del modelo en logs (B-2) | Eliminados / enmascarados |
+| CSRF sin caducidad (B-13) | `WTF_CSRF_TIME_LIMIT` = 8 h (el cliente ya reintenta) |
+| `trabajos_ticket.resultado` en claro 24 h | 1 h, purga también en el GET |
+| `trivy-action@master` mutable (M-22) | Fijado a `v0.36.0` |
+| `get-docker.sh` en ruta fija de `/tmp` (M-23) | `mktemp` |
+| Contenedores con capabilities (B-14 parcial) | `cap_drop: [ALL]` en backend y frontend |
+
+**Instalador** (`install.sh`, paso «Reforzar la seguridad del sistema»; `DREAME_ENDURECER_SISTEMA=0` lo omite):
+parches automáticos (`unattended-upgrades`), `ufw` (entrante denegado salvo SSH limitado y, si procede,
+el frontend desde redes privadas), `fail2ban` para SSH, SSH más estricto en un fichero propio validado
+con `sshd -t` (la contraseña solo se desactiva con `DREAME_SSH_SOLO_CLAVES=1` y una clave autorizada),
+parámetros de red del kernel, permisos 600 en `.env`, `secret.json` y la clave VAPID, e informe de
+puertos abiertos. Nunca se activa el cortafuegos sin una regla de SSH confirmada.
+
+**Sigue abierto (decisión o coste mayor)**
+
+- Cookies anteriores a `session_version` exentas de revocación (`api/base.py`): quitar la exención
+  invalida las sesiones de los tests y de cualquier cookie antigua; con `DIAS_SESION = 30` ya han caducado
+  en producción, queda por retirar el código.
+- Categorías (`categorias`, `categorias_gasto`) globales (M-3) y artículos personalizados autorizados por
+  dueño y no por hogar (M-4): requieren migración de datos.
+- Enumeración por tiempo en el reset de contraseña (SMTP síncrono) y 409 en el registro (M-9, M-11).
+- `limite_por_ip` es un contador en memoria por worker: el límite efectivo es × nº de workers.
+- `Dockerfile` (x86, solo CI) sin `USER`; `read_only` en los contenedores (hay que auditar todo lo que se
+  escribe fuera de `data/`, `logs/` y `uploads/`).
+- El instalador del Panel (`StockHogar-Panel`) se ejecuta con la caché de `sudo` caliente (M-24).

@@ -7,6 +7,7 @@ from flask import Blueprint, Response, current_app, g, request, session
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json
 from ...config import DIAS_AVISO_DEFECTO
 from ...db import ahora, get_db
+from ...servicios.cola_segundo_plano import encolar
 from ...utils.csv_seguro import EscritorCsvSeguro, desproteger, leer_csv_subido
 from ...utils import Validator, DataConverter, ValidationError
 from ...servicios.stock import hogar_actual_con_permiso, revisar_stock_bajo, sumar_stock, crear_producto_nuevo, registrar_movimiento
@@ -293,11 +294,10 @@ def traducir_producto_auto():
             return APIResponse.no_permitido()
 
     app = current_app._get_current_object()
-    threading.Thread(
-        target=_traducir_y_guardar_en_segundo_plano,
-        args=(app, nombre, descripcion, producto_id, articulo_id),
-        daemon=True,
-    ).start()
+    encolar(
+        lambda: _traducir_y_guardar_en_segundo_plano(app, nombre, descripcion, producto_id, articulo_id),
+        f"traducir producto {producto_id}",
+    )
 
     return APIResponse.success({"encolado": True})
 

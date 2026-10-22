@@ -5,6 +5,7 @@ from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, te
 from ...config import DIAS_AVISO_DEFECTO
 from ...db import ahora, get_db
 from ...servicios.stock import hogar_actual_con_permiso
+from ...servicios.cola_segundo_plano import encolar
 from ...utils import Validator, DataConverter
 from ..inventario.categorias import normalizar_categoria
 from ..inventario.historial import buscar_historial, recordar_articulo
@@ -110,7 +111,8 @@ def traducir_en_segundo_plano(articulo_id, nombre, sub_descripcion, traducir_nom
         except Exception:
             logger.exception("Error traduciendo articulo %s", articulo_id)
 
-    threading.Thread(target=trabajo, daemon=True).start()
+    # Una cola con un solo hilo, no un hilo por articulo (ver servicios/cola_segundo_plano.py).
+    encolar(trabajo, f"traducir articulo {articulo_id}")
 
 
 def anadir_o_sumar_articulo(
@@ -233,7 +235,7 @@ def anadir_articulo():
     datos = cuerpo_json()
     # str(): un {"nombre": 5} pasaba el `or ""` (5 es truthy) y reventaba el
     # .strip() con AttributeError -> 500 en vez de 400.
-    nombre = str(datos.get("nombre") or "").strip()
+    nombre = Validator.texto_acotado(datos.get("nombre"), "nombre", 80)
 
     if not nombre:
         return APIResponse.error("err_nombre_obligatorio", 400)
@@ -302,15 +304,15 @@ def actualizar_articulo(item_id):
 
     if CAMPOS_EDITABLES & datos.keys():
         actual = DataConverter.articulo_lista_to_dict(fila)
-        nombre = str(datos.get("nombre") or actual["nombre"] or "").strip() or actual["nombre"]
+        nombre = Validator.texto_acotado(datos.get("nombre") or actual["nombre"], "nombre", 80) or actual["nombre"]
         if "cantidad" in datos:
             cantidad = Validator.entero_minimo(datos.get("cantidad") or 1, "cantidad")
         else:
             cantidad = actual["cantidad"]
-        unidad = str(datos.get("unidad") or actual["unidad"] or "").strip() or actual["unidad"]
+        unidad = Validator.texto_acotado(datos.get("unidad") or actual["unidad"], "unidad", 20) or actual["unidad"]
         categoria = normalizar_categoria(db, datos.get("categoria", actual["categoria"]))
         icono = str(datos.get("icono", actual["icono"]) or "").strip() or None
-        sub_descripcion = str(datos.get("sub_descripcion", actual["sub_descripcion"]) or "").strip() or None
+        sub_descripcion = Validator.texto_acotado(datos.get("sub_descripcion", actual["sub_descripcion"]), "descripcion", 200) or None
         dias_aviso = Validator.entero_minimo(
             Validator.con_defecto(datos, "dias_aviso", actual.get("dias_aviso") or DIAS_AVISO_DEFECTO),
             "días de aviso", 0, 365

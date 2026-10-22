@@ -45,6 +45,17 @@ _FORMATOS_PILLOW_POR_EXTENSION = {
 }
 
 
+# Marcas ("brands") de un contenedor ISO-BMFF que son HEIF/HEIC. Pillow no abre HEIC sin un plugin
+# (no hay wheel para armv7l), asi que no se puede validar decodificando: al menos se exige que el
+# fichero ES un contenedor HEIF, no cualquier cosa renombrada a .heic (un ejecutable, un script...).
+_MARCAS_HEIF = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"hevm", b"hevs", b"mif1", b"msf1"}
+
+
+def parece_heif(imagen_bytes: bytes) -> bool:
+    """Cabecera ISO-BMFF: 4 bytes de tamano, "ftyp" y una marca HEIF conocida."""
+    return len(imagen_bytes) >= 12 and imagen_bytes[4:8] == b"ftyp" and imagen_bytes[8:12] in _MARCAS_HEIF
+
+
 def validar_formato(imagen_bytes: bytes, extension: str):
     """Solo comprueba que es una imagen valida del formato que dice su extension y que no es
     una bomba de pixeles. Devuelve None si es valida o la clave del error.
@@ -54,6 +65,8 @@ def validar_formato(imagen_bytes: bytes, extension: str):
     foto de 10 Mpx cuesta cientos de milisegundos por nada."""
     formato_esperado = _FORMATOS_PILLOW_POR_EXTENSION.get(extension)
     if formato_esperado is None:
+        if extension in ("heic", "heif") and not parece_heif(imagen_bytes):
+            return "err_formato_no_permitido"
         return None
     if imagen_demasiado_grande(imagen_bytes):
         return "err_formato_no_permitido"
@@ -76,8 +89,11 @@ def validar_y_recodificar(imagen_bytes: bytes, extension: str):
     """
     formato_esperado = _FORMATOS_PILLOW_POR_EXTENSION.get(extension)
     if formato_esperado is None:
-        # Extension no cubierta por esta validacion (p.ej. heic/heif): se
-        # deja pasar sin recodificar, la llama quien sepa tratarla.
+        # heic/heif: no se puede decodificar aqui, pero si se exige que sea un contenedor HEIF
+        # (antes se guardaba cualquier cosa renombrada a .heic). Otras extensiones: se deja
+        # pasar sin recodificar, la llama quien sepa tratarla.
+        if extension in ("heic", "heif") and not parece_heif(imagen_bytes):
+            return None, "err_formato_no_permitido"
         return imagen_bytes, None
 
     if imagen_demasiado_grande(imagen_bytes):

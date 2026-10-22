@@ -3,6 +3,8 @@ import secrets
 
 from flask import Blueprint, request, session, redirect
 from urllib.parse import urlencode
+import time
+
 import requests
 import logging
 
@@ -173,6 +175,7 @@ def oauth_google_callback():
         session["usuario"] = fila_usuario["nombre_usuario"]
         session["usuario_id"] = usuario_id
         session["session_version"] = fila_usuario["session_version"]
+        session["auth_ts"] = int(time.time())
         session.permanent = True
 
         return redirect(f"{APP_URL}/dashboard")

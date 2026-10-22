@@ -55,20 +55,23 @@ class EnlaceProfundoInvitacionTests(unittest.TestCase):
 
     def test_next_solo_admite_rutas_relativas(self):
         """Proteccion contra redirecciones abiertas (M-12)."""
+        # La validacion vive en lib/rutaSegura.ts (con tests de jest: rechaza //host, esquemas,
+        # barras invertidas y los tabuladores que el navegador elimina); la pagina solo la usa.
+        validador = (RAIZ / "lib" / "rutaSegura.ts").read_text(encoding="utf-8")
         self.assertRegex(
-            self.login, r"startsWith\('/'\)",
+            validador, r"startsWith\('/'\)",
             "`next` debe empezar por / para no poder saltar a otro dominio",
         )
         self.assertIn(
-            "://", self.login,
+            "://", validador,
             "debe rechazarse un `next` que traiga esquema (https://malo.example)",
         )
+        self.assertIn("destinoSeguro(searchParams.get('next'))", self.login)
 
     def test_el_destino_por_defecto_es_el_dashboard(self):
-        self.assertRegex(
-            self.login, r"searchParams\.get\('next'\)\s*\|\|\s*'/dashboard'",
-            "sin `next`, el login debe seguir llevando al dashboard",
-        )
+        validador = (RAIZ / "lib" / "rutaSegura.ts").read_text(encoding="utf-8")
+        self.assertIn("porDefecto = '/dashboard'", validador, "sin `next`, el login debe seguir llevando al dashboard")
+        self.assertIn("destinoSeguro(searchParams.get('next'))", self.login)
 
 
 if __name__ == "__main__":

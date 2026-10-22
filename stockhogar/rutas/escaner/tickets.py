@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import sqlite3
 import shutil
 import subprocess
 import tempfile
@@ -472,9 +473,28 @@ def _ejecutar_analisis(db, usuario_id, hogar_id, ruta_imagen, ruta_original, es_
 @manejo_errores
 def analizar_ticket():
     """Version sincrona (una sola peticion). El frontend usa /trabajos; esta se mantiene para
-    clientes antiguos y para depuracion."""
-    db = get_db()
+    clientes antiguos y para depuracion. Retiene un hilo de peticion de gunicorn durante todo el
+    analisis, asi que va acotada: un analisis por usuario y el mismo tope de plazas que los
+    trabajos asincronos (sin esto, 8 POST paralelos de una cuenta tumbaban el backend)."""
     usuario_id = session.get("usuario_id")
+    with _candado_sincronos:
+        if usuario_id in _sincronos_en_curso:
+            return APIResponse.error("err_ticket_en_curso", 429)
+        _sincronos_en_curso.add(usuario_id)
+    plaza = _plazas_escaneo.acquire(blocking=False)
+    try:
+        if not plaza:
+            return APIResponse.error("err_escaner_ocupado", 429)
+        return _analizar_sincrono(usuario_id)
+    finally:
+        if plaza:
+            _plazas_escaneo.release()
+        with _candado_sincronos:
+            _sincronos_en_curso.discard(usuario_id)
+
+
+def _analizar_sincrono(usuario_id):
+    db = get_db()
     archivo = request.files.get("foto")
     a_borrar = []
     try:
@@ -510,8 +530,18 @@ def analizar_ticket():
 # Un trabajo "procesando" mas viejo que esto se da por perdido (el worker murio o se reinicio
 # a mitad): por encima de la llamada a la API (180 s) y de gunicorn (240 s), ver claude_ocr.py.
 TIEMPO_MAXIMO_TRABAJO_S = 330
-# Los trabajos terminados se conservan un dia (por si el cliente recarga y vuelve a consultar).
-CONSERVAR_TRABAJOS_S = 24 * 3600
+# Los trabajos terminados se conservan una hora (por si el cliente recarga y vuelve a consultar):
+# el resultado lleva nombres de productos comprados, no tiene por que quedar en la BD mas tiempo.
+CONSERVAR_TRABAJOS_S = 3600
+
+# Analisis que pueden correr A LA VEZ en este proceso. Cada uno decodifica una imagen y llama a
+# Claude o a Tesseract: sin tope, unas pocas cuentas saturaban la CPU y la RAM de una Raspberry Pi.
+# Los trabajos de mas esperan su turno (en su propio hilo, sin ocupar un hilo de peticion).
+PLAZAS_ESCANEO = 2
+_plazas_escaneo = threading.BoundedSemaphore(PLAZAS_ESCANEO)
+# Usuarios con un analisis sincrono en curso en este proceso (la ruta /analizar no usa la tabla).
+_sincronos_en_curso = set()
+_candado_sincronos = threading.Lock()
 
 
 def _guardar_trabajo(db, trabajo_id, estado, resultado=None, error_clave=None, error_estado=None):
@@ -528,7 +558,12 @@ def _procesar_trabajo(app, trabajo_id, usuario_id, hogar_id, ruta_imagen, ruta_o
     logger = logging.getLogger(__name__)
     with app.app_context():
         db = get_db()
+        plaza = False
         try:
+            # Si no hay plaza en un tiempo razonable el servidor esta saturado: error claro.
+            plaza = _plazas_escaneo.acquire(timeout=TIEMPO_MAXIMO_TRABAJO_S - 90)
+            if not plaza:
+                raise _Rechazo(clave="err_escaner_ocupado", status=429)
             respuesta = _ejecutar_analisis(db, usuario_id, hogar_id, ruta_imagen, ruta_original, es_pdf, a_borrar)
             _guardar_trabajo(db, trabajo_id, "listo", resultado=json.dumps(respuesta, default=str))
         except _Rechazo as r:
@@ -541,6 +576,8 @@ def _procesar_trabajo(app, trabajo_id, usuario_id, hogar_id, ruta_imagen, ruta_o
             except Exception:
                 logger.exception("No se pudo guardar el error del trabajo %s", trabajo_id)
         finally:
+            if plaza:
+                _plazas_escaneo.release()
             for ruta in a_borrar:
                 try:
                     if os.path.exists(ruta):
@@ -560,17 +597,33 @@ def crear_trabajo_ticket():
     archivo = request.files.get("foto")
     a_borrar = []
     entregado = False
+    reservado = False
+    trabajo_id = None
     try:
         hogar_id = _comprobar_peticion(archivo, db, usuario_id)
 
         ahora_s = int(time.time())
         db.execute("DELETE FROM trabajos_ticket WHERE creado < ?", (ahora_s - CONSERVAR_TRABAJOS_S,))
-        # Uno a la vez por usuario: cada analisis ocupa un hilo y, en la nube, cuesta dinero.
-        if db.execute(
-            "SELECT 1 FROM trabajos_ticket WHERE usuario_id = ? AND estado = 'procesando' AND creado > ?",
-            (usuario_id, ahora_s - TIEMPO_MAXIMO_TRABAJO_S),
-        ).fetchone():
+        # Los "procesando" que ya pasaron el tiempo maximo (su worker murio) dejan de contar.
+        db.execute(
+            "UPDATE trabajos_ticket SET estado = 'error', error_clave = 'err_procesando_ticket', "
+            "error_estado = 504, actualizado = ? WHERE usuario_id = ? AND estado = 'procesando' AND creado <= ?",
+            (ahora_s, usuario_id, ahora_s - TIEMPO_MAXIMO_TRABAJO_S),
+        )
+        # Uno a la vez por usuario, RESERVADO de forma atomica: el indice unico parcial
+        # ux_trabajos_ticket_uno_por_usuario hace fallar el segundo INSERT simultaneo.
+        trabajo_id = uuid.uuid4().hex
+        try:
+            db.execute(
+                "INSERT INTO trabajos_ticket (id, usuario_id, estado, creado, actualizado) "
+                "VALUES (?, ?, 'procesando', ?, ?)",
+                (trabajo_id, usuario_id, ahora_s, ahora_s),
+            )
+            db.commit()
+        except sqlite3.IntegrityError:
+            db.rollback()
             raise _Rechazo(clave="err_ticket_en_curso", status=429)
+        reservado = True
 
         sufijo = Path(archivo.filename).suffix.lower() or ".jpg"
         tmp = tempfile.NamedTemporaryFile(suffix=sufijo, delete=False)
@@ -580,13 +633,6 @@ def crear_trabajo_ticket():
 
         es_pdf = sufijo == ".pdf"
         ruta_imagen = _validar_y_preparar_imagen(tmp.name, sufijo, a_borrar)
-
-        trabajo_id = uuid.uuid4().hex
-        db.execute(
-            "INSERT INTO trabajos_ticket (id, usuario_id, estado, creado, actualizado) VALUES (?, ?, 'procesando', ?, ?)",
-            (trabajo_id, usuario_id, ahora_s, ahora_s),
-        )
-        db.commit()
 
         hilo = threading.Thread(
             target=_procesar_trabajo,
@@ -606,6 +652,13 @@ def crear_trabajo_ticket():
             for ruta in a_borrar:
                 if os.path.exists(ruta):
                     os.unlink(ruta)
+            if reservado:
+                # La reserva no llego a convertirse en trabajo: se libera para poder reintentar.
+                try:
+                    db.execute("DELETE FROM trabajos_ticket WHERE id = ?", (trabajo_id,))
+                    db.commit()
+                except Exception:
+                    logging.getLogger(__name__).exception("No se pudo liberar la reserva %s", trabajo_id)
 
     return APIResponse.success({"id": trabajo_id}, 202)
 
@@ -617,6 +670,7 @@ def estado_trabajo_ticket(trabajo_id):
     """Estado de un trabajo: {estado: procesando} | {estado: listo, resultado} | {estado: error, error}.
     Solo lo ve quien lo creo."""
     db = get_db()
+    db.execute("DELETE FROM trabajos_ticket WHERE creado < ?", (int(time.time()) - CONSERVAR_TRABAJOS_S,))
     fila = db.execute(
         "SELECT estado, resultado, error_clave, error_estado, creado FROM trabajos_ticket "
         "WHERE id = ? AND usuario_id = ?",
