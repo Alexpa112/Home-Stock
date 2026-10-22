@@ -49,6 +49,25 @@ services:
     # .env para armv7l (sin ese motor) o con poca RAM.
     mem_limit: ${STOCKHOGAR_MEM_LIMIT:-1024m}
     cpus: 1.5
+    # init: tesseract, pdftoppm y heif-convert son subprocesos; sin un init como
+    # PID 1 los que mueren por timeout quedan zombis y se acumulan.
+    init: true
+    # Las fotos y PDF de tickets se guardan unos segundos en /tmp mientras se
+    # analizan: en RAM (tmpfs) en vez de en la tarjeta SD, que se desgasta y es
+    # lenta. Cuenta dentro de mem_limit; 128m cubre de sobra el maximo de 10 MB
+    # por subida mas la imagen convertida.
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    # Acota procesos/hilos del contenedor: un fallo no puede agotar el sistema.
+    pids_limit: 512
+    # Tiempo para terminar las peticiones en curso antes de matar el worker.
+    stop_grace_period: 30s
+    # Sin rotacion, el log de un contenedor crece sin limite y acaba llenando la SD.
+    logging: &rotacion-logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     image: ghcr.io/alexpa112/home-stock-frontend:latest
@@ -62,6 +81,10 @@ services:
     container_name: stockhogar-frontend
     ports:
       - "${STOCKHOGAR_FRONTEND_PORT:-3000}:3000"
+    # service_started (no service_healthy) a proposito: en una Pi el backend tarda
+    # 90-120 s en estar healthy, mas que la ventana del HEALTHCHECK de su
+    # Dockerfile, y compose abortaria "up" (y install.sh haria rollback) sobre una
+    # imagen que en realidad estaba bien.
     depends_on:
       - stockhogar
     restart: unless-stopped
@@ -71,6 +94,9 @@ services:
       - "no-new-privileges:true"
     mem_limit: 512m
     cpus: 1.5
+    init: true
+    pids_limit: 256
+    logging: *rotacion-logs
 
   # Postgres opt-in (Fase 1.5, ver docs/PROPUESTA_SEGURIDAD_Y_FUNCIONALIDADES.md).
   # NO se levanta con "docker compose up" a secas: solo con

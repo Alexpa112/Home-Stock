@@ -53,6 +53,16 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     const cargarTraducciones = async () => {
       try {
+        // El diccionario del idioma que ya se conoce (el de la ultima visita) se
+        // pide EN PARALELO con la consulta del idioma real de la cuenta: si
+        // coinciden, que es lo normal, se ahorra un viaje de red completo (en una
+        // Pi tras un tunel, ~300 ms). El español no se pide: ya viene empaquetado.
+        const pedirDiccionario = (cod: string) =>
+          fetch(`/api/idiomas/todos/${cod}`, { credentials: 'include' }).then((r) => r.json())
+        const adelantado = idiomaInicial === 'es' ? null : pedirDiccionario(idiomaInicial)
+        // Si la consulta del idioma falla no debe quedar una promesa sin atender.
+        adelantado?.catch(() => {})
+
         // Obtener idioma actual desde el backend
         const respuestaIdioma = await fetch('/api/idiomas/obtener', { credentials: 'include' })
         const datosIdioma = await respuestaIdioma.json()
@@ -60,12 +70,16 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         setIdioma(idiomaActual)
         document.documentElement.lang = idiomaActual
 
-        // Cargar todas las traducciones para ese idioma
-        const respuestaTraducciones = await fetch(`/api/idiomas/todos/${idiomaActual}`, { credentials: 'include' })
-        const datosTraducciones = await respuestaTraducciones.json()
-        const nuevasTraducciones = datosTraducciones.traducciones || {}
-        setTraducciones(nuevasTraducciones)
-        guardarCache(idiomaActual, nuevasTraducciones)
+        if (idiomaActual === 'es') {
+          setTraducciones(TRADUCCIONES_BASE)
+        } else {
+          const datosTraducciones = idiomaActual === idiomaInicial && adelantado
+            ? await adelantado
+            : await pedirDiccionario(idiomaActual)
+          const nuevasTraducciones = datosTraducciones.traducciones || {}
+          setTraducciones(nuevasTraducciones)
+          guardarCache(idiomaActual, nuevasTraducciones)
+        }
       } catch (err) {
         console.error('Error cargando traducciones:', err)
       } finally {

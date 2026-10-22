@@ -432,6 +432,185 @@ log_success "Docker operativo: $("${DOCKER[@]}" version --format '{{.Server.Vers
 step_end
 
 ################################################################################
+step_start "Optimizar el sistema (Raspberry Pi / servidor)"
+################################################################################
+
+# Ajustes del sistema operativo que hacen que la app funcione siempre y aguante
+# en una Raspberry Pi: swap suficiente, reloj en hora, menos escrituras a la SD,
+# reinicio automático si el sistema se cuelga y memoria liberada.
+#
+# Reglas: cada ajuste es IDEMPOTENTE (se puede ejecutar en cada --update), y
+# NINGUNO es fatal: si uno falla se avisa y se sigue, porque un ajuste de
+# rendimiento nunca debe impedir instalar la app. Se omite todo con
+# DREAME_OPTIMIZAR_SISTEMA=0.
+REBOOT_RECOMENDADO=0
+
+# escribir_si_cambia DESTINO  (contenido por stdin) -> 0 si cambió, 1 si ya estaba igual
+escribir_si_cambia() {
+    local destino="$1" tmp rc
+    tmp="$(mktemp)"
+    cat > "$tmp"
+    if [[ -f "$destino" ]] && cmp -s "$tmp" "$destino"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    $SUDO mkdir -p "$(dirname "$destino")" && $SUDO install -m 644 "$tmp" "$destino"
+    rc=$?
+    rm -f "$tmp"
+    return $rc
+}
+
+if [[ "${DREAME_OPTIMIZAR_SISTEMA:-1}" == "0" ]]; then
+    log_info "DREAME_OPTIMIZAR_SISTEMA=0: se omite la optimización del sistema"
+elif [[ ! -d /run/systemd/system ]]; then
+    log_info "Sin systemd: se omite la optimización del sistema"
+else
+    ES_PI=0
+    if [[ -r /proc/device-tree/model ]] && grep -qi "raspberry" /proc/device-tree/model 2>/dev/null; then
+        ES_PI=1
+        log_info "Equipo: $(tr -d '\0' < /proc/device-tree/model)"
+    fi
+
+    # 1) Swap. Con poca RAM el build de Next, el lector de tickets y Docker juntos
+    #    acaban en OOM-kill; 2 GB de swap lo evita. En la SD solo se usa si la RAM se
+    #    agota (swappiness baja, más abajo), así que apenas desgasta la tarjeta.
+    SWAP_OBJETIVO_MB=2048
+    if [[ -n "${MEMORY_MB:-}" ]] && [[ $((MEMORY_MB + ${SWAP_MB:-0})) -lt "$SWAP_OBJETIVO_MB" ]] \
+        && [[ "${FREE_DISK_MB:-0}" -gt $((SWAP_OBJETIVO_MB + 2048)) ]]; then
+        if [[ -f /etc/dphys-swapfile ]] && check_cmd dphys-swapfile; then
+            log_info "Ampliando el swap a ${SWAP_OBJETIVO_MB} MB (dphys-swapfile)"
+            {
+                $SUDO sed -i "s/^#\?CONF_SWAPSIZE=.*/CONF_SWAPSIZE=${SWAP_OBJETIVO_MB}/" /etc/dphys-swapfile \
+                && { if grep -q '^CONF_MAXSWAP=' /etc/dphys-swapfile; then
+                         $SUDO sed -i "s/^CONF_MAXSWAP=.*/CONF_MAXSWAP=${SWAP_OBJETIVO_MB}/" /etc/dphys-swapfile
+                     else
+                         echo "CONF_MAXSWAP=${SWAP_OBJETIVO_MB}" | $SUDO tee -a /etc/dphys-swapfile > /dev/null
+                     fi; } \
+                && $SUDO dphys-swapfile swapoff \
+                && $SUDO dphys-swapfile setup \
+                && $SUDO dphys-swapfile swapon
+            } >> "$LOG_FILE" 2>&1 \
+                && log_success "Swap ampliado a ${SWAP_OBJETIVO_MB} MB" \
+                || log_warning "No se pudo ampliar el swap (dphys-swapfile); se continúa"
+        elif [[ ! -f /swapfile ]] && ! grep -qE '^\s*/swapfile\s' /etc/fstab 2>/dev/null; then
+            log_info "Creando /swapfile de ${SWAP_OBJETIVO_MB} MB"
+            {
+                $SUDO fallocate -l "${SWAP_OBJETIVO_MB}M" /swapfile \
+                && $SUDO chmod 600 /swapfile \
+                && $SUDO mkswap /swapfile \
+                && $SUDO swapon /swapfile \
+                && echo "/swapfile none swap sw 0 0" | $SUDO tee -a /etc/fstab > /dev/null
+            } >> "$LOG_FILE" 2>&1 \
+                && log_success "Swap creado: /swapfile (${SWAP_OBJETIVO_MB} MB)" \
+                || log_warning "No se pudo crear el swap; se continúa"
+        fi
+    else
+        log_success "Memoria + swap suficientes (${MEMORY_MB:-?} MB + ${SWAP_MB:-0} MB)"
+    fi
+
+    # 2) Kernel: usar swap solo si hace falta, no vaciar la caché de disco a las
+    #    primeras de cambio y agrupar las escrituras (menos paradas de la SD).
+    if escribir_si_cambia /etc/sysctl.d/99-dreame.conf <<'EOF'
+# Dreame! - ajustes de rendimiento para servidor doméstico (install.sh)
+vm.swappiness = 10
+vm.vfs_cache_pressure = 50
+vm.dirty_background_ratio = 5
+vm.dirty_ratio = 20
+net.core.somaxconn = 1024
+EOF
+    then
+        $SUDO sysctl -p /etc/sysctl.d/99-dreame.conf >> "$LOG_FILE" 2>&1 \
+            && log_success "Parámetros del kernel aplicados (swappiness, caché, escrituras)" \
+            || log_warning "No se pudieron aplicar los parámetros del kernel"
+    else
+        log_info "Parámetros del kernel ya aplicados"
+    fi
+
+    # 3) Diario del sistema acotado: sin límite crece sin parar y llena la SD.
+    if escribir_si_cambia /etc/systemd/journald.conf.d/99-dreame.conf <<'EOF'
+[Journal]
+SystemMaxUse=100M
+RuntimeMaxUse=50M
+Compress=yes
+EOF
+    then
+        $SUDO systemctl restart systemd-journald >> "$LOG_FILE" 2>&1 || true
+        log_success "Diario del sistema limitado a 100 MB"
+    fi
+
+    # 4) Reloj. Una Pi no tiene reloj con batería: sin NTP arranca con la hora
+    #    equivocada y fallan HTTPS, las cookies de sesión y los tokens.
+    if check_cmd timedatectl; then
+        if [[ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" == "yes" ]]; then
+            log_success "Reloj sincronizado por NTP"
+        else
+            $SUDO timedatectl set-ntp true >> "$LOG_FILE" 2>&1 \
+                && log_success "Sincronización horaria (NTP) activada" \
+                || log_warning "No se pudo activar NTP: revisa la hora del sistema (date)"
+        fi
+    fi
+
+    # 5) Docker debe arrancar solo tras un corte de luz.
+    for SERVICIO in docker containerd; do
+        systemctl is-enabled --quiet "$SERVICIO" 2>/dev/null \
+            || $SUDO systemctl enable "$SERVICIO" >> "$LOG_FILE" 2>&1 || true
+    done
+    log_success "Docker arranca automáticamente con el sistema"
+
+    # 6) Watchdog: si el sistema se cuelga (típico de una Pi sin memoria), el
+    #    hardware lo reinicia en vez de dejar la app caída hasta que alguien
+    #    enchufe y desenchufe. Solo si existe /dev/watchdog.
+    if [[ -e /dev/watchdog ]]; then
+        if escribir_si_cambia /etc/systemd/system.conf.d/99-dreame-watchdog.conf <<'EOF'
+[Manager]
+RuntimeWatchdogSec=30
+RebootWatchdogSec=5min
+EOF
+        then
+            $SUDO systemctl daemon-reexec >> "$LOG_FILE" 2>&1 || true
+            log_success "Watchdog de hardware activado (reinicio automático si el sistema se cuelga)"
+        else
+            log_info "Watchdog de hardware ya configurado"
+        fi
+    else
+        log_info "Sin /dev/watchdog: se omite el watchdog"
+    fi
+
+    if [[ "$ES_PI" -eq 1 ]]; then
+        # 7) Servicios que un servidor sin pantalla no usa (unos 30 MB de RAM y algo de CPU).
+        for SERVICIO in bluetooth hciuart ModemManager triggerhappy; do
+            if systemctl is-enabled --quiet "$SERVICIO" 2>/dev/null; then
+                $SUDO systemctl disable --now "$SERVICIO" >> "$LOG_FILE" 2>&1 \
+                    && log_success "Servicio innecesario desactivado: $SERVICIO" || true
+            fi
+        done
+
+        # 8) Memoria de vídeo: 16 MB bastan sin escritorio y el resto vuelve a la RAM.
+        #    Solo se toca si el usuario no la fijó. Surte efecto en el próximo reinicio.
+        #    DREAME_GPU_MEM=0 lo omite.
+        CONFIG_ARRANQUE=""
+        for CANDIDATO in /boot/firmware/config.txt /boot/config.txt; do
+            if [[ -f "$CANDIDATO" ]]; then CONFIG_ARRANQUE="$CANDIDATO"; break; fi
+        done
+        if [[ -n "$CONFIG_ARRANQUE" ]] && [[ "${DREAME_GPU_MEM:-16}" != "0" ]]; then
+            if grep -qE '^\s*gpu_mem' "$CONFIG_ARRANQUE"; then
+                log_info "gpu_mem ya está definido en $CONFIG_ARRANQUE; no se toca"
+            else
+                {
+                    $SUDO cp "$CONFIG_ARRANQUE" "${CONFIG_ARRANQUE}.dreame.bak" \
+                    && printf '\n# Dreame!: sin escritorio, 16 MB de GPU y el resto de RAM para la app\ngpu_mem=%s\n' "${DREAME_GPU_MEM:-16}" \
+                       | $SUDO tee -a "$CONFIG_ARRANQUE" > /dev/null
+                } >> "$LOG_FILE" 2>&1 \
+                    && { log_success "gpu_mem=${DREAME_GPU_MEM:-16} añadido a $CONFIG_ARRANQUE (copia en .dreame.bak)"; REBOOT_RECOMENDADO=1; } \
+                    || log_warning "No se pudo ajustar gpu_mem"
+            fi
+        fi
+    fi
+fi
+
+step_end
+
+################################################################################
 step_start "Detectar Docker Compose"
 ################################################################################
 
@@ -612,6 +791,9 @@ REQUIRED_VARS=(
     # y límite de memoria del backend (el lector neuronal necesita ~450 MB de pico).
     ANTHROPIC_API_KEY
     STOCKHOGAR_MEM_LIMIT
+    # Concurrencia de gunicorn (Dockerfile / Dockerfile.raspbian): se ajusta a la RAM.
+    GUNICORN_WORKERS
+    GUNICORN_THREADS
 )
 DEFAULT_VALUE() {
     case "$1" in
@@ -630,6 +812,13 @@ DEFAULT_VALUE() {
             else
                 echo "1024m"
             fi ;;
+        # Cada worker carga la app entera (y el lector neuronal): con poca RAM un solo
+        # worker con más hilos rinde mejor que dos que se pelean por la memoria. Los
+        # hilos comparten memoria y atienden además los análisis de tickets en segundo plano.
+        GUNICORN_WORKERS)
+            if [[ -n "${MEMORY_MB:-}" && "$MEMORY_MB" -lt 1500 ]]; then echo "1"; else echo "2"; fi ;;
+        GUNICORN_THREADS)
+            if [[ -n "${MEMORY_MB:-}" && "$MEMORY_MB" -lt 1500 ]]; then echo "6"; else echo "4"; fi ;;
         *) echo "" ;;
     esac
 }
@@ -990,6 +1179,22 @@ else
     log_warning "  $CRON_CADUCIDAD"
 fi
 
+# Purga acotada de la caché de build de Docker (scripts/docker_cache_prune.sh):
+# sin ella la caché crece durante meses hasta llenar la tarjeta SD. Una vez al
+# día de madrugada; nunca toca las imágenes etiquetadas (las ":rollback" incluidas).
+CRON_PURGA="15 4 * * * $SCRIPT_DIR/scripts/docker_cache_prune.sh >> $SCRIPT_DIR/logs/docker_cache_prune.log 2>&1"
+if check_cmd crontab; then
+    if crontab -l 2>/dev/null | grep -qF "docker_cache_prune.sh"; then
+        log_info "El cron de purga de la caché de Docker ya estaba instalado"
+    else
+        (crontab -l 2>/dev/null; echo "$CRON_PURGA") | crontab -
+        log_success "Cron de purga de la caché de Docker instalado (cada día a las 04:15)"
+    fi
+else
+    log_warning "No hay 'crontab' disponible; añade esto para que la caché de Docker no llene el disco:"
+    log_warning "  $CRON_PURGA"
+fi
+
 step_end
 
 ################################################################################
@@ -1018,6 +1223,11 @@ echo -e "    Reiniciar:  ${COMPOSE[*]} restart"
 echo -e "    Actualizar: ./install.sh --update"
 echo -e "    Recrear sin rebuild: ./install.sh --no-build"
 echo ""
+if [[ "${REBOOT_RECOMENDADO:-0}" -eq 1 ]]; then
+    echo -e "  ${YELLOW}Reinicia la Raspberry Pi cuando puedas (sudo reboot):${NC} hay ajustes de arranque"
+    echo -e "  (memoria de vídeo) que solo surten efecto tras reiniciar."
+    echo ""
+fi
 
 # Panel de Gestión: proyecto independiente. Si está clonado como carpeta
 # hermana, lo instalamos aquí para no obligar a un segundo paso manual.

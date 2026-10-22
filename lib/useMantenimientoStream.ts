@@ -6,9 +6,10 @@ import { marcarMantenimiento } from './mantenimiento'
 // (S-02): con --workers 2 --threads 4 (8 hilos totales, ver
 // Dockerfile.raspbian), unas pocas pestañas ya saturaban el servidor. Ahora
 // se hace polling ligero, mismo patron que lib/usePollingRefresh.ts, pero
-// mas frecuente (15s en vez de 60s) porque el mantenimiento es mas urgente
-// de detectar: el usuario deberia ver el aviso casi al instante.
-const INTERVALO_MS = 15000
+// mas frecuente (30s en vez de 60s) porque el mantenimiento es mas urgente
+// de detectar. Con la pestaña oculta no se pregunta, y al volver a verla se
+// comprueba al instante, asi que el aviso no se retrasa de cara al usuario.
+const INTERVALO_MS = 30000
 
 export function useMantenimientoStream() {
   useEffect(() => {
@@ -28,10 +29,13 @@ export function useMantenimientoStream() {
 
     comprobar()
     const intervalo = setInterval(comprobar, INTERVALO_MS)
+    const alVolver = () => { comprobar() }
+    document.addEventListener('visibilitychange', alVolver)
 
     return () => {
       cancelado = true
       clearInterval(intervalo)
+      document.removeEventListener('visibilitychange', alVolver)
     }
   }, [])
 }
