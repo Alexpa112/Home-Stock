@@ -17,6 +17,7 @@ import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { useHogar } from '@/contexts/HogarContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
+import { useCacheTrasMontar } from '@/lib/useCacheTrasMontar'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
 import { AvisoError } from '@/components/shared/AvisoError'
@@ -41,6 +42,7 @@ interface Producto {
   dias_aviso: number
   fecha_actualizacion: string | null
   revisar_caducidad: boolean
+  en_lista_compra?: boolean
 }
 
 interface FormularioProducto {
@@ -81,9 +83,17 @@ export default function StockPage() {
   const { preferences } = useListPreferences()
   const { t } = useTranslation()
   const { puedeEditar } = useHogar()
-  const [items, setItems] = useState<Producto[]>(() => getCached<Producto[]>(CACHE_KEY_PRODUCTOS) || [])
-  const [categorias, setCategorias] = useState<Categoria[]>(() => getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
-  const [loading, setLoading] = useState(() => getCached<Producto[]>(CACHE_KEY_PRODUCTOS) === undefined)
+  // Estado inicial igual al del servidor; la cache se vuelca tras montar (leerla
+  // al inicializar provocaba el error de hidratacion #418).
+  const [items, setItems] = useState<Producto[]>([])
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [loading, setLoading] = useState(true)
+  useCacheTrasMontar(() => {
+    const productosCache = getCached<Producto[]>(CACHE_KEY_PRODUCTOS)
+    setItems(productosCache || [])
+    setCategorias(getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
+    if (productosCache !== undefined) setLoading(false)
+  })
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editandoId, setEditandoId] = useState<number | null>(null)
@@ -335,6 +345,10 @@ export default function StockPage() {
     }
   }
 
+  // Ya esta en la lista de la compra: porque el stock minimo la anadio solo (o
+  // se anadio a mano) o porque se acaba de pulsar el boton en esta sesion.
+  const yaEnLista = (item: Producto) => Boolean(item.en_lista_compra) || añadidoIds.has(item.id)
+
   const handleAñadirACompra = async (item: Producto) => {
     setAñadiendoIds(prev => new Set(prev).add(item.id))
     try {
@@ -359,7 +373,7 @@ export default function StockPage() {
   // esperaba a cada una antes de lanzar la siguiente (N viajes de red en
   // serie). Van en paralelo, así que tarda lo que la más lenta.
   const handleAñadirTodosACompra = async () => {
-    const bajos = items.filter(i => i.cantidad <= i.stock_minimo && !añadidoIds.has(i.id))
+    const bajos = items.filter(i => i.cantidad <= i.stock_minimo && !i.en_lista_compra && !añadidoIds.has(i.id))
     await Promise.all(bajos.map(handleAñadirACompra))
   }
 
@@ -476,14 +490,14 @@ export default function StockPage() {
         {bajoMinimo && (
           <button
             onClick={() => handleAñadirACompra(item)}
-            disabled={añadiendoIds.has(item.id)}
+            disabled={añadiendoIds.has(item.id) || yaEnLista(item)}
             className={`relative w-full flex items-center justify-center gap-1 py-1 rounded-lg text-[0.65rem] font-semibold transition-all active:scale-95 ${
-              añadidoIds.has(item.id)
+              yaEnLista(item)
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                 : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
             }`}
           >
-            {añadidoIds.has(item.id) ? (
+            {yaEnLista(item) ? (
               <><Check className="w-3 h-3 inline" /> {t('añadido_a_la_compra')}</>
             ) : añadiendoIds.has(item.id) ? (
               <>{t('añadiendo')}</>
@@ -531,16 +545,16 @@ export default function StockPage() {
         {bajoMinimo && (
           <button
             onClick={() => handleAñadirACompra(item)}
-            disabled={añadiendoIds.has(item.id)}
+            disabled={añadiendoIds.has(item.id) || yaEnLista(item)}
             className={`w-11 h-11 flex items-center justify-center rounded-xl shrink-0 transition-all active:scale-95 ${
-              añadidoIds.has(item.id)
+              yaEnLista(item)
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                 : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-950/70 dark:text-red-300'
             }`}
-            aria-label={t('añadir_a_la_compra')}
-            title={t('añadir_a_la_compra')}
+            aria-label={yaEnLista(item) ? t('añadido_a_la_compra') : t('añadir_a_la_compra')}
+            title={yaEnLista(item) ? t('añadido_a_la_compra') : t('añadir_a_la_compra')}
           >
-            <ShoppingCart className="w-4 h-4" />
+            {yaEnLista(item) ? <Check className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
           </button>
         )}
 
@@ -628,7 +642,7 @@ export default function StockPage() {
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          <Package className="w-4 h-4" /> {stats.totalItems} {t('articulos')}
+          <Package className="w-4 h-4" /> {stats.totalItems} {stats.totalItems === 1 ? t('articulo_singular') : t('articulos')}
         </button>
         <button
           onClick={() => setFiltro(filtro === 'bajo_minimo' ? 'todos' : 'bajo_minimo')}

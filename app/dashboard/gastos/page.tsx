@@ -21,6 +21,7 @@ import { useHogar } from '@/contexts/HogarContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached } from '@/lib/dataCache'
+import { useCacheTrasMontar } from '@/lib/useCacheTrasMontar'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { formatImporte } from '@/lib/format'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
@@ -146,23 +147,27 @@ export default function GastosPage() {
   const hogarActivo = [...propios, ...compartidos].find((h: any) => h.id === hogarActivoId)
   const simboloMoneda = hogarActivo?.simbolo_moneda || '€'
 
-  const [gastos, setGastos] = useState<Gasto[]>(() => getCached<Gasto[]>(CACHE_KEY_GASTOS) || [])
-  const [saldo, setSaldo] = useState<SaldoItem[]>(() => getCached<SaldoItem[]>(CACHE_KEY_SALDO) || [])
-  const [sugerencias, setSugerencias] = useState<SugerenciaPago[]>(
-    () => getCached<SugerenciaPago[]>(CACHE_KEY_SUGERENCIAS) || []
-  )
-  const [historialLiquidaciones, setHistorialLiquidaciones] = useState<LiquidacionItem[]>(
-    () => getCached<LiquidacionItem[]>(CACHE_KEY_LIQUIDACIONES) || []
-  )
-  const [recurrentes, setRecurrentes] = useState<GastoRecurrente[]>(
-    () => getCached<GastoRecurrente[]>(CACHE_KEY_RECURRENTES) || []
-  )
+  // El estado arranca vacio (igual que en el servidor) y la cache se vuelca
+  // tras montar: leerla al inicializar provocaba el error de hidratacion #418.
+  const [gastos, setGastos] = useState<Gasto[]>([])
+  const [saldo, setSaldo] = useState<SaldoItem[]>([])
+  const [sugerencias, setSugerencias] = useState<SugerenciaPago[]>([])
+  const [historialLiquidaciones, setHistorialLiquidaciones] = useState<LiquidacionItem[]>([])
+  const [recurrentes, setRecurrentes] = useState<GastoRecurrente[]>([])
   const [confirmandoRecurrenteId, setConfirmandoRecurrenteId] = useState<number | null>(null)
   const [miembros, setMiembros] = useState<Miembro[]>([])
-  const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>(
-    () => getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || []
-  )
-  const [loading, setLoading] = useState(gastos.length === 0)
+  const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>([])
+  const [loading, setLoading] = useState(true)
+  useCacheTrasMontar(() => {
+    const gastosCache = getCached<Gasto[]>(CACHE_KEY_GASTOS) || []
+    setGastos(gastosCache)
+    setSaldo(getCached<SaldoItem[]>(CACHE_KEY_SALDO) || [])
+    setSugerencias(getCached<SugerenciaPago[]>(CACHE_KEY_SUGERENCIAS) || [])
+    setHistorialLiquidaciones(getCached<LiquidacionItem[]>(CACHE_KEY_LIQUIDACIONES) || [])
+    setRecurrentes(getCached<GastoRecurrente[]>(CACHE_KEY_RECURRENTES) || [])
+    setCategoriasGasto(getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || [])
+    if (gastosCache.length > 0) setLoading(false)
+  })
   const [error, setError] = useState('')
   const [vista, setVista] = useState<Vista>('gastos')
   const [detalleGasto, setDetalleGasto] = useState<Gasto | null>(null)

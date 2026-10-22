@@ -13,6 +13,18 @@ import { AvisoError } from '@/components/shared/AvisoError'
 export default function SettingsPage() {
   const { preferences, updatePreferences } = useListPreferences()
   const { t, idioma, cambiarIdioma: aplicarIdiomaContexto } = useTranslation()
+  // El backend guarda el evento de auditoria como identificador ("registro",
+  // "cambio_password"...): se traduce aqui; uno desconocido se muestra tal cual.
+  const etiquetasEvento: Record<string, string> = {
+    login: t('evento_login'),
+    registro: t('evento_registro'),
+    cambio_password: t('evento_cambio_password'),
+    reset_password: t('evento_reset_password'),
+    cambio_2fa: t('evento_cambio_2fa'),
+    cerrar_otras_sesiones: t('evento_cerrar_otras_sesiones'),
+    compartir_hogar: t('evento_compartir_hogar'),
+    baja_cuenta: t('evento_baja_cuenta'),
+  }
   const notificacionesPush = usePushNotifications()
   const [darkMode, setDarkMode] = useState(false)
   const [user, setUser] = useState<{ usuario?: string; nombre?: string | null; email?: string | null; id?: number }>({})
@@ -868,7 +880,7 @@ export default function SettingsPage() {
             <ul className="space-y-1.5 max-h-48 overflow-y-auto">
               {eventosSeguridad.map((ev, i) => (
                 <li key={i} className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{ev.evento}</span>
+                  <span>{etiquetasEvento[ev.evento] ?? ev.evento}</span>
                   <span className={ev.resultado === 'fallo' ? 'text-red-500' : ''}>
                     {/* Con el idioma de la app, no el del navegador: sin esto,
                         un usuario con la app en español pero el navegador en

@@ -18,6 +18,7 @@ import { useListPreferences } from '@/contexts/ListPreferencesContext'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { useHogar } from '@/contexts/HogarContext'
 import { getCached, setCached, prefetch } from '@/lib/dataCache'
+import { useCacheTrasMontar } from '@/lib/useCacheTrasMontar'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
 import { AvisoError } from '@/components/shared/AvisoError'
@@ -60,11 +61,19 @@ export default function ShoppingPage() {
   const { preferences, updatePreferences } = useListPreferences()
   const { t } = useTranslation()
   const { puedeEditar } = useHogar()
-  const cachedArticulos = getCached<{ pendientes: ArticuloLista[]; completados: ArticuloLista[] }>(CACHE_KEY_ARTICULOS)
-  const [pendientes, setPendientes] = useState<ArticuloLista[]>(cachedArticulos?.pendientes || [])
-  const [completados, setCompletados] = useState<ArticuloLista[]>(cachedArticulos?.completados || [])
-  const [categorias, setCategorias] = useState<Categoria[]>(() => getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
-  const [loading, setLoading] = useState(cachedArticulos === undefined)
+  // Vacio al inicializar y cache tras montar: leerla al inicializar provocaba el
+  // error de hidratacion #418 (el servidor no tiene localStorage).
+  const [pendientes, setPendientes] = useState<ArticuloLista[]>([])
+  const [completados, setCompletados] = useState<ArticuloLista[]>([])
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [loading, setLoading] = useState(true)
+  useCacheTrasMontar(() => {
+    const articulosCache = getCached<{ pendientes: ArticuloLista[]; completados: ArticuloLista[] }>(CACHE_KEY_ARTICULOS)
+    setPendientes(articulosCache?.pendientes || [])
+    setCompletados(articulosCache?.completados || [])
+    setCategorias(getCached<Categoria[]>(CACHE_KEY_CATEGORIAS) || [])
+    if (articulosCache !== undefined) setLoading(false)
+  })
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

@@ -8,6 +8,7 @@ import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { categoriasGasto as categoriasGastoApi } from '@/lib/api'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached } from '@/lib/dataCache'
+import { useCacheTrasMontar } from '@/lib/useCacheTrasMontar'
 import { AvisoError } from '@/components/shared/AvisoError'
 
 const CACHE_KEY_CATEGORIAS_GASTO = 'gastos:categorias'
@@ -24,9 +25,11 @@ interface CategoriaGasto {
 // hoja o modal de gasto.
 export default function CategoriasGastoPage() {
   const { t } = useTranslation()
-  const [categorias, setCategorias] = useState<CategoriaGasto[]>(
-    () => getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || []
-  )
+  // Vacio al inicializar y cache tras montar: evita el error de hidratacion #418.
+  const [categorias, setCategorias] = useState<CategoriaGasto[]>([])
+  useCacheTrasMontar(() => {
+    setCategorias(getCached<CategoriaGasto[]>(CACHE_KEY_CATEGORIAS_GASTO) || [])
+  })
   const [nombre, setNombre] = useState('')
   const [icono, setIcono] = useState<string | undefined>(undefined)
   const [mostrarIconPicker, setMostrarIconPicker] = useState(false)

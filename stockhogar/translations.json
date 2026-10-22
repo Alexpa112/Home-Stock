@@ -826,7 +826,16 @@
     "email_actualizado": "Correo actualizado. Te hemos enviado un enlace para verificarlo.",
     "err_actualizar_email": "No se pudo actualizar el correo",
     "placeholder_nuevo_email": "nuevo@example.com",
-    "err_credenciales_incorrectas": "Usuario o contraseña incorrectos"
+    "err_credenciales_incorrectas": "Usuario o contraseña incorrectos",
+    "evento_login": "Inicio de sesión",
+    "evento_registro": "Alta de la cuenta",
+    "evento_cambio_password": "Cambio de contraseña",
+    "evento_reset_password": "Contraseña restablecida",
+    "evento_cambio_2fa": "Cambio de la verificación en dos pasos",
+    "evento_cerrar_otras_sesiones": "Sesiones cerradas en otros dispositivos",
+    "evento_compartir_hogar": "Hogar compartido",
+    "evento_baja_cuenta": "Baja de la cuenta",
+    "articulo_singular": "Artículo"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1655,7 +1664,16 @@
     "email_actualizado": "Correo actualizado. Enviámosche unha ligazón para verificalo.",
     "err_actualizar_email": "Non se puido actualizar o correo",
     "placeholder_nuevo_email": "novo@example.com",
-    "err_credenciales_incorrectas": "Usuario ou contrasinal incorrectos"
+    "err_credenciales_incorrectas": "Usuario ou contrasinal incorrectos",
+    "evento_login": "Inicio de sesión",
+    "evento_registro": "Alta da conta",
+    "evento_cambio_password": "Cambio de contrasinal",
+    "evento_reset_password": "Contrasinal restablecido",
+    "evento_cambio_2fa": "Cambio da verificación en dous pasos",
+    "evento_cerrar_otras_sesiones": "Sesións pechadas noutros dispositivos",
+    "evento_compartir_hogar": "Fogar compartido",
+    "evento_baja_cuenta": "Baixa da conta",
+    "articulo_singular": "Artigo"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2484,7 +2502,16 @@
     "email_actualizado": "Email updated. We sent you a link to verify it.",
     "err_actualizar_email": "Could not update the email",
     "placeholder_nuevo_email": "new@example.com",
-    "err_credenciales_incorrectas": "Incorrect username or password"
+    "err_credenciales_incorrectas": "Incorrect username or password",
+    "evento_login": "Sign in",
+    "evento_registro": "Account created",
+    "evento_cambio_password": "Password changed",
+    "evento_reset_password": "Password reset",
+    "evento_cambio_2fa": "Two-step verification changed",
+    "evento_cerrar_otras_sesiones": "Signed out other devices",
+    "evento_compartir_hogar": "Household shared",
+    "evento_baja_cuenta": "Account deleted",
+    "articulo_singular": "Item"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3313,7 +3340,16 @@
     "email_actualizado": "E-mail atualizado. Enviámos-lhe uma ligação para o verificar.",
     "err_actualizar_email": "Não foi possível atualizar o e-mail",
     "placeholder_nuevo_email": "novo@example.com",
-    "err_credenciales_incorrectas": "Utilizador ou palavra-passe incorretos"
+    "err_credenciales_incorrectas": "Utilizador ou palavra-passe incorretos",
+    "evento_login": "Início de sessão",
+    "evento_registro": "Conta criada",
+    "evento_cambio_password": "Palavra-passe alterada",
+    "evento_reset_password": "Palavra-passe redefinida",
+    "evento_cambio_2fa": "Verificação em dois passos alterada",
+    "evento_cerrar_otras_sesiones": "Sessões terminadas noutros dispositivos",
+    "evento_compartir_hogar": "Lar partilhado",
+    "evento_baja_cuenta": "Conta eliminada",
+    "articulo_singular": "Item"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4142,7 +4178,16 @@
     "email_actualizado": "E-mail mis à jour. Nous vous avons envoyé un lien de vérification.",
     "err_actualizar_email": "Impossible de mettre à jour l'e-mail",
     "placeholder_nuevo_email": "nouveau@example.com",
-    "err_credenciales_incorrectas": "Nom d'utilisateur ou mot de passe incorrect"
+    "err_credenciales_incorrectas": "Nom d'utilisateur ou mot de passe incorrect",
+    "evento_login": "Connexion",
+    "evento_registro": "Compte créé",
+    "evento_cambio_password": "Mot de passe modifié",
+    "evento_reset_password": "Mot de passe réinitialisé",
+    "evento_cambio_2fa": "Vérification en deux étapes modifiée",
+    "evento_cerrar_otras_sesiones": "Autres appareils déconnectés",
+    "evento_compartir_hogar": "Foyer partagé",
+    "evento_baja_cuenta": "Compte supprimé",
+    "articulo_singular": "Article"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -4971,7 +5016,16 @@
     "email_actualizado": "E-mail aggiornata. Ti abbiamo inviato un link per verificarla.",
     "err_actualizar_email": "Impossibile aggiornare l'e-mail",
     "placeholder_nuevo_email": "nuovo@example.com",
-    "err_credenciales_incorrectas": "Nome utente o password errati"
+    "err_credenciales_incorrectas": "Nome utente o password errati",
+    "evento_login": "Accesso",
+    "evento_registro": "Account creato",
+    "evento_cambio_password": "Password modificata",
+    "evento_reset_password": "Password reimpostata",
+    "evento_cambio_2fa": "Verifica in due passaggi modificata",
+    "evento_cerrar_otras_sesiones": "Altri dispositivi disconnessi",
+    "evento_compartir_hogar": "Casa condivisa",
+    "evento_baja_cuenta": "Account eliminato",
+    "articulo_singular": "Articolo"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5800,6 +5854,15 @@
     "email_actualizado": "E-Mail aktualisiert. Wir haben dir einen Bestätigungslink geschickt.",
     "err_actualizar_email": "E-Mail konnte nicht aktualisiert werden",
     "placeholder_nuevo_email": "neu@example.com",
-    "err_credenciales_incorrectas": "Benutzername oder Passwort falsch"
+    "err_credenciales_incorrectas": "Benutzername oder Passwort falsch",
+    "evento_login": "Anmeldung",
+    "evento_registro": "Konto erstellt",
+    "evento_cambio_password": "Passwort geändert",
+    "evento_reset_password": "Passwort zurückgesetzt",
+    "evento_cambio_2fa": "Zwei-Faktor-Verifizierung geändert",
+    "evento_cerrar_otras_sesiones": "Andere Geräte abgemeldet",
+    "evento_compartir_hogar": "Haushalt geteilt",
+    "evento_baja_cuenta": "Konto gelöscht",
+    "articulo_singular": "Artikel"
   }
 }

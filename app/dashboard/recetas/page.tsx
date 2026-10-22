@@ -9,6 +9,7 @@ import { useHogar } from '@/contexts/HogarContext'
 import { CabeceraPantalla } from '@/components/dashboard/CabeceraPantalla'
 import { accionesIrA } from '@/components/dashboard/accionesIrA'
 import { getCached, setCached } from '@/lib/dataCache'
+import { useCacheTrasMontar } from '@/lib/useCacheTrasMontar'
 import { AvisoError } from '@/components/shared/AvisoError'
 
 const CACHE_KEY_RECETAS = 'recetas:lista'
@@ -32,8 +33,14 @@ const INGREDIENTE_VACIO = (): Ingrediente => ({ nombre: '', cantidad: 1, unidad:
 export default function RecetasPage() {
   const { t } = useTranslation()
   const { puedeEditar } = useHogar()
-  const [recetas, setRecetas] = useState<Receta[]>(() => getCached<Receta[]>(CACHE_KEY_RECETAS) || [])
-  const [loading, setLoading] = useState(recetas.length === 0)
+  // Vacio al inicializar y cache tras montar: evita el error de hidratacion #418.
+  const [recetas, setRecetas] = useState<Receta[]>([])
+  const [loading, setLoading] = useState(true)
+  useCacheTrasMontar(() => {
+    const recetasCache = getCached<Receta[]>(CACHE_KEY_RECETAS) || []
+    setRecetas(recetasCache)
+    if (recetasCache.length > 0) setLoading(false)
+  })
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [showForm, setShowForm] = useState(false)

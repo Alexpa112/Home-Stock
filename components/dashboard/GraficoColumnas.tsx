@@ -1,6 +1,7 @@
 'use client'
 
 import { DatoBarra } from '@/lib/gastosStats'
+import { geometriaColumnas } from '@/lib/geometriaColumnas'
 
 interface GraficoColumnasProps {
   datos: DatoBarra[]
@@ -13,7 +14,7 @@ interface GraficoColumnasProps {
 export function GraficoColumnas({ datos, formatearValor = (v) => v.toFixed(0) }: GraficoColumnasProps) {
   if (datos.length === 0) return null
   const max = Math.max(...datos.map((d) => d.valor), 0.01)
-  const anchoCol = 100 / datos.length
+  const { anchoCol, desplazamiento } = geometriaColumnas(datos.length)
 
   return (
     <div className="w-full">
@@ -23,7 +24,7 @@ export function GraficoColumnas({ datos, formatearValor = (v) => v.toFixed(0) }:
           return (
             <rect
               key={d.etiqueta}
-              x={i * anchoCol + anchoCol * 0.15}
+              x={desplazamiento + i * anchoCol + anchoCol * 0.15}
               y={48 - altura}
               width={anchoCol * 0.7}
               height={Math.max(altura, 0.5)}
@@ -35,7 +36,7 @@ export function GraficoColumnas({ datos, formatearValor = (v) => v.toFixed(0) }:
           )
         })}
       </svg>
-      <div className="flex text-[10px] text-muted-foreground mt-1">
+      <div className="flex justify-center text-[10px] text-muted-foreground mt-1">
         {datos.map((d) => (
           <span key={d.etiqueta} style={{ width: `${anchoCol}%` }} className="text-center truncate">
             {d.etiqueta}
