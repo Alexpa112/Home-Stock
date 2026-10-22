@@ -4,8 +4,15 @@ name: Publicar imagenes precompiladas (GHCR)
 # GitHub (rapido, con RAM de sobra) y las publica en GHCR. install.sh en la
 # Pi las descarga con "docker compose pull" en vez de compilarlas in-situ,
 # evitando el build de next build/pip que colgaba la Raspberry Pi.
+#
+# A-10: este workflow se dispara SOLO cuando ci.yml termina exitosamente en
+# produccion (conclusion == 'success'). Si los tests fallan, no se publica
+# imagen ninguna. El cambio de "push" a "workflow_run" significa que esto
+# corre como un segundo paso, despues de que CI pase.
 on:
-  push:
+  workflow_run:
+    workflows: [CI (tests y seguridad)]
+    types: [completed]
     branches: [produccion]
   workflow_dispatch: {}
 
@@ -25,7 +32,14 @@ jobs:
       contents: read
       packages: write
     steps:
+      # A-10: bloquear la publicacion si el workflow_run de CI no fue exitoso.
+      - name: Fallar si CI no paso
+        if: github.event.workflow_run.conclusion != 'success'
+        run: exit 1
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: QEMU (emula armv7l en el runner x86_64)
         uses: docker/setup-qemu-action@v3
