@@ -100,7 +100,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!hogarActivoId) {
+  // Ajustes no depende del hogar (cerrar sesion, idioma, datos y legal): una
+  // cuenta nueva sin hogar debe poder entrar igualmente.
+  if (!hogarActivoId && pathname !== '/dashboard/settings') {
     return <SelectorHogarPantallaCompleta />
   }
 

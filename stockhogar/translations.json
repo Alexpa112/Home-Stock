@@ -270,7 +270,7 @@
     "err_limite_invitaciones_diario": "Este hogar ha alcanzado el limite diario de invitaciones enviadas",
     "err_limite_recibos_diario": "Has alcanzado el limite diario de fotos de recibo",
     "ocr_local_titulo": "Escanear tickets solo en local",
-    "ocr_local_descripcion": "Si lo activas, las fotos de tickets no se envian a Anthropic (nube); se procesan solo con reconocimiento local, algo menos preciso.",
+    "ocr_local_descripcion": "Si lo activas, las fotos de tickets no se envían a Anthropic (nube); se procesan solo con reconocimiento local, algo menos preciso.",
     "btn_exportar_mis_datos": "Descargar mis datos",
     "err_suscripcion_push_invalida": "Suscripcion push invalida",
     "err_push_no_disponible": "Las notificaciones push no estan disponibles en este servidor.",
@@ -835,7 +835,18 @@
     "evento_cerrar_otras_sesiones": "Sesiones cerradas en otros dispositivos",
     "evento_compartir_hogar": "Hogar compartido",
     "evento_baja_cuenta": "Baja de la cuenta",
-    "articulo_singular": "Artículo"
+    "articulo_singular": "Artículo",
+    "err_push_no_permitido": "El sistema no ha permitido activar las notificaciones. En iPhone o iPad hace falta iOS 16.4 o superior y abrir la app desde su icono en la pantalla de inicio.",
+    "err_push_fallo_suscripcion": "No se pudo registrar este dispositivo para recibir notificaciones. Inténtalo de nuevo.",
+    "sin_pagos_pendientes": "No hay pagos pendientes",
+    "catgasto_alimentacion": "Alimentación",
+    "catgasto_transporte": "Transporte",
+    "catgasto_vivienda": "Vivienda",
+    "catgasto_ocio": "Ocio",
+    "catgasto_salud": "Salud",
+    "catgasto_suministros": "Suministros",
+    "catgasto_otros": "Otros",
+    "titulo_pestana": "Dreame! - Inventario del Hogar"
   },
   "gl": {
     "app_name": "📦 Dreame!",
@@ -1107,7 +1118,7 @@
     "err_limite_invitaciones_diario": "Este fogar alcanzou o limite diario de invitacions enviadas",
     "err_limite_recibos_diario": "Alcanzaches o limite diario de fotos de recibo",
     "ocr_local_titulo": "Escanear tickets so en local",
-    "ocr_local_descripcion": "Se o activas, as fotos de tickets non se envian a Anthropic (nube); procesanse so con recoñecemento local, algo menos preciso.",
+    "ocr_local_descripcion": "Se o activas, as fotos de tickets non se envían a Anthropic (nube); procesanse so con recoñecemento local, algo menos preciso.",
     "btn_exportar_mis_datos": "Descargar os meus datos",
     "err_suscripcion_push_invalida": "Subscricion push non valida",
     "err_push_no_disponible": "As notificacions push non estan dispoñibles neste servidor.",
@@ -1673,7 +1684,18 @@
     "evento_cerrar_otras_sesiones": "Sesións pechadas noutros dispositivos",
     "evento_compartir_hogar": "Fogar compartido",
     "evento_baja_cuenta": "Baixa da conta",
-    "articulo_singular": "Artigo"
+    "articulo_singular": "Artigo",
+    "err_push_no_permitido": "O sistema non permitiu activar as notificacións. En iPhone ou iPad fai falta iOS 16.4 ou superior e abrir a app desde a súa icona na pantalla de inicio.",
+    "err_push_fallo_suscripcion": "Non se puido rexistrar este dispositivo para recibir notificacións. Téntao de novo.",
+    "sin_pagos_pendientes": "Non hai pagos pendentes",
+    "catgasto_alimentacion": "Alimentación",
+    "catgasto_transporte": "Transporte",
+    "catgasto_vivienda": "Vivenda",
+    "catgasto_ocio": "Lecer",
+    "catgasto_salud": "Saúde",
+    "catgasto_suministros": "Subministracións",
+    "catgasto_otros": "Outros",
+    "titulo_pestana": "Dreame! - Inventario do Fogar"
   },
   "en": {
     "app_name": "📦 Dreame!",
@@ -2511,7 +2533,18 @@
     "evento_cerrar_otras_sesiones": "Signed out other devices",
     "evento_compartir_hogar": "Household shared",
     "evento_baja_cuenta": "Account deleted",
-    "articulo_singular": "Item"
+    "articulo_singular": "Item",
+    "err_push_no_permitido": "The system did not allow notifications to be enabled. On iPhone or iPad you need iOS 16.4 or later and the app opened from its Home Screen icon.",
+    "err_push_fallo_suscripcion": "This device could not be registered for notifications. Please try again.",
+    "sin_pagos_pendientes": "No pending payments",
+    "catgasto_alimentacion": "Food",
+    "catgasto_transporte": "Transport",
+    "catgasto_vivienda": "Housing",
+    "catgasto_ocio": "Leisure",
+    "catgasto_salud": "Health",
+    "catgasto_suministros": "Utilities",
+    "catgasto_otros": "Other",
+    "titulo_pestana": "Dreame! - Home Inventory"
   },
   "pt": {
     "app_name": "📦 Dreame!",
@@ -3349,7 +3382,18 @@
     "evento_cerrar_otras_sesiones": "Sessões terminadas noutros dispositivos",
     "evento_compartir_hogar": "Lar partilhado",
     "evento_baja_cuenta": "Conta eliminada",
-    "articulo_singular": "Item"
+    "articulo_singular": "Item",
+    "err_push_no_permitido": "O sistema não permitiu ativar as notificações. No iPhone ou iPad é necessário iOS 16.4 ou superior e abrir a app a partir do seu ícone no ecrã principal.",
+    "err_push_fallo_suscripcion": "Não foi possível registar este dispositivo para receber notificações. Tente novamente.",
+    "sin_pagos_pendientes": "Não há pagamentos pendentes",
+    "catgasto_alimentacion": "Alimentação",
+    "catgasto_transporte": "Transporte",
+    "catgasto_vivienda": "Habitação",
+    "catgasto_ocio": "Lazer",
+    "catgasto_salud": "Saúde",
+    "catgasto_suministros": "Serviços",
+    "catgasto_otros": "Outros",
+    "titulo_pestana": "Dreame! - Inventário do Lar"
   },
   "fr": {
     "app_name": "📦 Dreame!",
@@ -4187,7 +4231,18 @@
     "evento_cerrar_otras_sesiones": "Autres appareils déconnectés",
     "evento_compartir_hogar": "Foyer partagé",
     "evento_baja_cuenta": "Compte supprimé",
-    "articulo_singular": "Article"
+    "articulo_singular": "Article",
+    "err_push_no_permitido": "Le système n'a pas autorisé l'activation des notifications. Sur iPhone ou iPad, il faut iOS 16.4 ou supérieur et ouvrir l'app depuis son icône de l'écran d'accueil.",
+    "err_push_fallo_suscripcion": "Impossible d'enregistrer cet appareil pour les notifications. Réessayez.",
+    "sin_pagos_pendientes": "Aucun paiement en attente",
+    "catgasto_alimentacion": "Alimentation",
+    "catgasto_transporte": "Transport",
+    "catgasto_vivienda": "Logement",
+    "catgasto_ocio": "Loisirs",
+    "catgasto_salud": "Santé",
+    "catgasto_suministros": "Factures",
+    "catgasto_otros": "Autres",
+    "titulo_pestana": "Dreame! - Inventaire du Foyer"
   },
   "it": {
     "app_name": "📦 Dreame!",
@@ -5025,7 +5080,18 @@
     "evento_cerrar_otras_sesiones": "Altri dispositivi disconnessi",
     "evento_compartir_hogar": "Casa condivisa",
     "evento_baja_cuenta": "Account eliminato",
-    "articulo_singular": "Articolo"
+    "articulo_singular": "Articolo",
+    "err_push_no_permitido": "Il sistema non ha consentito di attivare le notifiche. Su iPhone o iPad servono iOS 16.4 o successivo e l'app aperta dalla sua icona nella schermata Home.",
+    "err_push_fallo_suscripcion": "Impossibile registrare questo dispositivo per le notifiche. Riprova.",
+    "sin_pagos_pendientes": "Nessun pagamento in sospeso",
+    "catgasto_alimentacion": "Alimentazione",
+    "catgasto_transporte": "Trasporti",
+    "catgasto_vivienda": "Casa",
+    "catgasto_ocio": "Svago",
+    "catgasto_salud": "Salute",
+    "catgasto_suministros": "Utenze",
+    "catgasto_otros": "Altro",
+    "titulo_pestana": "Dreame! - Inventario della Casa"
   },
   "de": {
     "app_name": "📦 Dreame!",
@@ -5863,6 +5929,17 @@
     "evento_cerrar_otras_sesiones": "Andere Geräte abgemeldet",
     "evento_compartir_hogar": "Haushalt geteilt",
     "evento_baja_cuenta": "Konto gelöscht",
-    "articulo_singular": "Artikel"
+    "articulo_singular": "Artikel",
+    "err_push_no_permitido": "Das System hat das Aktivieren der Benachrichtigungen nicht erlaubt. Auf iPhone oder iPad ist iOS 16.4 oder neuer nötig und die App muss über ihr Symbol auf dem Home-Bildschirm geöffnet werden.",
+    "err_push_fallo_suscripcion": "Dieses Gerät konnte nicht für Benachrichtigungen registriert werden. Bitte versuche es erneut.",
+    "sin_pagos_pendientes": "Keine offenen Zahlungen",
+    "catgasto_alimentacion": "Lebensmittel",
+    "catgasto_transporte": "Transport",
+    "catgasto_vivienda": "Wohnen",
+    "catgasto_ocio": "Freizeit",
+    "catgasto_salud": "Gesundheit",
+    "catgasto_suministros": "Nebenkosten",
+    "catgasto_otros": "Sonstiges",
+    "titulo_pestana": "Dreame! - Haushaltsinventar"
   }
 }

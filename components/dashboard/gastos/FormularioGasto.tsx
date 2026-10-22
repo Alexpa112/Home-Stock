@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Plus, Paperclip } from 'lucide-react'
 import { IconRenderer } from '@/components/dashboard/IconRenderer'
 import { RepartoParticipantes } from './RepartoParticipantes'
+import { nombreCategoriaGasto } from '@/lib/categoriasGasto'
 
 type ModoReparto = 'igual' | 'porcentaje' | 'partes' | 'personalizado'
 
@@ -160,7 +161,7 @@ export function FormularioGasto({
               }`}
             >
               {cat.icono && <IconRenderer name={cat.icono} className="w-3.5 h-3.5" />}
-              {cat.nombre}
+              {nombreCategoriaGasto(cat.nombre, t)}
             </button>
           ))}
           <Link

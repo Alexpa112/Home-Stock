@@ -14,6 +14,7 @@
 
 import { marcarMantenimiento } from './mantenimiento'
 import { clearAllCache } from './dataCache'
+import { compartirEnVuelo, olvidarEnVuelo } from './peticionesEnVuelo'
 
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>
@@ -152,6 +153,10 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
     ...options.headers,
   }
 
+  // Una escritura invalida las lecturas compartidas en curso: quien lea despues
+  // debe pedir datos nuevos, no sumarse a una peticion anterior al cambio.
+  if (METODOS_MUTABLES.has(metodo)) olvidarEnVuelo()
+
   if (METODOS_MUTABLES.has(metodo)) {
     headers['X-CSRFToken'] = await obtenerCsrfToken()
   }
@@ -181,7 +186,8 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
 
 // ===== Autenticación (stockhogar/rutas/cuenta/auth.py) =====
 export const auth = {
-  estado: () => apiCall('/api/auth/estado'),
+  // Varias pantallas/contextos lo piden a la vez al cargar: comparten la peticion.
+  estado: () => compartirEnVuelo('auth.estado', () => apiCall('/api/auth/estado')),
 
   login: async (usuario: string, password: string) => {
     const result: any = await apiCall('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, password }) })
@@ -291,7 +297,7 @@ export const auth = {
 
 // ===== Hogares (stockhogar/rutas/hogar/hogares.py) =====
 export const hogares = {
-  listar: () => apiCall('/api/hogares'),
+  listar: () => compartirEnVuelo('hogares.listar', () => apiCall('/api/hogares')),
 
   crear: (nombre: string, opciones: { descripcion?: string; icono?: string; color?: string; privada?: boolean } = {}) =>
     apiCall('/api/hogares', { method: 'POST', body: JSON.stringify({ nombre, ...opciones }) }),

@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { push } from './api'
+import { claveErrorPush } from './errorPush'
 
 // Uint8Array<ArrayBuffer> (no ArrayBufferLike): desde TS 5.7, lib.dom tipa
 // PushSubscriptionOptionsInit.applicationServerKey como BufferSource, que
@@ -18,30 +19,26 @@ function base64UrlADataUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * La UI pinta el error con t(error), asi que solo sirve una clave de
- * traduccion. Los errores propios y los del backend ya lo son; lo que llega
- * de las Web APIs (DOMException de pushManager.subscribe, TypeError de red) es
- * texto libre en el idioma del navegador y se sustituye por una clave
- * genérica, para no mostrarle al usuario un mensaje sin traducir.
- */
-function mensajeDeError(err: unknown): string {
-  const mensaje = err instanceof Error ? err.message : ''
-  return /^[a-z0-9_]+$/.test(mensaje) ? mensaje : 'err_conexion_servidor'
-}
-
-/**
  * Suscripcion a notificaciones push del navegador (P-01). El registro del
  * SW ya lo hace RootLayoutClient.tsx de forma global (tambien lo necesita
  * el modo offline, P-02); el register() de aqui es idempotente (el
  * navegador reutiliza el registro existente si la URL/scope coincide), se
  * mantiene para que este hook siga funcionando de forma autonoma si algun
  * dia se usa fuera de ese layout.
+ *
+ * iOS (Safari 16.4+, solo con la app anadida a la pantalla de inicio) exige
+ * que requestPermission() y pushManager.subscribe() se llamen desde el gesto
+ * del usuario. Por eso la clave VAPID y el registro del service worker se
+ * obtienen al montar, no al pulsar: una peticion de red entre el toque y
+ * subscribe() hacia perder el gesto y fallaba con NotAllowedError.
  */
 export function usePushNotifications() {
   const [soportado, setSoportado] = useState(false)
   const [suscrito, setSuscrito] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
+  const clavePublicaRef = useRef('')
+  const registroRef = useRef<ServiceWorkerRegistration | null>(null)
 
   useEffect(() => {
     const soportaNavegador = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
@@ -56,10 +53,17 @@ export function usePushNotifications() {
     // pulsarlo: sin clave publica, pushManager.subscribe() lanza una
     // DOMException del navegador que no dice nada al usuario.
     push.vapidClavePublica()
-      .then(({ clave_publica }) => setSoportado(!!clave_publica))
+      .then(({ clave_publica }) => {
+        clavePublicaRef.current = clave_publica || ''
+        setSoportado(!!clave_publica)
+      })
       .catch(() => setSoportado(false))
 
-    navigator.serviceWorker.register('/sw.js').then(async (registro) => {
+    navigator.serviceWorker.register('/sw.js').then(async () => {
+      // ready espera a que el worker este ACTIVO (register() puede resolver con
+      // el worker aun instalandose, y subscribe() falla en ese estado).
+      const registro = await navigator.serviceWorker.ready
+      registroRef.current = registro
       const suscripcionActual = await registro.pushManager.getSubscription()
       setSuscrito(!!suscripcionActual)
     }).catch(() => {})
@@ -68,6 +72,7 @@ export function usePushNotifications() {
   const activar = useCallback(async () => {
     setCargando(true)
     setError('')
+    let suscripcionNueva: PushSubscription | null = null
     try {
       if (typeof Notification === 'undefined') {
         throw new Error('err_push_no_disponible')
@@ -75,30 +80,43 @@ export function usePushNotifications() {
       if (Notification.permission === 'denied') {
         throw new Error('permiso_notificaciones_denegado')
       }
+      // Primera operacion asincrona: se ejecuta dentro del gesto del usuario.
       const permiso = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
       if (permiso !== 'granted') {
         throw new Error('permiso_notificaciones_denegado')
       }
 
-      const registro = await navigator.serviceWorker.ready
-      const { clave_publica } = await push.vapidClavePublica()
-      if (!clave_publica) {
+      // Con los datos ya cargados al montar, subscribe() va justo despues del
+      // permiso, sin viajes de red por medio.
+      const registro = registroRef.current ?? (await navigator.serviceWorker.ready)
+      const clavePublica = clavePublicaRef.current || (await push.vapidClavePublica()).clave_publica
+      if (!clavePublica) {
         // Servidor sin clave VAPID: no se llama a subscribe() con una clave
         // vacia, porque el error resultante seria un mensaje del navegador en
         // su propio idioma y sin traduccion posible.
         setSoportado(false)
         throw new Error('err_push_no_disponible')
       }
-      const suscripcion = await registro.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: base64UrlADataUint8Array(clave_publica),
-      })
+
+      // Si ya habia una suscripcion (de un intento anterior que fallo al
+      // guardarse en el servidor) se reutiliza: pedir otra con otra clave lanza
+      // InvalidStateError.
+      let suscripcion = await registro.pushManager.getSubscription()
+      if (!suscripcion) {
+        suscripcion = suscripcionNueva = await registro.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64UrlADataUint8Array(clavePublica),
+        })
+      }
 
       const claves = suscripcion.toJSON().keys as { p256dh: string; auth: string }
       await push.suscribir(suscripcion.endpoint, claves)
       setSuscrito(true)
     } catch (err) {
-      setError(mensajeDeError(err))
+      // Si la suscripcion se creo pero el servidor no la guardo, se deshace:
+      // un interruptor apagado con una suscripcion huerfana en el navegador.
+      if (suscripcionNueva) await suscripcionNueva.unsubscribe().catch(() => {})
+      setError(claveErrorPush(err, typeof Notification === 'undefined' ? undefined : Notification.permission))
     } finally {
       setCargando(false)
     }
@@ -108,7 +126,7 @@ export function usePushNotifications() {
     setCargando(true)
     setError('')
     try {
-      const registro = await navigator.serviceWorker.ready
+      const registro = registroRef.current ?? (await navigator.serviceWorker.ready)
       const suscripcion = await registro.pushManager.getSubscription()
       if (suscripcion) {
         await push.desuscribir(suscripcion.endpoint)
@@ -116,7 +134,7 @@ export function usePushNotifications() {
       }
       setSuscrito(false)
     } catch (err) {
-      setError(mensajeDeError(err))
+      setError(claveErrorPush(err))
     } finally {
       setCargando(false)
     }

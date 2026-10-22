@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { getCached, setCached } from '@/lib/dataCache'
 import { useCacheTrasMontar } from '@/lib/useCacheTrasMontar'
+import { nombreCategoriaGasto } from '@/lib/categoriasGasto'
 import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { formatImporte } from '@/lib/format'
 import { SkeletonCards } from '@/components/dashboard/SkeletonCards'
@@ -745,7 +746,7 @@ export default function GastosPage() {
                     <option value="">{t('todas_las_categorias')}</option>
                     <option value={SIN_CATEGORIA}>{t('sin_categoria')}</option>
                     {categoriasGasto.map((cat) => (
-                      <option key={cat.id} value={cat.nombre}>{cat.nombre}</option>
+                      <option key={cat.id} value={cat.nombre}>{nombreCategoriaGasto(cat.nombre, t)}</option>
                     ))}
                   </select>
                 </div>
@@ -897,7 +898,7 @@ export default function GastosPage() {
           <div className="card space-y-3">
             <h2 className="text-lg font-semibold">{t('gasto_total_por_categoria')}</h2>
             <BarraHorizontal
-              datos={totalesPorCategoria(gastos, t('sin_categoria'))}
+              datos={totalesPorCategoria(gastos, t('sin_categoria')).map((d) => ({ ...d, etiqueta: nombreCategoriaGasto(d.etiqueta, t) }))}
               formatearValor={(v) => formatImporte(v, simboloMoneda)}
             />
           </div>
