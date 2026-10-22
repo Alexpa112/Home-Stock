@@ -25,7 +25,7 @@ jobs:
           tags: stockhogar-backend:ci
 
       - name: Escanear vulnerabilidades de la imagen backend (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: stockhogar-backend:ci
           severity: "CRITICAL,HIGH"
@@ -94,7 +94,7 @@ jobs:
       # Esta es la imagen que realmente se publica y se despliega en la Pi
       # (ver docker-publish.yml), así que también se escanea.
       - name: Escanear vulnerabilidades de la imagen backend-raspbian (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: stockhogar-backend-raspbian:ci
           severity: "CRITICAL,HIGH"
@@ -123,7 +123,7 @@ jobs:
           tags: stockhogar-frontend:ci
 
       - name: Escanear vulnerabilidades de la imagen frontend (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: stockhogar-frontend:ci
           severity: "CRITICAL,HIGH"
