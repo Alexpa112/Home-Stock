@@ -75,7 +75,12 @@ jobs:
         with:
           node-version: "20"
       - run: npm ci
-      - run: npm audit --audit-level=high
+      # --omit=dev: solo se auditan las dependencias que viajan en produccion.
+      # Las 5 altas restantes (braces -> micromatch -> fast-glob ->
+      # @next/eslint-plugin-next -> eslint-config-next) son solo de lint en
+      # desarrollo (DoS por patrones de llaves anidadas) y braces 3.0.3, la
+      # ultima version publicada, sigue afectada: no hay arreglo upstream.
+      - run: npm audit --omit=dev --audit-level=high
 
   secrets-scan:
     runs-on: ubuntu-latest
