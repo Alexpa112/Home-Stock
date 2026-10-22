@@ -138,7 +138,12 @@ def listar_productos():
     filas = db.execute(
         """SELECT p.id, p.nombre, p.categoria, p.icono, p.unidad,
                   p.fecha_creacion, p.fecha_actualizacion, p.dias_aviso,
-                  sl.cantidad, sl.stock_minimo
+                  sl.cantidad, sl.stock_minimo,
+                  CASE WHEN EXISTS (
+                      SELECT 1 FROM articulos_compra ac
+                      WHERE ac.hogar_id = sl.hogar_id AND ac.activo = 1
+                        AND (ac.producto_id = p.id OR LOWER(ac.nombre) = LOWER(p.nombre))
+                  ) THEN 1 ELSE 0 END AS en_lista_compra
            FROM stock_hogar sl
            JOIN productos p ON p.id = sl.producto_id
            WHERE sl.hogar_id = ?

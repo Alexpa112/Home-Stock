@@ -44,6 +44,8 @@ class DataConverter:
             "fecha_actualizacion": fecha_actualizacion,
             "dias_aviso": dias_aviso,
             "revisar_caducidad": DataConverter.calcular_dias_desde(fecha_actualizacion, dias_aviso),
+            # Solo lo rellena el listado de productos; en el resto de respuestas es False.
+            "en_lista_compra": bool(DataConverter.safe_field(row, "en_lista_compra", 0)),
         }
 
     @staticmethod
