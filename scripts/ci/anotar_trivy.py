@@ -21,3 +21,10 @@ for resultado in informe.get("Results") or []:
                 ruta=v.get("PkgPath") or (v.get("PkgIdentifier") or {}).get("PURL"),
             )[:400]
         )
+
+# Donde vive cada copia de urllib3 (para saber cual arrastra la version vulnerable).
+for resultado in informe.get("Results") or []:
+    for p in resultado.get("Packages") or []:
+        if p.get("Name") == "urllib3":
+            print("::error::PKG urllib3 {v} {ruta}".format(
+                v=p.get("Version"), ruta=p.get("FilePath") or p.get("Identifier", {}).get("PURL"))[:400])

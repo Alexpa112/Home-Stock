@@ -52,6 +52,7 @@ jobs:
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
           format: json
+          list-all-pkgs: true
           output: trivy.json
           exit-code: "0"
       - name: Anotar hallazgos Trivy (backend)
@@ -119,6 +120,7 @@ jobs:
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
           format: json
+          list-all-pkgs: true
           output: trivy.json
           exit-code: "0"
       - name: Anotar hallazgos Trivy (raspbian)

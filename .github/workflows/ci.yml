@@ -88,7 +88,14 @@ jobs:
       # @next/eslint-plugin-next -> eslint-config-next) son solo de lint en
       # desarrollo (DoS por patrones de llaves anidadas) y braces 3.0.3, la
       # ultima version publicada, sigue afectada: no hay arreglo upstream.
-      - run: npm audit --omit=dev --audit-level=high
+      - run: |
+          set +e
+          npm audit --omit=dev --audit-level=high 2>&1 | tee npm-audit.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            head -n 60 npm-audit.log | cut -c1-300 | while IFS= read -r l; do echo "::error::$l"; done
+          fi
+          exit $rc
 
   secrets-scan:
     runs-on: ubuntu-latest
