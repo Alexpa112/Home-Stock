@@ -75,7 +75,7 @@ RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install -g npm@latest \
+    && npm install -g npm@11 \
     && npm cache clean --force
 
 COPY --from=builder /app/package.json ./
