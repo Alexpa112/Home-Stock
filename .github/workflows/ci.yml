@@ -37,7 +37,15 @@ jobs:
       # saltandose ese cierre; KMP_DUPLICATE_LIB_OK=TRUE se deja tambien
       # puesto que mitiga el caso SIGABRT antes de llegar siquiera a esa
       # salida forzada.
-      - run: python scripts/ci/run_tests_safe.py tests/ -q
+      # Los tests que fallan se vuelcan ademas como anotaciones (::error) para
+      # poder leerlos desde la API de GitHub sin descargar el log del job.
+      - run: |
+          set +e
+          python scripts/ci/run_tests_safe.py tests/ -q -rfE --tb=short 2>&1 | tee pytest.log
+          rc=${PIPESTATUS[0]}
+          grep -E '^(FAILED|ERROR) ' pytest.log | head -25 | cut -c1-400 | while IFS= read -r l; do echo "::error::$l"; done
+          tail -n 40 pytest.log | cut -c1-300 | while IFS= read -r l; do echo "::warning::$l"; done
+          exit $rc
         env:
           KMP_DUPLICATE_LIB_OK: "TRUE"
 

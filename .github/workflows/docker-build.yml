@@ -42,6 +42,22 @@ jobs:
           # accionables. Se siguen viendo en el log, pero no tumban el build.
           ignore-unfixed: true
 
+      # Si Trivy bloquea, repite el escaneo en JSON y vuelca cada hallazgo
+      # como anotacion (::error), legible desde la API sin bajar el log.
+      - name: Diagnostico Trivy (backend)
+        if: failure()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: stockhogar-backend:ci
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          format: json
+          output: trivy.json
+          exit-code: "0"
+      - name: Anotar hallazgos Trivy (backend)
+        if: failure()
+        run: python3 scripts/ci/anotar_trivy.py trivy.json
+
       - name: Escanear ticket PDF de prueba dentro del contenedor
         run: |
           docker run --rm -v "${{ github.workspace }}/tests/fixtures:/fixtures:ro" \
@@ -94,6 +110,20 @@ jobs:
           exit-code: "1"
           # Ver el comentario del escaneo del backend x86_64.
           ignore-unfixed: true
+
+      - name: Diagnostico Trivy (raspbian)
+        if: failure()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: stockhogar-backend-raspbian:ci
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          format: json
+          output: trivy.json
+          exit-code: "0"
+      - name: Anotar hallazgos Trivy (raspbian)
+        if: failure()
+        run: python3 scripts/ci/anotar_trivy.py trivy.json
 
   build-frontend:
     runs-on: ubuntu-latest
