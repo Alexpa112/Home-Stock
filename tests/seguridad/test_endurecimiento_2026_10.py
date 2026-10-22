@@ -272,7 +272,11 @@ class EscanerBajoPresionTests(_ClienteBase):
 
 
 class ColaEnSegundoPlanoTests(unittest.TestCase):
+    """Cada test usa su PROPIA cola: la compartida del proceso puede estar ocupada por traducciones
+    reales de otros tests (en CI Argos tarda segundos en cargar el modelo)."""
+
     def test_los_trabajos_se_atienden_en_orden_y_por_un_solo_hilo(self):
+        cola = cola_segundo_plano.ColaSegundoPlano(nombre_hilo="hilo-de-prueba")
         vistos, hilos = [], set()
 
         def trabajo(n):
@@ -282,27 +286,33 @@ class ColaEnSegundoPlanoTests(unittest.TestCase):
             return _
 
         for n in range(20):
-            self.assertTrue(cola_segundo_plano.encolar(trabajo(n), f"t{n}"))
-        cola_segundo_plano.esperar_vacia(timeout=10)
+            self.assertTrue(cola.encolar(trabajo(n), f"t{n}"))
+        self.assertTrue(cola.esperar_vacia(timeout=10))
         self.assertEqual(vistos, list(range(20)))
-        self.assertEqual(hilos, {"trabajos-segundo-plano"})
+        self.assertEqual(hilos, {"hilo-de-prueba"})
 
     def test_un_trabajo_que_falla_no_mata_al_consumidor(self):
+        cola = cola_segundo_plano.ColaSegundoPlano()
         hecho = []
-        cola_segundo_plano.encolar(lambda: 1 / 0, "falla")
-        cola_segundo_plano.encolar(lambda: hecho.append(True), "sigue")
-        cola_segundo_plano.esperar_vacia(timeout=10)
+        cola.encolar(lambda: 1 / 0, "falla")
+        cola.encolar(lambda: hecho.append(True), "sigue")
+        self.assertTrue(cola.esperar_vacia(timeout=10))
         self.assertEqual(hecho, [True])
 
     def test_si_la_cola_se_llena_se_descarta_en_vez_de_acumular(self):
+        cola = cola_segundo_plano.ColaSegundoPlano(tamano_maximo=10)
         liberar = threading.Event()
-        cola_segundo_plano.encolar(lambda: liberar.wait(10), "bloquea")
+        cola.encolar(lambda: liberar.wait(10), "bloquea")
         time.sleep(0.1)
-        aceptados = sum(cola_segundo_plano.encolar(lambda: None, "x") for _ in range(cola_segundo_plano.TAMANO_MAXIMO + 50))
+        aceptados = sum(cola.encolar(lambda: None, "x") for _ in range(60))
         liberar.set()
-        cola_segundo_plano.esperar_vacia(timeout=10)
-        self.assertLessEqual(aceptados, cola_segundo_plano.TAMANO_MAXIMO)
+        self.assertTrue(cola.esperar_vacia(timeout=10))
+        self.assertLessEqual(aceptados, 10)
         self.assertGreater(aceptados, 0)
+
+    def test_la_cola_compartida_tiene_un_unico_consumidor_y_tope(self):
+        self.assertEqual(cola_segundo_plano.cola_por_defecto.tamano_maximo, cola_segundo_plano.TAMANO_MAXIMO)
+        self.assertIs(cola_segundo_plano.encolar.__self__, cola_segundo_plano.cola_por_defecto)
 
     def test_traducir_no_crea_un_hilo_por_articulo(self):
         for ruta in (("stockhogar", "rutas", "compra", "lista.py"), ("stockhogar", "rutas", "inventario", "productos.py")):

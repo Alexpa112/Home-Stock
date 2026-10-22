@@ -11,50 +11,55 @@ memoria sin limite.
 import logging
 import queue
 import threading
+import time
 
 logger = logging.getLogger(__name__)
 
 TAMANO_MAXIMO = 200
 
-_cola = queue.Queue(maxsize=TAMANO_MAXIMO)
-_hilo = None
-_candado = threading.Lock()
 
+class ColaSegundoPlano:
+    def __init__(self, tamano_maximo=TAMANO_MAXIMO, nombre_hilo="trabajos-segundo-plano"):
+        self.tamano_maximo = tamano_maximo
+        self._nombre_hilo = nombre_hilo
+        self._cola = queue.Queue(maxsize=tamano_maximo)
+        self._hilo = None
+        self._candado = threading.Lock()
 
-def _consumir():
-    while True:
-        trabajo, nombre = _cola.get()
+    def _consumir(self):
+        while True:
+            trabajo, nombre = self._cola.get()
+            try:
+                trabajo()
+            except Exception:
+                logger.exception("Error en el trabajo en segundo plano %s", nombre)
+            finally:
+                self._cola.task_done()
+
+    def encolar(self, trabajo, nombre="trabajo"):
+        """Pone `trabajo` (un callable sin argumentos) en la cola. Devuelve False si estaba llena
+        y se descarto."""
+        with self._candado:
+            if self._hilo is None or not self._hilo.is_alive():
+                self._hilo = threading.Thread(target=self._consumir, name=self._nombre_hilo, daemon=True)
+                self._hilo.start()
         try:
-            trabajo()
-        except Exception:
-            logger.exception("Error en el trabajo en segundo plano %s", nombre)
-        finally:
-            _cola.task_done()
+            self._cola.put_nowait((trabajo, nombre))
+            return True
+        except queue.Full:
+            logger.warning("Cola de segundo plano llena (%d): se descarta %s", self.tamano_maximo, nombre)
+            return False
+
+    def esperar_vacia(self, timeout=30):
+        """Espera a que se atiendan los trabajos pendientes. Devuelve False si se agoto el tiempo."""
+        limite = time.time() + timeout
+        while time.time() < limite:
+            if self._cola.unfinished_tasks == 0:
+                return True
+            time.sleep(0.01)
+        return self._cola.unfinished_tasks == 0
 
 
-def encolar(trabajo, nombre="trabajo"):
-    """Pone `trabajo` (un callable sin argumentos) en la cola. Devuelve False si estaba llena
-    y se descarto."""
-    global _hilo
-    with _candado:
-        if _hilo is None or not _hilo.is_alive():
-            _hilo = threading.Thread(target=_consumir, name="trabajos-segundo-plano", daemon=True)
-            _hilo.start()
-    try:
-        _cola.put_nowait((trabajo, nombre))
-        return True
-    except queue.Full:
-        logger.warning("Cola de segundo plano llena (%d): se descarta %s", TAMANO_MAXIMO, nombre)
-        return False
-
-
-def esperar_vacia(timeout=None):
-    """Solo para tests: espera a que se atiendan los trabajos pendientes."""
-    _cola.join() if timeout is None else _esperar_con_limite(timeout)
-
-
-def _esperar_con_limite(timeout):
-    import time
-    limite = time.time() + timeout
-    while time.time() < limite and _cola.unfinished_tasks:
-        time.sleep(0.01)
+# Cola compartida del proceso (traducciones de articulos y productos).
+cola_por_defecto = ColaSegundoPlano()
+encolar = cola_por_defecto.encolar
