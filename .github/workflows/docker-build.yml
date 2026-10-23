@@ -2,9 +2,9 @@ name: Docker build
 
 on:
   push:
-    branches: [dev2, produccion, main]
+    branches: [dev2, produccion]
   pull_request:
-    branches: [dev2, produccion, main]
+    branches: [dev2, produccion]
 
 # M-21: declarar permisos explícitos. Este workflow solo lee contenido.
 permissions:
@@ -14,9 +14,9 @@ jobs:
   build-backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build backend image (Dockerfile, x86_64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile
@@ -25,7 +25,7 @@ jobs:
           tags: stockhogar-backend:ci
 
       - name: Escanear vulnerabilidades de la imagen backend (Trivy)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: stockhogar-backend:ci
           severity: "CRITICAL,HIGH"
@@ -76,14 +76,14 @@ jobs:
   build-backend-raspbian:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # Se compila en la arquitectura nativa del runner (amd64), no armv7l:
       # el objetivo no es probar la imagen final de la Pi, sino que la propia
       # build (pip install + verificacion de imports de la linea 121) no se
       # rompa por dependencias desincronizadas con requirements.txt, que es
       # justo lo que dejo pasar antes a fuzzywuzzy tras migrar a rapidfuzz.
       - name: Build backend image (Dockerfile.raspbian, verificacion de build)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile.raspbian
@@ -94,7 +94,7 @@ jobs:
       # Esta es la imagen que realmente se publica y se despliega en la Pi
       # (ver docker-publish.yml), así que también se escanea.
       - name: Escanear vulnerabilidades de la imagen backend-raspbian (Trivy)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: stockhogar-backend-raspbian:ci
           severity: "CRITICAL,HIGH"
@@ -112,9 +112,9 @@ jobs:
   build-frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build frontend image (Dockerfile.frontend)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile.frontend
@@ -123,7 +123,7 @@ jobs:
           tags: stockhogar-frontend:ci
 
       - name: Escanear vulnerabilidades de la imagen frontend (Trivy)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: stockhogar-frontend:ci
           severity: "CRITICAL,HIGH"
