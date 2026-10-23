@@ -16,7 +16,18 @@ on:
     branches: [produccion]
   workflow_dispatch: {}
 
+# Una publicacion a la vez: dos CI seguidos en produccion no deben pisarse el tag :latest.
+concurrency:
+  group: publicar-imagenes
+  cancel-in-progress: false
+
 env:
+  # El commit EXACTO que paso el CI (head_sha del CI que dispara este workflow). No es
+  # github.sha: en un workflow_run ese es el ultimo commit de la rama por defecto (main,
+  # congelada), asi que todas las imagenes llevaban una etiqueta :sha inutil, y el checkout
+  # por nombre de rama publicaba el ultimo commit de produccion aunque llegara otro despues de
+  # pasar el CI. Con un disparo manual (workflow_dispatch) cae a github.sha.
+  COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
   REGISTRY: ghcr.io
   # Docker exige el nombre del repositorio en minúsculas; github.repository_owner
   # da "Alexpa112" (con mayúscula) y hace fallar el build con "repository name
@@ -33,30 +44,32 @@ jobs:
       packages: write
     steps:
       # A-10: bloquear la publicacion si el workflow_run de CI no fue exitoso.
+      # (solo aplica al disparo por workflow_run: con workflow_dispatch no hay CI previo.)
       - name: Fallar si CI no paso
-        if: github.event.workflow_run.conclusion != 'success'
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success'
         run: exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ env.COMMIT }}
+          persist-credentials: false
 
       - name: QEMU (emula armv7l en el runner x86_64)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
         with:
           platforms: arm
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Login en GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build + push backend (linux/arm/v7)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile.raspbian
@@ -64,12 +77,12 @@ jobs:
           push: true
           tags: |
             ${{ env.BACKEND_IMAGE }}:latest
-            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.BACKEND_IMAGE }}:${{ env.COMMIT }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
       - name: Build + push frontend (linux/arm/v7)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile.frontend
@@ -77,6 +90,6 @@ jobs:
           push: true
           tags: |
             ${{ env.FRONTEND_IMAGE }}:latest
-            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ env.FRONTEND_IMAGE }}:${{ env.COMMIT }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend

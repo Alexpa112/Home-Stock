@@ -70,6 +70,27 @@ export function clearCache(keys: string[]): void {
   }
 }
 
+const CLAVE_USUARIO_CACHE = 'sh-cache-usuario'
+
+/**
+ * Ata la cache al usuario de la sesion. Si el usuario que responde /api/auth/estado no es el
+ * dueño de lo que hay guardado (la sesion de A caduco por cookie, sin 401, y entra B en el mismo
+ * navegador; o un login por Google, que no pasa por login()), se borra TODO antes de que ninguna
+ * pantalla lo pinte. `usuarioId` null = sin sesion.
+ */
+export function sincronizarCacheConUsuario(usuarioId: number | null): void {
+  if (typeof window === 'undefined') return
+  try {
+    const guardado = localStorage.getItem(CLAVE_USUARIO_CACHE)
+    const actual = usuarioId === null || usuarioId === undefined ? '' : String(usuarioId)
+    if (guardado !== null && guardado !== actual) clearAllCache()
+    else if (guardado === null && actual === '') clearAllCache()
+    localStorage.setItem(CLAVE_USUARIO_CACHE, actual)
+  } catch {
+    // localStorage inaccesible: la cache en memoria sigue siendo por pestaña
+  }
+}
+
 /**
  * Borra TODA la cache (memoria + localStorage), sin necesidad de conocer
  * las claves de antemano. Pensada para el cierre de sesion (S-19): en un
@@ -83,6 +104,7 @@ export function clearAllCache(): void {
   try {
     const claves = Object.keys(localStorage).filter((k) => k.startsWith(STORAGE_PREFIX))
     for (const clave of claves) localStorage.removeItem(clave)
+    // la marca del usuario no empieza por sh-cache: (ver CLAVE_USUARIO_CACHE) y se conserva
   } catch {
     // ignorar
   }

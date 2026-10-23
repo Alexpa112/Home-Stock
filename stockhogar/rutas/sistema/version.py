@@ -13,6 +13,9 @@ def cache_version():
     significa que el servidor fue desplegado (git pull + rebuild),
     y el cliente debe limpiar el caché y recargar.
 
+    Solo se devuelve el numero de version: quien consulta esta ruta (es publica) no necesita saber
+    de que fichero sale ni como esta montado el despliegue.
+
     Usamos el timestamp de docker-compose.yml porque:
     - Se actualiza con cada 'git pull'
     - Es compartido entre frontend (Next.js) y backend (Flask)
@@ -28,8 +31,7 @@ def cache_version():
             mtime = os.path.getmtime(docker_compose_path)
             return jsonify({
                 "version": int(mtime),
-                "status": "ok",
-                "source": "docker-compose.yml"
+                "status": "ok"
             })
     except Exception:
         pass
@@ -40,14 +42,12 @@ def cache_version():
         mtime = os.path.getmtime(os.path.join(app_path, "__init__.py"))
         return jsonify({
             "version": int(mtime),
-            "status": "ok",
-            "source": "__init__.py"
+            "status": "ok"
         })
     except Exception:
         # Último recurso: usar la hora actual (fuerza update cada vez)
         import time
         return jsonify({
             "version": int(time.time()),
-            "status": "ok",
-            "source": "current-time"
+            "status": "ok"
         })

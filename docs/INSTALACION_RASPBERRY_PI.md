@@ -13,8 +13,8 @@
 ### Paso 1: Conectar a la Raspberry Pi
 
 ```bash
-ssh pi@[DIRECCIÓN_IP_RPi]
-# Contraseña por defecto: raspberry
+ssh [TU_USUARIO]@[DIRECCIÓN_IP_RPi]
+# Usa tu propio usuario y contraseña (no dejes la contraseña por defecto de Raspberry Pi OS)
 ```
 
 ### Paso 2: Descargar e Instalar
@@ -209,13 +209,25 @@ services:
 
 Al iniciar por primera vez, crea un usuario con contraseña fuerte.
 
+### Qué endurece el instalador (`install.sh`)
+
+Se aplica solo en cada instalación o actualización (se omite con `DREAME_ENDURECER_SISTEMA=0`):
+
+- Parches de seguridad automáticos (Debian y repositorio de Raspberry Pi), cortafuegos `ufw` (SSH limitado y, si procede, el frontend solo desde la red local), `fail2ban` para SSH y SSH más estricto en `/etc/ssh/sshd_config.d/00-dreame.conf`.
+- El frontend escucha solo en `127.0.0.1` si hay un túnel de Cloudflare; para abrirlo a la red local usa `DREAME_ABRIR_LAN=1 ./install.sh --update`. Docker publica sus puertos saltándose `ufw`: el enlace del puerto es el cortafuegos real.
+- `DREAME_SSH_SOLO_CLAVES=1` desactiva la contraseña de SSH (copia antes tu clave con `ssh-copy-id`; el instalador comprueba que existe y que sus permisos son válidos).
+- `DREAME_REINICIO_AUTOMATICO=1` permite reinicio automático a las 04:30 cuando una actualización de seguridad lo pida.
+- Despliegue por commit: en Raspberry Pi 32 bits las imágenes se fijan al commit verificado en GHCR (`STOCKHOGAR_IMAGE_TAG` en `.env`); si algo falla se vuelve a la imagen anterior.
+- Firmas de commit (opcional): si creas `/etc/dreame/allowed_signers` con tus claves SSH públicas, la Pi solo se actualiza con commits firmados por ellas (ver `scripts/verificar_firma.sh`).
+- `.env`, claves y base de datos con permisos restringidos. El instalador solo **avisa** si el usuario `pi` conserva la contraseña por defecto: cámbiala con `passwd`.
+
 ### Acceso Remoto Seguro
 
 Si accedes desde fuera de la red local, usa SSH:
 
 ```bash
 # Desde tu computadora
-ssh pi@[DOMINIO_EXTERNO]
+ssh [TU_USUARIO]@[DOMINIO_EXTERNO]
 # Luego accede a Home-Stock via localhost:5000
 ```
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { AceptarTerminosModal } from '@/components/shared/AceptarTerminosModal'
+import { clearAllCache, sincronizarCacheConUsuario } from '@/lib/dataCache'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -26,9 +27,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       const datos = response.ok ? await response.json() : null
 
       if (!response.ok || !datos?.usuario) {
+        // Sin sesion (caduco la cookie): los datos en cache del usuario anterior no se quedan.
+        clearAllCache()
         router.replace('/')
         return
       }
+      sincronizarCacheConUsuario(Number(datos.usuario_id))
 
       // Sincronizar tema del backend con la clase CSS y localStorage
       const tema = datos.tema_preferido || 'auto'

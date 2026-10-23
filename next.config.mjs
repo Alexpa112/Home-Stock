@@ -7,6 +7,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // No anunciar "X-Powered-By: Next.js": no aporta nada y facilita buscar CVE de la version.
+  poweredByHeader: false,
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
   compress: true,
@@ -47,6 +49,16 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
+          },
+          {
+            // Aislamiento de origen: ninguna ventana de otro sitio comparte contexto con la app ni
+            // puede cargar sus recursos (la app no abre ventanas de terceros: Google entra por redireccion).
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'same-origin',
           },
           {
             // Sin uso de camara/microfono/geolocalizacion en la app (el
@@ -107,6 +119,12 @@ const nextConfig = {
             },
           ]
         : []),
+      // Las URL con un token en la ruta (restablecer contraseña, verificar email, invitaciones) no
+      // deben viajar en la cabecera Referer a ningun sitio. Va DESPUES de la regla general para ganarle.
+      ...['/restablecer-password/:token*', '/verificar-email/:token*', '/aceptar-invitacion/:codigo*'].map((source) => ({
+        source,
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      })),
     ]
   },
 

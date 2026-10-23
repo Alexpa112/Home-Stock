@@ -77,16 +77,31 @@ self.addEventListener('push', (event) => {
   )
 })
 
+// Destino de una notificacion: solo rutas de ESTE origen. El payload lo manda el servidor push;
+// si estuviera comprometido (o se colara una URL externa/javascript:), openWindow la abriria.
+function destinoSeguro(valor) {
+  try {
+    const url = new URL(valor || '/dashboard', self.location.origin)
+    if (url.origin !== self.location.origin) return '/dashboard'
+    return url.pathname + url.search + url.hash
+  } catch {
+    return '/dashboard'
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || '/dashboard'
+  const destino = destinoSeguro(event.notification.data && event.notification.data.url)
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const cliente of clientList) {
-        if (cliente.url.includes(url) && 'focus' in cliente) return cliente.focus()
+        // Misma pagina exacta (antes: includes(), que daba por buena cualquier URL que la contuviera).
+        if (new URL(cliente.url).pathname === new URL(destino, self.location.origin).pathname && 'focus' in cliente) {
+          return cliente.focus()
+        }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(url)
+      if (self.clients.openWindow) return self.clients.openWindow(destino)
     })
   )
 })

@@ -46,3 +46,11 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "python"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # Las acciones de los workflows van fijadas por SHA (cadena de suministro); dependabot propone
+  # el SHA nuevo cuando sale una version, para revisarlo en un PR en vez de heredarlo en silencio.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "dev2"
+    schedule:
+      interval: "weekly"
