@@ -277,6 +277,11 @@ def salir_lista(hogar_id):
     if lista["usuario_propietario_id"] == usuario_id:
         return APIResponse.error("err_no_salir_propio_hogar", 403)
 
+    # Solo un miembro puede "salir": un usuario sin relacion con el hogar no
+    # debe recibir un 200 por una peticion que no le corresponde.
+    if not _usuario_tiene_permiso(db, hogar_id, usuario_id):
+        return APIResponse.no_permitido()
+
     db.execute(
         "DELETE FROM permisos_hogar WHERE hogar_id = ? AND usuario_id = ?",
         (hogar_id, usuario_id),

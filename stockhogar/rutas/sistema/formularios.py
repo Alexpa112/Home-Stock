@@ -1,11 +1,12 @@
 """Rutas para servir formularios HTML dinámicamente"""
 from flask import Blueprint, jsonify
-from ...api import manejo_errores
+from ...api import manejo_errores, requerir_sesion
 
 bp = Blueprint("formularios", __name__, url_prefix="/api/formularios")
 
 
 @bp.route("/crear-lista", methods=["GET"])
+@requerir_sesion
 @manejo_errores
 def formulario_crear_lista():
     """Devuelve el HTML del formulario de crear lista"""

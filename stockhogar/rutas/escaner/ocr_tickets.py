@@ -2,7 +2,7 @@
 import os
 from flask import Blueprint
 
-from ...api import APIResponse, manejo_errores
+from ...api import APIResponse, manejo_errores, requerir_sesion
 
 bp = Blueprint("ocr", __name__, url_prefix="/api/ocr")
 
@@ -24,6 +24,7 @@ bp = Blueprint("ocr", __name__, url_prefix="/api/ocr")
 
 
 @bp.route("/validar-instalacion", methods=["GET"])
+@requerir_sesion
 @manejo_errores
 def validar_instalacion():
     """Valida que todas las dependencias OCR estén instaladas.
