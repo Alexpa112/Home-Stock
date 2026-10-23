@@ -388,6 +388,75 @@ log_success "curl y git disponibles"
 
 step_end
 
+# El código se actualiza PRIMERO: si una versión anterior de este script tuviera un fallo en los
+# pasos siguientes, la actualización que lo corrige no podría llegar nunca (se atascaba aquí).
+################################################################################
+step_start "Actualizar código (git pull)"
+################################################################################
+
+if [[ "${STOCKHOGAR_REEXEC:-0}" -eq 1 ]]; then
+    # Segunda pasada tras el re-exec de abajo: el código ya se actualizó en
+    # la primera pasada, solo se recupera PREV_GIT_COMMIT para el rollback.
+    PREV_GIT_COMMIT="${STOCKHOGAR_PREV_GIT_COMMIT:-}"
+    log_info "Continuando con el código ya actualizado a $(git rev-parse --short HEAD)."
+elif [[ $REINSTALL_MODE -eq 1 ]]; then
+    if [[ -d .git ]]; then
+        PREV_GIT_COMMIT="$(git rev-parse HEAD)"
+        log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
+        RAMA_ACTUAL="$(git rev-parse --abbrev-ref HEAD)"
+        log_warning "--reinstall: se descartará cualquier cambio local de código (git reset --hard)"
+        run git fetch --all
+        # Firma del commit (opt-in: solo si existe el fichero de firmantes, ver scripts/verificar_firma.sh)
+        if [[ -f scripts/verificar_firma.sh ]] && ! bash scripts/verificar_firma.sh "origin/${RAMA_ACTUAL}"; then
+            log_error "Se aborta: el código a instalar no está firmado por un firmante de confianza."
+            exit 1
+        fi
+        run git reset --hard "origin/${RAMA_ACTUAL}"
+        log_success "Código reinstalado desde origin/${RAMA_ACTUAL} a $(git rev-parse --short HEAD)"
+        # El git reset de arriba puede haber modificado este propio fichero:
+        # bash ya tiene bufferizado en memoria el resto del script leído
+        # ANTES del reset, así que seguir sin más ejecutaría código
+        # potencialmente obsoleto. Se relanza para garantizar que el resto
+        # de pasos corre con el contenido ya actualizado en disco.
+        log_info "Relanzando install.sh para aplicar cualquier cambio en el propio script..."
+        STOCKHOGAR_REEXEC=1 STOCKHOGAR_PREV_GIT_COMMIT="$PREV_GIT_COMMIT" \
+            exec bash "$SCRIPT_DIR/install.sh" "${ORIGINAL_ARGS[@]}"
+    else
+        log_warning "No es un repositorio git; se omite git fetch/reset"
+    fi
+elif [[ $UPDATE_MODE -eq 1 ]]; then
+    if [[ -d .git ]]; then
+        if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+            log_error "Hay cambios locales sin commitear; 'git pull --ff-only' podría fallar o perder trabajo."
+            log_error "Guárdalos (git stash) o descártalos (git checkout -- .) antes de usar --update."
+            log_error "Ficheros afectados:"
+            git diff --name-only 2>/dev/null | tee -a "$LOG_FILE"
+            exit 1
+        fi
+        PREV_GIT_COMMIT="$(git rev-parse HEAD)"
+        log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
+        run git fetch origin
+        RAMA_SEGUIDA="$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null || echo origin/produccion)"
+        if [[ -f scripts/verificar_firma.sh ]] && ! bash scripts/verificar_firma.sh "$RAMA_SEGUIDA"; then
+            log_error "Se aborta: el código a instalar no está firmado por un firmante de confianza."
+            exit 1
+        fi
+        run git pull --ff-only
+        log_success "Código actualizado a $(git rev-parse --short HEAD)"
+        # Mismo motivo que en --reinstall: garantizar que lo que sigue corre
+        # con el script ya actualizado, no con lo que bash tenía bufferizado.
+        log_info "Relanzando install.sh para aplicar cualquier cambio en el propio script..."
+        STOCKHOGAR_REEXEC=1 STOCKHOGAR_PREV_GIT_COMMIT="$PREV_GIT_COMMIT" \
+            exec bash "$SCRIPT_DIR/install.sh" "${ORIGINAL_ARGS[@]}"
+    else
+        log_warning "No es un repositorio git; se omite git pull"
+    fi
+else
+    log_info "Modo instalación (usa --update para además hacer git pull, o --reinstall para descartar cambios locales)"
+fi
+
+step_end
+
 ################################################################################
 step_start "Instalar Docker"
 ################################################################################
@@ -691,10 +760,10 @@ else
     # Puerto real de SSH (puede no ser el 22) y si hay un sshd escuchando.
     SSH_PUERTO=""
     if check_cmd sshd; then
-        SSH_PUERTO="$($SUDO sshd -T 2>/dev/null | awk '/^port /{print $2; exit}')"
+        SSH_PUERTO="$($SUDO sshd -T 2>/dev/null | awk '/^port /{print $2; exit}' || true)"
     fi
     if [[ -z "$SSH_PUERTO" ]] && check_cmd ss; then
-        SSH_PUERTO="$(ss -ltnp 2>/dev/null | awk '/sshd/{n=split($4,a,":"); print a[n]; exit}')"
+        SSH_PUERTO="$(ss -ltnp 2>/dev/null | awk '/sshd/{n=split($4,a,":"); print a[n]; exit}' || true)"
     fi
     SSH_ACTIVO=0
     if systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null; then
@@ -826,14 +895,14 @@ EOF
         else
             SSH_CONF_ANTERIOR=""
             if [[ -f "$SSH_CONF" ]]; then SSH_CONF_ANTERIOR="$(cat "$SSH_CONF")"; fi
-            $SUDO install -m 644 "$SSH_CONF_NUEVA" "$SSH_CONF"
+            $SUDO install -m 644 "$SSH_CONF_NUEVA" "$SSH_CONF" || log_warning "No se pudo escribir $SSH_CONF"
             if $SUDO sshd -t >> "$LOG_FILE" 2>&1; then
                 $SUDO rm -f "$SSH_CONF_ANTIGUO"
                 { $SUDO systemctl reload ssh 2>/dev/null || $SUDO systemctl reload sshd 2>/dev/null; } >> "$LOG_FILE" 2>&1 \
                     && log_success "SSH endurecido (intentos limitados, sin root$([[ "$SSH_SOLO_CLAVES" -eq 1 ]] && echo ', solo claves'))" \
                     || log_warning "SSH configurado pero no se pudo recargar; se aplicará al reiniciar el servicio"
                 # ¿Queda de verdad en vigor? (otro fichero o el sshd_config pueden anular lo pedido)
-                SSH_EFECTIVO="$($SUDO sshd -T 2>/dev/null)"
+                SSH_EFECTIVO="$($SUDO sshd -T 2>/dev/null || true)"
                 for PAR_SSH in "maxauthtries 6" "permitemptypasswords no" "x11forwarding no"; do
                     grep -qi "^${PAR_SSH}\$" <<<"$SSH_EFECTIVO" \
                         || log_warning "SSH: '${PAR_SSH}' NO está en vigor (¿otro fichero de sshd_config.d lo anula?). Revisa: sudo sshd -T"
@@ -944,8 +1013,8 @@ print(json.dumps(d, indent=2, sort_keys=True))
             if [[ -f "$DAEMON_JSON" ]] && cmp -s "$DAEMON_NUEVO" "$DAEMON_JSON"; then
                 log_info "daemon.json de Docker ya endurecido"
             else
-                if [[ -f "$DAEMON_JSON" ]]; then $SUDO cp "$DAEMON_JSON" "${DAEMON_JSON}.dreame.bak"; fi
-                $SUDO mkdir -p /etc/docker && $SUDO install -m 644 "$DAEMON_NUEVO" "$DAEMON_JSON"
+                if [[ -f "$DAEMON_JSON" ]]; then $SUDO cp "$DAEMON_JSON" "${DAEMON_JSON}.dreame.bak" || true; fi
+                { $SUDO mkdir -p /etc/docker && $SUDO install -m 644 "$DAEMON_NUEVO" "$DAEMON_JSON"; } || log_warning "No se pudo escribir $DAEMON_JSON"
                 if [[ -z "$(docker ps -q 2>/dev/null)" ]]; then
                     $SUDO systemctl restart docker >> "$LOG_FILE" 2>&1 \
                         && log_success "daemon.json de Docker endurecido (no-new-privileges, live-restore, logs rotados)" \
@@ -976,7 +1045,7 @@ print(json.dumps(d, indent=2, sort_keys=True))
     # 9) AVISOS (no se cambia nada: dependen del usuario).
     #    - Contraseña por defecto del usuario `pi`.
     if id pi >/dev/null 2>&1; then
-        HASH_PI="$($SUDO awk -F: '$1=="pi"{print $2}' /etc/shadow 2>/dev/null)"
+        HASH_PI="$($SUDO awk -F: '$1=="pi"{print $2}' /etc/shadow 2>/dev/null || true)"
         if [[ "$HASH_PI" == \$* ]] && check_cmd python3; then
             printf '%s' "$HASH_PI" | python3 -c '
 import sys
@@ -986,14 +1055,14 @@ except ImportError:
     sys.exit(2)
 h = sys.stdin.read()
 sys.exit(0 if crypt.crypt("raspberry", h) == h else 1)
-' 2>/dev/null
-            if [[ $? -eq 0 ]]; then
+' 2>/dev/null && PI_DEFECTO=1 || PI_DEFECTO=0
+            if [[ "$PI_DEFECTO" -eq 1 ]]; then
                 log_warning "El usuario 'pi' tiene la contraseña POR DEFECTO (raspberry): cualquiera en tu red entra por SSH. Cámbiala YA: passwd"
             fi
         fi
     fi
     #    - Quien está en el grupo docker equivale a root.
-    MIEMBROS_DOCKER="$(getent group docker 2>/dev/null | cut -d: -f4)"
+    MIEMBROS_DOCKER="$(getent group docker 2>/dev/null | cut -d: -f4 || true)"
     if [[ -n "$MIEMBROS_DOCKER" ]]; then
         log_info "Usuarios del grupo docker (equivale a ser root): $MIEMBROS_DOCKER"
     fi
@@ -1003,7 +1072,7 @@ sys.exit(0 if crypt.crypt("raspberry", h) == h else 1)
 
     # 10) Informe de lo que escucha en la red (lo que no debería estar ahí se ve aquí).
     if check_cmd ss; then
-        ABIERTOS="$(ss -ltnH 2>/dev/null | awk '{print $4}' | grep -vE '^(127\.|\[::1\]|::1)' | sed 's/.*://' | sort -un | tr '\n' ' ')"
+        ABIERTOS="$(ss -ltnH 2>/dev/null | awk '{print $4}' | grep -vE '^(127\.|\[::1\]|::1)' | sed 's/.*://' | sort -un | tr '\n' ' ' || true)"
         log_info "Puertos TCP escuchando fuera de loopback: ${ABIERTOS:-ninguno}"
     fi
 fi
@@ -1084,73 +1153,6 @@ if [[ -n "$MISSING_COPY" ]]; then
     exit 1
 fi
 log_success "Dockerfile.frontend copia todas las carpetas que importa el alias '@/'"
-
-step_end
-
-################################################################################
-step_start "Actualizar código (git pull)"
-################################################################################
-
-if [[ "${STOCKHOGAR_REEXEC:-0}" -eq 1 ]]; then
-    # Segunda pasada tras el re-exec de abajo: el código ya se actualizó en
-    # la primera pasada, solo se recupera PREV_GIT_COMMIT para el rollback.
-    PREV_GIT_COMMIT="${STOCKHOGAR_PREV_GIT_COMMIT:-}"
-    log_info "Continuando con el código ya actualizado a $(git rev-parse --short HEAD)."
-elif [[ $REINSTALL_MODE -eq 1 ]]; then
-    if [[ -d .git ]]; then
-        PREV_GIT_COMMIT="$(git rev-parse HEAD)"
-        log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
-        RAMA_ACTUAL="$(git rev-parse --abbrev-ref HEAD)"
-        log_warning "--reinstall: se descartará cualquier cambio local de código (git reset --hard)"
-        run git fetch --all
-        # Firma del commit (opt-in: solo si existe el fichero de firmantes, ver scripts/verificar_firma.sh)
-        if [[ -f scripts/verificar_firma.sh ]] && ! bash scripts/verificar_firma.sh "origin/${RAMA_ACTUAL}"; then
-            log_error "Se aborta: el código a instalar no está firmado por un firmante de confianza."
-            exit 1
-        fi
-        run git reset --hard "origin/${RAMA_ACTUAL}"
-        log_success "Código reinstalado desde origin/${RAMA_ACTUAL} a $(git rev-parse --short HEAD)"
-        # El git reset de arriba puede haber modificado este propio fichero:
-        # bash ya tiene bufferizado en memoria el resto del script leído
-        # ANTES del reset, así que seguir sin más ejecutaría código
-        # potencialmente obsoleto. Se relanza para garantizar que el resto
-        # de pasos corre con el contenido ya actualizado en disco.
-        log_info "Relanzando install.sh para aplicar cualquier cambio en el propio script..."
-        STOCKHOGAR_REEXEC=1 STOCKHOGAR_PREV_GIT_COMMIT="$PREV_GIT_COMMIT" \
-            exec bash "$SCRIPT_DIR/install.sh" "${ORIGINAL_ARGS[@]}"
-    else
-        log_warning "No es un repositorio git; se omite git fetch/reset"
-    fi
-elif [[ $UPDATE_MODE -eq 1 ]]; then
-    if [[ -d .git ]]; then
-        if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
-            log_error "Hay cambios locales sin commitear; 'git pull --ff-only' podría fallar o perder trabajo."
-            log_error "Guárdalos (git stash) o descártalos (git checkout -- .) antes de usar --update."
-            log_error "Ficheros afectados:"
-            git diff --name-only 2>/dev/null | tee -a "$LOG_FILE"
-            exit 1
-        fi
-        PREV_GIT_COMMIT="$(git rev-parse HEAD)"
-        log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
-        run git fetch origin
-        RAMA_SEGUIDA="$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null || echo origin/produccion)"
-        if [[ -f scripts/verificar_firma.sh ]] && ! bash scripts/verificar_firma.sh "$RAMA_SEGUIDA"; then
-            log_error "Se aborta: el código a instalar no está firmado por un firmante de confianza."
-            exit 1
-        fi
-        run git pull --ff-only
-        log_success "Código actualizado a $(git rev-parse --short HEAD)"
-        # Mismo motivo que en --reinstall: garantizar que lo que sigue corre
-        # con el script ya actualizado, no con lo que bash tenía bufferizado.
-        log_info "Relanzando install.sh para aplicar cualquier cambio en el propio script..."
-        STOCKHOGAR_REEXEC=1 STOCKHOGAR_PREV_GIT_COMMIT="$PREV_GIT_COMMIT" \
-            exec bash "$SCRIPT_DIR/install.sh" "${ORIGINAL_ARGS[@]}"
-    else
-        log_warning "No es un repositorio git; se omite git pull"
-    fi
-else
-    log_info "Modo instalación (usa --update para además hacer git pull, o --reinstall para descartar cambios locales)"
-fi
 
 step_end
 
