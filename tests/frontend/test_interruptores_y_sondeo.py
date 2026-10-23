@@ -46,6 +46,12 @@ class InterruptoresTests(unittest.TestCase):
         # recorrido = ancho interior (3.5 - 2*0.25 = 3.0) - pulgar (1.5) = 1.5rem
         self.assertIn("translateX(1.5rem)", self.css)
 
+    def test_la_regla_global_de_botones_no_agranda_la_pista(self):
+        """`button { min-height: 44px }` (globals.css) dejaba la pista en 56x44 en produccion."""
+        pista = re.search(r"\.interruptor \{(.*?)\n  \}", self.css, re.S).group(1)
+        self.assertIn("min-height: 0", pista)
+        self.assertIn("min-width: 0", pista)
+
     def test_apagado_se_ve_sobre_la_tarjeta_en_claro_y_oscuro(self):
         pista = re.search(r"\.interruptor \{(.*?)\n  \}", self.css, re.S).group(1)
         self.assertIn("var(--color-muted-foreground)", pista)
