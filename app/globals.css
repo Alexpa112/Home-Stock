@@ -307,6 +307,10 @@
     flex-shrink: 0;
     width: 3.5rem;
     height: 2rem;
+    /* La regla global de botones fija min-height: 44px, y la pista salia de 56x44 (gorda y
+       achatada). La zona tactil de 44 px ya la da ::before; el dibujo mide 32. */
+    min-height: 0;
+    min-width: 0;
     padding: 0.25rem;
     border-radius: 9999px;
     background: color-mix(in srgb, var(--color-muted-foreground) 38%, var(--color-card));
