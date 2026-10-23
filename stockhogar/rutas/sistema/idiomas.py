@@ -23,6 +23,7 @@ def _clave_categoria(nombre):
 
 
 @bp.route("/disponibles", methods=["GET"])
+@requerir_sesion
 @manejo_errores
 def listar_idiomas():
     """Lista idiomas disponibles."""
@@ -90,6 +91,7 @@ def obtener_idioma():
 
 
 @bp.route("/traducir", methods=["POST"])
+@requerir_sesion
 @manejo_errores
 def traducir_claves():
     """Traduce múltiples claves a un idioma.

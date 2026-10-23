@@ -121,6 +121,16 @@ class SshYFirewallTests(unittest.TestCase):
     def test_el_reinicio_automatico_es_opt_in(self):
         self.assertIn('DREAME_REINICIO_AUTOMATICO:-0}" == "1"', self.paso)
 
+    def test_ssh_con_registro_detallado_y_sin_reenvio_de_agente(self):
+        for marca in ("AllowAgentForwarding no", "LogLevel VERBOSE", "MaxSessions 4"):
+            self.assertIn(marca, self.paso, marca)
+        # el reenvio de puertos NO se desactiva: el usuario puede usarlo para llegar al panel
+        self.assertNotIn("AllowTcpForwarding no", self.paso)
+
+    def test_protocolos_en_desuso_y_registro_del_cortafuegos(self):
+        for marca in ("install dccp /bin/true", "install sctp /bin/true", "ufw logging low"):
+            self.assertIn(marca, self.paso, marca)
+
     def test_servicios_innecesarios(self):
         self.assertIn("cups cups-browsed rpcbind", self.paso)
 

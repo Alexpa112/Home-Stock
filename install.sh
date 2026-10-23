@@ -852,6 +852,16 @@ EOF
 * hard core 0
 EOF
 
+    # Protocolos de red en desuso que un servidor doméstico no usa y que han tenido fallos graves de
+    # kernel: se impide que se carguen (no afecta a TCP/UDP/IPv6, Docker ni al túnel).
+    escribir_si_cambia /etc/modprobe.d/dreame-protocolos.conf <<'EOF' && log_success "Protocolos de red en desuso bloqueados (dccp, sctp, rds, tipc)"
+# Dreame! (install.sh)
+install dccp /bin/true
+install sctp /bin/true
+install rds /bin/true
+install tipc /bin/true
+EOF
+
     # 3) SSH más estricto. Un fichero propio en sshd_config.d (no se edita el sshd_config del
     #    sistema) que se valida con `sshd -t` antes de recargar. Se llama 00-dreame.conf, NO 99:
     #    sshd se queda con el PRIMER valor que lee de cada clave y los ficheros se leen en orden
@@ -884,6 +894,9 @@ EOF
             echo "ClientAliveInterval 300"
             echo "ClientAliveCountMax 2"
             echo "PermitEmptyPasswords no"
+            echo "AllowAgentForwarding no"
+            echo "MaxSessions 4"
+            echo "LogLevel VERBOSE"
             # Solo se prohíbe root si quien instala NO es root: si no, nadie más podría entrar.
             if [[ "$(id -u)" -ne 0 ]]; then echo "PermitRootLogin no"; fi
             if [[ "$SSH_SOLO_CLAVES" -eq 1 ]]; then echo "PasswordAuthentication no"; echo "KbdInteractiveAuthentication no"; fi
@@ -977,6 +990,7 @@ EOF
                 {
                     $SUDO ufw default deny incoming \
                     && $SUDO ufw default allow outgoing \
+                    && $SUDO ufw logging low \
                     && $SUDO ufw --force enable
                 } >> "$LOG_FILE" 2>&1 \
                     && log_success "Cortafuegos (ufw) activo: entrante denegado salvo SSH${SSH_PUERTO:+ (puerto $SSH_PUERTO)} y red local al frontend" \

@@ -24,7 +24,10 @@ def listar_gastos():
     if not hogar_id:
         return APIResponse.success([])
 
-    generar_gastos_recurrentes_pendientes(db, hogar_id, session.get("usuario_id"))
+    # Generar los recurrentes pendientes ESCRIBE en la BD: un GET de un rol de solo
+    # lectura (ver/comprar) no debe mutar nada; los genera el siguiente editor/propietario.
+    if hogar_actual_con_permiso(db, session, nivel_requerido="editar"):
+        generar_gastos_recurrentes_pendientes(db, hogar_id, session.get("usuario_id"))
 
     gastos = db.execute(
         f"""SELECT {COLUMNAS_GASTO}, COALESCE(u.nombre, u.nombre_usuario) AS pagador_nombre
