@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [dev2, produccion, main]
 
+# M-21: declarar permisos explícitos en vez de heredar los del repo.
+# gitleaks-action solo necesita lectura de contenido; los demás jobs no
+# usan GITHUB_TOKEN.
+permissions:
+  contents: read
+
 jobs:
   test-python:
     runs-on: ubuntu-latest
@@ -14,10 +20,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      # Los tests de OCR local (tesseract-ocr, ver Dockerfile.raspbian) mockean
-      # el motor de reconocimiento; no necesitan el binario real instalado en
-      # el runner para pasar.
+      # La mayoria de tests de OCR mockean el motor de reconocimiento, pero
+      # tests/escaner/test_escaner_tesseract_real.py pasa tickets sinteticos por
+      # Tesseract DE VERDAD (los mismos paquetes que Dockerfile y
+      # Dockerfile.raspbian). Sin el binario esos tests se saltan en silencio.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils fonts-dejavu-core
       - run: pip install -r requirements.txt -r requirements-dev.txt
+      # Lector neuronal de tickets, sin sus dependencias (ver requirements.txt)
+      - run: pip install --no-deps rapidocr-onnxruntime==1.4.4
       # argostranslate arrastra transitivamente torch/ctranslate2/onnxruntime
       # junto con la OpenMP propia de opencv-python-headless. Los tests
       # siempre pasan, pero el proceso revienta al cerrar Python (SIGABRT o
@@ -27,7 +37,15 @@ jobs:
       # saltandose ese cierre; KMP_DUPLICATE_LIB_OK=TRUE se deja tambien
       # puesto que mitiga el caso SIGABRT antes de llegar siquiera a esa
       # salida forzada.
-      - run: python scripts/ci/run_tests_safe.py tests/ -q
+      # Los tests que fallan se vuelcan ademas como anotaciones (::error) para
+      # poder leerlos desde la API de GitHub sin descargar el log del job.
+      - run: |
+          set +e
+          python scripts/ci/run_tests_safe.py tests/ -q -rfE --tb=short 2>&1 | tee pytest.log
+          rc=${PIPESTATUS[0]}
+          grep -E '^(FAILED|ERROR) ' pytest.log | head -25 | cut -c1-400 | while IFS= read -r l; do echo "::error::$l"; done
+          tail -n 40 pytest.log | cut -c1-300 | while IFS= read -r l; do echo "::warning::$l"; done
+          exit $rc
         env:
           KMP_DUPLICATE_LIB_OK: "TRUE"
 
@@ -39,32 +57,45 @@ jobs:
         with:
           node-version: "20"
       - run: npm ci
-      # jest.config.js (legacy, JS vanilla) no tiene tests reales ahora mismo
-      # (ver su comentario sobre stockhogar/static/modules); solo se ejecuta
-      # el proyecto de jest.config.lib.js (lib/**/__tests__, TS).
+      # jest.config.lib.js es ya la unica config (jest.config.js apuntaba a
+      # stockhogar/static, borrado en la migracion a Next, y se ha eliminado).
       - run: npx jest -c jest.config.lib.js
 
   audit-deps:
     runs-on: ubuntu-latest
-    # No bloquea el pipeline: avisa de vulnerabilidades en dependencias de
-    # terceros que no controlamos directamente, sin impedir un merge por algo
-    # que no se puede arreglar en el acto. Revisar los avisos igualmente.
-    continue-on-error: true
+    # A-11: bloquea el pipeline si encuentra vulnerabilidades Críticas o Altas.
+    # pip-audit por defecto solo reporta, sin bloquear; se añade --desc para
+    # mostrar detalles. npm audit --audit-level=high ya bloquea.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: pip install pip-audit
-      # PYSEC-2026-3075: stanza 1.10.1 pinned by argostranslate (latest 1.x);
-      # no upstream fix available until argostranslate releases a version that
-      # supports stanza>=1.12.2. Ignored until then.
-      - run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-3075
+      # PYSEC-2026-3075 (stanza 1.10.1): torch.load con fallback insguro solo si
+      # se cargan ficheros pretrain .pt de origen no confiable; argostranslate
+      # fija stanza==1.10.1 exacto y solo usa sus modelos de traduccion
+      # empaquetados, nunca pretrain files externos, asi que no es explotable
+      # aqui. Sin fix disponible: la ultima argostranslate (1.11.0) sigue
+      # pinneando esa version exacta.
+      - run: pip-audit -r requirements.txt --desc --ignore-vuln PYSEC-2026-3075
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - run: npm ci
-      - run: npm audit --audit-level=high
+      # --omit=dev: solo se auditan las dependencias que viajan en produccion.
+      # Las 5 altas restantes (braces -> micromatch -> fast-glob ->
+      # @next/eslint-plugin-next -> eslint-config-next) son solo de lint en
+      # desarrollo (DoS por patrones de llaves anidadas) y braces 3.0.3, la
+      # ultima version publicada, sigue afectada: no hay arreglo upstream.
+      - run: |
+          set +e
+          npm audit --omit=dev --audit-level=high 2>&1 | tee npm-audit.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            head -n 60 npm-audit.log | cut -c1-300 | while IFS= read -r l; do echo "::error::$l"; done
+          fi
+          exit $rc
 
   secrets-scan:
     runs-on: ubuntu-latest

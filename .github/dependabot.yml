@@ -13,6 +13,12 @@
 # Este fichero se mantiene IDENTICO en main, dev2 y produccion a proposito: al
 # leerse solo el de la rama por defecto, tenerlo igual en las tres significa
 # que cambiar cual es la rama por defecto no cambia a donde van los PR.
+#
+# `ignore`: versiones que NO se pueden adoptar y cuyos PR salian en rojo siempre.
+#  - node: el frontend usa node:20 (LTS) y @types/node 20; saltar de major (25 no es
+#    LTS) rompe `npm ci` y el build de Next. Se sube a mano al cambiar de LTS.
+#  - python: las imagenes y el CI son Python 3.11; 3.12+ no tiene wheels para algunas
+#    dependencias en armv7l (onnxruntime, opencv) y argostranslate/stanza fijan versiones.
 version: 2
 updates:
   - package-ecosystem: "pip"
@@ -26,9 +32,17 @@ updates:
     target-branch: "dev2"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/"
     target-branch: "dev2"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

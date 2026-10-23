@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [dev2, produccion, main]
 
+# M-21: declarar permisos explícitos. Este workflow solo lee contenido.
+permissions:
+  contents: read
+
 jobs:
   build-backend:
     runs-on: ubuntu-latest
@@ -21,21 +25,36 @@ jobs:
           tags: stockhogar-backend:ci
 
       - name: Escanear vulnerabilidades de la imagen backend (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: stockhogar-backend:ci
           severity: "CRITICAL,HIGH"
-          # exit-code 0 (modo informe): no bloquea el build mientras se decide
-          # el umbral correcto para este proyecto; subir a 1 cuando se quiera
-          # que una vulnerabilidad critica/alta corte el pipeline de verdad.
-          exit-code: "0"
+          format: json
+          list-all-pkgs: true
+          output: trivy.json
+          # A-11: exit-code 1 bloquea si hay vulnerabilidades Críticas o Altas
+          # en la imagen. Las vulnerabilidades de dependencias ya se cubren en
+          # el job audit-deps de ci.yml; este job además detecta las que
+          # pudieran introducir en la construcción propia del Dockerfile.
+          exit-code: "0"  # el bloqueo lo decide anotar_trivy.py (exit 1 si hay hallazgos)
+          # ignore-unfixed: bloquear solo por lo que se puede arreglar. La
+          # imagen base de Debian arrastra CVE sin parche publicado (perl,
+          # ncurses, util-linux... en estado "affected"/"fix_deferred"), que
+          # ningún cambio nuestro puede limpiar: con ellos contando, el job se
+          # quedaba en rojo permanente y enterraba los hallazgos que sí eran
+          # accionables. Se siguen viendo en el log, pero no tumban el build.
+          ignore-unfixed: true
+
+      - name: Anotar y bloquear por hallazgos Trivy (backend)
+        run: python3 scripts/ci/anotar_trivy.py trivy.json
+
 
       - name: Escanear ticket PDF de prueba dentro del contenedor
         run: |
           docker run --rm -v "${{ github.workspace }}/tests/fixtures:/fixtures:ro" \
             stockhogar-backend:ci python3 -c "
           import shutil
-          from stockhogar.rutas.tickets import _convertir_pdf_a_imagen
+          from stockhogar.rutas.escaner.tickets import _convertir_pdf_a_imagen
           from stockhogar.integraciones import ticket_ocr
 
           # /fixtures esta montado solo-lectura; igual que el endpoint real
@@ -54,6 +73,42 @@ jobs:
           print('[OK] Escaneo de ticket PDF funciona en la imagen backend')
           "
 
+  build-backend-raspbian:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Se compila en la arquitectura nativa del runner (amd64), no armv7l:
+      # el objetivo no es probar la imagen final de la Pi, sino que la propia
+      # build (pip install + verificacion de imports de la linea 121) no se
+      # rompa por dependencias desincronizadas con requirements.txt, que es
+      # justo lo que dejo pasar antes a fuzzywuzzy tras migrar a rapidfuzz.
+      - name: Build backend image (Dockerfile.raspbian, verificacion de build)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.raspbian
+          push: false
+          load: true
+          tags: stockhogar-backend-raspbian:ci
+
+      # Esta es la imagen que realmente se publica y se despliega en la Pi
+      # (ver docker-publish.yml), así que también se escanea.
+      - name: Escanear vulnerabilidades de la imagen backend-raspbian (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: stockhogar-backend-raspbian:ci
+          severity: "CRITICAL,HIGH"
+          format: json
+          list-all-pkgs: true
+          output: trivy.json
+          exit-code: "0"  # idem backend
+          # Ver el comentario del escaneo del backend x86_64.
+          ignore-unfixed: true
+
+      - name: Anotar y bloquear por hallazgos Trivy (raspbian)
+        run: python3 scripts/ci/anotar_trivy.py trivy.json
+
+
   build-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -68,8 +123,11 @@ jobs:
           tags: stockhogar-frontend:ci
 
       - name: Escanear vulnerabilidades de la imagen frontend (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: stockhogar-frontend:ci
           severity: "CRITICAL,HIGH"
-          exit-code: "0"
+          # A-11: igual que el backend, bloquea con exit-code 1
+          exit-code: "1"
+          # Ver el comentario del escaneo del backend x86_64.
+          ignore-unfixed: true
