@@ -51,7 +51,7 @@ class DespliegueFijadoPorCommitTests(unittest.TestCase):
         self.assertLess(bloque.index("fijar_env STOCKHOGAR_IMAGE_TAG"), bloque.index("up -d --force-recreate"))
 
     def test_la_firma_se_verifica_antes_de_traer_el_codigo(self):
-        paso = _paso(self.install, "Actualizar código (git pull)", "Crear directorios de datos")
+        paso = _paso(self.install, "Actualizar código (git pull)", "Instalar Docker")
         self.assertEqual(paso.count("bash scripts/verificar_firma.sh"), 2)  # --update y --reinstall
         self.assertLess(paso.index("bash scripts/verificar_firma.sh"), paso.index("run git reset --hard"))
         self.assertLess(paso.rindex("bash scripts/verificar_firma.sh"), paso.index("run git pull --ff-only"))
