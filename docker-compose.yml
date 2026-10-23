@@ -4,7 +4,9 @@ services:
     # imagen precompilada por .github/workflows/docker-publish.yml, evitando
     # compilar en la Pi) como "docker compose build" (compilación local de
     # respaldo si el pull falla o no hay red hacia GHCR).
-    image: ghcr.io/alexpa112/home-stock-backend:latest
+    # STOCKHOGAR_IMAGE_TAG (lo fija install.sh): commit exacto cuyas imagenes se verificaron en
+    # GHCR; vacio = :latest (compilacion local u otra arquitectura).
+    image: ghcr.io/alexpa112/home-stock-backend:${STOCKHOGAR_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.raspbian
@@ -75,7 +77,7 @@ services:
         max-file: "3"
 
   frontend:
-    image: ghcr.io/alexpa112/home-stock-frontend:latest
+    image: ghcr.io/alexpa112/home-stock-frontend:${STOCKHOGAR_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.frontend
@@ -90,7 +92,7 @@ services:
     # cortafuegos real: abierto en 0.0.0.0, cualquier equipo de la red alcanza Next y puede falsear
     # CF-Connecting-IP para esquivar los limites de intentos de login.
     ports:
-      - "${STOCKHOGAR_FRONTEND_BIND:-0.0.0.0}:${STOCKHOGAR_FRONTEND_PORT:-3000}:3000"
+      - "${STOCKHOGAR_FRONTEND_BIND:-127.0.0.1}:${STOCKHOGAR_FRONTEND_PORT:-3000}:3000"
     # service_started (no service_healthy) a proposito: en una Pi el backend tarda
     # 90-120 s en estar healthy, mas que la ventana del HEALTHCHECK de su
     # Dockerfile, y compose abortaria "up" (y install.sh haria rollback) sobre una

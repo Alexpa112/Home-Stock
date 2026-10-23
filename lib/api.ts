@@ -13,7 +13,7 @@
  */
 
 import { marcarMantenimiento } from './mantenimiento'
-import { clearAllCache } from './dataCache'
+import { clearAllCache, sincronizarCacheConUsuario } from './dataCache'
 import { compartirEnVuelo, olvidarEnVuelo } from './peticionesEnVuelo'
 import { esperarTrabajo } from './esperarTrabajo'
 
@@ -188,10 +188,16 @@ export async function apiCall<T = any>(endpoint: string, options: FetchOptions =
 // ===== Autenticación (stockhogar/rutas/cuenta/auth.py) =====
 export const auth = {
   // Varias pantallas/contextos lo piden a la vez al cargar: comparten la peticion.
-  estado: () => compartirEnVuelo('auth.estado', () => apiCall('/api/auth/estado')),
+  estado: () => compartirEnVuelo('auth.estado', async () => {
+    const datos: any = await apiCall('/api/auth/estado')
+    // La cache de pantallas pertenece a un usuario: si cambio (o no hay sesion), se borra.
+    sincronizarCacheConUsuario(datos?.usuario ? Number(datos.usuario_id) : null)
+    return datos
+  }),
 
   login: async (usuario: string, password: string) => {
     const result: any = await apiCall('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, password }) })
+    clearAllCache()
     if (result?.csrf_token) {
       establecerCsrfToken(result.csrf_token)
     } else {
@@ -205,6 +211,7 @@ export const auth = {
       method: 'POST',
       body: JSON.stringify({ usuario, password, acepta_terminos: aceptaTerminos }),
     })
+    clearAllCache()
     if (result?.csrf_token) {
       establecerCsrfToken(result.csrf_token)
     } else {
@@ -217,6 +224,7 @@ export const auth = {
 
   verificarCodigo: async (codigo: string) => {
     const result: any = await apiCall('/api/auth/verificar-codigo', { method: 'POST', body: JSON.stringify({ codigo }) })
+    clearAllCache()
     if (result?.csrf_token) {
       establecerCsrfToken(result.csrf_token)
     } else {
@@ -241,10 +249,13 @@ export const auth = {
     apiCall('/api/auth/preferencia-ocr', { method: 'POST', body: JSON.stringify({ ocr_local: ocrLocal }) }),
 
   logout: async () => {
-    const resultado = await apiCall('/api/auth/logout', { method: 'POST' })
-    clearAllCache()
-    resetearCsrfToken()
-    return resultado
+    // finally: aunque el logout falle por la red, los datos del usuario no se quedan en el navegador.
+    try {
+      return await apiCall('/api/auth/logout', { method: 'POST' })
+    } finally {
+      clearAllCache()
+      resetearCsrfToken()
+    }
   },
 
   actualizarPerfil: (datos: { usuario?: string; nombre?: string; password?: string; email?: string; password_actual?: string }) =>

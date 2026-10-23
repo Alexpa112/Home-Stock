@@ -57,8 +57,10 @@ if ! flock -n 200; then
     exit 0
 fi
 
-if ! git fetch origin "$BRANCH" --quiet 2>/tmp/auto_update_fetch_err; then
-    echo "[$(ts)] [ERROR] Fallo al hacer git fetch: $(cat /tmp/auto_update_fetch_err)"
+FETCH_ERR="$(mktemp)"
+trap 'rm -f "$FETCH_ERR"' EXIT
+if ! git fetch origin "$BRANCH" --quiet 2>"$FETCH_ERR"; then
+    echo "[$(ts)] [ERROR] Fallo al hacer git fetch: $(cat "$FETCH_ERR")"
     exit 1
 fi
 
@@ -75,6 +77,9 @@ if [[ "$LOCAL_REV" == "$REMOTE_REV" ]]; then
     # pasada (un pull sin novedades solo consulta manifiestos) y, si hay imagen
     # nueva, se recrea el stack con el mismo install.sh --update.
     refrescar_imagenes() {
+        # Con las imagenes fijadas a un commit (STOCKHOGAR_IMAGE_TAG en .env, lo pone install.sh)
+        # son inmutables: no hay ":latest" que refrescar.
+        if grep -qE '^STOCKHOGAR_IMAGE_TAG=.+' .env 2>/dev/null; then return 0; fi
         local arch; arch="$(uname -m)"
         # docker-publish.yml solo publica linux/arm/v7; en otras arquitecturas se
         # compila en local y no hay nada que descargar.
@@ -118,6 +123,24 @@ echo "[$(ts)] [INFO] Nuevos commits en origin/$BRANCH ($LOCAL_REV -> $REMOTE_REV
 if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
     echo "[$(ts)] [ERROR] Hay cambios locales sin commitear; no se puede actualizar automáticamente. Revísalo a mano."
     exit 1
+fi
+
+# 1) Firma (opt-in, ver scripts/verificar_firma.sh): un commit sin firma de confianza NO se despliega.
+if ! bash "$SCRIPT_DIR/verificar_firma.sh" "origin/$BRANCH" 2>>"$REPO_DIR/logs/auto_update.log"; then
+    echo "[$(ts)] [ERROR] Verificación de firma fallida para $REMOTE_REV: se omite la actualización (revisa quién empujó a $BRANCH)."
+    exit 1
+fi
+
+# 2) Imagenes: en armv7l se despliegan las publicadas para ESTE commit. Si todavia no estan (el
+#    commit llega ~15-30 min antes que sus imagenes) se espera al siguiente tick en vez de caer
+#    a compilar en la Pi (45-60 min). 2 = no se puede saber: se sigue como antes.
+if [[ "$(uname -m)" == armv7l || "$(uname -m)" == armv6l ]]; then
+    bash "$SCRIPT_DIR/imagen_publicada.sh" "$REMOTE_REV"
+    case $? in
+        1) echo "[$(ts)] [INFO] Las imágenes de $REMOTE_REV aún no están publicadas en GHCR; se reintenta en el próximo ciclo."
+           exit 0 ;;
+        2) echo "[$(ts)] [WARN] No se pudo comprobar si las imágenes de $REMOTE_REV están publicadas; se actualiza igualmente." ;;
+    esac
 fi
 
 if ./install.sh --update; then

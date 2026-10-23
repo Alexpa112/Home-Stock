@@ -427,13 +427,15 @@ class InfraestructuraTests(unittest.TestCase):
 
     def test_el_frontend_se_publica_en_la_interfaz_que_diga_el_env(self):
         puerto = self.compose["services"]["frontend"]["ports"][0]
-        self.assertTrue(puerto.startswith("${STOCKHOGAR_FRONTEND_BIND:-0.0.0.0}:"), puerto)
+        # sin valor en .env el frontend NO queda abierto a la red: el valor por defecto es loopback
+        self.assertTrue(puerto.startswith("${STOCKHOGAR_FRONTEND_BIND:-127.0.0.1}:"), puerto)
         self.assertTrue(self.compose["services"]["stockhogar"]["ports"][0].startswith("127.0.0.1:"))
 
     def test_trivy_esta_fijado_a_una_version(self):
         wf = _leer(".github", "workflows", "docker-build.yml")
         self.assertNotIn("trivy-action@master", wf)
-        self.assertEqual(len(re.findall(r"aquasecurity/trivy-action@v\d+\.\d+\.\d+", wf)), 3)
+        # fijado por SHA de commit (una etiqueta se puede mover), con la version en un comentario
+        self.assertEqual(len(re.findall(r"aquasecurity/trivy-action@[0-9a-f]{40} # v\d+\.\d+\.\d+", wf)), 3)
 
     def test_get_docker_va_a_un_fichero_temporal_impredecible(self):
         self.assertNotIn("/tmp/get-docker.sh", self.install)
@@ -453,7 +455,7 @@ class InstaladorEndurecidoTests(unittest.TestCase):
 
     def test_hace_lo_que_promete(self):
         for marca in ("unattended-upgrades", "20auto-upgrades", "fail2ban", "ufw default deny incoming",
-                      "ufw limit", "sshd_config.d/99-dreame.conf", "99-dreame-seguridad.conf",
+                      "ufw limit", "sshd_config.d/00-dreame.conf", "99-dreame-seguridad.conf",
                       "net.ipv4.tcp_syncookies", "net.ipv4.conf.all.rp_filter", "chmod 600 .env"):
             self.assertIn(marca, self.paso, marca)
 
@@ -465,7 +467,9 @@ class InstaladorEndurecidoTests(unittest.TestCase):
         self.assertIn("se revierte", self.paso)
         # el cortafuegos exige una regla de SSH confirmada antes de activarse
         self.assertIn("NO se activa el cortafuegos", self.paso)
-        self.assertIn("grep -qE", self.paso[self.paso.index("ufw status"):])
+        self.assertIn("grep -qE", self.paso[self.paso.index("ufw show added"):])
+        # y las reglas de permiso se anaden ANTES de la politica de denegar
+        self.assertLess(self.paso.index('ufw limit "${SSH_PUERTO}/tcp"'), self.paso.index("ufw default deny incoming"))
         # desactivar la contrasena de SSH es opt-in y exige una clave publica autorizada
         self.assertIn("DREAME_SSH_SOLO_CLAVES", self.paso)
         self.assertIn("authorized_keys", self.paso)
@@ -474,7 +478,7 @@ class InstaladorEndurecidoTests(unittest.TestCase):
         self.assertLess(solo_claves.index("authorized_keys"), solo_claves.index("SSH_SOLO_CLAVES=1"))
 
     def test_root_solo_se_prohibe_si_quien_instala_no_es_root(self):
-        self.assertIn('[[ "$(id -u)" -ne 0 ]] && echo "PermitRootLogin no"', self.paso)
+        self.assertIn('if [[ "$(id -u)" -ne 0 ]]; then echo "PermitRootLogin no"; fi', self.paso)
 
     def test_el_ssh_endurecido_no_toca_el_sshd_config_del_sistema(self):
         self.assertNotIn("/etc/ssh/sshd_config ", self.paso.replace("/etc/ssh/sshd_config.d", ""))

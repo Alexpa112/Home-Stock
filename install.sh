@@ -155,6 +155,8 @@ rollback() {
                 "${DOCKER[@]}" tag "${IMAGE_BASE}:rollback" "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 || RETAG_OK=0
             fi
         done
+        # Las imágenes :rollback llevan el nombre anterior: se vuelve también al pin anterior.
+        if [[ "${PIN_PREVIO_GUARDADO:-0}" -eq 1 ]]; then fijar_env STOCKHOGAR_IMAGE_TAG "${PIN_PREVIO:-}" || true; fi
         if [[ "$RETAG_OK" -eq 1 ]] && "${COMPOSE[@]}" up -d --force-recreate >> "$LOG_FILE" 2>&1; then
             log_warning "Imágenes Docker revertidas a la versión anterior y contenedores recreados."
         else
@@ -617,14 +619,19 @@ step_start "Reforzar la seguridad del sistema"
 
 # Endurece la Raspberry Pi: parches de seguridad automáticos, cortafuegos,
 # bloqueo de intentos de acceso por SSH, SSH más estricto, parámetros de red del
-# kernel y permisos de los ficheros con secretos.
+# kernel, daemon de Docker, volcados de memoria y permisos de los ficheros con
+# secretos. También AVISA (sin cambiar nada) de lo que depende del usuario: la
+# contraseña por defecto de `pi`, el grupo docker y los sudo sin contraseña.
 #
 # Reglas, igual que en la optimización: IDEMPOTENTE, nada es fatal (un fallo se
 # avisa y se sigue) y se omite con DREAME_ENDURECER_SISTEMA=0. Y una regla más:
 # NUNCA dejar al usuario sin acceso. Por eso el cortafuegos no se activa sin una
-# regla de SSH ya confirmada, el SSH solo se recarga si `sshd -t` valida la
-# configuración, y desactivar la contraseña de SSH es opt-in explícito
-# (DREAME_SSH_SOLO_CLAVES=1) y solo si hay una clave pública autorizada.
+# regla de SSH ya confirmada (y las reglas de permiso van ANTES de la política de
+# denegar), el SSH solo se recarga si `sshd -t` valida la configuración (y luego se
+# comprueba con `sshd -T` que lo pedido queda de verdad en vigor), y desactivar la
+# contraseña de SSH es opt-in explícito (DREAME_SSH_SOLO_CLAVES=1) y solo si hay
+# una clave pública autorizada con los permisos que exige sshd.
+#   DREAME_REINICIO_AUTOMATICO=1  reinicio automático a las 04:30 si una actualización lo pide.
 SEGURIDAD_REINICIAR_SSH=0
 
 # ¿Hay un túnel de Cloudflare en esta máquina? Entonces el tráfico público entra
@@ -636,8 +643,38 @@ hay_tunel() {
     docker ps --format '{{.Image}} {{.Names}}' 2>/dev/null | grep -qi cloudflared && return 0
     return 1
 }
+# Valor de una clave de .env, SIN comillas ni espacios ("127.0.0.1" entrecomillado también vale).
+env_previo() { grep -m1 "^${1}=" .env 2>/dev/null | cut -d= -f2- | tr -d "[:space:]\"'" || true; }
+# fijar_env CLAVE VALOR: pone la clave en .env (VALOR vacío = la quita). Reescribe el contenido
+# sobre el mismo fichero para conservar propietario y permisos.
+fijar_env() {
+    local clave="$1" valor="${2:-}" tmp
+    [[ -f .env ]] || return 0
+    tmp="$(mktemp "$SCRIPT_DIR/.env.XXXXXX")" || return 1
+    { grep -v "^${clave}=" .env || true; } > "$tmp"
+    [[ -n "$valor" ]] && printf '%s=%s\n' "$clave" "$valor" >> "$tmp"
+    cat "$tmp" > .env
+    rm -f "$tmp"
+}
+# Permisos de los ficheros con secretos. Se llama aquí y otra vez al final de la instalación,
+# cuando .env y data/ ya existen (en la primera instalación este paso corre ANTES de crearlos).
+ajustar_permisos_secretos() {
+    if [[ -f .env ]]; then chmod 600 .env 2>/dev/null || true; fi
+    for SECRETO in data/secret.json data/vapid_private_key.pem; do
+        if [[ -f "$SECRETO" ]]; then chmod 600 "$SECRETO" 2>/dev/null || true; fi
+    done
+    # data/ solo se cierra si es de uid 1000: es el usuario con el que corre el contenedor (appuser).
+    # Con otro propietario cerrarlo dejaría al contenedor sin acceso a su propia base de datos.
+    if [[ -d data ]] && [[ "$(stat -c %u data 2>/dev/null)" == "1000" ]]; then
+        chmod 750 data 2>/dev/null || true
+        if [[ -d data/backups ]]; then chmod 750 data/backups 2>/dev/null || true; fi
+        if compgen -G 'data/*.db' >/dev/null; then chmod 640 data/*.db 2>/dev/null || true; fi
+        if compgen -G 'data/backups/*' >/dev/null; then chmod 640 data/backups/* 2>/dev/null || true; fi
+    fi
+    if [[ -d "${HOME}/.stockhogar-env-backups" ]]; then chmod 700 "${HOME}/.stockhogar-env-backups" 2>/dev/null || true; fi
+}
+
 # Puerto y enlace del frontend tal como estan (o estaran) en .env
-env_previo() { grep -m1 "^${1}=" .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true; }
 FRONTEND_PORT_FW="$(env_previo STOCKHOGAR_FRONTEND_PORT)"; FRONTEND_PORT_FW="${FRONTEND_PORT_FW:-3000}"
 FRONTEND_BIND_FW="$(env_previo STOCKHOGAR_FRONTEND_BIND)"
 if [[ -z "$FRONTEND_BIND_FW" ]]; then
@@ -663,7 +700,9 @@ else
     if systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null; then
         SSH_ACTIVO=1
     fi
-    [[ "$SSH_ACTIVO" -eq 1 ]] && SSH_PUERTO="${SSH_PUERTO:-22}"
+    if [[ "$SSH_ACTIVO" -eq 1 ]]; then SSH_PUERTO="${SSH_PUERTO:-22}"; fi
+    # IP desde la que se instala (si es por SSH): fail2ban no debe bloquearla.
+    CLIENTE_SSH="${SSH_CONNECTION%% *}"
 
     PAQUETES_SEGURIDAD=()
     check_cmd ufw || PAQUETES_SEGURIDAD+=(ufw)
@@ -679,9 +718,9 @@ else
             || log_warning "No se pudieron instalar todos los paquetes de seguridad; se aplica lo que haya"
     fi
 
-    # 1) Parches de seguridad automáticos. Sin reinicio automático (el watchdog y
-    #    el cron ya recuperan la app; reiniciar de madrugada sin avisar es decisión
-    #    del usuario: Unattended-Upgrade::Automatic-Reboot).
+    # 1) Parches de seguridad automáticos: Debian-Security (por defecto) y el repositorio de
+    #    Raspberry Pi (kernel, firmware). Docker NO entra: actualizar el daemon reinicia los
+    #    contenedores sin avisar. El reinicio automático es opt-in.
     if dpkg -s unattended-upgrades >/dev/null 2>&1; then
         if escribir_si_cambia /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
 APT::Periodic::Update-Package-Lists "1";
@@ -693,6 +732,13 @@ EOF
         else
             log_info "Parches de seguridad automáticos ya activados"
         fi
+        UNATTENDED_EXTRA='Unattended-Upgrade::Origins-Pattern:: "origin=Raspberry Pi Foundation,codename=${distro_codename}";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";'
+        if [[ "${DREAME_REINICIO_AUTOMATICO:-0}" == "1" ]]; then
+            UNATTENDED_EXTRA+=$'\nUnattended-Upgrade::Automatic-Reboot "true";\nUnattended-Upgrade::Automatic-Reboot-Time "04:30";'
+        fi
+        printf '%s\n' "$UNATTENDED_EXTRA" | escribir_si_cambia /etc/apt/apt.conf.d/52dreame-unattended \
+            && log_success "unattended-upgrades: repositorio de Raspberry Pi incluido$([[ "${DREAME_REINICIO_AUTOMATICO:-0}" == "1" ]] && echo ', reinicio automático 04:30')" || true
     fi
 
     # 2) Parámetros de red y del kernel (sin tocar ip_forward: Docker lo necesita).
@@ -713,25 +759,48 @@ net.ipv4.icmp_echo_ignore_broadcasts = 1
 net.ipv4.icmp_ignore_bogus_error_responses = 1
 kernel.kptr_restrict = 2
 kernel.dmesg_restrict = 1
+kernel.unprivileged_bpf_disabled = 1
+kernel.yama.ptrace_scope = 1
 fs.protected_hardlinks = 1
 fs.protected_symlinks = 1
+fs.protected_fifos = 2
+fs.protected_regular = 2
 fs.suid_dumpable = 0
 EOF
     then
+        # sysctl -p sigue con el resto aunque una clave no exista en este kernel (devuelve error al final).
         $SUDO sysctl -p /etc/sysctl.d/99-dreame-seguridad.conf >> "$LOG_FILE" 2>&1 \
             && log_success "Parámetros de red y kernel endurecidos" \
-            || log_warning "Algunos parámetros del kernel no se pudieron aplicar (kernel sin soporte)"
+            || log_warning "Algún parámetro del kernel no se pudo aplicar (kernel sin soporte); el resto sí"
     else
         log_info "Parámetros de seguridad del kernel ya aplicados"
     fi
 
-    # 3) SSH más estricto. Un fichero propio en sshd_config.d (no se edita el
-    #    sshd_config del sistema) que se valida con `sshd -t` antes de recargar.
+    # Sin volcados de memoria (core dumps): un proceso que cae no deja en disco su memoria,
+    # que puede llevar contraseñas y claves.
+    escribir_si_cambia /etc/security/limits.d/99-dreame.conf <<'EOF' && log_success "Volcados de memoria desactivados"
+# Dreame! (install.sh)
+* hard core 0
+EOF
+
+    # 3) SSH más estricto. Un fichero propio en sshd_config.d (no se edita el sshd_config del
+    #    sistema) que se valida con `sshd -t` antes de recargar. Se llama 00-dreame.conf, NO 99:
+    #    sshd se queda con el PRIMER valor que lee de cada clave y los ficheros se leen en orden
+    #    alfabético, así que un 50-cloud-init.conf con PasswordAuthentication yes anulaba el 99.
     if [[ "$SSH_ACTIVO" -eq 1 ]] && [[ -d /etc/ssh/sshd_config.d ]]; then
         SSH_SOLO_CLAVES=0
         if [[ "${DREAME_SSH_SOLO_CLAVES:-0}" == "1" ]]; then
-            if [[ -s "${HOME}/.ssh/authorized_keys" ]] && grep -qE '^(ssh-|ecdsa-|sk-)' "${HOME}/.ssh/authorized_keys"; then
-                SSH_SOLO_CLAVES=1
+            CLAVES_SSH="${HOME}/.ssh/authorized_keys"
+            if [[ -s "$CLAVES_SSH" ]] && grep -qE '^(ssh-|ecdsa-|sk-)' "$CLAVES_SSH"; then
+                # sshd (StrictModes) ignora authorized_keys si ~ o ~/.ssh o el fichero los puede escribir
+                # otros: con la contraseña ya desactivada eso es quedarse sin acceso.
+                if [[ -n "$(find "${HOME}" "${HOME}/.ssh" "$CLAVES_SSH" -maxdepth 0 -perm /022 2>/dev/null)" ]] \
+                    || [[ "$(stat -c %u "$CLAVES_SSH" 2>/dev/null)" != "$(id -u)" ]]; then
+                    log_warning "DREAME_SSH_SOLO_CLAVES=1 ignorado: ${HOME}, ${HOME}/.ssh o authorized_keys son escribibles por otros (sshd los ignoraría)."
+                    log_warning "Arréglalo con: chmod go-w ~ ; chmod 700 ~/.ssh ; chmod 600 ~/.ssh/authorized_keys"
+                else
+                    SSH_SOLO_CLAVES=1
+                fi
             else
                 log_warning "DREAME_SSH_SOLO_CLAVES=1 ignorado: ${HOME}/.ssh/authorized_keys no tiene ninguna clave pública."
                 log_warning "Copia tu clave primero (ssh-copy-id) o te quedarías sin acceso."
@@ -740,32 +809,45 @@ EOF
         SSH_CONF_NUEVA="$(mktemp)"
         {
             echo "# Dreame! - SSH más estricto (install.sh). Se puede borrar este fichero para revertirlo."
-            echo "MaxAuthTries 4"
+            echo "MaxAuthTries 6"
             echo "LoginGraceTime 30"
             echo "X11Forwarding no"
             echo "ClientAliveInterval 300"
             echo "ClientAliveCountMax 2"
             echo "PermitEmptyPasswords no"
             # Solo se prohíbe root si quien instala NO es root: si no, nadie más podría entrar.
-            [[ "$(id -u)" -ne 0 ]] && echo "PermitRootLogin no"
-            [[ "$SSH_SOLO_CLAVES" -eq 1 ]] && { echo "PasswordAuthentication no"; echo "KbdInteractiveAuthentication no"; }
+            if [[ "$(id -u)" -ne 0 ]]; then echo "PermitRootLogin no"; fi
+            if [[ "$SSH_SOLO_CLAVES" -eq 1 ]]; then echo "PasswordAuthentication no"; echo "KbdInteractiveAuthentication no"; fi
         } > "$SSH_CONF_NUEVA"
-        if [[ -f /etc/ssh/sshd_config.d/99-dreame.conf ]] && cmp -s "$SSH_CONF_NUEVA" /etc/ssh/sshd_config.d/99-dreame.conf; then
+        SSH_CONF=/etc/ssh/sshd_config.d/00-dreame.conf
+        SSH_CONF_ANTIGUO=/etc/ssh/sshd_config.d/99-dreame.conf   # nombre de versiones anteriores
+        if [[ -f "$SSH_CONF" ]] && cmp -s "$SSH_CONF_NUEVA" "$SSH_CONF" && [[ ! -f "$SSH_CONF_ANTIGUO" ]]; then
             log_info "SSH ya endurecido"
         else
             SSH_CONF_ANTERIOR=""
-            [[ -f /etc/ssh/sshd_config.d/99-dreame.conf ]] && SSH_CONF_ANTERIOR="$(cat /etc/ssh/sshd_config.d/99-dreame.conf)"
-            $SUDO install -m 644 "$SSH_CONF_NUEVA" /etc/ssh/sshd_config.d/99-dreame.conf
+            if [[ -f "$SSH_CONF" ]]; then SSH_CONF_ANTERIOR="$(cat "$SSH_CONF")"; fi
+            $SUDO install -m 644 "$SSH_CONF_NUEVA" "$SSH_CONF"
             if $SUDO sshd -t >> "$LOG_FILE" 2>&1; then
+                $SUDO rm -f "$SSH_CONF_ANTIGUO"
                 { $SUDO systemctl reload ssh 2>/dev/null || $SUDO systemctl reload sshd 2>/dev/null; } >> "$LOG_FILE" 2>&1 \
                     && log_success "SSH endurecido (intentos limitados, sin root$([[ "$SSH_SOLO_CLAVES" -eq 1 ]] && echo ', solo claves'))" \
                     || log_warning "SSH configurado pero no se pudo recargar; se aplicará al reiniciar el servicio"
+                # ¿Queda de verdad en vigor? (otro fichero o el sshd_config pueden anular lo pedido)
+                SSH_EFECTIVO="$($SUDO sshd -T 2>/dev/null)"
+                for PAR_SSH in "maxauthtries 6" "permitemptypasswords no" "x11forwarding no"; do
+                    grep -qi "^${PAR_SSH}\$" <<<"$SSH_EFECTIVO" \
+                        || log_warning "SSH: '${PAR_SSH}' NO está en vigor (¿otro fichero de sshd_config.d lo anula?). Revisa: sudo sshd -T"
+                done
+                if [[ "$SSH_SOLO_CLAVES" -eq 1 ]]; then
+                    grep -qi "^passwordauthentication no\$" <<<"$SSH_EFECTIVO" \
+                        || log_warning "SSH: la contraseña SIGUE permitida (otro fichero la activa). Revisa: sudo sshd -T | grep -i passwordauth"
+                fi
             else
                 log_warning "La configuración de SSH no valida (sshd -t): se revierte y no se toca"
                 if [[ -n "$SSH_CONF_ANTERIOR" ]]; then
-                    printf '%s\n' "$SSH_CONF_ANTERIOR" | $SUDO tee /etc/ssh/sshd_config.d/99-dreame.conf > /dev/null
+                    printf '%s\n' "$SSH_CONF_ANTERIOR" | $SUDO tee "$SSH_CONF" > /dev/null
                 else
-                    $SUDO rm -f /etc/ssh/sshd_config.d/99-dreame.conf
+                    $SUDO rm -f "$SSH_CONF"
                 fi
             fi
         fi
@@ -775,14 +857,18 @@ EOF
         fi
     fi
 
-    # 4) fail2ban: bloquea durante una hora a quien falle 5 veces seguidas en SSH.
+    # 4) fail2ban: bloquea durante una hora a quien falle 5 veces seguidas en SSH. No bloquea
+    #    la IP desde la que se está instalando (un despiste de contraseña no debe dejarte fuera).
     if check_cmd fail2ban-client; then
+        IGNORAR_IP="127.0.0.1/8 ::1"
+        if [[ -n "$CLIENTE_SSH" ]]; then IGNORAR_IP+=" $CLIENTE_SSH"; fi
         if escribir_si_cambia /etc/fail2ban/jail.d/dreame.local <<EOF
 [DEFAULT]
 bantime  = 1h
 findtime = 10m
 maxretry = 5
 backend  = systemd
+ignoreip = ${IGNORAR_IP}
 
 [sshd]
 enabled = true
@@ -796,28 +882,34 @@ EOF
             $SUDO systemctl enable --now fail2ban >> "$LOG_FILE" 2>&1 || true
             log_info "fail2ban ya configurado"
         fi
+        # backend=systemd necesita el módulo de Python para leer el diario; si falta, el jail no arranca.
+        if ! $SUDO fail2ban-client status sshd >/dev/null 2>&1; then
+            log_warning "El jail sshd de fail2ban no está activo: instala python3-systemd (sudo apt install python3-systemd) y reinicia fail2ban"
+        fi
     fi
 
-    # 5) Cortafuegos. Política: todo lo entrante denegado salvo SSH y, si el
-    #    frontend escucha en la red local, el puerto del frontend SOLO desde
-    #    redes privadas. OJO: Docker publica sus puertos saltándose ufw, así que
-    #    la protección real del puerto 3000 es su enlace (STOCKHOGAR_FRONTEND_BIND
-    #    en .env, ver el paso de variables de entorno), no esta regla.
+    # 5) Cortafuegos. Política: todo lo entrante denegado salvo SSH y, si el frontend escucha
+    #    en la red local, su puerto SOLO desde redes privadas. Las reglas de PERMISO se añaden
+    #    ANTES de la política de denegar. OJO: Docker publica sus puertos saltándose ufw, así que
+    #    la protección real del puerto 3000 es su enlace (STOCKHOGAR_FRONTEND_BIND en .env), no
+    #    esta regla.
     if check_cmd ufw; then
         if [[ "$SSH_ACTIVO" -eq 1 ]] || [[ "${DREAME_UFW_SIN_SSH:-0}" == "1" ]]; then
-            UFW_ANTES="$($SUDO ufw status verbose 2>/dev/null | head -3 | tr '\n' ' ')"
             {
-                $SUDO ufw default deny incoming \
-                && $SUDO ufw default allow outgoing \
-                && { [[ "$SSH_ACTIVO" -eq 1 ]] && $SUDO ufw limit "${SSH_PUERTO}/tcp" comment 'SSH (limitado)' || true; } \
-                && { if [[ "$FRONTEND_BIND_FW" != "127.0.0.1" ]]; then
-                         for RED_PRIVADA in 192.168.0.0/16 10.0.0.0/8 172.16.0.0/12; do
-                             $SUDO ufw allow from "$RED_PRIVADA" to any port "$FRONTEND_PORT_FW" proto tcp comment 'Dreame! frontend (red local)' || true
-                         done
-                     fi; }
-            } >> "$LOG_FILE" 2>&1 || log_warning "No se pudieron definir todas las reglas del cortafuegos"
-            if $SUDO ufw status 2>/dev/null | grep -qE "${SSH_PUERTO:-22}/tcp.*(ALLOW|LIMIT)" || [[ "$SSH_ACTIVO" -eq 0 ]]; then
-                $SUDO ufw --force enable >> "$LOG_FILE" 2>&1 \
+                if [[ "$SSH_ACTIVO" -eq 1 ]]; then $SUDO ufw limit "${SSH_PUERTO}/tcp" comment 'SSH (limitado)' || true; fi
+                if [[ "$FRONTEND_BIND_FW" != "127.0.0.1" ]]; then
+                    for RED_PRIVADA in 192.168.0.0/16 10.0.0.0/8 172.16.0.0/12; do
+                        $SUDO ufw allow from "$RED_PRIVADA" to any port "$FRONTEND_PORT_FW" proto tcp comment 'Dreame! frontend (red local)' || true
+                    done
+                fi
+            } >> "$LOG_FILE" 2>&1
+            # `ufw show added` lista las reglas aunque ufw aún esté inactivo.
+            if [[ "$SSH_ACTIVO" -eq 0 ]] || $SUDO ufw show added 2>/dev/null | grep -qE "ufw (limit|allow) ${SSH_PUERTO}/tcp"; then
+                {
+                    $SUDO ufw default deny incoming \
+                    && $SUDO ufw default allow outgoing \
+                    && $SUDO ufw --force enable
+                } >> "$LOG_FILE" 2>&1 \
                     && log_success "Cortafuegos (ufw) activo: entrante denegado salvo SSH${SSH_PUERTO:+ (puerto $SSH_PUERTO)} y red local al frontend" \
                     || log_warning "No se pudo activar ufw"
             else
@@ -828,19 +920,88 @@ EOF
         fi
     fi
 
-    # 6) Permisos de los ficheros con secretos.
-    if [[ -f .env ]]; then
-        chmod 600 .env 2>/dev/null && log_success ".env solo legible por su propietario (600)" || true
-    fi
-    for SECRETO in data/secret.json data/vapid_private_key.pem; do
-        [[ -f "$SECRETO" ]] && chmod 600 "$SECRETO" 2>/dev/null || true
-    done
-    if [[ -d data ]] && [[ "$(stat -c %u data 2>/dev/null)" == "$(id -u)" ]]; then
-        chmod 750 data 2>/dev/null || true
-        ls data/*.db >/dev/null 2>&1 && chmod 640 data/*.db 2>/dev/null || true
+    # 6) Docker: sin privilegios nuevos por defecto, los contenedores sobreviven a un reinicio del
+    #    daemon (live-restore) y los logs rotan para todo contenedor. Se FUSIONA con el
+    #    daemon.json existente (solo se añaden las claves que faltan) y no se toca uno ilegible.
+    if check_cmd docker && check_cmd python3; then
+        DAEMON_JSON=/etc/docker/daemon.json
+        DAEMON_NUEVO="$(mktemp)"
+        if $SUDO cat "$DAEMON_JSON" 2>/dev/null | python3 -c '
+import json, sys
+texto = sys.stdin.read().strip()
+try:
+    d = json.loads(texto) if texto else {}
+except Exception:
+    sys.exit(3)
+d.setdefault("live-restore", True)
+d.setdefault("no-new-privileges", True)
+d.setdefault("log-driver", "json-file")
+opciones = d.setdefault("log-opts", {})
+opciones.setdefault("max-size", "10m")
+opciones.setdefault("max-file", "3")
+print(json.dumps(d, indent=2, sort_keys=True))
+' > "$DAEMON_NUEVO"; then
+            if [[ -f "$DAEMON_JSON" ]] && cmp -s "$DAEMON_NUEVO" "$DAEMON_JSON"; then
+                log_info "daemon.json de Docker ya endurecido"
+            else
+                if [[ -f "$DAEMON_JSON" ]]; then $SUDO cp "$DAEMON_JSON" "${DAEMON_JSON}.dreame.bak"; fi
+                $SUDO mkdir -p /etc/docker && $SUDO install -m 644 "$DAEMON_NUEVO" "$DAEMON_JSON"
+                if [[ -z "$(docker ps -q 2>/dev/null)" ]]; then
+                    $SUDO systemctl restart docker >> "$LOG_FILE" 2>&1 \
+                        && log_success "daemon.json de Docker endurecido (no-new-privileges, live-restore, logs rotados)" \
+                        || log_warning "daemon.json escrito pero Docker no reinició: revisa 'sudo journalctl -u docker'"
+                else
+                    # Hay contenedores en marcha: no se reinicia Docker ahora (cortaría el servicio).
+                    log_success "daemon.json de Docker endurecido; se aplicará la próxima vez que reinicie Docker o la Pi"
+                fi
+            fi
+        else
+            log_warning "/etc/docker/daemon.json no se pudo interpretar como JSON: no se toca"
+        fi
+        rm -f "$DAEMON_NUEVO"
     fi
 
-    # 7) Informe de lo que escucha en la red (lo que no debería estar ahí se ve aquí).
+    # 7) Servicios de red que un servidor sin escritorio no usa (impresión y RPC/NFS).
+    for SERVICIO in cups cups-browsed rpcbind; do
+        if systemctl is-enabled --quiet "$SERVICIO" 2>/dev/null; then
+            $SUDO systemctl disable --now "$SERVICIO" "${SERVICIO}.socket" >> "$LOG_FILE" 2>&1 \
+                && log_success "Servicio de red innecesario desactivado: $SERVICIO" || true
+        fi
+    done
+
+    # 8) Permisos de los ficheros con secretos.
+    ajustar_permisos_secretos
+    log_success ".env, claves y base de datos con permisos restringidos"
+
+    # 9) AVISOS (no se cambia nada: dependen del usuario).
+    #    - Contraseña por defecto del usuario `pi`.
+    if id pi >/dev/null 2>&1; then
+        HASH_PI="$($SUDO awk -F: '$1=="pi"{print $2}' /etc/shadow 2>/dev/null)"
+        if [[ "$HASH_PI" == \$* ]] && check_cmd python3; then
+            printf '%s' "$HASH_PI" | python3 -c '
+import sys
+try:
+    import crypt
+except ImportError:
+    sys.exit(2)
+h = sys.stdin.read()
+sys.exit(0 if crypt.crypt("raspberry", h) == h else 1)
+' 2>/dev/null
+            if [[ $? -eq 0 ]]; then
+                log_warning "El usuario 'pi' tiene la contraseña POR DEFECTO (raspberry): cualquiera en tu red entra por SSH. Cámbiala YA: passwd"
+            fi
+        fi
+    fi
+    #    - Quien está en el grupo docker equivale a root.
+    MIEMBROS_DOCKER="$(getent group docker 2>/dev/null | cut -d: -f4)"
+    if [[ -n "$MIEMBROS_DOCKER" ]]; then
+        log_info "Usuarios del grupo docker (equivale a ser root): $MIEMBROS_DOCKER"
+    fi
+    if $SUDO grep -rqsE '^[^#]*NOPASSWD' /etc/sudoers /etc/sudoers.d 2>/dev/null; then
+        log_info "Hay reglas sudo NOPASSWD (normal en Raspberry Pi OS): quien consiga una sesión de ese usuario tiene root sin contraseña."
+    fi
+
+    # 10) Informe de lo que escucha en la red (lo que no debería estar ahí se ve aquí).
     if check_cmd ss; then
         ABIERTOS="$(ss -ltnH 2>/dev/null | awk '{print $4}' | grep -vE '^(127\.|\[::1\]|::1)' | sed 's/.*://' | sort -un | tr '\n' ' ')"
         log_info "Puertos TCP escuchando fuera de loopback: ${ABIERTOS:-ninguno}"
@@ -942,6 +1103,11 @@ elif [[ $REINSTALL_MODE -eq 1 ]]; then
         RAMA_ACTUAL="$(git rev-parse --abbrev-ref HEAD)"
         log_warning "--reinstall: se descartará cualquier cambio local de código (git reset --hard)"
         run git fetch --all
+        # Firma del commit (opt-in: solo si existe el fichero de firmantes, ver scripts/verificar_firma.sh)
+        if [[ -f scripts/verificar_firma.sh ]] && ! bash scripts/verificar_firma.sh "origin/${RAMA_ACTUAL}"; then
+            log_error "Se aborta: el código a instalar no está firmado por un firmante de confianza."
+            exit 1
+        fi
         run git reset --hard "origin/${RAMA_ACTUAL}"
         log_success "Código reinstalado desde origin/${RAMA_ACTUAL} a $(git rev-parse --short HEAD)"
         # El git reset de arriba puede haber modificado este propio fichero:
@@ -966,6 +1132,12 @@ elif [[ $UPDATE_MODE -eq 1 ]]; then
         fi
         PREV_GIT_COMMIT="$(git rev-parse HEAD)"
         log_info "Commit actual (para rollback si algo falla): $PREV_GIT_COMMIT"
+        run git fetch origin
+        RAMA_SEGUIDA="$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null || echo origin/produccion)"
+        if [[ -f scripts/verificar_firma.sh ]] && ! bash scripts/verificar_firma.sh "$RAMA_SEGUIDA"; then
+            log_error "Se aborta: el código a instalar no está firmado por un firmante de confianza."
+            exit 1
+        fi
         run git pull --ff-only
         log_success "Código actualizado a $(git rev-parse --short HEAD)"
         # Mismo motivo que en --reinstall: garantizar que lo que sigue corre
@@ -1143,6 +1315,9 @@ step_end
 step_start "Validar configuración de Docker Compose"
 ################################################################################
 
+# .env ya existe: solo su propietario lo lee (lleva claves SMTP/OAuth/API).
+if [[ -f .env ]]; then chmod 600 .env 2>/dev/null || true; fi
+
 if ! "${COMPOSE[@]}" config -q 2>>"$LOG_FILE"; then
     log_error "docker-compose.yml (o el .env) no es válido:"
     tail -n 20 "$LOG_FILE"
@@ -1153,8 +1328,52 @@ log_success "docker-compose.yml válido"
 step_end
 
 ################################################################################
+step_start "Guardar las imágenes actuales (rollback)"
+################################################################################
+
+# Se hace ANTES del pull: con las imágenes precompiladas el build se omite, y el pull
+# pisaría :latest sin haber guardado nada (el rollback no tendría a qué volver).
+# Cada servicio se guarda como :rollback. Se recuerda también el pin de versión actual.
+PIN_PREVIO="$(env_previo STOCKHOGAR_IMAGE_TAG)"
+PIN_PREVIO_GUARDADO=1
+mapfile -t IMAGE_NAMES < <("${COMPOSE[@]}" config --images 2>/dev/null)
+IMAGE_NAMES_BACKED_UP=()
+for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
+    if "${DOCKER[@]}" image inspect "$IMAGE_NAME" &> /dev/null; then
+        CONTAINERS_TOUCHED=1
+        IMAGE_BASE="${IMAGE_NAME%:*}"
+        run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_BASE}:rollback"
+        IMAGE_NAMES_BACKED_UP+=("$IMAGE_NAME")
+        log_info "Imagen anterior guardada como ${IMAGE_BASE}:rollback"
+    fi
+done
+if [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -eq 0 ]]; then log_info "No hay imagen anterior que respaldar (primera instalación)"; fi
+
+step_end
+
+################################################################################
 step_start "Descargar imágenes precompiladas (GHCR)"
 ################################################################################
+
+# Despliegue por commit: docker-publish.yml etiqueta cada imagen con el commit exacto que pasó
+# el CI. Si las imágenes de ESTE commit ya existen en GHCR se fija STOCKHOGAR_IMAGE_TAG en .env
+# y el compose las usa (código e imagen de la misma versión; un :latest pisado no se cuela).
+# Si no se puede saber o aún no están, se usa :latest como siempre (nunca bloquea).
+if [[ "$BUILD_MODE" -ne 0 && "$REINSTALL_MODE" -eq 0 && ( "$ARCH" == "armv7l" || "$ARCH" == "armv6l" ) ]] \
+    && [[ -f scripts/imagen_publicada.sh ]] && COMMIT_DESPLIEGUE="$(git rev-parse HEAD 2>/dev/null)"; then
+    RC_PUBLICADA=0
+    bash scripts/imagen_publicada.sh "$COMMIT_DESPLIEGUE" >> "$LOG_FILE" 2>&1 || RC_PUBLICADA=$?
+    if [[ "$RC_PUBLICADA" -eq 0 ]]; then
+        fijar_env STOCKHOGAR_IMAGE_TAG "$COMMIT_DESPLIEGUE"
+        log_success "Imágenes fijadas al commit ${COMMIT_DESPLIEGUE:0:8}"
+    else
+        fijar_env STOCKHOGAR_IMAGE_TAG ""
+        log_info "Imágenes de este commit no confirmadas en GHCR (código $RC_PUBLICADA): se usa :latest"
+    fi
+else
+    # Compilar en local (o --reinstall / --no-build / otra arquitectura): sin pin
+    if [[ "$BUILD_MODE" -ne 0 ]]; then fijar_env STOCKHOGAR_IMAGE_TAG ""; fi
+fi
 
 # .github/workflows/docker-publish.yml compila armv7l en un runner de GitHub
 # (rápido, RAM de sobra) y publica en ghcr.io en cada push a "produccion". Si
@@ -1194,27 +1413,8 @@ if [[ "$BUILD_MODE" -eq 0 ]]; then
     [[ "$PULLED_INSTEAD_OF_BUILD" -eq 1 ]] && log_info "Ya se descargaron imágenes precompiladas: se omite la construcción" \
         || log_info "--no-build: se omite la construcción y se reutiliza la imagen actual"
 else
-    # Guardamos la imagen anterior de CADA servicio (backend y frontend) como
-    # :rollback para poder volver atrás si el arranque falla. Antes solo se
-    # respaldaba la primera imagen de la lista ("head -1"): si luego fallaba
-    # el build de la otra, esa quedaba sin respaldo y el rollback la dejaba
-    # con la versión nueva (rota) en vez de revertirla también.
-    mapfile -t IMAGE_NAMES < <("${COMPOSE[@]}" config --images 2>/dev/null)
-    IMAGE_NAMES_BACKED_UP=()
-    if [[ "${#IMAGE_NAMES[@]}" -eq 0 ]]; then
-        log_info "No hay imagen anterior que respaldar (primera instalación)"
-    else
-        for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
-            if "${DOCKER[@]}" image inspect "$IMAGE_NAME" &> /dev/null; then
-                CONTAINERS_TOUCHED=1
-                IMAGE_BASE="${IMAGE_NAME%:*}"
-                run "${DOCKER[@]}" tag "$IMAGE_NAME" "${IMAGE_BASE}:rollback"
-                IMAGE_NAMES_BACKED_UP+=("$IMAGE_NAME")
-                log_info "Imagen anterior guardada como ${IMAGE_BASE}:rollback"
-            fi
-        done
-        [[ "${#IMAGE_NAMES_BACKED_UP[@]}" -eq 0 ]] && log_info "No hay imagen anterior que respaldar (primera instalación)"
-    fi
+    # (La imagen anterior de cada servicio ya se guardó como :rollback en el paso
+    # "Guardar las imágenes actuales", antes del pull.)
 
     # Limpieza automática ANTES de compilar (imágenes huérfanas de builds
     # previos: "docker system prune -f" nunca borra imágenes con tag -incluida
@@ -1388,7 +1588,7 @@ step_start "Configurar auto-actualización"
 # --update` cuando hay commits nuevos. Solo tiene sentido en la rama
 # "produccion" (que es la que auto_update.sh vigila); en otras ramas se avisa
 # y se omite para no dejar un cron que nunca hará nada.
-CRON_LINE="*/5 * * * * $SCRIPT_DIR/scripts/auto_update.sh >> $SCRIPT_DIR/logs/auto_update.log 2>&1"
+CRON_LINE="*/5 * * * * '$SCRIPT_DIR/scripts/auto_update.sh' >> '$SCRIPT_DIR/logs/auto_update.log' 2>&1"
 if [[ -d .git ]] && [[ "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" == "produccion" ]]; then
     if check_cmd crontab; then
         if crontab -l 2>/dev/null | grep -qF "scripts/auto_update.sh"; then
@@ -1446,6 +1646,10 @@ step_end
 ################################################################################
 step_start "Resumen"
 ################################################################################
+
+# En la primera instalación el paso de seguridad corrió ANTES de que existieran .env y data/:
+# se repite ahora que ya están, con los contenedores arrancados (los ficheros que crean ellos).
+if [[ "${DREAME_ENDURECER_SISTEMA:-1}" != "0" ]]; then ajustar_permisos_secretos; fi
 
 IP_ADDRESS="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 IP_ADDRESS="${IP_ADDRESS:-localhost}"
