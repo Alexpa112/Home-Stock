@@ -2,9 +2,9 @@ name: Docker build
 
 on:
   push:
-    branches: [dev2, produccion, main]
+    branches: [dev2, produccion]
   pull_request:
-    branches: [dev2, produccion, main]
+    branches: [dev2, produccion]
 
 # M-21: declarar permisos explícitos. Este workflow solo lee contenido.
 permissions:

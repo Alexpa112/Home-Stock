@@ -2,9 +2,9 @@ name: CI (tests y seguridad)
 
 on:
   push:
-    branches: [dev2, produccion, main]
+    branches: [dev2, produccion]
   pull_request:
-    branches: [dev2, produccion, main]
+    branches: [dev2, produccion]
 
 # M-21: declarar permisos explícitos en vez de heredar los del repo.
 # gitleaks-action solo necesita lectura de contenido; los demás jobs no
