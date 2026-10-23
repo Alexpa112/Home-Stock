@@ -702,7 +702,7 @@ else
     fi
     if [[ "$SSH_ACTIVO" -eq 1 ]]; then SSH_PUERTO="${SSH_PUERTO:-22}"; fi
     # IP desde la que se instala (si es por SSH): fail2ban no debe bloquearla.
-    CLIENTE_SSH="${SSH_CONNECTION%% *}"
+    CLIENTE_SSH="${SSH_CONNECTION:-}"; CLIENTE_SSH="${CLIENTE_SSH%% *}"
 
     PAQUETES_SEGURIDAD=()
     check_cmd ufw || PAQUETES_SEGURIDAD+=(ufw)
