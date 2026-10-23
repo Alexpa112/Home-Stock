@@ -72,6 +72,11 @@ class SshYFirewallTests(unittest.TestCase):
         cls.install = _leer("install.sh")
         cls.paso = _paso(cls.install, "Reforzar la seguridad del sistema", "Detectar Docker Compose")
 
+    def test_no_usa_variables_de_entorno_sin_valor_por_defecto(self):
+        # install.sh corre con `set -u` y el cron no define SSH_CONNECTION: sin ":-" aborta el paso
+        self.assertNotIn("${SSH_CONNECTION%%", self.paso)
+        self.assertIn('${SSH_CONNECTION:-}', self.paso)
+
     def test_el_ssh_va_en_un_fichero_que_sshd_lee_primero(self):
         self.assertIn("sshd_config.d/00-dreame.conf", self.paso)
         # migra el nombre antiguo (99-) para que no quede un fichero que ya no se mantiene
