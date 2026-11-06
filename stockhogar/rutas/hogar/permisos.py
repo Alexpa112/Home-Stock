@@ -253,6 +253,18 @@ def generar_enlace_compartible(hogar_id):
         (hogar_id,)
     ).fetchone()
 
+    # Misma cuota diaria que /compartir (S-21): tambien inserta en
+    # invitaciones_hogar, asi que sin este limite quedaba fuera del tope de
+    # invitaciones diarias por hogar (generar enlaces sin fin desde una
+    # cuenta de propietario comprometida).
+    inicio_de_hoy = datetime.now().date().isoformat()
+    invitaciones_hoy = db.execute(
+        "SELECT COUNT(*) AS n FROM invitaciones_hogar WHERE hogar_id = ? AND fecha_creacion >= ?",
+        (hogar_id, inicio_de_hoy),
+    ).fetchone()["n"]
+    if invitaciones_hoy >= LIMITE_INVITACIONES_DIARIO_POR_HOGAR:
+        return APIResponse.error("err_limite_invitaciones_diario", 429)
+
     # Generar código
     codigo = secrets.token_urlsafe(24)
     fecha_expiracion = (datetime.now() + timedelta(days=30)).isoformat(timespec="seconds")

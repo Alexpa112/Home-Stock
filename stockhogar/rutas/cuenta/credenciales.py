@@ -8,7 +8,8 @@ from werkzeug.security import generate_password_hash
 from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, texto_json
 from ...config import LONGITUD_PASSWORD_MINIMA
 from ...db import get_db
-from ...nucleo.red import ip_cliente, limite_por_ip
+from ...nucleo.red import ip_cliente
+from ...nucleo.limite_persistido import superado as limite_persistido_superado
 from ...servicios.cuenta import auditoria
 from ...servicios.cuenta.email_service import EmailService
 from ...servicios.cuenta.password_pwned import es_password_filtrada
@@ -144,7 +145,11 @@ def solicitar_reset_password():
     principio anti-enumeracion), y solo envia email si existe y tiene un
     email verificado."""
     ip = ip_cliente()
-    if limite_por_ip(f"reset_password:{ip}", 5, 60 * 60):
+    # Persistido en SQLite (no en memoria del proceso): con gunicorn
+    # --workers 2 un contador en memoria da hasta 2x el limite nominal, ya
+    # que cada worker llevaba el suyo (mismo problema ya corregido en
+    # intentos_login.py para el login).
+    if limite_persistido_superado(f"reset_password:{ip}", 5, 60 * 60):
         return APIResponse.error("err_demasiadas_peticiones", 429)
 
     datos = cuerpo_json()

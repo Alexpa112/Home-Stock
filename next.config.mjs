@@ -72,8 +72,12 @@ const nextConfig = {
             // Solo tiene efecto cuando se sirve por HTTPS (el tunel de
             // Cloudflare hace la terminacion TLS); en HTTP local el
             // navegador la ignora, así que es seguro tenerla siempre.
+            // "preload" por si se decide enviar el dominio a la lista de
+            // precarga de hstspreload.org (paso manual aparte, no hecho
+            // aqui): protege tambien la primera visita por HTTP, antes de
+            // que el navegador haya visto esta cabecera alguna vez.
             key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains',
+            value: 'max-age=63072000; includeSubDomains; preload',
           },
           // Content-Security-Policy (S-12): se fija por peticion desde
           // middleware.ts, no aqui. Un fichero de configuracion estatico
