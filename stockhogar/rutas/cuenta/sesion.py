@@ -11,7 +11,8 @@ from ...api import APIResponse, manejo_errores, requerir_sesion, cuerpo_json, te
 from ...api.base import revocar_sesion_actual
 from ...config import LONGITUD_PASSWORD_MINIMA, REGISTRO_ABIERTO, VERSION_TERMINOS
 from ...db import ahora, get_db
-from ...nucleo.red import ip_cliente, limite_por_ip
+from ...nucleo.red import ip_cliente
+from ...nucleo.limite_persistido import superado as limite_persistido_superado
 from ...servicios.cuenta import auditoria, intentos_login
 from ...servicios.cuenta.password_pwned import es_password_filtrada
 from ...utils import Validator, ValidationError
@@ -89,8 +90,11 @@ def registrar():
     nombre_usuario = Validator.string_requerido(datos.get("usuario"), "usuario", 50)
     password = texto_json(datos, "password", recortar=False)
 
-    # Sin limite se podian crear cuentas a miles (cada una cuesta un hash scrypt).
-    if limite_por_ip(f"registro:{ip_cliente()}", 10, 60 * 60):
+    # Sin limite se podian crear cuentas a miles (cada una cuesta un hash
+    # scrypt). Persistido en SQLite: con gunicorn --workers 2 un contador en
+    # memoria del proceso da hasta 2x el limite nominal (mismo problema ya
+    # corregido en intentos_login.py para el login).
+    if limite_persistido_superado(f"registro:{ip_cliente()}", 10, 60 * 60):
         return APIResponse.error("err_demasiados_intentos_login", 429)
 
     if len(password) < LONGITUD_PASSWORD_MINIMA:

@@ -120,8 +120,12 @@ def oauth_google_callback():
                         "UPDATE usuarios SET email = NULL WHERE LOWER(email) = LOWER(?) AND email_verificado = 0",
                         (email,)
                     )
-                # Crear nuevo usuario
-                nombre_usuario = email.split("@")[0]
+                # Crear nuevo usuario. nombre_usuario sale del email, que no
+                # pasa por Validator.string_requerido (longitud/caracteres)
+                # como en el registro normal: se acota aqui al mismo limite
+                # (50) para no crear filas que luego fallen validaciones en
+                # otros sitios que si asumen ese formato.
+                nombre_usuario = email.split("@")[0].strip()[:50] or "usuario"
                 # Asegurar nombre único
                 contador = 1
                 nombre_base = nombre_usuario
