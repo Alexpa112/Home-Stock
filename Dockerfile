@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=5000
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils libheif-examples curl \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils libheif-examples curl zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
