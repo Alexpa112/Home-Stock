@@ -15,6 +15,10 @@ from ..translator import traducir
 from ..utils import DataConverter, Validator
 
 
+# Tope de categorias creadas por usuarios en cada catalogo (compartido entre hogares).
+MAX_CATEGORIAS_PERSONALIZADAS = 200
+
+
 @dataclass(frozen=True)
 class CatalogoCategorias:
     tabla: str                 # "categorias" | "categorias_gasto"
@@ -43,6 +47,12 @@ class CatalogoCategorias:
             f"SELECT id FROM {self.tabla} WHERE LOWER(nombre) = LOWER(?)", (nombre,)  # nosec B608
         ).fetchone():
             return APIResponse.error("err_categoria_duplicada", 400)
+
+        # Catalogo compartido por todos los hogares: sin tope, un solo usuario con permiso de edicion
+        # podria llenarlo de basura que ven todos. El tope cuenta solo las categorias creadas por usuarios.
+        total = db.execute(f"SELECT COUNT(*) AS n FROM {self.tabla}").fetchone()["n"]  # nosec B608
+        if total - len(self.de_serie) >= MAX_CATEGORIAS_PERSONALIZADAS:
+            return APIResponse.error("err_demasiadas_categorias", 400)
 
         nueva_id = db.execute(
             f"INSERT INTO {self.tabla} (nombre, icono) VALUES (?, ?) RETURNING id", (nombre, icono)  # nosec B608
