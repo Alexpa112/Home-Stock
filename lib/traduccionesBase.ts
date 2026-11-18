@@ -334,6 +334,7 @@ const TRADUCCIONES_BASE: Record<string, string> = {
   "err_crear_categoria": "Error al crear la categoría",
   "err_credenciales_incorrectas": "Usuario o contraseña incorrectos",
   "err_debe_aceptar_terminos": "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar",
+  "err_demasiadas_categorias": "Hay demasiadas categorías creadas; borra alguna que no uses",
   "err_demasiadas_peticiones": "Demasiadas peticiones. Espera un momento antes de volver a intentarlo.",
   "err_demasiados_intentos_2fa": "Demasiados intentos con el código. Prueba de nuevo más tarde",
   "err_demasiados_intentos_login": "Demasiados intentos fallidos. Espera unos minutos antes de volver a intentarlo.",
